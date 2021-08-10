@@ -38,13 +38,19 @@ This contract has to be initialized by the following parameters:
 
 These parameters are stored in this contract. The `appchain state` is set to `staging`.
 
-### Register appchain native token
+### Stage code of appchain native token contract
 
 This action needs the following parameters:
 
-* `native_token_contract`: The account id of appchain native token contract.
+* `code`: The wasm code of native token contract of the appchain.
 
-The `native_token_contract` is stored in this contract.
+Qualification of this action:
+
+* The `appchain state` must be `staging`.
+
+The `code` is stored in this contract, it is used when [Go booting](#go-booting).
+
+> Octopus Network provides [a standard implementation](https://github.com/octopus-network/appchain-native-token) of appchain native token contact.
 
 ### Callback function 'ft_on_transfer'
 
@@ -56,9 +62,9 @@ The callback function `ft_on_transfer` needs the following parameters:
 * `amount`: The amount of the transfer.
 * `msg`: The message attached to the transfer, which indicates the purpose of the deposit.
 
-If the caller of this callback (`env::predecessor_account_id()`) is `oct_token_contract` which initialized at construction time of this contract, perform [Confirm and record OCT token deposit](#confirm-and-record-oct-token-deposit).
+If the caller of this callback (`env::predecessor_account_id()`) is `oct_token_contract` which is initialized at construction time of this contract, perform [Confirm and record OCT token deposit](#confirm-and-record-oct-token-deposit).
 
-If the caller of this callback (`env::predecessor_account_id()`) is `native_token_contract` which is set by [Register appchain native token](#register-appchain-native-token), perform [Confirm and record appchain native token deposit](#confirm-and-record-appchain-native-token-deposit).
+If the caller of this callback (`env::predecessor_account_id()`) is `native_token_contract` which is set when [Go booting](#go-booting), perform [Confirm and record appchain native token deposit](#confirm-and-record-appchain-native-token-deposit).
 
 Otherwise, throws an error.
 
@@ -67,22 +73,22 @@ Otherwise, throws an error.
 This action will parse parameter `msg` of callback function `ft_on_transfer` and perform additional operations related to the deposit. The `msg` can be one of the following patterns:
 
 * `register validator`:
-  * The `appchain state` of the appchain corresponding to `appchain_id` must not be `broken` or `dead`. Otherwise, the deposit will be considered as `invalid deposit`.
+  * The `appchain state` must not be `broken` or `dead`. Otherwise, the deposit will be considered as `invalid deposit`.
   * The amount of deposit must not be less than `minimum validator deposit`. Otherwise, the deposit will be considered as `invalid deposit`.
   * Register `sender_id` as a `validator` of this appchain. The `staked balance` of `sender_id` is set to `amount`.
   * Generate log: `Validator <sender_id> is registered with <amount> staked.`
 * `raise staking`:
-  * The `appchain state` of the appchain corresponding to `appchain_id` must not be `broken` or `dead`. Otherwise, the deposit will be considered as `invalid deposit`.
+  * The `appchain state` must not be `broken` or `dead`. Otherwise, the deposit will be considered as `invalid deposit`.
   * If the `sender_id` is not a `validator` of this appchain, the deposit will be considered as `invalid deposit`.
   * Add the `amount` to the `staked balance` of `sender_id`.
   * Generate log: `Staked balance of validator <sender_id> raised by <amount>.`
 * `register delegator of <account_id>`:
-  * The `appchain state` of the appchain corresponding to `appchain_id` must not be `broken` or `dead`. Otherwise, the deposit will be considered as `invalid deposit`.
+  * The `appchain state` must not be `broken` or `dead`. Otherwise, the deposit will be considered as `invalid deposit`.
   * If the `account_id` is not a `validator` of this appchain, the deposit will be considered as `invalid deposit`.
   * Register `sender_id` as a `delegator` of `validator` corresponding to `account_id`. The `delegated balace` of `sender_id` of validator `account_id` is set to `amount`.
   * Generate log: `Delegator <sender_id> of validator <account_id> is registered with <amount> delegated.`
 * `raise delegating to <account_id>`:
-  * The `appchain state` of the appchain corresponding to `appchain_id` must not be `broken` or `dead`. Otherwise, the deposit will be considered as `invalid deposit`.
+  * The `appchain state` must not be `broken` or `dead`. Otherwise, the deposit will be considered as `invalid deposit`.
   * If the `sender_id` is not a `delegator` of this appchain, the deposit will be considered as `invalid deposit`.
   * Add the `amount` to the `delegated balance` of `sender_id` of validator `account_id`.
   * Generate log: `The delegated balance of delegator <sender_id> of validator <account_id> raised by <amount>.`
@@ -94,5 +100,9 @@ For `invalid deposit` case, this contract will store the amount of the deposit t
 This action should generate log: `Received invalid deposit <amount> from <sender_id>.`
 
 ### Confirm and record appchain native token deposit
+
+TBD
+
+### Go booting
 
 TBD
