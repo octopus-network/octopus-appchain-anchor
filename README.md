@@ -29,11 +29,11 @@ Each appchain of Octopus Network will be bound to an instance of this contract, 
   * `active`: The state which this contract is bridging the `bridge token` to the appchain.
   * `closed`: The state which this contract has stopped bridging the `bridge token` to the appchain.
 * `locked balance`: The locked balance of a certain `bridge token` in this contract.
-* `appchain native token`: The token issued natively in the appchain.
-* `appchain fact`: The fact which happens in the appchain or the changes of validators and delegators happens in this contract. There are three types of `appchain fact`:
+* `appchain native token`: The token issued natively on the appchain.
+* `appchain fact`: The fact which happens on the appchain or the changes of validators and delegators happens in this contract. There are three types of `appchain fact`:
   * `update validator set`: The fact that the validaors and delegators changes.
-  * `burn asset`: The fact that a certain amount of `bridge token` has been burnt in the appchain.
-  * `lock`: The fact that a certain amount of `appchain native token` has been locked in the appchain.
+  * `burn asset`: The fact that a certain amount of `bridge token` has been burnt on the appchain.
+  * `lock`: The fact that a certain amount of `appchain native token` has been locked on the appchain.
 
 ### Cross chain transfer in this contract
 
@@ -172,7 +172,7 @@ Qualification of this action:
 
 The `appchain state` is set to `booting`.
 
-Store currently registered validators and delegators as the first `appchain fact` with type `update validator set` in this contract.
+Store currently registered validators and delegators as `appchain fact` with type `update validator set` in this contract.
 
 Deploy and initialize the contract of `appchain native token`:
 
@@ -251,23 +251,26 @@ Decode `encoded_messages`, the real message will be one of the following:
 
 This action needs the following parameters:
 
-* `receiver_id`: The account id of receiver of minting token.
+* `receiver_id`: The account id of receiver of minting token on NEAR protocol.
 * `amount`: The amount of appchain native token to mint.
 
 Qualification of this action:
 
 * This action can ONLY be performed inside this contract.
 
-Call function `mint` of the contract in account `token.<account id of this contract>` with above parameters.
+Call function `mint` of the contract in account `token.<account id of this contract>` with above parameters. Then generate log based on the promise result:
 
-Generate log: `<appchain_id> native token minted to <receiver_id>. Amount: <amount>`
+* If success, generate: `<appchain_id> native token minted to <receiver_id>. Amount: <amount>`
+* If fail, generate: `Failed to mint <appchain_id> native token to <receiver_id>. Amount: <amount>`
+
+Store an `appchain fact` with type `lock` in this contract.
 
 ### Unlock a certain amount of a bridge token
 
 This action needs the following parameters:
 
 * `symbol`: The symbol of a bridge token.
-* `receiver_id`: The account id of receiver in NEAR protocol for `bridge token` which will be unlocked.
+* `receiver_id`: The account id of receiver on NEAR protocol for `bridge token` which will be unlocked.
 * `amount`: The amount of `bridge token` to unlock.
 
 Qualification of this action:
@@ -276,16 +279,34 @@ Qualification of this action:
 * The `symbol` must be the symbol of a registered `bridge token`.
 * The `amount` must be less or equal to the `locked balance` of the `bridge token` corresponding to `symbol`.
 
-Call function `ft_transfer` of `contract_account` of the `bridge token` with parameters `receiver_id` and `amount`.
+Reduce `amount` from `locked balance` of the `bridge token`, call function `ft_transfer` of `contract_account` of the `bridge token` with parameters `receiver_id` and `amount`. Then generate log based on the promise result:
 
-Generate log: `Token <symbol> unlocked and transfered to <receiver_id>. Amount: <amount>`
+* If success, generate: `Token <symbol> unlocked and transfered to <receiver_id>. Amount: <amount>`
+* If fail, generate: `Failed to unlock and transfer token <symbol> to <receiver_id>. Amount: <amount>`
+
+Store an `appchain fact` with type `burn asset` in this contract.
 
 ### Burn appchain native token
 
 This action needs the following parameters:
 
+* `receiver_id`: The account id of receiver on the appchain. The receiver should receive a certain amount (which is equals to `amount`) of appchain native token.
 * `amount`: The amount of appchain native token to burn.
 
-Call function `burn` of the contract in account `token.<account id of this contract>` with above parameters.
+Call function `burn` of the contract in account `token.<account id of this contract>` with `sender` and `amount`. Then generate log based on the promise result:
 
-Generate log: `<appchain_id> native token burnt by <sender_id>. Amount: <amount>`
+* If success, generate: `<appchain_id> native token burnt by <sender_id>. Appchain receiver: <receiver_id>, Amount: <amount>`
+* If fail, generate: `Failed to burn <appchain_id> native token from <sender_id>. Amount: <amount>`
+
+### Go live
+
+Qualification of this action:
+
+* The `sender` must be the `owner`.
+* The `appchain state` must be `booting`.
+
+The `appchain state` is set to `active`.
+
+Store currently registered validators and delegators as `appchain fact` with type `update validator set` in this contract.
+
+Sync `appchain state` to `appchain registry`.
