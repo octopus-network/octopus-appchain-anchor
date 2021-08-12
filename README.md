@@ -28,10 +28,23 @@ Each appchain of Octopus Network will be bound to an instance of this contract, 
 * `bridge token`: A token which is lived in NEAR protocol. It should be a NEP-141 compatible contract. This contract can bridge it to the appchain which is bound to this contract. The `bridging state` is one of the following:
   * `active`: The state which this contract is bridging the `bridge token` to the appchain.
   * `closed`: The state which this contract has stopped bridging the `bridge token` to the appchain.
+* `locked balance`: The locked balance of a certain `bridge token` in this contract.
+* `appchain native token`: The token issued natively in the appchain.
 * `appchain fact`: The fact which happens in the appchain or the changes of validators and delegators happens in this contract. There are three types of `appchain fact`:
   * `update validator set`: The fact that the validaors and delegators changes.
-  * `lock asset`: The fact that a certain amount of appchain native token locked in the appchain.
-  * `burn`: The fact that a certain amount of appchain native token burnt in the appchain.
+  * `burn asset`: The fact that a certain amount of `bridge token` has been burnt in the appchain.
+  * `lock`: The fact that a certain amount of `appchain native token` has been locked in the appchain.
+
+### Cross chain transfer in this contract
+
+There are 2 kinds of cross chain transfer in this contract:
+
+* appchain native token transfer between appchain and NEAR
+  * appchain:lock -> appchain-native-token-contract@near:mint
+  * appchain-native-token-contract@near:burn -> appchain:unlock
+* NEP141 asset (token) transfer between NEAR and appchain
+  * bridge-token-contract@near:lock_asset -> appchain:mint_asset
+  * appchain:burn_asset -> bridge-token-contract@near:unlock_asset
 
 ## Implementation details
 
@@ -105,20 +118,20 @@ The `bridging state` of the given `bridge token` is set to `closed`.
 
 This action needs the following parameters:
 
-* `name`: The name of appchain native token.
-* `symbol`: The symbol of appchain native token.
-* `decimals`: The decimals of appchain native token.
-* `spec`: The specification of appchain native token.
-* `icon`: (Optional) The data of icon file of appchain native token.
-* `reference`: (Optional) The reference data of appchain native token.
-* `reference_hash`: (Optional) The hash of reference data of appchain native token.
+* `name`: The name of `appchain native token`.
+* `symbol`: The symbol of `appchain native token`.
+* `decimals`: The decimals of `appchain native token`.
+* `spec`: The specification of `appchain native token`.
+* `icon`: (Optional) The data of icon file of `appchain native token`.
+* `reference`: (Optional) The reference data of `appchain native token`.
+* `reference_hash`: (Optional) The hash of reference data of `appchain native token`.
 
 Qualification of this action:
 
 * The `sender` must be the `owner`.
 * The `appchain state` must be `staging`.
 
-These parameters are stored in this contract as the metadata of appchain native token. These are used when [Go booting](#go-booting).
+These parameters are stored in this contract as the metadata of `appchain native token`. These are used when [Go booting](#go-booting).
 
 ### Stage code of appchain native token contract
 
@@ -133,13 +146,13 @@ Qualification of this action:
 
 The `code` is stored in this contract, it is used when [Go booting](#go-booting).
 
-> Octopus Network provides [a standard implementation](https://github.com/octopus-network/appchain-native-token) of appchain native token contact.
+> Octopus Network provides [a standard implementation](https://github.com/octopus-network/appchain-native-token) of `appchain native token` contact.
 
 ### Set price of appchain native token
 
 This action needs the following parameters:
 
-* `price`: The price of the appchain native token.
+* `price`: The price of the `appchain native token`.
 
 Qualification of this action:
 
@@ -154,18 +167,22 @@ Qualification of this action:
 
 * The `sender` must be the `owner`.
 * The `appchain state` must be `staging`.
-* The metadata of appchain native token has already set by [Set metadata of appchain native token](#set-metadata-of-appchain-native-token).
-* The code of appchain native token contract has already staged by [Stage code of appchain natvie token contract](#stage-code-of-appchain-native-token-contract).
+* The metadata of `appchain native token` has already been set by [Set metadata of appchain native token](#set-metadata-of-appchain-native-token).
+* The code of contract of `appchain native token` has already been staged by [Stage code of appchain natvie token contract](#stage-code-of-appchain-native-token-contract).
 
 The `appchain state` is set to `booting`.
 
 Store currently registered validators and delegators as the first `appchain fact` with type `update validator set` in this contract.
 
-Deploy and initialize the contract of appchain native token:
+Deploy and initialize the contract of `appchain native token`:
 
-* Deploy the code of appchain native token contract to account `token.<account id of this contract>`.
+* Create subaccount `token.<account id of this contract>`.
+* Transfer a certain amount of NEAR token to account `token.<account id of this contract>` for storage deposit.
+* Deploy the code of contract of `appchain native token` to account `token.<account id of this contract>`.
 * Create a new full access key of the deployed contract for this contract.
-* Call function `new` of the deployed contract with the metadata of appchain native token stored in this contract.
+* Call function `new` of the deployed contract with the metadata of `appchain native token` stored in this contract.
+
+Sync `appchain state` to `appchain registry`.
 
 ### Callback function 'ft_on_transfer'
 
@@ -177,17 +194,7 @@ The callback function `ft_on_transfer` needs the following parameters:
 * `amount`: The amount of the transfer.
 * `msg`: The message attached to the transfer, which indicates the purpose of the deposit.
 
-If the caller of this callback (`env::predecessor_account_id()`) is `oct_token_contract` which is initialized at construction time of this contract, perform [Confirm and record OCT token deposit](#confirm-and-record-oct-token-deposit).
-
-If the caller of this callback (`env::predecessor_account_id()`) is `token.<account id of this contract>` which is set when [Go booting](#go-booting), perform [Bridge appchain native token to appchain](#bridge-appchain-native-token-to-appchain).
-
-If the caller of this callback (`env::predecessor_account_id()`) is `contract_account` of a `bridge token` registered in this contract, perform [Bridge NEAR native token to appchain](#bridge-near-native-token-to-appchain).
-
-Otherwise, throws an error.
-
-### Confirm and record OCT token deposit
-
-This action will parse parameter `msg` of callback function `ft_on_transfer` and perform additional operations related to the deposit. The `msg` can be one of the following patterns:
+If the caller of this callback (`env::predecessor_account_id()`) is `oct_token_contract` which is initialized at construction time of this contract, match `msg` with the following patterns:
 
 * `register validator`:
   * The `appchain state` must not be `broken` or `dead`. Otherwise, the deposit will be considered as `invalid deposit`.
@@ -212,26 +219,73 @@ This action will parse parameter `msg` of callback function `ft_on_transfer` and
 * other cases:
   * The deposit will be considered as `invalid deposit`.
 
-For `invalid deposit` case, this contract will store the amount of the deposit to `invalid deposit` of `sender_id`, and generate log: `Received invalid deposit <amount> from <sender_id>.`
-
-### Bridge appchain native token to appchain
-
-This action will parse parameter `msg` of callback function `ft_on_transfer` and perform additional operations related to the deposit. The `msg` can be one of the following patterns:
+If the caller of this callback (`env::predecessor_account_id()`) is `contract_account` of a `bridge token` registered in this contract, match `msg` with the following patterns:
 
 * `bridge to <account_id>`:
-  * Generate log: `<appchain_id> native token from <sender_id> locked. Target: <account_id>, Amount: <amount>`
+  * Add `amount` to `locked balance` of the `bridge token` corresponding to the caller of this callback.
+  * Generate log: `Token <symbol of bridge token> from <sender_id> locked. Target: <receiver_id>, Amount: <amount>`
 * other cases:
   * The deposit will be considered as `invalid deposit`.
 
-For `invalid deposit` case, this contract will store the amount of the deposit to `invalid deposit` of `sender_id`, and generate log: `Invalid deposit of <appchain_id> native token from <sender_id> received. Amount: <amount>`
+If the caller of this callback (`env::predecessor_account_id()`) is neither `oct_token_contract` nor `contract_account` of a `bridge token`, throws an error.
 
-### Bridge NEAR native token to appchain
+For `invalid deposit` case, this contract will store the amount of the deposit to `invalid deposit` of `sender_id`, and generate log: `Received invalid deposit of token <symbol of token> from <sender_id>. Amount: <amount>`
 
-This action will get the `bridge token` corresponding to the account id of caller (`env::predecessor_account_id()`). And then parse parameter `msg` of callback function `ft_on_transfer` and perform additional operations related to the deposit. The `msg` can be one of the following patterns:
+### Bridge appchain native token from appchain to its NEAR contract
 
-* `bridge to <account_id>`:
-  * Generate log: `<bridge token> from <sender_id> locked. Target: <account_id>, Amount: <amount>`
-* other cases:
-  * The deposit will be considered as `invalid deposit`.
+This action needs the following parameters:
 
-For `invalid deposit` case, this contract will store the amount of the deposit to `invalid deposit` of `sender_id`, and generate log: `Invalid deposit of <bridge token> from <sender_id> received. Amount: <amount>`
+* `encoded_messages`: The encoded fact data submitted by `octopus relayer`.
+* `header_partial`: ?
+* `leaf_proof`: ?
+* `mmr_root`: ?
+
+This action will verify the parameters by rule of light client of the appchain. If fail, throws an error.
+
+Decode `encoded_messages`, the real message will be one of the following:
+
+* `Lock`: Which indicate that the appchain has locked a certain amount of `appchain native token`. Perform [Mint appchain native token](#mint-appchain-native-token).
+* `BurnAsset`: Which indicate that the appchain has burnt a certain amount of `bridge token`. Perform [Unlock a certain amount of a bridge token](#unlock-a-certain-amount-of-a-bridge-token).
+
+### Mint appchain native token
+
+This action needs the following parameters:
+
+* `receiver_id`: The account id of receiver of minting token.
+* `amount`: The amount of appchain native token to mint.
+
+Qualification of this action:
+
+* This action can ONLY be performed inside this contract.
+
+Call function `mint` of the contract in account `token.<account id of this contract>` with above parameters.
+
+Generate log: `<appchain_id> native token minted to <receiver_id>. Amount: <amount>`
+
+### Unlock a certain amount of a bridge token
+
+This action needs the following parameters:
+
+* `symbol`: The symbol of a bridge token.
+* `receiver_id`: The account id of receiver in NEAR protocol for `bridge token` which will be unlocked.
+* `amount`: The amount of `bridge token` to unlock.
+
+Qualification of this action:
+
+* This action can ONLY be performed inside this contract.
+* The `symbol` must be the symbol of a registered `bridge token`.
+* The `amount` must be less or equal to the `locked balance` of the `bridge token` corresponding to `symbol`.
+
+Call function `ft_transfer` of `contract_account` of the `bridge token` with parameters `receiver_id` and `amount`.
+
+Generate log: `Token <symbol> unlocked and transfered to <receiver_id>. Amount: <amount>`
+
+### Burn appchain native token
+
+This action needs the following parameters:
+
+* `amount`: The amount of appchain native token to burn.
+
+Call function `burn` of the contract in account `token.<account id of this contract>` with above parameters.
+
+Generate log: `<appchain_id> native token burnt by <sender_id>. Amount: <amount>`
