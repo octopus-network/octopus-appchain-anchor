@@ -229,7 +229,51 @@ If the caller of this callback (`env::predecessor_account_id()`) is `contract_ac
 
 If the caller of this callback (`env::predecessor_account_id()`) is neither `oct_token_contract` nor `contract_account` of a `bridge token`, throws an error.
 
-For `invalid deposit` case, this contract will store the amount of the deposit to `invalid deposit` of `sender_id`, and generate log: `Received invalid deposit of token <symbol of token> from <sender_id>. Amount: <amount>`
+For `invalid deposit` case, this contract will add `amount` to `invalid deposit` of `sender_id` corresponding to the certain token (OCT token or any registered `bridge token`), and generate log: `Received invalid deposit of token <symbol of token> from <sender_id>. Amount: <amount>`
+
+### Withdraw staking
+
+This action needs the following parameters:
+
+* `amount`: The amount of to withdraw.
+
+Qualification of this action:
+
+* The `sender` must be one of the registered `validator`.
+* The `amount` must not be larger than `staked balacne` of `sender`.
+
+Reduce `amount` from `staked balance` of `sender`. If `staked balance` goes to zero, remove `sender` from validator set.
+
+Generate log: `Staking balance of <sender> reduced by <amount>.` If `staked balance` goes to zero, append `(<sender> is not a validator any more.)` to the log.
+
+### Withdraw delegating
+
+This action needs the following parameters:
+
+* `validator_id`: The account id of a certain `validator`.
+* `amount`: The amount of to withdraw.
+
+Qualification of this action:
+
+* The `sender` must be one of the registered `delegator`.
+* The `validator_id` must be one of the registered `validator` which the `sender` is delegated to.
+* The `amount` must not be larger than `delegated balacne` of `sender`.
+
+Reduce `amount` from `dalegated balance` of `sender`. If `delegated balance` goes to zero, remove `sender` from delegator set of `validator_id`.
+
+Generate log: `Delegating balance of <sender> of <validator_id> reduced by <amount>.` If `delegated balance` goes to zero, append `(<sender> is not a delegator of <validator_id> any more.)` to the log.
+
+### Withdraw invalid deposit
+
+This action needs the following parameters:
+
+* `token_symbol`: The symbol of token to withdraw.
+
+Qualification of this action:
+
+* The `invalid deposit` of `sender` corresponding to the token with `token_symbol` is non-zero.
+
+Call function `ft_transfer` of `oct_token_contract` or `contract_account` of a `bridge token` with parameters `sender` and its `invalid deposit`.
 
 ### Bridge appchain native token from appchain to its NEAR contract
 
