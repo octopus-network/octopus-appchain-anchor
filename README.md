@@ -10,20 +10,20 @@ Contents
   * [Cross chain transfer in this contract](#cross-chain-transfer-in-this-contract)
 * [Contract data design](#contract-data-design)
 * [Contract initialization](#contract-initialization)
-* [Manage bridge token](#manage-bridge-token)
-  * [Register bridge token](#register-birdge-token)
-  * [Set price of a bridge token](#set-price-of-a-bridge-token)
-  * [Open bridging for a bridge token](#open-bridging-for-a-bridge-token)
-  * [Close bridging for a bridge token](#close-bridging-for-a-bridge-token)
-  * [Lock a certain amount of a bridge token](#lock-a-certain-amount-of-a-bridge-token)
-  * [Unlock a certain amount of a bridge token](#unlock-a-certain-amount-of-a-bridge-token)
-* [Manage appchain native token](#manage-appchain-native-token)
-  * [Set metadata of appchain native token](#set-metadata-of-appchain-native-token)
-  * [Set contract account of appchain native token](#set-contract-account-of-appchain-native-token)
-  * [Stage code of appchain native token contract](#stage-code-of-appchain-native-token-contract)
-  * [Set price of appchain native token](#set-price-of-appchain-native-token)
-  * [Mint appchain native token](#mint-appchain-native-token)
-  * [Burn appchain native token](#burn-appchain-native-token)
+* [Manage NEP-141 token](#manage-nep-141-token)
+  * [Register NEP-141 token](#register-nep-141-token)
+  * [Set price of a NEP-141 token](#set-price-of-a-nep-141-token)
+  * [Open bridging for a NEP-141 token](#open-bridging-for-a-nep-141-token)
+  * [Close bridging for a NEP-141 token](#close-bridging-for-a-nep-141-token)
+  * [Lock a certain amount of a NEP-141 token](#lock-a-certain-amount-of-a-nep-141-token)
+  * [Unlock a certain amount of a NEP-141 token](#unlock-a-certain-amount-of-a-nep-141-token)
+* [Manage wrapped appchain token](#manage-wrapped-appchain-token)
+  * [Set metadata of wrapped appchain token](#set-metadata-of-wrapped-appchain-token)
+  * [Set contract account of wrapped appchain token](#set-contract-account-of-wrapped-appchain-token)
+  * [Stage code of wrapped appchain token contract](#stage-code-of-wrapped-appchain-token-contract)
+  * [Set price of wrapped appchain token](#set-price-of-wrapped-appchain-token)
+  * [Mint wrapped appchain token](#mint-wrapped-appchain-token)
+  * [Burn wrapped appchain token](#burn-wrapped-appchain-token)
 * [Manage protocol settings](#manage-protocol-settings)
 * [Process fungible token deposit](#process-fungible-token-deposit)
   * [Register validator](#register-validator)
@@ -67,6 +67,9 @@ pub enum AppchainState {
     Booting,
     /// The state while an appchain is active normally.
     Active,
+    /// The state while an appchain is under challenging, which all deposit and withdraw actions
+    /// are frozen.
+    Frozen,
     /// The state which an appchain is broken for some technical or governance reasons.
     Broken,
     /// The state which the lifecycle of an appchain is end.
@@ -81,16 +84,27 @@ pub enum StakingState {
     /// Active in staking on corresponding appchain.
     Active,
     /// Has been unbonded from staking on corresponding appchain.
-    Unbonded,
+    Unbonded {
+        block_height: BlockHeight,
+        timestamp: Timestamp,
+    },
 }
+```
+
+* `account id in appchain`: The account id in the appchain, which is usually the public key of an account in the appchain. The id is bonded to an account id in NEAR protocol in this contract.
+
+```rust
+pub type AccountIdInAppchain = String;
 ```
 
 * `validator`: A person who wants to act as a validator on the appchain corresponding to this contract. The person has to deposit a certain amount of OCT token in this contract. It is defined as:
 
 ```rust
 pub struct AppchainValidator {
-    /// Account id of appchain validator.
-    pub validator_id: AccountId,
+    /// The validator's id in NEAR protocol.
+    pub validator_id_in_near: AccountId,
+    /// The validator's id in the appchain.
+    pub validator_id_in_appchain: AccountIdInAppchain,
     /// Staked balance of the validator.
     pub deposit_amount: Balance,
     /// Staking state of the validator.
@@ -98,14 +112,18 @@ pub struct AppchainValidator {
 }
 ```
 
-* `delegator`: A person who wants to act as a delegator on the appchain corresponding to this contract. The person has to deposit a certain amount of OCT token in this contract, to indicate that he/she wants to delegate his/her voting rights to a certain `validator` of the appchain. It is defined as:
+* `delegator`: A person who wants to act as a delegator in the corresponding appchain. The person has to deposit a certain amount of OCT token in this contract, to indicate that he/she wants to delegate his/her voting rights to a certain `validator` of the appchain. It is defined as:
 
 ```rust
 pub struct AppchainDelegator {
-    /// Account id of appchain delegator.
-    pub delegator_id: AccountId,
-    /// Account id of a validator which the delegator delegates his rights to.
-    pub validator_id: AccountId,
+    /// The delegator's id in NEAR protocol.
+    pub delegator_id_in_near: AccountId,
+    /// The delegator's id in the appchain.
+    pub delegator_id_in_appchain: AccountIdInAppchain,
+    /// The validator's id in NEAR protocol, which the delegator delegates his rights to.
+    pub validator_id_in_near: AccountId,
+    /// The validator's id in the appchain, which the delegator delegates his rights to.
+    pub validator_id_in_appchain: AccountIdInAppchain,
     /// Delegated balance of the delegator.
     pub deposit_amount: Balance,
     /// Staking state of the delegator.
@@ -113,26 +131,48 @@ pub struct AppchainDelegator {
 }
 ```
 
+* `validator set`: A set of validators and delegators of the corresponding appchain. The set will change periodically, and the period depends on the `validator_set_duration` in `protocol settings`. It is defined as:
+
+```rust
+pub struct AppchainValidatorSet {
+    /// The sequence id of appchain validator set.
+    /// This id is calculated from `validator_set_duration` in `ProtocolSettings` and
+    /// `env::block_timestamp()`:
+    /// `set_id` = `env::block_timestamp()` / (`validator_set_duration` * NANO_SECONDS_MULTIPLE)
+    pub set_id: u64,
+    /// The set of account id of validators
+    pub validator_ids: LazyOption<UnorderedSet<AccountId>>,
+    /// The set of account id of delegators
+    pub delegator_ids: LazyOption<UnorderedSet<AccountId>>,
+    /// The validators that a delegator delegates his/her voting rights to.
+    pub validator_ids_of_delegator_id: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    /// The validators data, mapped by their account id in NEAR protocol
+    pub validators: LookupMap<AccountId, AppchainValidator>,
+    /// The delegators data, mapped by the tuple of their delegator account id and
+    /// validator account id in NEAR protocol
+    pub delegators: LookupMap<(AccountId, AccountId), AppchainDelegator>,
+}
+```
+
 * `sender`: A NEAR transaction sender, that is the account which perform actions (call functions) on this contract.
-* `bridge token`: A token which is lived in NEAR protocol. It should be a NEP-141 compatible contract. This contract can bridge the token to the corresponding appchain. It is defined as:
+* `NEP-141 token`: A token which is lived in NEAR protocol. It should be a NEP-141 compatible contract. This contract can bridge the token to the corresponding appchain. It is defined as:
 
 ```rust
 pub enum BridgingState {
-    /// The state which this contract is bridging the bridge token to the appchain.
+    /// The state which this contract is bridging the NEP-141 token to the appchain.
     Active,
-    /// The state which this contract has stopped bridging the bridge token to the appchain.
+    /// The state which this contract has stopped bridging the NEP-141 token to the appchain.
     Closed,
 }
 
-pub struct BridgeTokenMetadata {
+pub struct Nep141TokenMetadata {
     pub symbol: String,
     pub name: String,
     pub decimals: u8,
-    pub price_decimals: u8,
 }
 
-pub struct BridgeToken {
-    pub metadata: BridgeTokenMetadata,
+pub struct Nep141Token {
+    pub metadata: Nep141TokenMetadata,
     pub contract_account: AccountId,
     pub price: U64,
     pub price_decimals: u8,
@@ -142,10 +182,10 @@ pub struct BridgeToken {
 }
 ```
 
-* `appchain native token`: The token issued natively on the appchain. It is defined as:
+* `wrapped appchain token`: The wrapped token of the appchain native token, which is managed by a contract in NEAR protocol. It is defined as:
 
 ```rust
-pub struct AppchainNativeTokenMetadata {
+pub struct WrappedAppchainTokenMetadata {
     pub symbol: String,
     pub name: String,
     pub decimals: u8,
@@ -155,8 +195,8 @@ pub struct AppchainNativeTokenMetadata {
     pub reference_hash: Option<Vec<u8>>,
 }
 
-pub struct AppchainNativeToken {
-    pub metadata: AppchainNativeTokenMetadata,
+pub struct WrappedAppchainToken {
+    pub metadata: WrappedAppchainTokenMetadata,
     pub contract_account: AccountId,
     pub price: U64,
     pub price_decimals: u8,
@@ -167,33 +207,34 @@ pub struct AppchainNativeToken {
 
 ```rust
 pub enum AnchorFact {
-    /// The fact that a certain amount of appchain native token is minted in its contract
+    /// The fact that a certain amount of wrapped appchain token is minted in its contract
     /// in NEAR protocol
-    AppchainNativeTokenMinted {
+    WrappedAppchainTokenMinted {
         request_id: String,
         /// The account id of receiver in NEAR protocol
         receiver_id: AccountId,
         amount: U128,
     },
-    /// The fact that a certain amount of appchain native token is burnt in its contract
+    /// The fact that a certain amount of wrapped appchain token is burnt in its contract
     /// in NEAR protocol
-    AppchainNativeTokenBurnt {
+    WrappedAppchainTokenBurnt {
         sender_id: AccountId,
         /// The id of receiver on the appchain
         receiver_id: String,
         amount: U128,
     },
-    /// The fact that a certain amount of bridge token has been locked in appchain anchor.
-    BridgeTokenLocked {
+    /// The fact that a certain amount of NEP-141 token has been locked in appchain anchor.
+    Nep141TokenLocked {
         symbol: String,
+        /// The account id of sender in NEAR protocol
         sender_id: AccountId,
         /// The id of receiver on the appchain
         receiver_id: String,
         amount: U128,
     },
-    /// The fact that a certain amount of bridge token has been unlocked and
+    /// The fact that a certain amount of NEP-141 token has been unlocked and
     /// transfered from this contract to the receiver.
-    BridgeTokenUnlocked {
+    Nep141TokenUnlocked {
         request_id: String,
         symbol: String,
         /// The account id of receiver in NEAR protocol
@@ -239,43 +280,43 @@ pub struct AnchorFactRecord {
     pub anchor_fact: AnchorFact,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
+    pub index: U64,
 }
 ```
 
-* `appchain fact`: The fact that happens on the corresponding appchain. It is defined as:
+* `appchain message`: The fact that happens on the corresponding appchain. It is defined as:
 
 ```rust
-pub enum AppchainFact {
-    /// The fact that a certain amount of bridge token has been burnt on the appchain.
-    BridgeTokenBurnt {
-        symbol: String,
-        amount: U128,
-    },
-    /// The fact that a certain amount of appchain native token has been locked on the appchain.
-    NativeTokenLocked {
-        amount: U128,
-    },
+/// The message which is sent from the appchain
+pub enum AppchainMessage {
+    /// The fact that a certain amount of NEP-141 token has been burnt on the appchain.
+    Nep141TokenBurnt { symbol: String, amount: U128 },
+    /// The fact that a certain amount of wrapped appchain token has been locked on the appchain.
+    NativeTokenLocked { amount: U128 },
     /// The fact that a validator has been unbonded on the appchain.
     ValidatorUnbonded {
-        validator_id: AccountId,
-        set_id: u32,
+        validator_id: AccountIdInAppchain,
+        block_height: BlockHeight,
+        timestamp: Timestamp,
     },
     /// The fact that a delegator has been unbonded on the appchain.
     DelegatorUnbonded {
-        delegator_id: AccountId,
-        validator_id: AccountId,
-        set_id: u32,
-    }
+        delegator_id: AccountIdInAppchain,
+        validator_id: AccountIdInAppchain,
+        block_height: BlockHeight,
+        timestamp: Timestamp,
+    },
 }
 
-pub struct AppchainFactRecord {
-    pub appchain_fact: AppchainFact,
+pub struct AppchainMessageRecord {
+    pub appchain_fact: AppchainMessage,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
+    pub nonce: u32,
 }
 ```
 
-* `octopus relayer`: A standalone service which will relay the `appchain fact` to this contract.
+* `octopus relayer`: A standalone service which will relay the `appchain message` to this contract.
 * `protocol settings`: A set of settings for Octopus Network protocol, maintained by the `owner`, which is defined as:
 
 ```rust
@@ -307,12 +348,12 @@ pub struct ProtocolSettings {
 
 There are 2 kinds of cross chain assets transfer in this contract:
 
-* appchain native token transfer between appchain and NEAR
-  * appchain:lock -> appchain-native-token-contract@near:mint
-  * appchain-native-token-contract@near:burn -> appchain:unlock
+* wrapped appchain token transfer between appchain and NEAR
+  * appchain:lock -> wrapped-appchain-token-contract@near:mint
+  * wrapped-appchain-token-contract@near:burn -> appchain:unlock
 * NEP141 asset (token) transfer between NEAR and appchain
-  * bridge-token-contract@near:lock_asset -> appchain:mint_asset
-  * appchain:burn_asset -> bridge-token-contract@near:unlock_asset
+  * nep-141-token-contract@near:lock_asset -> appchain:mint_asset
+  * appchain:burn_asset -> nep-141-token-contract@near:unlock_asset
 
 ## Contract data design
 
@@ -326,26 +367,39 @@ pub struct AppchainAnchor {
     pub appchain_registry_contract: AccountId,
     /// The account id of OCT token contract.
     pub oct_token_contract: AccountId,
-    /// The native token of appchain.
-    pub appchain_native_token: AppchainNativeToken,
-    /// The bridge tokens data, mapped by the symbol of the token.
-    pub bridge_tokens: UnorderedMap<String, BridgeToken>,
+    /// The wrapped appchain token in NEAR protocol.
+    pub wrapped_appchain_token: WrappedAppchainToken,
+    /// The set of symbols of NEP-141 tokens.
+    pub nep141_token_symbols: UnorderedSet<String>,
+    /// The NEP-141 tokens data, mapped by the symbol of the token.
+    pub nep141_tokens: LookupMap<String, Nep141Token>,
+    /// The first validator set for tracing changes of validator set in
+    /// latest `validator_set_duration`
+    pub validator_set_1: AppchainValidatorSet,
+    /// The second validator set for tracing changes of validator set in
+    /// latest `validator_set_duration`
+    pub validator_set_2: AppchainValidatorSet,
+    /// The mapping for validators' accounts, from account id in the appchain to
+    /// account id in NEAR protocol
+    pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
     /// The protocol settings for appchain anchor
-    pub protocol_settings: ProtocolSettings,
+    pub protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain
     pub appchain_state: AppchainState,
-    /// The start index of anchor facts stored in the storage of this contract.
-    pub anchor_fact_start_index: U64,
-    /// The end index of anchor facts stored in the storage of this contract.
-    pub anchor_fact_end_index: U64,
-    /// The start index of appchain facts stored in the storage of this contract.
-    pub appchain_fact_start_index: U64,
-    /// The end index of appchain facts stored in the storage of this contract.
-    pub appchain_fact_end_index: U64,
+    /// The current total stake of all validators and delegators in this contract.
+    pub total_stake: Balance,
+    /// The facts data happened in this contract
+    pub anchor_facts: LookupMap<u64, AnchorFactRecord>,
+    /// The start index of valid anchor facts in `anchor_facts`.
+    pub anchor_fact_start_index: u64,
+    /// The end index of valid anchor facts in `anchor_facts`.
+    pub anchor_fact_end_index: u64,
 }
 ```
 
-Considering the possible huge amount of history data for `anchor fact` and `appchain fact`, we do not define data fields for them in this contract struct. We'll use sdk function `env::storage_write` and `env::storage_read` to operate `AnchorFactRecord` and `AppchainFactRecord` in contract storage directly. By using this mechanism, we can only store the start index and end index for the facts data in contract struct. If we want to clear some history data, we can simply delete them by function `env::storage_remove` and update the start index in contract struct. The storage key used in these operations should be a specific string followed by a global sequence number. For example, use `acf_<number>` for `anchor fact` and `apf_<number>` for `appchain fact`.
+Due to the relatively large amount of data volume in this contract, we use `LookupMap`, `LazyOption` to store data that will become larger. By doing this, we can reduce the gas consumption of deserialization of the struct in each function call.
+
+Considering the possible huge amount of history data for `anchor fact`, we use `LookupMap` to store them. Then we can only store the `anchor_fact_start_index` and `anchor_fact_end_index` for valid facts data in contract struct. For each new `anchor fact`, we add `1` to `anchor_fact_end_index` and put it into `anchor_facts` using key `anchor_fact_end_index`. If we want to clear some history data, we can simply specify a value of `anchor_fact_start_index`, and then delete all records with smaller index in the `anchor_facts`.
 
 ## Contract initialization
 
@@ -362,17 +416,17 @@ Processing steps:
 * The `anchor_fact_start_index`, `anchor_fact_end_index`, `appchain_fact_start_index` and `appchain_fact_end_index` are all set to `0`.
 * The `appchain_state` is set to `staging`.
 
-## Manage bridge token
+## Manage NEP-141 token
 
-### Register bridge token
+### Register NEP-141 token
 
 This action needs the following parameters:
 
-* `symbol`: The symbol of the `bridge token`.
-* `name`: The name of the `bridge token`.
-* `decimals`: The decimals of the `bridge token`.
-* `contract_account`: The account id of the `bridge token` contract.
-* `price`: The price of the `bridge token`.
+* `symbol`: The symbol of the `NEP-141 token`.
+* `name`: The name of the `NEP-141 token`.
+* `decimals`: The decimals of the `NEP-141 token`.
+* `contract_account`: The account id of the `NEP-141 token` contract.
+* `price`: The price of the `NEP-141 token`.
 * `price_decimals`: The decimals of `price`.
 
 Qualification of this action:
@@ -382,112 +436,112 @@ Qualification of this action:
 
 Processing steps:
 
-* Store these parameters as a `bridge token` to `bridge_tokens` in this contract, mapped by `symbol`.
-* The default `bridging state` of the `bridge token` is `closed`.
+* Store these parameters as a `NEP-141 token` to `bridge_tokens` in this contract, mapped by `symbol`.
+* The default `bridging state` of the `NEP-141 token` is `closed`.
 
-### Set price of a bridge token
+### Set price of a NEP-141 token
 
 This action needs the following parameters:
 
-* `symbol`: The symbol of the bridge token.
-* `price`: The price of the `bridge token`.
+* `symbol`: The symbol of the NEP-141 token.
+* `price`: The price of the `NEP-141 token`.
 
 Qualification of this action:
 
 * The `sender` must be the `owner`.
 * The `symbol` must already be registered.
 
-The price of the `bridge token` corresponding to `symbol` in this contract is set to `price`.
+The price of the `NEP-141 token` corresponding to `symbol` in this contract is set to `price`.
 
-### Open bridging for a bridge token
+### Open bridging for a NEP-141 token
 
 This action needs the following parameters:
 
-* `symbol`: The symbol of the bridge token.
+* `symbol`: The symbol of the NEP-141 token.
 
 Qualification of this action:
 
 * The `sender` must be the `owner`.
 * The `symbol` must already be registered.
 
-The `bridging state` of the given `bridge token` in this contract is set to `active`.
+The `bridging state` of the given `NEP-141 token` in this contract is set to `active`.
 
-### Close bridging for a bridge token
+### Close bridging for a NEP-141 token
 
 This action needs the following parameters:
 
-* `symbol`: The symbol of the bridge token.
+* `symbol`: The symbol of the NEP-141 token.
 
 Qualification of this action:
 
 * The `sender` must be the `owner`.
 * The `symbol` must already be registered.
 
-The `bridging state` of the given `bridge token` in this contract is set to `closed`.
+The `bridging state` of the given `NEP-141 token` in this contract is set to `closed`.
 
-### Lock a certain amount of a bridge token
+### Lock a certain amount of a NEP-141 token
 
 This action needs the following parameters:
 
-* `contract_account`: The account id of the contract of a bridge token.
-* `sender_id`: The account id in NEAR protocol, which is the sender of the bridge token.
+* `contract_account`: The account id of the contract of a NEP-141 token.
+* `sender_id`: The account id in NEAR protocol, which is the sender of the NEP-141 token.
 * `receiver_id`: The account id on the corresponding appchain for receiving the bridged token.
-* `amount`: The amount of `bridge token` to lock.
+* `amount`: The amount of `NEP-141 token` to lock.
 
 Qualification of this action:
 
 * This action can ONLY be performed inside this contract, or can ONLY be called by this contract.
-* The `contract_account` must be equal to `contract_account` of a registered `bridge token`.
+* The `contract_account` must be equal to `contract_account` of a registered `NEP-141 token`.
 
 Processing steps:
 
-* Add `amount` to `locked_balance` of the `bridge token`.
+* Add `amount` to `locked_balance` of the `NEP-141 token`.
 * Create a new `anchor fact` with type `BridgeTokenLocked`, and store it as an `AnchorFactRecord`.
-* Generate log: `Token <symbol of bridge token> from <sender_id> locked. Receiver: <receiver_id>, Amount: <amount>`
+* Generate log: `Token <symbol of NEP-141 token> from <sender_id> locked. Receiver: <receiver_id>, Amount: <amount>`
 
-### Unlock a certain amount of a bridge token
+### Unlock a certain amount of a NEP-141 token
 
 This action needs the following parameters:
 
 * `request_id`: The request id generated by the `sender`, which is used to identify the unlocking action.
-* `symbol`: The symbol of a bridge token.
-* `receiver_id`: The account id of receiver in NEAR protocol for `bridge token` which will be unlocked.
-* `amount`: The amount of `bridge token` to unlock.
+* `symbol`: The symbol of a NEP-141 token.
+* `receiver_id`: The account id of receiver in NEAR protocol for `NEP-141 token` which will be unlocked.
+* `amount`: The amount of `NEP-141 token` to unlock.
 
 Qualification of this action:
 
 * This action can ONLY be performed inside this contract.
-* The `symbol` must be the symbol of a registered `bridge token`.
-* The `amount` must be less or equal to the `locked_balance` of the `bridge token` corresponding to `symbol`.
+* The `symbol` must be the symbol of a registered `NEP-141 token`.
+* The `amount` must be less or equal to the `locked_balance` of the `NEP-141 token` corresponding to `symbol`.
 
 Processing Steps:
 
-* Reduce `amount` from `locked_balance` of the `bridge token`.
-* Call function `ft_transfer` of `contract_account` of the `bridge token` with parameters `receiver_id` and `amount`:
+* Reduce `amount` from `locked_balance` of the `NEP-141 token`.
+* Call function `ft_transfer` of `contract_account` of the `NEP-141 token` with parameters `receiver_id` and `amount`:
   * If success:
     * Create a new `anchor fact` with type `BridgeTokenUnlocked`, and store it as an `AnchorFactRecord`.
     * Generate log: `Token <symbol> unlocked and transfered to <receiver_id>. Amount: <amount>`
   * If fail:
     * Generate log: `Failed to unlock and transfer token <symbol> to <receiver_id>. Amount: <amount>`
 
-## Manage appchain native token
+## Manage wrapped appchain token
 
-The contract of `appchain native token` in NEAR protocol can be applied by 2 ways:
+The contract of `wrapped appchain token` in NEAR protocol can be applied by 2 ways:
 
 * Deploy before this contract is deployed. In this case, the `owner` should set the contract account manually, before the appchain go `active`.
-* Deploy by this contract automatically. In this case, the `owner` should stage code of contract of `appchain native token` before the appchain go `booting`.
+* Deploy by this contract automatically. In this case, the `owner` should stage code of contract of `wrapped appchain token` before the appchain go `booting`.
 
-### Set metadata of appchain native token
+### Set metadata of wrapped appchain token
 
 This action needs the following parameters:
 
-* `name`: The name of `appchain native token`.
-* `symbol`: The symbol of `appchain native token`.
-* `decimals`: The decimals of `appchain native token`.
-* `spec`: The specification of `appchain native token`.
-* `icon`: (Optional) The data of icon file of `appchain native token`.
-* `reference`: (Optional) The reference data of `appchain native token`.
-* `reference_hash`: (Optional) The hash of reference data of `appchain native token`.
+* `name`: The name of `wrapped appchain token`.
+* `symbol`: The symbol of `wrapped appchain token`.
+* `decimals`: The decimals of `wrapped appchain token`.
+* `spec`: The specification of `wrapped appchain token`.
+* `icon`: (Optional) The data of icon file of `wrapped appchain token`.
+* `reference`: (Optional) The reference data of `wrapped appchain token`.
+* `reference_hash`: (Optional) The hash of reference data of `wrapped appchain token`.
 
 Qualification of this action:
 
@@ -496,7 +550,7 @@ Qualification of this action:
 
 These parameters are stored to `appchain_native_token` of this contract. These are used when [Go booting](#go-booting).
 
-### Set contract account of appchain native token
+### Set contract account of wrapped appchain token
 
 This action needs the following parameters:
 
@@ -509,7 +563,7 @@ Qualification of this action:
 
 Store the `contract_account` to `appchain_native_token` of this contract.
 
-### Stage code of appchain native token contract
+### Stage code of wrapped appchain token contract
 
 This action needs the following parameters:
 
@@ -522,13 +576,13 @@ Qualification of this action:
 
 The `code` is stored in this contract, it is used when [Go booting](#go-booting).
 
-> Octopus Network provides [a standard implementation](https://github.com/octopus-network/appchain-native-token) of `appchain native token` contact.
+> Octopus Network provides [a standard implementation](https://github.com/octopus-network/wrapped-appchain-token) of `wrapped appchain token` contact.
 
-### Set price of appchain native token
+### Set price of wrapped appchain token
 
 This action needs the following parameters:
 
-* `price`: The price of the `appchain native token`.
+* `price`: The price of the `wrapped appchain token`.
 
 Qualification of this action:
 
@@ -537,13 +591,13 @@ Qualification of this action:
 
 The price of `appchain natvie token` in this contract is set to `price`.
 
-### Mint appchain native token
+### Mint wrapped appchain token
 
 This action needs the following parameters:
 
 * `request_id`: The request id generated by the `sender`, which is used to identify the minting action.
 * `receiver_id`: The account id of receiver of minting token in NEAR protocol.
-* `amount`: The amount of appchain native token to mint.
+* `amount`: The amount of wrapped appchain token to mint.
 
 Qualification of this action:
 
@@ -558,12 +612,12 @@ Processing steps:
   * If fail:
     * Generate log: `Failed to mint <appchain_id> native token to <receiver_id>. Amount: <amount>`
 
-### Burn appchain native token
+### Burn wrapped appchain token
 
 This action needs the following parameters:
 
-* `receiver_id`: The account id of receiver on the appchain. The receiver should receive a certain amount (which is equals to `amount`) of appchain native token.
-* `amount`: The amount of appchain native token to burn.
+* `receiver_id`: The account id of receiver on the appchain. The receiver should receive a certain amount (which is equals to `amount`) of wrapped appchain token.
+* `amount`: The amount of wrapped appchain token to burn.
 
 Processing steps:
 
@@ -590,20 +644,20 @@ The callback function `ft_on_transfer` needs the following parameters:
 
 If the caller of this callback (`env::predecessor_account_id()`) equals to `oct_token_contract` of this contract, match `msg` with the following patterns:
 
-* `register_validator`: Perform [Register validator](#register-validator).
+* `register_validator,<validator_account_id_in_appchain>`: Perform [Register validator](#register-validator).
 * `increase_stake`: Perform [Increase stake of a validator](#increase-stake-of-a-validator).
-* `register_delegator,<account_id>`: Perform [Register delegator](#register-delegator).
-* `increase_delegation,<account_id>`: Perform [Increase delegation](#increase-delegation).
+* `register_delegator,<delegator_account_id_in_appchain>,<validator_account_id_in_near>`: Perform [Register delegator](#register-delegator).
+* `increase_delegation,<validator_account_id_in_near>`: Perform [Increase delegation](#increase-delegation).
 * other cases:
   * The deposit will be considered as `invalid deposit`.
 
-If the caller of this callback (`env::predecessor_account_id()`) equals to `contract_account` of a `bridge token` registered in this contract, match `msg` with the following patterns:
+If the caller of this callback (`env::predecessor_account_id()`) equals to `contract_account` of a `NEP-141 token` registered in this contract, match `msg` with the following patterns:
 
-* `bridge_to,<receiver_id>`: Perform [Lock a certain amount of a bridge token](#lock-a-certain-amount-of-a-bridge-token).
+* `bridge_to,<receiver_id>`: Perform [Lock a certain amount of a NEP-141 token](#lock-a-certain-amount-of-a-nep-141-token).
 * other cases:
   * The deposit will be considered as `invalid deposit`.
 
-If the caller of this callback (`env::predecessor_account_id()`) is neither `oct_token_contract` nor `contract_account` of a `bridge token`, throws an error: `Invalid deposit of unknown NEP-141 asset`.
+If the caller of this callback (`env::predecessor_account_id()`) is neither `oct_token_contract` nor `contract_account` of a `NEP-141 token`, throws an error: `Invalid deposit of unknown NEP-141 asset`.
 
 For `invalid deposit` case, throws an error: `Invalid deposit <amount> of OCT token from <sender_id>.`.
 
@@ -611,13 +665,16 @@ For `invalid deposit` case, throws an error: `Invalid deposit <amount> of OCT to
 
 This action needs the following parameters:
 
-* `sender_id`: The account id of the new `validator`.
+* `sender_id`: The new `validator`'s account id in NEAR protocol.
+* `validator_account_id_in_appchain`: The `validator`'s account id in the corresponding appchain.
 * `amount`: The amount of the deposit.
 
 Qualification of this action:
 
 * This action can ONLY be performed inside this contract.
 * The `appchain state` must not be `broken` or `dead`.
+* The `sender_id` must not be existed in `validators` as key.
+* The `validator_account_id_in_appchain` must not be existed in `account_id_mapping` as key.
 * The amount of deposit must not be smaller than `minimum_validator_deposit` of `protocol settings`.
 
 Processing steps:
@@ -705,19 +762,15 @@ This action needs the following parameters:
 
 This action will verify the parameters by rule of light client of the appchain. If fail, throws an error.
 
-Decode `encoded_messages`, the real message will be one of `appchain fact`:
+Decode `encoded_messages`, the real message will be one of `appchain message`:
 
-* `NativeTokenLocked`: Which indicate that the appchain has locked a certain amount of `appchain native token`.
-  * Store this `appchain fact` as a `AppchainFactRecord`.
-  * Perform [Mint appchain native token](#mint-appchain-native-token).
-* `BridgeTokenBurnt`: Which indicate that the appchain has burnt a certain amount of `bridge token`.
-  * Store this `appchain fact` as a `AppchainFactRecord`.
-  * Perform [Unlock a certain amount of a bridge token](#unlock-a-certain-amount-of-a-bridge-token).
+* `NativeTokenLocked`: Which indicate that the appchain has locked a certain amount of `wrapped appchain token`.
+  * Perform [Mint wrapped appchain token](#mint-wrapped-appchain-token).
+* `BridgeTokenBurnt`: Which indicate that the appchain has burnt a certain amount of `NEP-141 token`.
+  * Perform [Unlock a certain amount of a NEP-141 token](#unlock-a-certain-amount-of-a-nep-141-token).
 * `ValidatorUnbonded`: Which indicate that a validator has been unbonded on the appchain.
-  * Store this `appchain fact` as a `AppchainFactRecord`.
   * Perform [Unbond stake](#unbond-stake).
 * `DelegatorUnbonded`: Which indicate that a delegator of a valicator has been unbonded on the appchain.
-  * Store this `appchain fact` as a `AppchainFactRecord`.
   * Perform [Unbond delegation](#unbond-delegation).
 * Other cases: throws an error.
 
@@ -831,17 +884,17 @@ Qualification of this action:
 
 * The `sender` must be the `owner`.
 * The `appchain state` must be `staging`.
-* The metadata of `appchain native token` has already been set by [Set metadata of appchain native token](#set-metadata-of-appchain-native-token).
-* If the `contract_account` of `appchain_native_token` is NOT set, the code of contract of `appchain native token` must have already been staged by [Stage code of appchain natvie token contract](#stage-code-of-appchain-native-token-contract).
+* The metadata of `wrapped appchain token` has already been set by [Set metadata of wrapped appchain token](#set-metadata-of-wrapped-appchain-token).
+* If the `contract_account` of `appchain_native_token` is NOT set, the code of contract of `wrapped appchain token` must have already been staged by [Stage code of appchain natvie token contract](#stage-code-of-wrapped-appchain-token-contract).
 
 Processing steps:
 
 * The `appchain state` is set to `booting`.
-* If the `contract_account` of `appchain_native_token` is NOT set, deploy and initialize the contract of `appchain native token`:
+* If the `contract_account` of `appchain_native_token` is NOT set, deploy and initialize the contract of `wrapped appchain token`:
   * Create subaccount `token.<account id of this contract>`.
   * Transfer a certain amount of NEAR token to account `token.<account id of this contract>` for storage deposit.
   * Set `contract_account` of `appchain_native_token` to `token.<account id of this contract>`.
-  * Deploy the code of contract of `appchain native token` to account `token.<account id of this contract>`.
+  * Deploy the code of contract of `wrapped appchain token` to account `token.<account id of this contract>`.
   * Create a new full access key of the deployed contract for this contract.
   * Call function `new` of the deployed contract with the metadata of `appchain_native_token` of this contract.
 * Sync `appchain state` to `appchain registry`.
@@ -856,5 +909,5 @@ Qualification of this action:
 Processing steps:
 
 * The `appchain state` is set to `active`.
-* Store currently registered validators and delegators as `appchain fact` with type `update validator set` in this contract.
+* Store currently registered validators and delegators as `appchain message` with type `update validator set` in this contract.
 * Sync `appchain state` to `appchain registry`.
