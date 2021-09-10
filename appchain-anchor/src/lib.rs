@@ -26,12 +26,10 @@ pub struct AppchainAnchor {
     pub nep141_token_symbols: UnorderedSet<String>,
     /// The NEP-141 tokens data, mapped by the symbol of the token.
     pub nep141_tokens: LookupMap<String, Nep141Token>,
-    /// The first validator set for tracing changes of validator set in
-    /// latest `validator_set_duration`
-    pub validator_set_1: AppchainValidatorSet,
-    /// The second validator set for tracing changes of validator set in
-    /// latest `validator_set_duration`
-    pub validator_set_2: AppchainValidatorSet,
+    /// The currently used validator set in appchain
+    pub current_validator_set: TaggedAppchainValidatorSet,
+    /// The validator set for unbonded validators and delegators
+    pub unbonded_validator_set: AppchainValidatorSet,
     /// The mapping for validators' accounts, from account id in the appchain to
     /// account id in NEAR protocol
     pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
@@ -41,10 +39,16 @@ pub struct AppchainAnchor {
     pub appchain_state: AppchainState,
     /// The current total stake of all validators and delegators in this contract.
     pub total_stake: Balance,
-    /// The facts data happened in this contract
-    pub anchor_facts: LookupMap<u64, AnchorFactRecord>,
-    /// The start index of valid anchor facts in `anchor_facts`.
-    pub anchor_fact_start_index: u64,
-    /// The end index of valid anchor facts in `anchor_facts`.
-    pub anchor_fact_end_index: u64,
+    /// The staking history data happened in this contract
+    pub staking_histories: LookupMap<u64, StakingHistoryRecord>,
+    /// The start index of valid staking history in `staking_histories`.
+    pub staking_history_start_index: u64,
+    /// The end index of valid staking history in `staking_histories`.
+    pub staking_history_end_index: u64,
+    /// The token bridging history data happened in this contract
+    pub token_bridging_histories: LookupMap<u64, TokenBridgingHistoryRecord>,
+    /// The start index of valid token bridging history in `token_bridging_histories`.
+    pub token_bridging_history_start_index: u64,
+    /// The end index of valid token bridging history in `token_bridging_histories`.
+    pub token_bridging_history_end_index: u64,
 }

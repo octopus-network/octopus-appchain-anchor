@@ -34,11 +34,10 @@ pub enum AppchainState {
     Dead,
 }
 
-/// The fact that happens in the appchain anchor contract
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub enum AnchorFact {
-    /// The fact that a certain amount of appchain native token is minted in its contract
+pub enum TokenBridgingHistory {
+    /// The fact that a certain amount of wrapped appchain token is minted in its contract
     /// in NEAR protocol
     WrappedAppchainTokenMinted {
         request_id: String,
@@ -46,7 +45,7 @@ pub enum AnchorFact {
         receiver_id: AccountId,
         amount: U128,
     },
-    /// The fact that a certain amount of appchain native token is burnt in its contract
+    /// The fact that a certain amount of wrapped appchain token is burnt in its contract
     /// in NEAR protocol
     WrappedAppchainTokenBurnt {
         sender_id: AccountId,
@@ -54,7 +53,7 @@ pub enum AnchorFact {
         receiver_id: String,
         amount: U128,
     },
-    /// The fact that a certain amount of bridge token has been locked in appchain anchor.
+    /// The fact that a certain amount of NEP-141 token has been locked in appchain anchor.
     Nep141TokenLocked {
         symbol: String,
         /// The account id of sender in NEAR protocol
@@ -63,7 +62,7 @@ pub enum AnchorFact {
         receiver_id: String,
         amount: U128,
     },
-    /// The fact that a certain amount of bridge token has been unlocked and
+    /// The fact that a certain amount of NEP-141 token has been unlocked and
     /// transfered from this contract to the receiver.
     Nep141TokenUnlocked {
         request_id: String,
@@ -72,43 +71,72 @@ pub enum AnchorFact {
         receiver_id: AccountId,
         amount: U128,
     },
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct TokenBridgingHistoryRecord {
+    pub token_bridging_history: TokenBridgingHistory,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub index: U64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum StakingHistory {
     /// A new validator is registered in appchain anchor
     ValidatorAdded {
-        validator_id: AccountId,
+        /// The validator's id in NEAR protocol.
+        validator_id_in_near: AccountId,
+        /// The validator's id in the appchain.
+        validator_id_in_appchain: AccountIdInAppchain,
         amount: U128,
     },
     /// A validator increases his stake in appchain anchor
     StakeIncreased {
-        validator_id: AccountId,
+        /// The validator's id in NEAR protocol.
+        validator_id_in_near: AccountId,
         amount: U128,
     },
     /// A validator decreases his stake in appchain anchor
     StakeDecreased {
-        validator_id: AccountId,
+        /// The validator's id in NEAR protocol.
+        validator_id_in_near: AccountId,
         amount: U128,
     },
     /// A new delegator is registered in appchain anchor
     DelegatorAdded {
-        delegator_id: AccountId,
-        validator_id: AccountId,
+        /// The delegator's id in NEAR protocol.
+        delegator_id_in_near: AccountId,
+        /// The delegator's id in the appchain.
+        delegator_id_in_appchain: AccountIdInAppchain,
+        /// The validator's id in NEAR protocol.
+        validator_id_in_near: AccountId,
         amount: U128,
     },
     /// A delegator increases his delegation for a validator in appchain anchor
     DelegationIncreased {
-        delegator_id: AccountId,
-        validator_id: AccountId,
+        /// The delegator's id in NEAR protocol.
+        delegator_id_in_near: AccountId,
+        /// The validator's id in NEAR protocol.
+        validator_id_in_near: AccountId,
         amount: U128,
     },
     /// A delegator decreases his delegation for a validator in appchain anchor
     DelegationDecreased {
-        delegator_id: AccountId,
-        validator_id: AccountId,
+        /// The delegator's id in NEAR protocol.
+        delegator_id_in_near: AccountId,
+        /// The validator's id in NEAR protocol.
+        validator_id_in_near: AccountId,
         amount: U128,
     },
 }
 
-pub struct AnchorFactRecord {
-    pub anchor_fact: AnchorFact,
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct StakingHistoryRecord {
+    pub staking_history: StakingHistory,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub index: U64,
@@ -147,7 +175,10 @@ pub struct AppchainMessageRecord {
 #[serde(crate = "near_sdk::serde")]
 pub enum StakingState {
     /// Active in staking on corresponding appchain.
-    Active,
+    Active {
+        block_height: BlockHeight,
+        timestamp: Timestamp,
+    },
     /// Has been unbonded from staking on corresponding appchain.
     Unbonded {
         block_height: BlockHeight,
@@ -163,10 +194,14 @@ pub struct AppchainValidator {
     pub validator_id_in_near: AccountId,
     /// The validator's id in the appchain.
     pub validator_id_in_appchain: AccountIdInAppchain,
+    /// The account id in the appchain for receiving income of the validator in appchain.
+    pub payee_id_in_appchain: AccountIdInAppchain,
     /// Staked balance of the validator.
     pub deposit_amount: Balance,
     /// Staking state of the validator.
     pub staking_state: StakingState,
+    /// The reserved validator can NOT be delegated to.
+    pub is_reserved: bool,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -188,22 +223,29 @@ pub struct AppchainDelegator {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainValidatorSet {
-    /// The sequence id of appchain validator set.
-    /// This id is calculated from `validator_set_duration` in `ProtocolSettings` and
-    /// `env::block_timestamp()`:
-    /// `set_id` = `env::block_timestamp()` / (`validator_set_duration` * NANO_SECONDS_MULTIPLE)
-    pub set_id: u64,
-    /// The set of account id of validators
+    /// The set of account id of validators.
     pub validator_ids: LazyOption<UnorderedSet<AccountId>>,
-    /// The set of account id of delegators
+    /// The set of account id of delegators.
     pub delegator_ids: LazyOption<UnorderedSet<AccountId>>,
     /// The validators that a delegator delegates his/her voting rights to.
     pub validator_ids_of_delegator_id: LookupMap<AccountId, UnorderedSet<AccountId>>,
-    /// The validators data, mapped by their account id in NEAR protocol
+    /// The validators data, mapped by their account id in NEAR protocol.
     pub validators: LookupMap<AccountId, AppchainValidator>,
     /// The delegators data, mapped by the tuple of their delegator account id and
-    /// validator account id in NEAR protocol
+    /// validator account id in NEAR protocol.
     pub delegators: LookupMap<(AccountId, AccountId), AppchainDelegator>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct TaggedAppchainValidatorSet {
+    /// The number of era in appchain.
+    pub appchain_era_number: u64,
+    /// The index of the latest staking history happened in the era of corresponding appchain
+    pub staking_history_index: u64,
+    /// The index of latest applied staking history
+    pub applied_staking_history_index: u64,
+    /// The validator set for tagging
+    pub validator_set: AppchainValidatorSet,
 }
 
 /// The bridging state of bridge token.
@@ -261,13 +303,10 @@ pub struct ProtocolSettings {
     pub minimum_validator_count: U64,
     /// The maximum number of validator(s) which a delegator can delegate to.
     pub maximum_validators_per_delegator: U64,
-    /// The time duration (in seconds) for updating validator set based on recent deposit actions
-    /// happened in this contract.
-    pub validator_set_duration: U64,
-    /// The unlock period (in seconds) for validator(s) can withdraw their deposit after
+    /// The unlock period (in days) for validator(s) can withdraw their deposit after
     /// they are removed from the corresponding appchain.
-    pub unlock_period_of_validator_deposit: U64,
-    /// The unlock period (in seconds) for delegator(s) can withdraw their deposit after
+    pub unlock_period_of_validator_deposit: u16,
+    /// The unlock period (in days) for delegator(s) can withdraw their deposit after
     /// they no longer delegates their stake to a certain validator on the corresponding appchain.
-    pub unlock_period_of_delegator_deposit: U64,
+    pub unlock_period_of_delegator_deposit: u16,
 }
