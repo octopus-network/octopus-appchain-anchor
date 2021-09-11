@@ -83,7 +83,10 @@ pub enum AppchainState {
 ```rust
 pub enum StakingState {
     /// Active in staking on corresponding appchain.
-    Active,
+    Active {
+        block_height: BlockHeight,
+        timestamp: Timestamp,
+    },
     /// Has been unbonded from staking on corresponding appchain.
     Unbonded {
         block_height: BlockHeight,
@@ -112,6 +115,7 @@ pub struct AppchainValidator {
     pub deposit_amount: Balance,
     /// Staking state of the validator.
     pub staking_state: StakingState,
+    /// Whether the validator is reserved.
     /// The reserved validator can NOT be delegated to.
     pub is_reserved: bool,
 }
@@ -206,7 +210,7 @@ pub struct WrappedAppchainToken {
 * `token bridging history`: The token bridging fact happens in this contract. It is defined as:
 
 ```rust
-pub enum TokenBridgingHistory {
+pub enum TokenBridgingFact {
     /// The fact that a certain amount of wrapped appchain token is minted in its contract
     /// in NEAR protocol
     WrappedAppchainTokenMinted {
@@ -243,8 +247,8 @@ pub enum TokenBridgingHistory {
     },
 }
 
-pub struct TokenBridgingHistoryRecord {
-    pub token_bridging_history: TokenBridgingHistory,
+pub struct TokenBridgingHistory {
+    pub token_bridging_fact: TokenBridgingFact,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub index: U64,
@@ -254,7 +258,7 @@ pub struct TokenBridgingHistoryRecord {
 * `staking history`: The staking fact happens in this contract. It is defined as:
 
 ```rust
-pub enum StakingHistory {
+pub enum StakingFact {
     /// A new validator is registered in appchain anchor
     ValidatorAdded {
         /// The validator's id in NEAR protocol.
@@ -303,8 +307,8 @@ pub enum StakingHistory {
     },
 }
 
-pub struct StakingHistoryRecord {
-    pub staking_history: StakingHistory,
+pub struct StakingHistory {
+    pub staking_fact: StakingFact,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub index: U64,
@@ -314,11 +318,10 @@ pub struct StakingHistoryRecord {
 * `appchain message`: The fact that happens on the corresponding appchain. It is defined as:
 
 ```rust
-/// The message which is sent from the appchain
-pub enum AppchainMessage {
-    /// The fact that a certain amount of NEP-141 token has been burnt on the appchain.
+pub enum AppchainFact {
+    /// The fact that a certain amount of bridge token has been burnt on the appchain.
     Nep141TokenBurnt { symbol: String, amount: U128 },
-    /// The fact that a certain amount of wrapped appchain token has been locked on the appchain.
+    /// The fact that a certain amount of appchain native token has been locked on the appchain.
     NativeTokenLocked { amount: U128 },
     /// The fact that a validator has been unbonded on the appchain.
     ValidatorUnbonded {
@@ -333,14 +336,14 @@ pub enum AppchainMessage {
         block_height: BlockHeight,
         timestamp: Timestamp,
     },
-    /// The message indicate that the era is switched in the appchain
+    /// The fact that the era is switched in the appchain
     EraSwitched {
         appchain_era_number: U64
     }
 }
 
-pub struct AppchainMessageRecord {
-    pub appchain_fact: AppchainMessage,
+pub struct AppchainMessage {
+    pub appchain_fact: AppchainFact,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub nonce: u32,
@@ -417,13 +420,13 @@ pub struct AppchainAnchor {
     /// The current total stake of all validators and delegators in this contract.
     pub total_stake: Balance,
     /// The staking history data happened in this contract
-    pub staking_histories: LookupMap<u64, StakingHistoryRecord>,
+    pub staking_histories: LookupMap<u64, StakingHistory>,
     /// The start index of valid staking history in `staking_histories`.
     pub staking_history_start_index: u64,
     /// The end index of valid staking history in `staking_histories`.
     pub staking_history_end_index: u64,
     /// The token bridging history data happened in this contract
-    pub token_bridging_histories: LookupMap<u64, TokenBridgingHistoryRecord>,
+    pub token_bridging_histories: LookupMap<u64, TokenBridgingHistory>,
     /// The start index of valid token bridging history in `token_bridging_histories`.
     pub token_bridging_history_start_index: u64,
     /// The end index of valid token bridging history in `token_bridging_histories`.
@@ -450,9 +453,11 @@ pub struct TaggedAppchainValidatorSet {
 }
 ```
 
-While the `appchain_state` is `staging` or `booting`, all changes to validator set will go to `current_validator_set` directly.
+All changes to validator set which are caused by external users will be recorded in `staking_histories`.
 
-After the appchain goes to `active`, the changes to validator set will be recorded in `staking_histories` instead of directly applied to `current_validator_set`. When this contract receives `AppchainMessage::EraSwitched` message, the contract will start applying the records of staking history happened between the last `AppchainMessage::EraSwitched` message and current `AppchainMessage::EraSwitched` message to `current_validator_set`. That is to make `current_validator_set` to be equal to `next_validator_set`. This process will cost 2 transactions (function calls) at least, which are triggered by `octopus relayer`.
+While the `appchain_state` is `staging` or `booting`, all changes to validator set will be applied to `current_validator_set` directly. After the appchain goes to `active`, all changes to validator set will be applied to `next_validator_set`.
+
+When this contract receives `AppchainMessage` with `AppchainFact::EraSwitched`, the contract will start applying the records of staking histories with the index between `current_validator_set.applied_staking_history_index` and `current_validator_set.staking_history_index` to `current_validator_set`. (This is to make `current_validator_set` to be equal to `next_validator_set`.) This process will cost 2 transactions (function calls) at least, which are triggered by `octopus relayer`.
 
 ## Contract initialization
 
@@ -548,7 +553,7 @@ Qualification of this action:
 Processing steps:
 
 * Add `amount` to `locked_balance` of the `NEP-141 token`.
-* Create a new `token bridging history` with type `BridgeTokenLocked`, and store it as an `TokenBridgingHistoryRecord`.
+* Create a new `token bridging history` with fact `BridgeTokenLocked`, and store it to `token_bridging_histories`.
 * Generate log: `Token <symbol of NEP-141 token> from <sender_id> locked. Receiver: <receiver_id>, Amount: <amount>`
 
 ### Unlock a certain amount of a NEP-141 token
@@ -571,7 +576,7 @@ Processing Steps:
 * Reduce `amount` from `locked_balance` of the `NEP-141 token`.
 * Call function `ft_transfer` of `contract_account` of the `NEP-141 token` with parameters `receiver_id` and `amount`:
   * If success:
-    * Create a new `token bridging history` with type `BridgeTokenUnlocked`, and store it as an `TokenBridgingHistoryRecord`.
+    * Create a new `token bridging history` with fact `BridgeTokenUnlocked`, and store it to `token_bridging_histories`.
     * Generate log: `Token <symbol> unlocked and transfered to <receiver_id>. Amount: <amount>`
   * If fail:
     * Generate log: `Failed to unlock and transfer token <symbol> to <receiver_id>. Amount: <amount>`
@@ -659,7 +664,7 @@ Processing steps:
 
 * Call function `mint` of `contract_account` of `appchain_native_token` of this contract with `receiver_id` and `amount`:
   * If success:
-    * Create a new `token bridging history` with the type `AppchainNativeTokenMinted`, and store it as an `TokenBridgingHistoryRecord`.
+    * Create a new `token bridging history` with fact `AppchainNativeTokenMinted`, and store it to `token_bridging_histories`.
     * Generate log: `<appchain_id> native token minted to <receiver_id>. Amount: <amount>`
   * If fail:
     * Generate log: `Failed to mint <appchain_id> native token to <receiver_id>. Amount: <amount>`
@@ -675,7 +680,7 @@ Processing steps:
 
 * Call function `burn` of `contract_account` of `appchain_native_token` of this contract with `sender` and `amount`:
   * If success:
-    * Create a new `token bridging history` with the type `AppchainNativeTokenBurnt`, and store it as an `TokenBridgingHistoryRecord`.
+    * Create a new `token bridging history` with fact `AppchainNativeTokenBurnt`, and store it to `token_bridging_histories`.
     * Generate log: `<appchain_id> native token burnt by <sender_id>. Appchain receiver: <receiver_id>, Amount: <amount>`
   * If fail:
     * Generate log: `Failed to burn <appchain_id> native token from <sender_id>. Amount: <amount>`
@@ -727,7 +732,7 @@ Qualification of this action:
 * This action can ONLY be performed inside this contract.
 * The `appchain state` must be `staging`, `booting`.
 * The `sender_id` must not be existed in `current_validator_set` as key.
-* The amount of deposit must not be smaller than `minimum_validator_deposit` of `protocol settings`.
+* The amount of deposit must not be smaller than `protocol_settings.minimum_validator_deposit`.
 
 Processing steps:
 
@@ -739,8 +744,8 @@ Processing steps:
   * `staking_state`: `StakingState::Active`
   * `is_reserved`: true
 * Add the new `validator` to `current_validator_set`.
-* Create a new `staking history` with type `ValidatorAdded` in a `StakingHistoryRecord`.
-* Add 1 to `staking_history_end_index`, and insert the `StakingHistoryRecord` to `staking_histories` with key `staking_history_end_index`.
+* Create a new `staking history` with fact `ValidatorAdded` and store it in `staking_histories` with key (`staking_history_end_index` + 1).
+* Add 1 to `staking_history_end_index`.
 * Generate log: `Validator <sender_id> is registered with stake <amount>.`
 
 ### Register validator
@@ -760,7 +765,7 @@ Qualification of this action:
 * If `appchain_state` is `active`:
   * The `sender_id` must not be existed in `next_validator_set` as `validator_id_in_near`.
   * The `sender_id` must not be existed in `unbonded_validator_set` as `validator_id_in_near`.
-* The amount of deposit must not be smaller than `minimum_validator_deposit` of `protocol settings`.
+* The amount of deposit must not be smaller than `protocol_settings.minimum_validator_deposit`.
 
 Processing steps:
 
@@ -773,8 +778,8 @@ Processing steps:
   * `is_reserved`: false
 * If `appchain_state` is `staging` or `booting`, add the new `validator` to `current_validator_set`.
 * If `appchain_state` is `active`, add the new `validator` to `next_validator_set`.
-* Create a new `staking history` with type `ValidatorAdded` in a `StakingHistoryRecord`.
-* Add 1 to `staking_history_end_index`, and insert the `StakingHistoryRecord` to `staking_histories` with key `staking_history_end_index`.
+* Create a new `staking history` with fact `ValidatorAdded` and store it in `staking_histories` with key (`staking_history_end_index` + 1).
+* Add 1 to `staking_history_end_index`.
 * Generate log: `Validator <sender_id> is registered with stake <amount>.`
 
 ### Increase stake of a validator
@@ -797,8 +802,8 @@ Processing steps:
 
 * If `appchain_state` is `staging` or `booting`, add `amount` to the `deposit_amount` of the given `validator` in `current_validator_set`.
 * If `appchain_state` is `active`, add `amount` to the `deposit_amount` of the given `validator` in `next_validator_set`.
-* Create a new `staking history` with type `StakeIncreased` in a `StakingHistoryRecord`.
-* Add 1 to `staking_history_end_index`, and insert the `StakingHistoryRecord` to `staking_histories` with key `staking_history_end_index`.
+* Create a new `staking history` with fact `StakeIncreased` and store it to `staking_histories` with key (`staking_history_end_index` + 1).
+* Add 1 to `staking_history_end_index`.
 * Generate log: `Stake of validator <sender_id> raised by <amount>.`
 
 ### Register delegator
@@ -821,7 +826,7 @@ Qualification of this action:
   * The `account_id` as `validator_id_in_near` must be existed in `next_validator_set`.
   * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `next_validator_set`.
   * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `unbonded_validator_set`.
-* The amount of deposit must not be smaller than `minimum_delegator_deposit` of `protocol settings`.
+* The amount of deposit must not be smaller than `protocol_settings.minimum_delegator_deposit`.
 
 Processing steps:
 
@@ -834,8 +839,8 @@ Processing steps:
   * `staking_state`: `StakingState::Active`
 * If `appchain_state` is `staging` or `booting`, add the new `delegator` to `current_validator_set`.
 * If `appchain_state` is `active`, add the new `delegator` to `next_validator_set`.
-* Create a new `staking history` with type `DelegatorAdded` in an `StakingHistoryRecord`.
-* Add 1 to `staking_history_end_index`, and insert the `StakingHistoryRecord` to `staking_histories` with key `staking_history_end_index`.
+* Create a new `staking history` with fact `DelegatorAdded`  and store it to `staking_histories` with key (`staking_history_end_index` + 1).
+* Add 1 to `staking_history_end_index`.
 * Generate log: `Delegator <sender_id> of validator <account_id> is registered with delegation <amount>.`
 
 ### Increase delegation of a delegator
@@ -860,8 +865,8 @@ Processing steps:
 
 * If `appchain_state` is `staging` or `booting`, add `amount` to `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `current_validator_set`.
 * If `appchain_state` is `active`, add `amount` to `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `next_validator_set`.
-* Create a new `staking history` with type `DelegationIncreased` in an `StakingHistoryRecord`.
-* Add 1 to `staking_history_end_index`, and insert the `StakingHistoryRecord` to `staking_histories` with key `staking_history_end_index`.
+* Create a new `staking history` with fact `DelegationIncreased` and store it to `staking_histories` with key (`staking_history_end_index` + 1).
+* Add 1 to `staking_history_end_index`.
 * Generate log: `The delegation of delegator <sender_id> of validator <account_id> raised by <amount>.`
 
 ## Handle relayed message
@@ -886,7 +891,7 @@ Decode `encoded_messages`, the real message will be one of `appchain message`:
 * `DelegatorUnbonded`: Which indicate that a delegator of a valicator has been unbonded on the appchain.
   * Perform [Unbond delegation](#unbond-delegation).
 * `EraSwitched`: Which indicate that the era in the appchain has been switched.
-  * Perform [Start applying staking history to current validator set](#start-applying-staking-history-to-current-validator-set).
+  * Perform [Start applying staking history](#start-applying-staking-history).
 * Other cases: throws an error.
 
 ## Manage appchain staking
@@ -928,8 +933,8 @@ Processing steps:
 
 * If `appchain_state` is `staging` or `booting`, reduce `amount` from `deposit_amount` of the given `validator` in `current_validator_set`.
 * If `appchain_state` is `active`, reduce `amount` from `deposit_amount` of the given `validator` in `next_validator_set`.
-* Create a new `staking history` with type `StakeDecreased` in a `StakingHistoryRecord`.
-* Add 1 to `staking_history_end_index`, and insert the `StakingHistoryRecord` to `staking_histories` with key `staking_history_end_index`.
+* Create a new `staking history` with fact `StakeDecreased` and store it to `staking_histories` with key (`staking_history_end_index` + 1).
+* Add 1 to `staking_history_end_index`.
 * Call function `ft_transfer` of `oct_token_contract` with parameters `sender` and `amount`:
   * If success:
     * Generate log: `Staking deposit of <sender> reduced by <amount>.`
@@ -941,7 +946,7 @@ Processing steps:
 Qualification of this action:
 
 * The `sender` must be existed in `unbonded_validator_set` as `validator_id_in_near`.
-* The days passed from `StakingState::Unbonded.timestamp` is bigger than `unlock_period_of_validator_deposit` of `protocol settings`.
+* The days passed from `StakingState::Unbonded.timestamp` is bigger than `protocol_settings.unlock_period_of_validator_deposit`.
 
 Processing steps:
 
@@ -997,8 +1002,8 @@ Processing steps:
 
 * If `appchain_state` is `staging` or `booting`, reduce `amount` from `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `current_validator_set`.
 * If `appchain_state` is `active`, reduce `amount` from `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `next_validator_set`.
-* Create a new `staking history` with type `DelegationIncreased` in an `StakingHistoryRecord`.
-* Add 1 to `staking_history_end_index`, and insert the `StakingHistoryRecord` to `staking_histories` with key `staking_history_end_index`.
+* Create a new `staking history` with fact `DelegationIncreased` and store it to `staking_histories` with key (`staking_history_end_index` + 1).
+* Add 1 to `staking_history_end_index`.
 * Call function `ft_transfer` of `oct_token_contract` with parameters `sender` and `amount`:
   * If success:
     * Generate log: `Delegating deposit of <sender> for <validator_id> reduced by <amount>.`
@@ -1014,7 +1019,7 @@ This action needs the following parameters:
 Qualification of this action:
 
 * The pair of (`sender`, `validator_id`) as (`delegator_id`, `validator_id`) must be existed in `unbonded_validator_set`.
-* The days passed from `StakingState::Unbonded.timestamp` of the `delegator` is bigger than `unlock_period_of_delegator_deposit` of `protocol settings`.
+* The days passed from `StakingState::Unbonded.timestamp` of the `delegator` is bigger than `protocol_settings.unlock_period_of_delegator_deposit`.
 
 Processing steps:
 

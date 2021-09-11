@@ -36,7 +36,7 @@ pub enum AppchainState {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub enum TokenBridgingHistory {
+pub enum TokenBridgingFact {
     /// The fact that a certain amount of wrapped appchain token is minted in its contract
     /// in NEAR protocol
     WrappedAppchainTokenMinted {
@@ -75,8 +75,8 @@ pub enum TokenBridgingHistory {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct TokenBridgingHistoryRecord {
-    pub token_bridging_history: TokenBridgingHistory,
+pub struct TokenBridgingHistory {
+    pub token_bridging_fact: TokenBridgingFact,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub index: U64,
@@ -84,7 +84,7 @@ pub struct TokenBridgingHistoryRecord {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub enum StakingHistory {
+pub enum StakingFact {
     /// A new validator is registered in appchain anchor
     ValidatorAdded {
         /// The validator's id in NEAR protocol.
@@ -135,15 +135,15 @@ pub enum StakingHistory {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct StakingHistoryRecord {
-    pub staking_history: StakingHistory,
+pub struct StakingHistory {
+    pub staking_fact: StakingFact,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub index: U64,
 }
 
 /// The message which is sent from the appchain
-pub enum AppchainMessage {
+pub enum AppchainFact {
     /// The fact that a certain amount of bridge token has been burnt on the appchain.
     Nep141TokenBurnt { symbol: String, amount: U128 },
     /// The fact that a certain amount of appchain native token has been locked on the appchain.
@@ -161,10 +161,14 @@ pub enum AppchainMessage {
         block_height: BlockHeight,
         timestamp: Timestamp,
     },
+    /// The fact that the era is switched in the appchain
+    EraSwitched {
+        appchain_era_number: U64
+    }
 }
 
-pub struct AppchainMessageRecord {
-    pub appchain_fact: AppchainMessage,
+pub struct AppchainMessage {
+    pub appchain_fact: AppchainFact,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub nonce: u32,
@@ -200,6 +204,7 @@ pub struct AppchainValidator {
     pub deposit_amount: Balance,
     /// Staking state of the validator.
     pub staking_state: StakingState,
+    /// Whether the validator is reserved.
     /// The reserved validator can NOT be delegated to.
     pub is_reserved: bool,
 }
@@ -298,6 +303,8 @@ pub struct ProtocolSettings {
     /// The minimum deposit amount for a delegator to delegate his voting weight to
     /// a certain validator.
     pub minimum_delegator_deposit: Balance,
+    /// The minimum value of total stake in this contract for booting corresponding appchain
+    pub minimum_total_stake_for_booting: Balance,
     /// The minimum number of validator(s) registered in this contract for
     /// booting the corresponding appchain and keep it alive.
     pub minimum_validator_count: U64,

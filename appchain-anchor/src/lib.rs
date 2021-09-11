@@ -40,13 +40,13 @@ pub struct AppchainAnchor {
     /// The current total stake of all validators and delegators in this contract.
     pub total_stake: Balance,
     /// The staking history data happened in this contract
-    pub staking_histories: LookupMap<u64, StakingHistoryRecord>,
+    pub staking_histories: LookupMap<u64, StakingHistory>,
     /// The start index of valid staking history in `staking_histories`.
     pub staking_history_start_index: u64,
     /// The end index of valid staking history in `staking_histories`.
     pub staking_history_end_index: u64,
     /// The token bridging history data happened in this contract
-    pub token_bridging_histories: LookupMap<u64, TokenBridgingHistoryRecord>,
+    pub token_bridging_histories: LookupMap<u64, TokenBridgingHistory>,
     /// The start index of valid token bridging history in `token_bridging_histories`.
     pub token_bridging_history_start_index: u64,
     /// The end index of valid token bridging history in `token_bridging_histories`.
