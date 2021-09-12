@@ -828,6 +828,8 @@ Qualification of this action:
   * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.next_validator_set`.
   * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.unbonded_validator_set`.
 * The amount of deposit must not be smaller than `self.protocol_settings.minimum_delegator_deposit`.
+* The value of `is_reserved` of the `validator` corresponding to `account_id` in `self.next_validator_set` must be `false`.
+* The count of `validator` of the `delegator` corresponding to `sender_id` in `self.next_validator_set` must be smaller than `self.protocol_settings.maximum_validators_per_delegator`.
 
 Processing steps:
 
@@ -914,6 +916,7 @@ Processing steps:
 
 * Get `validator_id_in_near` from `self.validator_account_id_mapping` using `validator_id_in_appchain` as key.
 * If `validator_id_in_near` is existed in `self.next_validator_set`, get `validator` data from `self.next_validator_set`. If not, get `validator` data from `self.current_validator_set`.
+* If the value of `is_reserved` of the `validator` is `true`, throws an error.
 * Remove `validator_id_in_near` from `self.current_validator_set` and `self.next_validator_set`.
 * The `staking state` of the `validator` is set to `unbonded`.
 * Add the `validator` to `self.unbonded_validator_set`.
@@ -1048,6 +1051,7 @@ Qualification of this action:
 * The `self.appchain_state` must be `staging`.
 * The metadata of `wrapped appchain token` has already been set by [Set metadata of wrapped appchain token](#set-metadata-of-wrapped-appchain-token).
 * If the `contract_account` of `warpped appchain token` must be set.
+* The count of `validator` in `self.current_validator_set` must be not smaller than `self.protocol_settings.minimum_validator_count`.
 * The `self.total_stake` must be not smaller than `self.protocol_settings.minimum_total_stake_for_booting`.
 
 Processing steps:
