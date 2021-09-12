@@ -501,7 +501,7 @@ Processing steps:
 
 This action needs the following parameters:
 
-* `symbol`: The symbol of the NEP-141 token.
+* `symbol`: The symbol of the `NEP-141 token`.
 * `price`: The price of the `NEP-141 token`.
 
 Qualification of this action:
@@ -722,7 +722,7 @@ For `invalid deposit` case, throws an error: `Invalid deposit <amount> of OCT to
 This action needs the following parameters:
 
 * `sender_id`: The new `validator`'s account id in NEAR protocol.
-* `validator_account_id_in_appchain`: The `validator`'s account id in the corresponding appchain.
+* `validator_id_in_appchain`: The `validator`'s account id in the corresponding appchain.
 * `amount`: The amount of the deposit.
 
 Qualification of this action:
@@ -752,8 +752,8 @@ Processing steps:
 This action needs the following parameters:
 
 * `sender_id`: The new `validator`'s account id in NEAR protocol.
-* `validator_account_id_in_appchain`: The `validator`'s account id in the corresponding appchain.
-* `payee_account_id_in_appchain`: The account id in corresponding appchain for receiving the income of the validator in appchain.
+* `validator_id_in_appchain`: The `validator`'s account id in the corresponding appchain.
+* `payee_id_in_appchain`: The account id in corresponding appchain for receiving the income of the validator in appchain.
 * `amount`: The amount of the deposit.
 
 Qualification of this action:
