@@ -40,28 +40,28 @@ pub struct AppchainAnchor {
     pub nep141_token_symbols: UnorderedSet<String>,
     /// The NEP-141 tokens data, mapped by the symbol of the token.
     pub nep141_tokens: LookupMap<String, Nep141Token>,
-    /// The currently used validator set in appchain
-    pub current_validator_set: TaggedAppchainValidatorSet,
-    /// The validator set of the next era in appchain
+    /// The history version of validator set, mapped by era number in appchain.
+    pub validator_set_histories: LookupMap<u64, TaggedAppchainValidatorSet>,
+    /// The validator set of the next era in appchain.
     pub next_validator_set: TaggedAppchainValidatorSet,
-    /// The validator set for unbonded validators and delegators
+    /// The validator set for unbonded validators and delegators.
     pub unbonded_validator_set: AppchainValidatorSet,
     /// The mapping for validators' accounts, from account id in the appchain to
-    /// account id in NEAR protocol
+    /// account id in NEAR protocol.
     pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
-    /// The custom settings for appchain
+    /// The custom settings for appchain.
     pub appchain_settings: LazyOption<AppchainSettings>,
-    /// The protocol settings for appchain anchor
+    /// The protocol settings for appchain anchor.
     pub protocol_settings: LazyOption<ProtocolSettings>,
-    /// The state of the corresponding appchain
+    /// The state of the corresponding appchain.
     pub appchain_state: AppchainState,
-    /// The staking history data happened in this contract
+    /// The staking history data happened in this contract.
     pub staking_histories: LookupMap<u64, StakingHistory>,
     /// The start index of valid staking history in `staking_histories`.
     pub staking_history_start_index: u64,
     /// The end index of valid staking history in `staking_histories`.
     pub staking_history_end_index: u64,
-    /// The token bridging history data happened in this contract
+    /// The token bridging history data happened in this contract.
     pub token_bridging_histories: LookupMap<u64, TokenBridgingHistory>,
     /// The start index of valid token bridging history in `token_bridging_histories`.
     pub token_bridging_history_start_index: u64,

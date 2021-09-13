@@ -440,28 +440,28 @@ pub struct AppchainAnchor {
     pub nep141_token_symbols: UnorderedSet<String>,
     /// The NEP-141 tokens data, mapped by the symbol of the token.
     pub nep141_tokens: LookupMap<String, Nep141Token>,
-    /// The currently used validator set in appchain
-    pub current_validator_set: TaggedAppchainValidatorSet,
-    /// The validator set of the next era in appchain
+    /// The history version of validator set, mapped by era number in appchain.
+    pub validator_set_histories: LookupMap<u64, TaggedAppchainValidatorSet>,
+    /// The validator set of the next era in appchain.
     pub next_validator_set: TaggedAppchainValidatorSet,
-    /// The validator set for unbonded validators and delegators
+    /// The validator set for unbonded validators and delegators.
     pub unbonded_validator_set: AppchainValidatorSet,
     /// The mapping for validators' accounts, from account id in the appchain to
-    /// account id in NEAR protocol
+    /// account id in NEAR protocol.
     pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
-    /// The custom settings for appchain
+    /// The custom settings for appchain.
     pub appchain_settings: LazyOption<AppchainSettings>,
-    /// The protocol settings for appchain anchor
+    /// The protocol settings for appchain anchor.
     pub protocol_settings: LazyOption<ProtocolSettings>,
-    /// The state of the corresponding appchain
+    /// The state of the corresponding appchain.
     pub appchain_state: AppchainState,
-    /// The staking history data happened in this contract
+    /// The staking history data happened in this contract.
     pub staking_histories: LookupMap<u64, StakingHistory>,
     /// The start index of valid staking history in `staking_histories`.
     pub staking_history_start_index: u64,
     /// The end index of valid staking history in `staking_histories`.
     pub staking_history_end_index: u64,
-    /// The token bridging history data happened in this contract
+    /// The token bridging history data happened in this contract.
     pub token_bridging_histories: LookupMap<u64, TokenBridgingHistory>,
     /// The start index of valid token bridging history in `token_bridging_histories`.
     pub token_bridging_history_start_index: u64,
@@ -474,7 +474,7 @@ Due to the relatively large amount of data volume in this contract, we use `Look
 
 Considering the possible huge amount of history data for `token bridging history` and `staking history`, we use `LookupMap` to store them. Then we can only store the start index and end index for valid history data in contract struct. If we want to clear some history data, we can simply specify a value of start index, and then delete all records with smaller index in the map of history data.
 
-As the event of switching era is happening in the appchain, we have to store 2 versions of validator set. One for current era in the appchain, another is for the next era in the appchain. And for tracing the changes between the 2 adjacent eras in appchain, we define `TaggedAppchainValidatorSet` for these 2 validator set:
+Due to the gas limit of the transaction (single function call) in NEAR protocol, we may not be able to complete the copy of the entire validator set in one transaction, so we choose to recover the complete validator set at a certain moment by applying all the staking history in the past. This may take multiple transactions to complete the entire process. To store history version of validator set and support the recover process in multiple transactions, we define `TaggedAppchainValidatorSet` as:
 
 ```rust
 pub struct TaggedAppchainValidatorSet {
@@ -489,11 +489,9 @@ pub struct TaggedAppchainValidatorSet {
 }
 ```
 
-All changes to validator set which are caused by external users will be recorded in `self.staking_histories`.
+All changes to validator set which are caused by external users will be recorded in `self.staking_histories` and will be applied to `self.next_validator_set`.
 
-While the `self.appchain_state` is `staging` or `booting`, all changes to validator set will be applied to `self.current_validator_set` directly. After the appchain goes to `active`, all changes to validator set will be applied to `self.next_validator_set`.
-
-When this contract receives `AppchainMessage` with `AppchainFact::EraSwitched`, the contract will start applying the records of staking histories with the index between `current_validator_set.applied_staking_history_index` and `current_validator_set.staking_history_index` to `self.current_validator_set`. (This is to make `self.current_validator_set` to be equal to `self.next_validator_set`.) This process will cost 2 transactions (function calls) at least, which are triggered by `octopus relayer`.
+When this contract receives `AppchainMessage` with `AppchainFact::EraSwitched`, the contract will create a history version of validator set at the time using `staking history`, and insert it into `self.validator_set_histories`. This process will cost at least 2 transactions (function calls), which are triggered by `octopus relayer`.
 
 ## Contract initialization
 
@@ -786,7 +784,7 @@ Qualification of this action:
 
 * This action can ONLY be performed inside this contract.
 * The `self.appchain_state` must be `staging`, `booting`.
-* The `sender_id` must not be existed in `self.current_validator_set` as `validator_id_in_near`.
+* The `sender_id` must not be existed in `self.next_validator_set` as `validator_id_in_near`.
 * The amount of deposit must not be smaller than `self.protocol_settings.minimum_validator_deposit`.
 
 Processing steps:
@@ -798,7 +796,7 @@ Processing steps:
   * `deposit_amount`: `amount`
   * `staking_state`: `StakingState::Active`
   * `is_reserved`: true
-* Add the new `validator` to `self.current_validator_set`.
+* Add the new `validator` to `self.next_validator_set`.
 * Create a new `staking history` with fact `ValidatorAdded` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add `1` to `self.staking_history_end_index`.
 * Add `amount` to `self.oct_token.total_stake`.
@@ -817,10 +815,8 @@ Qualification of this action:
 
 * This action can ONLY be performed inside this contract.
 * The `self.appchain_state` must be `staging`, `booting` or `active`.
-* If `self.appchain_state` is `staging` or `booting`, the `sender_id` must not be existed in `self.current_validator_set` as key.
-* If `self.appchain_state` is `active`:
-  * The `sender_id` must not be existed in `self.next_validator_set` as `validator_id_in_near`.
-  * The `sender_id` must not be existed in `self.unbonded_validator_set` as `validator_id_in_near`.
+* The `sender_id` must not be existed in `self.next_validator_set` as `validator_id_in_near`.
+* The `sender_id` must not be existed in `self.unbonded_validator_set` as `validator_id_in_near`.
 * The amount of deposit must not be smaller than `self.protocol_settings.minimum_validator_deposit`.
 
 Processing steps:
@@ -832,8 +828,7 @@ Processing steps:
   * `deposit_amount`: `amount`
   * `staking_state`: `StakingState::Active`
   * `is_reserved`: false
-* If `self.appchain_state` is `staging` or `booting`, add the new `validator` to `self.current_validator_set`.
-* If `self.appchain_state` is `active`, add the new `validator` to `self.next_validator_set`.
+* Add the new `validator` to `self.next_validator_set`.
 * Create a new `staking history` with fact `ValidatorAdded` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add `1` to `self.staking_history_end_index`.
 * Add `amount` to `self.oct_token.total_stake`.
@@ -850,15 +845,12 @@ Qualification of this action:
 
 * This action can ONLY be performed inside this contract.
 * The `self.appchain_state` must be `staging`, `booting` or `active`.
-* If `self.appchain_state` is `staging` or `booting`, the `sender_id` must be existed in `self.current_validator_set` as key.
-* If `self.appchain_state` is `active`:
-  * The `sender_id` must be existed in `self.next_validator_set` as `validator_id_in_near`.
-  * The `sender_id` must not be existed in `self.unbonded_validator_set` as `validator_id_in_near`.
+* The `sender_id` must be existed in `self.next_validator_set` as `validator_id_in_near`.
+* The `sender_id` must not be existed in `self.unbonded_validator_set` as `validator_id_in_near`.
 
 Processing steps:
 
-* If `self.appchain_state` is `staging` or `booting`, add `amount` to the `deposit_amount` of the given `validator` in `self.current_validator_set`.
-* If `self.appchain_state` is `active`, add `amount` to the `deposit_amount` of the given `validator` in `self.next_validator_set`.
+* Add `amount` to the `deposit_amount` of the given `validator` in `self.next_validator_set`.
 * Create a new `staking history` with fact `StakeIncreased` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
 * Add `amount` to `self.oct_token.total_stake`.
@@ -877,13 +869,9 @@ Qualification of this action:
 
 * This action can ONLY be performed inside this contract.
 * The `self.appchain_state` must be `staging`, `booting` or `active`.
-* If `self.appchain_state` is `staging`, `booting`:
-  * The `account_id` as `validator_id_in_near` must be existed in `self.current_validator_set`.
-  * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.current_validator_set`.
-* If `self.appchain_state` is `active`:
-  * The `account_id` as `validator_id_in_near` must be existed in `self.next_validator_set`.
-  * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.next_validator_set`.
-  * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.unbonded_validator_set`.
+* The `account_id` as `validator_id_in_near` must be existed in `self.next_validator_set`.
+* The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.next_validator_set`.
+* The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.unbonded_validator_set`.
 * The amount of deposit must not be smaller than `self.protocol_settings.minimum_delegator_deposit`.
 * The value of `is_reserved` of the `validator` corresponding to `account_id` in `self.next_validator_set` must be `false`.
 * The count of `validator` of the `delegator` corresponding to `sender_id` in `self.next_validator_set` must be smaller than `self.protocol_settings.maximum_validators_per_delegator`.
@@ -897,8 +885,7 @@ Processing steps:
   * `validator_id_in_appchain`: validator account id in appchain, get from corresponding validator set (depends on `self.appchain_state`)
   * `deposit_amount`: `amount`
   * `staking_state`: `StakingState::Active`
-* If `self.appchain_state` is `staging` or `booting`, add the new `delegator` to `self.current_validator_set`.
-* If `self.appchain_state` is `active`, add the new `delegator` to `self.next_validator_set`.
+* Add the new `delegator` to `self.next_validator_set`.
 * Create a new `staking history` with fact `DelegatorAdded` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
 * Add `amount` to `self.oct_token.total_stake`.
@@ -916,16 +903,12 @@ Qualification of this action:
 
 * This action can ONLY be performed inside this contract.
 * The `self.appchain_state` must be `staging`, `booting` or `active`.
-* If `self.appchain_state` is `staging`, `booting`:
-  * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must be existed in `self.current_validator_set`.
-* If `self.appchain_state` is `active`:
-  * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must be existed in `self.next_validator_set`.
-  * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.unbonded_validator_set`.
+* The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must be existed in `self.next_validator_set`.
+* The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.unbonded_validator_set`.
 
 Processing steps:
 
-* If `self.appchain_state` is `staging` or `booting`, add `amount` to `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `self.current_validator_set`.
-* If `self.appchain_state` is `active`, add `amount` to `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `self.next_validator_set`.
+* Add `amount` to `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `self.next_validator_set`.
 * Create a new `staking history` with fact `DelegationIncreased` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
 * Add `amount` to `self.oct_token.total_stake`.
@@ -972,9 +955,9 @@ Qualification of this action:
 Processing steps:
 
 * Get `validator_id_in_near` from `self.validator_account_id_mapping` using `validator_id_in_appchain` as key.
-* If `validator_id_in_near` is existed in `self.next_validator_set`, get `validator` data from `self.next_validator_set`. If not, get `validator` data from `self.current_validator_set`.
+* Get `validator` data from `self.next_validator_set`.
 * If the value of `is_reserved` of the `validator` is `true`, throws an error.
-* Remove `validator_id_in_near` from `self.current_validator_set` and `self.next_validator_set`.
+* Remove `validator_id_in_near` from `self.next_validator_set`.
 * The `staking state` of the `validator` is set to `unbonded`.
 * Add the `validator` to `self.unbonded_validator_set`.
 * Reduce the value of `deposit_amount` of the `validator` and all its `delegators` from `self.oct_token.total_stake`.
@@ -989,14 +972,12 @@ Qualification of this action:
 
 * The `sender` must be one of the registered `validator`.
 * The `self.appchain_state` must be `staging`, `booting` or `active`.
-* If `self.appchain_state` is `staging` or `booting`, the `sender_id` must be existed in `self.current_validator_set` as key.
-* If `self.appchain_state` is `active`, the `sender_id` must be existed in `self.next_validator_set` as key.
+* The `sender_id` must be existed in `self.next_validator_set` as key.
 * The `amount` must not be bigger than (`validator.deposit_amount` - `self.protocol_settings.minimum_validator_deposit`).
 
 Processing steps:
 
-* If `self.appchain_state` is `staging` or `booting`, reduce `amount` from `deposit_amount` of the given `validator` in `self.current_validator_set`.
-* If `self.appchain_state` is `active`, reduce `amount` from `deposit_amount` of the given `validator` in `self.next_validator_set`.
+* Reduce `amount` from `deposit_amount` of the given `validator` in `self.next_validator_set`.
 * Create a new `staking history` with fact `StakeDecreased` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
 * Reduce `amount` from `self.oct_token.total_stake`.
@@ -1040,8 +1021,8 @@ Processing steps:
 
 * Get `delegator_id_in_near` from `self.validator_account_id_mapping` using `validator_id_in_appchain` as key.
 * Get `validator_id_in_near` from `self.validator_account_id_mapping` using `validator_id_in_appchain` as key.
-* If the pair (`delegator_id_in_near`, `validator_id_in_near`) is existed in `self.next_validator_set`, get the `delegator` data from `self.next_validator_set`. If not, get the `delegator` data from `self.current_validator_set`.
-* Remove the `delegator` from `self.current_validator_set` and `self.next_validator_set`.
+* Get the `delegator` data from `self.next_validator_set`.
+* Remove the `delegator` from `self.next_validator_set`.
 * The `staking state` of the `delegator` is set to `unbonded`.
 * Add the `delegator` to `self.unbonded_validator_set`.
 * Reduce the value of `deposit_amount` of the `delegator` from `self.oct_token.total_stake`.
@@ -1057,17 +1038,13 @@ Qualification of this action:
 
 * The pair of (`sender`, `validator_id`) must be one of the registered `delegator`.
 * The `self.appchain_state` must be `staging`, `booting` or `active`.
-* If `self.appchain_state` is `staging`, `booting`:
-  * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must be existed in `self.current_validator_set`.
-* If `self.appchain_state` is `active`:
-  * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must be existed in `self.next_validator_set`.
-  * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.unbonded_validator_set`.
+* The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must be existed in `self.next_validator_set`.
+* The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.unbonded_validator_set`.
 * The `amount` must not be bigger than (`delegator.deposit_amount` - `self.protocol_settings.minimum_delegator_deposit`).
 
 Processing steps:
 
-* If `self.appchain_state` is `staging` or `booting`, reduce `amount` from `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `self.current_validator_set`.
-* If `self.appchain_state` is `active`, reduce `amount` from `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `self.next_validator_set`.
+* Reduce `amount` from `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `self.next_validator_set`.
 * Create a new `staking history` with fact `DelegationIncreased` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
 * Reduce `amount` from `self.oct_token.total_stake`.
@@ -1137,7 +1114,7 @@ Qualification of this action:
 * The `self.appchain_state` must be `staging`.
 * The metadata of `wrapped appchain token` has already been set by [Set metadata of wrapped appchain token](#set-metadata-of-wrapped-appchain-token).
 * If the `contract_account` of `warpped appchain token` must be set.
-* The count of `validator` in `self.current_validator_set` must be not smaller than `self.protocol_settings.minimum_validator_count`.
+* The count of `validator` in `self.next_validator_set` must be not smaller than `self.protocol_settings.minimum_validator_count`.
 * The `self.oct_token.total_stake` must be not smaller than `self.protocol_settings.minimum_total_stake_for_booting`.
 
 Processing steps:
