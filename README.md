@@ -1092,7 +1092,7 @@ Processing steps:
   * `staking_history_index`: `self.staking_history_end_index`
   * `applied_staking_history_index`: `0`
   * `validator_set`: a new (empty) `AppchainValidatorSet`
-* Insert the new `TaggedAppchainValidatorSet` into `self.validator_set_history` using `appchain_era_number` as key.
+* Insert the new `TaggedAppchainValidatorSet` into `self.validator_set_histories` using `appchain_era_number` as key.
 * The `self.applying_appchain_era_number` is set to `appchain_era_number`.
 * Perform [Apply staking history](#apply-staking-history).
 
@@ -1100,9 +1100,12 @@ Processing steps:
 
 Processing steps:
 
-* Get `TaggedAppchainValidatorSet` from `self.validator_set_history` by key `self.applying_appchain_era_number` as `validator_set`.
-* Get `StakingHistory` from `self.staking_histories` by key `validator_set.applied_staking_history_index + 1` as `staking_history`.
-* Apply `staking_history` to `validator_set`.
+* Get `TaggedAppchainValidatorSet` from `self.validator_set_histories` by key `self.applying_appchain_era_number` as `validator_set`.
+* Repeat the following process until `validator_set.applied_staking_history_index` is equal to `validator_set.staking_history_index` or the burnt gas reaches 180T (90% of gas limit per contract in a transaction of NEAR protocol):
+  * Get `StakingHistory` from `self.staking_histories` by key `validator_set.applied_staking_history_index + 1` as `staking_history`.
+  * Apply `staking_history` to `validator_set`.
+  * Add `1` to `validator_set.applied_staking_history_index`.
+* If `validator_set.applied_staking_history_index` is equal to `validator_set.staking_history_index` return `true`, else return `false`.
 
 ## Manage appchain lifecycle
 
