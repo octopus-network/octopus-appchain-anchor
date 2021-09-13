@@ -36,7 +36,7 @@ pub trait AppchainMessageHandler {
     ///
     fn handle_appchain_message(
         &mut self,
-        encoded_messages: Vec<u8>,
+        encoded_message: Vec<u8>,
         header_partial: Vec<u8>,
         leaf_proof: Vec<u8>,
         mmr_root: Vec<u8>,
