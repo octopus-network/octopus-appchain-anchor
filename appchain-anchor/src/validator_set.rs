@@ -60,8 +60,11 @@ pub struct AppchainValidatorSet {
     pub validator_ids: LazyOption<UnorderedSet<AccountId>>,
     /// The set of account id of delegators.
     pub delegator_ids: LazyOption<UnorderedSet<AccountId>>,
-    /// The validators that a delegator delegates his/her voting rights to.
-    pub validator_ids_of_delegator_id: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    /// The map from validator id to its delegators' ids.
+    pub validator_id_to_delegator_ids: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    /// The map from delegator id to the validators' ids that
+    /// the delegator delegates his/her voting rights to.
+    pub delegator_id_to_validator_ids: LookupMap<AccountId, UnorderedSet<AccountId>>,
     /// The validators data, mapped by their account id in NEAR protocol.
     pub validators: LookupMap<AccountId, AppchainValidator>,
     /// The delegators data, mapped by the tuple of their delegator account id and

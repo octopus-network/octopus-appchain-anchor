@@ -23,6 +23,7 @@ Contents
   * [Set price of wrapped appchain token](#set-price-of-wrapped-appchain-token)
   * [Mint wrapped appchain token](#mint-wrapped-appchain-token)
   * [Burn wrapped appchain token](#burn-wrapped-appchain-token)
+* [Manage appchain settings](#manage-appchain-settings)
 * [Manage protocol settings](#manage-protocol-settings)
 * [Process fungible token deposit](#process-fungible-token-deposit)
   * [Register reserved validator](#register-reserved-validator)
@@ -38,6 +39,8 @@ Contents
   * [Unbond delegation](#unbond-delegation)
   * [Decrease delegation](#decrease-delegation)
   * [Withdraw delegation](#withdraw-delegation)
+  * [Start applying staking history](#start-applying-staking-history)
+  * [Apply staking history](#apply-staking-history)
 * [Manage appchain lifecycle](#manage-appchain-lifecycle)
   * [Go booting](#go-booting)
   * [Go live](#go-live)
@@ -147,8 +150,11 @@ pub struct AppchainValidatorSet {
     pub validator_ids: LazyOption<UnorderedSet<AccountId>>,
     /// The set of account id of delegators.
     pub delegator_ids: LazyOption<UnorderedSet<AccountId>>,
-    /// The validators that a delegator delegates his/her voting rights to.
-    pub validator_ids_of_delegator_id: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    /// The map from validator id to its delegators' ids.
+    pub validator_id_to_delegator_ids: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    /// The map from delegator id to the validators' ids that
+    /// the delegator delegates his/her voting rights to.
+    pub delegator_id_to_validator_ids: LookupMap<AccountId, UnorderedSet<AccountId>>,
     /// The validators data, mapped by their account id in NEAR protocol.
     pub validators: LookupMap<AccountId, AppchainValidator>,
     /// The delegators data, mapped by the tuple of their delegator account id and
@@ -157,14 +163,23 @@ pub struct AppchainValidatorSet {
 }
 ```
 
-* `sender`: A NEAR transaction sender, that is the account which perform actions (call functions) on this contract.
+* `OCT token`: The OCT token is used to stake for the validators of corresponding appchain. It is defined as:
+
+```rust
+pub struct OctToken {
+    pub contract_account: AccountId,
+    pub price_in_usd: U64,
+    pub total_stake: Balance,
+}
+```
+
 * `NEP-141 token`: A token which is lived in NEAR protocol. It should be a NEP-141 compatible contract. This contract can bridge the token to the corresponding appchain. It is defined as:
 
 ```rust
 pub enum BridgingState {
-    /// The state which this contract is bridging the NEP-141 token to the appchain.
+    /// The state which this contract is bridging the bridge token to the appchain.
     Active,
-    /// The state which this contract has stopped bridging the NEP-141 token to the appchain.
+    /// The state which this contract has stopped bridging the bridge token to the appchain.
     Closed,
 }
 
@@ -177,8 +192,7 @@ pub struct Nep141TokenMetadata {
 pub struct Nep141Token {
     pub metadata: Nep141TokenMetadata,
     pub contract_account: AccountId,
-    pub price: U64,
-    pub price_decimals: u8,
+    pub price_in_usd: U64,
     /// The total balance locked in this contract
     pub locked_balance: Balance,
     pub bridging_state: BridgingState,
@@ -201,8 +215,10 @@ pub struct WrappedAppchainTokenMetadata {
 pub struct WrappedAppchainToken {
     pub metadata: WrappedAppchainTokenMetadata,
     pub contract_account: AccountId,
-    pub price: U64,
-    pub price_decimals: u8,
+    pub initial_balance: Balance,
+    pub changed_balance: I128,
+    pub exchange_rate_to_oct_token: U64,
+    pub exchange_rate_decimals_to_oct_token: u8,
 }
 ```
 
@@ -350,6 +366,17 @@ pub struct AppchainMessage {
 ```
 
 * `octopus relayer`: A standalone service which will relay the `appchain message` to this contract.
+* `appchain settings`: A set of settings for booting corresponding appchain, which is defined as:
+
+```rust
+pub struct AppchainSettings {
+    pub chain_spec: String,
+    pub raw_chain_spec: String,
+    pub boot_node: String,
+    pub rpc_endpoint: String,
+}
+```
+
 * `protocol settings`: A set of settings for Octopus Network protocol, maintained by the `owner`, which is defined as:
 
 ```rust
@@ -362,11 +389,17 @@ pub struct ProtocolSettings {
     pub minimum_delegator_deposit: Balance,
     /// The minimum value of total stake in this contract for booting corresponding appchain
     pub minimum_total_stake_for_booting: Balance,
+    /// The maximum percentage of the total market value of all NEP-141 tokens to the total
+    /// market value of OCT token staked in this contract
+    pub maximum_market_value_percent_of_nep141_tokens: u16,
+    /// The maximum percentage of the total market value of wrapped appchain token to the total
+    /// market value of OCT token staked in this contract
+    pub maximum_market_value_percent_of_wrapped_appchain_token: u16,
     /// The minimum number of validator(s) registered in this contract for
     /// booting the corresponding appchain and keep it alive.
-    pub minimum_validator_count: U64,
+    pub minimum_validator_count: u16,
     /// The maximum number of validator(s) which a delegator can delegate to.
-    pub maximum_validators_per_delegator: U64,
+    pub maximum_validators_per_delegator: u16,
     /// The unlock period (in days) for validator(s) can withdraw their deposit after
     /// they are removed from the corresponding appchain.
     pub unlock_period_of_validator_deposit: u16,
@@ -375,6 +408,8 @@ pub struct ProtocolSettings {
     pub unlock_period_of_delegator_deposit: u16,
 }
 ```
+
+* `sender`: A NEAR transaction sender, that is the account which perform actions (call functions) on this contract.
 
 ### Cross chain transfer in this contract
 
@@ -397,10 +432,10 @@ pub struct AppchainAnchor {
     pub appchain_id: AppchainId,
     /// The account id of appchain registry contract.
     pub appchain_registry_contract: AccountId,
-    /// The account id of OCT token contract.
-    pub oct_token_contract: AccountId,
-    /// The wrapped appchain token in NEAR protocol.
-    pub wrapped_appchain_token: WrappedAppchainToken,
+    /// The info of OCT token.
+    pub oct_token: LazyOption<OctToken>,
+    /// The info of wrapped appchain token in NEAR protocol.
+    pub wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
     /// The set of symbols of NEP-141 tokens.
     pub nep141_token_symbols: UnorderedSet<String>,
     /// The NEP-141 tokens data, mapped by the symbol of the token.
@@ -414,12 +449,12 @@ pub struct AppchainAnchor {
     /// The mapping for validators' accounts, from account id in the appchain to
     /// account id in NEAR protocol
     pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
+    /// The custom settings for appchain
+    pub appchain_settings: LazyOption<AppchainSettings>,
     /// The protocol settings for appchain anchor
     pub protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain
     pub appchain_state: AppchainState,
-    /// The current total stake of all validators and delegators in this contract.
-    pub total_stake: Balance,
     /// The staking history data happened in this contract
     pub staking_histories: LookupMap<u64, StakingHistory>,
     /// The start index of valid staking history in `staking_histories`.
@@ -564,6 +599,9 @@ Processing steps:
 
 * Get the `NEP-141 token` from `self.nep141_tokens` by `contract_account`.
 * Add `amount` to `locked_balance` of the `NEP-141 token`.
+* Check the total market value of all `NEP-141 token` locked in this contract:
+  * Calculate the market value of each `NEP-141 token` by `nep141_token.locked_balance * nep141_token.price_in_usd`.
+  * If the total market value of all `NEP-141 token` is bigger than `self.oct_token.total_stake * self.oct_token.price_in_usd * self.protocol_settings.maximum_market_value_percent_of_nep141_tokens / 100`, throws an error.
 * Create a new `token bridging history` with fact `BridgeTokenLocked`, and insert it to `self.token_bridging_histories` by key `self.token_bridging_history_end_index + 1`.
 * Add `1` to `self.token_bridging_history_end_index`.
 * Generate log: `Token <symbol of NEP-141 token> from <sender_id> locked. Receiver: <receiver_id>, Amount: <amount>`
@@ -597,7 +635,7 @@ Processing Steps:
 
 ## Manage wrapped appchain token
 
-The contract of `wrapped appchain token` in NEAR protocol should be deployed before the appchain go `active`. And the owner of the token contract should be set to the owner of this contract.
+The contract of `wrapped appchain token` in NEAR protocol should be deployed before the appchain go `active`. The owner of the token contract should be set to the owner of this contract. The initial total supply of `wrapped appchain token` should be minted to an account belongs to the appchain team.
 
 ### Set metadata of wrapped appchain token
 
@@ -658,10 +696,24 @@ Qualification of this action:
 
 Processing steps:
 
+* Calculate the amount of OCT token which is equivalent to the total market value of total balance of wrapped appchain token as `equivalent amount`:
+
+```rust
+(self.wrapped_appchain_token.initial_balance + self.wrapped_appchain_token.changed_balance + amount) * self.wrapped_appchain_token.exchange_rate_to_oct_token / 10 ** self.wrapped_appchain_token.exchange_rate_decimals_to_oct_token
+```
+
+* Calculate the maximum amount of OCT token that is allowed to be minted in the contract of `wrapped appchain token` as `maximum amount to be minted`:
+
+```rust
+self.oct_token.total_stake * self.protocol_settings.maximum_market_value_percent_of_wrapped_appchain_token / 100
+```
+
+* If the `equivalent amount` is bigger than `maximum amount to be minted`, throws an error.
 * Call function `mint` of `contract_account` of `self.wrapped_appchain_token` with params `receiver_id` and `amount`:
   * If success:
     * Create a new `token bridging history` with fact `AppchainNativeTokenMinted` and insert it into `self.token_bridging_histories` with key `self.token_bridging_history_end_index + 1`.
     * Add `1` to `self.token_bridging_history_end_index`.
+    * Add `amount` to `self.wrapped_appchain_token.changed_balance`.
     * Generate log: `<appchain_id> native token minted to <receiver_id>. Amount: <amount>`
   * If fail:
     * Generate log: `Failed to mint <appchain_id> native token to <receiver_id>. Amount: <amount>`
@@ -679,9 +731,14 @@ Processing steps:
   * If success:
     * Create a new `token bridging history` with fact `AppchainNativeTokenBurnt` and insert it into `self.token_bridging_histories` with key `self.token_bridging_history_end_index + 1`.
     * Add `1` to `self.token_bridging_history_end_index`.
+    * Reduce `amount` from `self.wrapped_appchain_token.changed_balance`.
     * Generate log: `<appchain_id> native token burnt by <sender_id>. Appchain receiver: <receiver_id>, Amount: <amount>`
   * If fail:
     * Generate log: `Failed to burn <appchain_id> native token from <sender_id>. Amount: <amount>`
+
+## Manage appchain settings
+
+This contract has a set of functions to manage the value of each field of `appchain settings`.
 
 ## Manage protocol settings
 
@@ -744,7 +801,7 @@ Processing steps:
 * Add the new `validator` to `self.current_validator_set`.
 * Create a new `staking history` with fact `ValidatorAdded` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add `1` to `self.staking_history_end_index`.
-* Add `amount` to `self.total_stake`.
+* Add `amount` to `self.oct_token.total_stake`.
 * Generate log: `Validator <sender_id> is registered with stake <amount>.`
 
 ### Register validator
@@ -779,7 +836,7 @@ Processing steps:
 * If `self.appchain_state` is `active`, add the new `validator` to `self.next_validator_set`.
 * Create a new `staking history` with fact `ValidatorAdded` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add `1` to `self.staking_history_end_index`.
-* Add `amount` to `self.total_stake`.
+* Add `amount` to `self.oct_token.total_stake`.
 * Generate log: `Validator <sender_id> is registered with stake <amount>.`
 
 ### Increase stake of a validator
@@ -804,7 +861,7 @@ Processing steps:
 * If `self.appchain_state` is `active`, add `amount` to the `deposit_amount` of the given `validator` in `self.next_validator_set`.
 * Create a new `staking history` with fact `StakeIncreased` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
-* Add `amount` to `self.total_stake`.
+* Add `amount` to `self.oct_token.total_stake`.
 * Generate log: `Stake of validator <sender_id> raised by <amount>.`
 
 ### Register delegator
@@ -844,7 +901,7 @@ Processing steps:
 * If `self.appchain_state` is `active`, add the new `delegator` to `self.next_validator_set`.
 * Create a new `staking history` with fact `DelegatorAdded` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
-* Add `amount` to `self.total_stake`.
+* Add `amount` to `self.oct_token.total_stake`.
 * Generate log: `Delegator <sender_id> of validator <account_id> is registered with delegation <amount>.`
 
 ### Increase delegation of a delegator
@@ -871,7 +928,7 @@ Processing steps:
 * If `self.appchain_state` is `active`, add `amount` to `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `self.next_validator_set`.
 * Create a new `staking history` with fact `DelegationIncreased` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
-* Add `amount` to `self.total_stake`.
+* Add `amount` to `self.oct_token.total_stake`.
 * Generate log: `The delegation of delegator <sender_id> of validator <account_id> raised by <amount>.`
 
 ## Handle relayed message
@@ -920,7 +977,7 @@ Processing steps:
 * Remove `validator_id_in_near` from `self.current_validator_set` and `self.next_validator_set`.
 * The `staking state` of the `validator` is set to `unbonded`.
 * Add the `validator` to `self.unbonded_validator_set`.
-* Reduce the value of `deposit_amount` of the `validator` and all its `delegators` from `self.total_stake`.
+* Reduce the value of `deposit_amount` of the `validator` and all its `delegators` from `self.oct_token.total_stake`.
 
 ### Decrease stake
 
@@ -942,7 +999,7 @@ Processing steps:
 * If `self.appchain_state` is `active`, reduce `amount` from `deposit_amount` of the given `validator` in `self.next_validator_set`.
 * Create a new `staking history` with fact `StakeDecreased` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
-* Reduce `amount` from `self.total_stake`.
+* Reduce `amount` from `self.oct_token.total_stake`.
 * Call function `ft_transfer` of `oct_token_contract` with parameters `sender` and `amount`:
   * If success:
     * Generate log: `Staking deposit of <sender> reduced by <amount>.`
@@ -987,7 +1044,7 @@ Processing steps:
 * Remove the `delegator` from `self.current_validator_set` and `self.next_validator_set`.
 * The `staking state` of the `delegator` is set to `unbonded`.
 * Add the `delegator` to `self.unbonded_validator_set`.
-* Reduce the value of `deposit_amount` of the `delegator` from `self.total_stake`.
+* Reduce the value of `deposit_amount` of the `delegator` from `self.oct_token.total_stake`.
 
 ### Decrease delegation
 
@@ -1013,7 +1070,7 @@ Processing steps:
 * If `self.appchain_state` is `active`, reduce `amount` from `deposit_amount` of the `delegator` corresponding to pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) in `self.next_validator_set`.
 * Create a new `staking history` with fact `DelegationIncreased` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
-* Reduce `amount` from `self.total_stake`.
+* Reduce `amount` from `self.oct_token.total_stake`.
 * Call function `ft_transfer` of `oct_token_contract` with parameters `sender` and `amount`:
   * If success:
     * Generate log: `Delegating deposit of <sender> for <validator_id> reduced by <amount>.`
@@ -1041,6 +1098,35 @@ Processing steps:
     * Generate log: `Failed to withdraw delegating deposit of <sender> for <validator_id>. Amount: <deposit_amount>`
 * Remove the `delegator` from `self.unbonded_validator_set`.
 
+### Start applying staking history
+
+This action needs the following parameters:
+
+* `appchain_era_number`: The era number in appchain.
+
+Qualification of this action:
+
+* This action can ONLY be performed inside this contract.
+
+Processing steps:
+
+* Create a new `TaggedAppchainValidatorSet` with following values:
+  * `appchain_era_number`: `appchain_era_number`
+  * `staking_history_index`: `self.staking_history_end_index`
+  * `applied_staking_history_index`: `0`
+  * `validator_set`: a new (empty) `AppchainValidatorSet`
+* Insert the new `TaggedAppchainValidatorSet` into `self.validator_set_history` using `appchain_era_number` as key.
+* The `self.applying_appchain_era_number` is set to `appchain_era_number`.
+* Perform [Apply staking history](#apply-staking-history).
+
+### Apply staking history
+
+Processing steps:
+
+* Get `TaggedAppchainValidatorSet` from `self.validator_set_history` by key `self.applying_appchain_era_number` as `validator_set`.
+* Get `StakingHistory` from `self.staking_histories` by key `validator_set.applied_staking_history_index + 1` as `staking_history`.
+* Apply `staking_history` to `validator_set`.
+
 ## Manage appchain lifecycle
 
 ### Go booting
@@ -1052,7 +1138,7 @@ Qualification of this action:
 * The metadata of `wrapped appchain token` has already been set by [Set metadata of wrapped appchain token](#set-metadata-of-wrapped-appchain-token).
 * If the `contract_account` of `warpped appchain token` must be set.
 * The count of `validator` in `self.current_validator_set` must be not smaller than `self.protocol_settings.minimum_validator_count`.
-* The `self.total_stake` must be not smaller than `self.protocol_settings.minimum_total_stake_for_booting`.
+* The `self.oct_token.total_stake` must be not smaller than `self.protocol_settings.minimum_total_stake_for_booting`.
 
 Processing steps:
 

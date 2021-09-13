@@ -1,29 +1,5 @@
 use crate::*;
 
-/// The bridging state of NEP-141 token.
-pub enum BridgingState {
-    /// The state which this contract is bridging the bridge token to the appchain.
-    Active,
-    /// The state which this contract has stopped bridging the bridge token to the appchain.
-    Closed,
-}
-
-pub struct Nep141TokenMetadata {
-    pub symbol: String,
-    pub name: String,
-    pub decimals: u8,
-}
-
-pub struct Nep141Token {
-    pub metadata: Nep141TokenMetadata,
-    pub contract_account: AccountId,
-    pub price: U64,
-    pub price_decimals: u8,
-    /// The total balance locked in this contract
-    pub locked_balance: Balance,
-    pub bridging_state: BridgingState,
-}
-
 pub trait Nep141TokenManager {
     ///
     fn register_nep141_token(
@@ -44,6 +20,10 @@ pub trait Nep141TokenManager {
 }
 
 impl AppchainAnchor {
+    //
+    fn total_market_value_of_nep141_tokens(&self) -> Balance {
+        todo!()
+    }
     //
     fn lock_nep141_token(
         &mut self,

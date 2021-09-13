@@ -17,12 +17,10 @@ use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Duration, Promise,
     PromiseOrValue, PromiseResult, PublicKey, Timestamp,
 };
-use nep141_token::Nep141Token;
 use staking_history::StakingHistory;
 use token_bridging_history::TokenBridgingHistory;
 use types::*;
 use validator_set::{AppchainValidatorSet, TaggedAppchainValidatorSet};
-use wrapped_appchain_token::WrappedAppchainToken;
 
 /// The value of decimals value of OCT token
 const OCT_DECIMALS_VALUE: Balance = 1_000_000_000_000_000_000;
@@ -34,10 +32,10 @@ pub struct AppchainAnchor {
     pub appchain_id: AppchainId,
     /// The account id of appchain registry contract.
     pub appchain_registry_contract: AccountId,
-    /// The account id of OCT token contract.
-    pub oct_token_contract: AccountId,
-    /// The wrapped appchain token in NEAR protocol.
-    pub wrapped_appchain_token: WrappedAppchainToken,
+    /// The info of OCT token.
+    pub oct_token: LazyOption<OctToken>,
+    /// The info of wrapped appchain token in NEAR protocol.
+    pub wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
     /// The set of symbols of NEP-141 tokens.
     pub nep141_token_symbols: UnorderedSet<String>,
     /// The NEP-141 tokens data, mapped by the symbol of the token.
@@ -51,12 +49,12 @@ pub struct AppchainAnchor {
     /// The mapping for validators' accounts, from account id in the appchain to
     /// account id in NEAR protocol
     pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
+    /// The custom settings for appchain
+    pub appchain_settings: LazyOption<AppchainSettings>,
     /// The protocol settings for appchain anchor
     pub protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain
     pub appchain_state: AppchainState,
-    /// The current total stake of all validators and delegators in this contract.
-    pub total_stake: Balance,
     /// The staking history data happened in this contract
     pub staking_histories: LookupMap<u64, StakingHistory>,
     /// The start index of valid staking history in `staking_histories`.

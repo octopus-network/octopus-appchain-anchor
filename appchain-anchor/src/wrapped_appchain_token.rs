@@ -1,22 +1,5 @@
 use crate::*;
 
-pub struct WrappedAppchainTokenMetadata {
-    pub symbol: String,
-    pub name: String,
-    pub decimals: u8,
-    pub spec: String,
-    pub icon: Option<Vec<u8>>,
-    pub reference: Option<Vec<u8>>,
-    pub reference_hash: Option<Vec<u8>>,
-}
-
-pub struct WrappedAppchainToken {
-    pub metadata: WrappedAppchainTokenMetadata,
-    pub contract_account: AccountId,
-    pub price: U64,
-    pub price_decimals: u8,
-}
-
 pub trait WrappedAppchainTokenManager {
     ///
     fn set_metadata_of_wrapped_appchain_token(
@@ -29,6 +12,8 @@ pub trait WrappedAppchainTokenManager {
         reference: Option<Vec<u8>>,
         reference_hash: Option<Vec<u8>>,
     );
+    ///
+    fn set_initial_balance_of_wrapped_appchain_token(&mut self, value: Balance);
     ///
     fn set_account_of_wrapped_appchain_token(&mut self, contract_account: AccountId);
     ///
