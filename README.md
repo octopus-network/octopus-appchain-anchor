@@ -20,7 +20,8 @@ Contents
 * [Manage wrapped appchain token](#manage-wrapped-appchain-token)
   * [Set metadata of wrapped appchain token](#set-metadata-of-wrapped-appchain-token)
   * [Set contract account of wrapped appchain token](#set-contract-account-of-wrapped-appchain-token)
-  * [Set price of wrapped appchain token](#set-price-of-wrapped-appchain-token)
+  * [Set initial balance of wrapped appchain token](#set-initial-balance-of-wrapped-appchain-token)
+  * [Set exchange rate of wrapped appchain token](#set-exchange-rate-of-wrapped-appchain-token)
   * [Mint wrapped appchain token](#mint-wrapped-appchain-token)
   * [Burn wrapped appchain token](#burn-wrapped-appchain-token)
 * [Manage appchain settings](#manage-appchain-settings)
@@ -673,20 +674,35 @@ Qualification of this action:
 * The `sender` must be the `owner`.
 * The `self.appchain_state` must be `staging` or `booting`.
 
-Store the `contract_account` to `self.wrapped_appchain_token`.
+The `self.wrapped_appchain_token.contract_account` is set to `contract_account`.
 
-### Set price of wrapped appchain token
+### Set initial balance of wrapped appchain token
 
 This action needs the following parameters:
 
-* `price`: The price of the `wrapped appchain token`.
+* `value`: The initial balance of wrapped appchain token contract in NEAR protocol.
 
 Qualification of this action:
 
 * The `sender` must be the `owner`.
-* The `self.appchain_state` must be `booting` or `active`.
 
-The price of `self.wrapped_appchain_token` is set to `price`.
+The `self.wrapped_appchain_token.initial_balance` is set to `value`.
+
+### Set exchange rate of wrapped appchain token
+
+This action needs the following parameters:
+
+* `exchange_rate`: The exchange rate of `wrapped appchain token` to `OCT token`.
+* `exchange_rate_decimals`: The decimals of exchange rate of `wrapped appchain token` to `OCT token`.
+
+Qualification of this action:
+
+* The `sender` must be the `owner`.
+
+Processing steps:
+
+* The `self.wrapped_appchain_token.exchange_rate_to_oct_token` is set to `exchange_rate`.
+* The `self.wrapped_appchain_token.exchange_rate_decimals_to_oct_token` is set to `exchange_rate_decimals`.
 
 ### Mint wrapped appchain token
 
