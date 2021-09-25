@@ -22,7 +22,7 @@ pub enum TokenBridgingFact {
         amount: U128,
     },
     /// The fact that a certain amount of NEP-141 token has been locked in appchain anchor.
-    Nep141TokenLocked {
+    NearFungibleTokenLocked {
         symbol: String,
         /// The account id of sender in NEAR protocol
         sender_id: AccountId,
@@ -32,7 +32,7 @@ pub enum TokenBridgingFact {
     },
     /// The fact that a certain amount of NEP-141 token has been unlocked and
     /// transfered from this contract to the receiver.
-    Nep141TokenUnlocked {
+    NearFungibleTokenUnlocked {
         request_id: String,
         symbol: String,
         /// The account id of receiver in NEAR protocol

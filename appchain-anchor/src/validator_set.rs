@@ -32,9 +32,10 @@ pub struct AppchainValidator {
     pub deposit_amount: Balance,
     /// Staking state of the validator.
     pub staking_state: StakingState,
-    /// Whether the validator is reserved.
-    /// The reserved validator can NOT be delegated to.
-    pub is_reserved: bool,
+    /// The time when the validator can withdraw their deposit.
+    pub staking_unlock_time: Timestamp,
+    /// Whether the validator accepts delegation from delegators.
+    pub can_accept_delegation: bool,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -52,6 +53,8 @@ pub struct AppchainDelegator {
     pub deposit_amount: Balance,
     /// Staking state of the delegator.
     pub staking_state: StakingState,
+    /// The time when the delegator can withdraw their deposit.
+    pub staking_unlock_time: Timestamp,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]

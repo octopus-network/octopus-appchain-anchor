@@ -10,13 +10,13 @@ Contents
   * [Cross chain transfer in this contract](#cross-chain-transfer-in-this-contract)
 * [Contract data design](#contract-data-design)
 * [Contract initialization](#contract-initialization)
-* [Manage NEP-141 token](#manage-nep-141-token)
-  * [Register NEP-141 token](#register-nep-141-token)
-  * [Set price of a NEP-141 token](#set-price-of-a-nep-141-token)
-  * [Open bridging for a NEP-141 token](#open-bridging-for-a-nep-141-token)
-  * [Close bridging for a NEP-141 token](#close-bridging-for-a-nep-141-token)
-  * [Lock a certain amount of a NEP-141 token](#lock-a-certain-amount-of-a-nep-141-token)
-  * [Unlock a certain amount of a NEP-141 token](#unlock-a-certain-amount-of-a-nep-141-token)
+* [Manage NEAR fungible token](#manage-near-fungible-token)
+  * [Register NEAR fungible token](#register-near-fungible-token)
+  * [Set price of a NEAR fungible token](#set-price-of-a-near-fungible-token)
+  * [Open bridging for a NEAR fungible token](#open-bridging-for-a-near-fungible-token)
+  * [Close bridging for a NEAR fungible token](#close-bridging-for-a-near-fungible-token)
+  * [Lock a certain amount of a NEAR fungible token](#lock-a-certain-amount-of-a-near-fungible-token)
+  * [Unlock a certain amount of a NEAR fungible token](#unlock-a-certain-amount-of-a-near-fungible-token)
 * [Manage wrapped appchain token](#manage-wrapped-appchain-token)
   * [Set metadata of wrapped appchain token](#set-metadata-of-wrapped-appchain-token)
   * [Set contract account of wrapped appchain token](#set-contract-account-of-wrapped-appchain-token)
@@ -25,6 +25,7 @@ Contents
   * [Mint wrapped appchain token](#mint-wrapped-appchain-token)
   * [Burn wrapped appchain token](#burn-wrapped-appchain-token)
 * [Manage appchain settings](#manage-appchain-settings)
+* [Manage anchor settings](#manage-anchor-settings)
 * [Manage protocol settings](#manage-protocol-settings)
 * [Process fungible token deposit](#process-fungible-token-deposit)
   * [Register reserved validator](#register-reserved-validator)
@@ -118,9 +119,10 @@ pub struct AppchainValidator {
     pub deposit_amount: Balance,
     /// Staking state of the validator.
     pub staking_state: StakingState,
-    /// Whether the validator is reserved.
-    /// The reserved validator can NOT be delegated to.
-    pub is_reserved: bool,
+    /// The time when the validator can withdraw their deposit.
+    pub staking_unlock_time: Timestamp,
+    /// Whether the validator accepts delegation from delegators.
+    pub can_accept_delegation: bool,
 }
 ```
 
@@ -140,6 +142,8 @@ pub struct AppchainDelegator {
     pub deposit_amount: Balance,
     /// Staking state of the delegator.
     pub staking_state: StakingState,
+    /// The time when the delegator can withdraw their deposit.
+    pub staking_unlock_time: Timestamp,
 }
 ```
 
@@ -174,7 +178,7 @@ pub struct OctToken {
 }
 ```
 
-* `NEP-141 token`: A token which is lived in NEAR protocol. It should be a NEP-141 compatible contract. This contract can bridge the token to the corresponding appchain. It is defined as:
+* `NEAR fungible token`: A token which is lived in NEAR protocol. It should be a NEP-141 compatible contract. This contract can bridge the token to the corresponding appchain. It is defined as:
 
 ```rust
 pub enum BridgingState {
@@ -184,14 +188,14 @@ pub enum BridgingState {
     Closed,
 }
 
-pub struct Nep141TokenMetadata {
+pub struct NearFungibleTokenMetadata {
     pub symbol: String,
     pub name: String,
     pub decimals: u8,
 }
 
-pub struct Nep141Token {
-    pub metadata: Nep141TokenMetadata,
+pub struct NearFungibleToken {
+    pub metadata: NearFungibleTokenMetadata,
     pub contract_account: AccountId,
     pub price_in_usd: U64,
     /// The total balance locked in this contract
@@ -218,8 +222,7 @@ pub struct WrappedAppchainToken {
     pub contract_account: AccountId,
     pub initial_balance: Balance,
     pub changed_balance: I128,
-    pub exchange_rate_to_oct_token: U64,
-    pub exchange_rate_decimals_to_oct_token: u8,
+    pub price_in_usd: U64,
 }
 ```
 
@@ -243,8 +246,8 @@ pub enum TokenBridgingFact {
         receiver_id: String,
         amount: U128,
     },
-    /// The fact that a certain amount of NEP-141 token has been locked in appchain anchor.
-    Nep141TokenLocked {
+    /// The fact that a certain amount of NEAR fungible token has been locked in appchain anchor.
+    NearFungibleTokenLocked {
         symbol: String,
         /// The account id of sender in NEAR protocol
         sender_id: AccountId,
@@ -252,9 +255,9 @@ pub enum TokenBridgingFact {
         receiver_id: String,
         amount: U128,
     },
-    /// The fact that a certain amount of NEP-141 token has been unlocked and
+    /// The fact that a certain amount of NEAR fungible token has been unlocked and
     /// transfered from this contract to the receiver.
-    Nep141TokenUnlocked {
+    NearFungibleTokenUnlocked {
         request_id: String,
         symbol: String,
         /// The account id of receiver in NEAR protocol
@@ -336,7 +339,7 @@ pub struct StakingHistory {
 ```rust
 pub enum AppchainFact {
     /// The fact that a certain amount of bridge token has been burnt on the appchain.
-    Nep141TokenBurnt { symbol: String, amount: U128 },
+    NearFungibleTokenBurnt { symbol: String, amount: U128 },
     /// The fact that a certain amount of appchain native token has been locked on the appchain.
     NativeTokenLocked { amount: U128 },
     /// The fact that a validator has been unbonded on the appchain.
@@ -378,6 +381,14 @@ pub struct AppchainSettings {
 }
 ```
 
+* `anchor settings`: A set of settings for current appchain anchor, which is defined as:
+
+```rust
+pub struct AnchorSettings {
+    pub token_price_maintainer_account: AccountId,
+}
+```
+
 * `protocol settings`: A set of settings for Octopus Network protocol, maintained by the `owner`, which is defined as:
 
 ```rust
@@ -392,7 +403,7 @@ pub struct ProtocolSettings {
     pub minimum_total_stake_for_booting: Balance,
     /// The maximum percentage of the total market value of all NEP-141 tokens to the total
     /// market value of OCT token staked in this contract
-    pub maximum_market_value_percent_of_nep141_tokens: u16,
+    pub maximum_market_value_percent_of_near_fungible_tokens: u16,
     /// The maximum percentage of the total market value of wrapped appchain token to the total
     /// market value of OCT token staked in this contract
     pub maximum_market_value_percent_of_wrapped_appchain_token: u16,
@@ -420,8 +431,8 @@ There are 2 kinds of cross chain assets transfer in this contract:
   * appchain:lock -> wrapped-appchain-token-contract@near:mint
   * wrapped-appchain-token-contract@near:burn -> appchain:unlock
 * NEP141 asset (token) transfer between NEAR and appchain
-  * nep-141-token-contract@near:lock_asset -> appchain:mint_asset
-  * appchain:burn_asset -> nep-141-token-contract@near:unlock_asset
+  * near-fungible-token-contract@near:lock_asset -> appchain:mint_asset
+  * appchain:burn_asset -> near-fungible-token-contract@near:unlock_asset
 
 ## Contract data design
 
@@ -438,9 +449,9 @@ pub struct AppchainAnchor {
     /// The info of wrapped appchain token in NEAR protocol.
     pub wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
     /// The set of symbols of NEP-141 tokens.
-    pub nep141_token_symbols: UnorderedSet<String>,
+    pub near_fungible_token_symbols: UnorderedSet<String>,
     /// The NEP-141 tokens data, mapped by the symbol of the token.
-    pub nep141_tokens: LookupMap<String, Nep141Token>,
+    pub near_fungible_tokens: LookupMap<String, NearFungibleToken>,
     /// The history version of validator set, mapped by era number in appchain.
     pub validator_set_histories: LookupMap<u64, TaggedAppchainValidatorSet>,
     /// The validator set of the next era in appchain.
@@ -452,6 +463,8 @@ pub struct AppchainAnchor {
     pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
     /// The custom settings for appchain.
     pub appchain_settings: LazyOption<AppchainSettings>,
+    /// The anchor settings for appchain.
+    pub anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
     pub protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain.
@@ -511,17 +524,17 @@ Processing steps:
 * Initialize other fields of this contract by default (empty) values.
 * The `self.appchain_state` is set to `staging`.
 
-## Manage NEP-141 token
+## Manage NEAR fungible token
 
-### Register NEP-141 token
+### Register NEAR fungible token
 
 This action needs the following parameters:
 
-* `symbol`: The symbol of the `NEP-141 token`.
-* `name`: The name of the `NEP-141 token`.
-* `decimals`: The decimals of the `NEP-141 token`.
-* `contract_account`: The account id of the `NEP-141 token` contract.
-* `price`: The price of the `NEP-141 token`.
+* `symbol`: The symbol of the `NEAR fungible token`.
+* `name`: The name of the `NEAR fungible token`.
+* `decimals`: The decimals of the `NEAR fungible token`.
+* `contract_account`: The account id of the `NEAR fungible token` contract.
+* `price`: The price of the `NEAR fungible token`.
 * `price_decimals`: The decimals of `price`.
 
 Qualification of this action:
@@ -531,16 +544,32 @@ Qualification of this action:
 
 Processing steps:
 
-* Create a new `NEP-141 token` with input parameters.
-* Insert the new `NEP-141 token` into `self.nep141_tokens` using `symbol` as key.
-* The default `bridging state` of the `NEP-141 token` is `closed`.
+* Create a new `NEAR fungible token` with input parameters.
+* Insert the new `NEAR fungible token` into `self.near_fungible_tokens` using `symbol` as key.
+* The default `bridging state` of the `NEAR fungible token` is `closed`.
 
-### Set price of a NEP-141 token
+### Set price of a NEAR fungible token
 
 This action needs the following parameters:
 
-* `symbol`: The symbol of the `NEP-141 token`.
-* `price`: The price of the `NEP-141 token`.
+* `symbol`: The symbol of the `NEAR fungible token`.
+* `price`: The price of the `NEAR fungible token`.
+
+Qualification of this action:
+
+* The `sender` must be the `self.anchor_settings.token_price_maintainer_account`.
+* The `symbol` must already be registered.
+
+Processing steps:
+
+* Get the `NEAR fungible token` from `self.near_fungible_tokens` by key `symbol`.
+* The price of the `NEAR fungible token` is set to `price`.
+
+### Open bridging for a NEAR fungible token
+
+This action needs the following parameters:
+
+* `symbol`: The symbol of the NEAR fungible token.
 
 Qualification of this action:
 
@@ -549,14 +578,14 @@ Qualification of this action:
 
 Processing steps:
 
-* Get the `NEP-141 token` from `self.nep141_tokens` by key `symbol`.
-* The price of the `NEP-141 token` is set to `price`.
+* Get the `NEAR fungible token` from `self.near_fungible_tokens` by key `symbol`.
+* The `bridging state` of the `NEAR fungible token` is set to `active`.
 
-### Open bridging for a NEP-141 token
+### Close bridging for a NEAR fungible token
 
 This action needs the following parameters:
 
-* `symbol`: The symbol of the NEP-141 token.
+* `symbol`: The symbol of the NEAR fungible token.
 
 Qualification of this action:
 
@@ -565,74 +594,59 @@ Qualification of this action:
 
 Processing steps:
 
-* Get the `NEP-141 token` from `self.nep141_tokens` by key `symbol`.
-* The `bridging state` of the `NEP-141 token` is set to `active`.
+* Get the `NEAR fungible token` from `self.near_fungible_tokens` by key `symbol`.
+* The `bridging state` of the `NEAR fungible token` is set to `closed`.
 
-### Close bridging for a NEP-141 token
-
-This action needs the following parameters:
-
-* `symbol`: The symbol of the NEP-141 token.
-
-Qualification of this action:
-
-* The `sender` must be the `owner`.
-* The `symbol` must already be registered.
-
-Processing steps:
-
-* Get the `NEP-141 token` from `self.nep141_tokens` by key `symbol`.
-* The `bridging state` of the `NEP-141 token` is set to `closed`.
-
-### Lock a certain amount of a NEP-141 token
+### Lock a certain amount of a NEAR fungible token
 
 This action is performed in [Process fungible token deposit](#process-fungible-token-deposit).
 
 This action needs the following parameters:
 
-* `contract_account`: The account id of the contract of a NEP-141 token.
-* `sender_id`: The account id in NEAR protocol, which is the sender of the NEP-141 token.
+* `contract_account`: The account id of the contract of a NEAR fungible token.
+* `sender_id`: The account id in NEAR protocol, which is the sender of the NEAR fungible token.
 * `receiver_id`: The account id on the corresponding appchain for receiving the bridged token.
-* `amount`: The amount of `NEP-141 token` to lock.
+* `amount`: The amount of `NEAR fungible token` to lock.
 
 Qualification of this action:
 
 * This action can ONLY be performed inside this contract, or can ONLY be called by this contract.
-* The `contract_account` must be equal to `contract_account` of a registered `NEP-141 token`.
+* The `contract_account` must be equal to `contract_account` of a registered `NEAR fungible token`.
+* The `bridging state` of the `NEAR fungible token` must be `open`.
 
 Processing steps:
 
-* Get the `NEP-141 token` from `self.nep141_tokens` by `contract_account`.
-* Add `amount` to `locked_balance` of the `NEP-141 token`.
-* Check the total market value of all `NEP-141 token` locked in this contract:
-  * Calculate the market value of each `NEP-141 token` by `nep141_token.locked_balance * nep141_token.price_in_usd`.
-  * If the total market value of all `NEP-141 token` is bigger than `self.oct_token.total_stake * self.oct_token.price_in_usd * self.protocol_settings.maximum_market_value_percent_of_nep141_tokens / 100`, throws an error.
+* Get the `NEAR fungible token` from `self.near_fungible_tokens` by `contract_account`.
+* Add `amount` to `locked_balance` of the `NEAR fungible token`.
+* Check the total market value of all `NEAR fungible token` locked in this contract:
+  * Calculate the market value of each `NEAR fungible token` by `near_fungible_token.locked_balance * near_fungible_token.price_in_usd`.
+  * If the total market value of all `NEAR fungible token` is bigger than `self.oct_token.total_stake * self.oct_token.price_in_usd * self.protocol_settings.maximum_market_value_percent_of_near_fungible_tokens / 100`, throws an error.
 * Create a new `token bridging history` with fact `BridgeTokenLocked`, and insert it to `self.token_bridging_histories` by key `self.token_bridging_history_end_index + 1`.
 * Add `1` to `self.token_bridging_history_end_index`.
-* Generate log: `Token <symbol of NEP-141 token> from <sender_id> locked. Receiver: <receiver_id>, Amount: <amount>`
+* Generate log: `Token <symbol of NEAR fungible token> from <sender_id> locked. Receiver: <receiver_id>, Amount: <amount>`
 
-### Unlock a certain amount of a NEP-141 token
+### Unlock a certain amount of a NEAR fungible token
 
-This action is performed when `AppchainFact::Nep141TokenBurnt` is received in [Handle relayed message](#handle-relayed-message).
+This action is performed when `AppchainFact::NearFungibleTokenBurnt` is received in [Handle relayed message](#handle-relayed-message).
 
 This action needs the following parameters:
 
 * `request_id`: The request id generated by the `sender`, which is used to identify the unlocking action.
-* `symbol`: The symbol of a NEP-141 token.
-* `receiver_id`: The account id of receiver in NEAR protocol for `NEP-141 token` which will be unlocked.
-* `amount`: The amount of `NEP-141 token` to unlock.
+* `symbol`: The symbol of a NEAR fungible token.
+* `receiver_id`: The account id of receiver in NEAR protocol for `NEAR fungible token` which will be unlocked.
+* `amount`: The amount of `NEAR fungible token` to unlock.
 
 Qualification of this action:
 
 * This action can ONLY be performed inside this contract.
-* The `symbol` must be the symbol of a registered `NEP-141 token`.
-* The `amount` must be less or equal to the `locked_balance` of the `NEP-141 token` corresponding to `symbol`.
+* The `symbol` must be the symbol of a registered `NEAR fungible token`.
+* The `amount` must be less or equal to the `locked_balance` of the `NEAR fungible token` corresponding to `symbol`.
 
 Processing Steps:
 
-* Get the `NEP-141 token` from `self.nep141_tokens` by key `symbol`.
-* Reduce `amount` from `locked_balance` of the `NEP-141 token`.
-* Call function `ft_transfer` of `contract_account` of the `NEP-141 token` with parameters `receiver_id` and `amount`:
+* Get the `NEAR fungible token` from `self.near_fungible_tokens` by key `symbol`.
+* Reduce `amount` from `locked_balance` of the `NEAR fungible token`.
+* Call function `ft_transfer` of `contract_account` of the `NEAR fungible token` with parameters `receiver_id` and `amount`:
   * If success:
     * Create a new `token bridging history` with fact `BridgeTokenUnlocked` and insert it into `self.token_bridging_histories` with key `self.token_bridging_history_end_index + 1`.
     * Add `1` to `self.token_bridging_history_end_index`.
@@ -688,21 +702,19 @@ Qualification of this action:
 
 The `self.wrapped_appchain_token.initial_balance` is set to `value`.
 
-### Set exchange rate of wrapped appchain token
+### Set price of wrapped appchain token
 
 This action needs the following parameters:
 
-* `exchange_rate`: The exchange rate of `wrapped appchain token` to `OCT token`.
-* `exchange_rate_decimals`: The decimals of exchange rate of `wrapped appchain token` to `OCT token`.
+* `price`: The price of the `wrapped appchain token`.
 
 Qualification of this action:
 
-* The `sender` must be the `owner`.
+* The `sender` must be the `self.anchor_settings.token_price_maintainer_account`.
 
 Processing steps:
 
-* The `self.wrapped_appchain_token.exchange_rate_to_oct_token` is set to `exchange_rate`.
-* The `self.wrapped_appchain_token.exchange_rate_decimals_to_oct_token` is set to `exchange_rate_decimals`.
+* The `self.wrapped_appchain_token.price_in_usd` is set to `price`.
 
 ### Mint wrapped appchain token
 
@@ -766,6 +778,10 @@ Processing steps:
 
 This contract has a set of functions to manage the value of each field of `appchain settings`.
 
+## Manage anchor settings
+
+This contract has a set of functions to manage the value of each field of `anchor settings`.
+
 ## Manage protocol settings
 
 This contract has a set of functions to manage the value of each field of `protocol settings`.
@@ -790,47 +806,15 @@ If the caller of this callback (`env::predecessor_account_id()`) equals to `self
 * other cases:
   * The deposit will be considered as `invalid deposit`.
 
-If the caller of this callback (`env::predecessor_account_id()`) equals to `contract_account` of a `NEP-141 token` registered in this contract, match `msg` with the following patterns:
+If the caller of this callback (`env::predecessor_account_id()`) equals to `contract_account` of a `NEAR fungible token` registered in this contract, match `msg` with the following patterns:
 
-* `bridge_to,<receiver_id>`: Perform [Lock a certain amount of a NEP-141 token](#lock-a-certain-amount-of-a-nep-141-token).
+* `bridge_to,<receiver_id>`: Perform [Lock a certain amount of a NEAR fungible token](#lock-a-certain-amount-of-a-near-fungible-token).
 * other cases:
   * The deposit will be considered as `invalid deposit`.
 
-If the caller of this callback (`env::predecessor_account_id()`) is neither `self.oct_token_contract` nor `contract_account` of a `NEP-141 token`, throws an error: `Invalid deposit of unknown NEP-141 asset`.
+If the caller of this callback (`env::predecessor_account_id()`) is neither `self.oct_token_contract` nor `contract_account` of a `NEAR fungible token`, throws an error: `Invalid deposit of unknown NEP-141 asset`.
 
 For `invalid deposit` case, throws an error: `Invalid deposit <amount> of OCT token from <sender_id>.`.
-
-### Register reserved validator
-
-This action is performed in [Process fungible token deposit](#process-fungible-token-deposit).
-
-This action needs the following parameters:
-
-* `sender_id`: The new `validator`'s account id in NEAR protocol.
-* `validator_id_in_appchain`: The `validator`'s account id in the corresponding appchain.
-* `amount`: The amount of the deposit.
-
-Qualification of this action:
-
-* This action can ONLY be performed inside this contract.
-* The `self.appchain_state` must be `staging`, `booting`.
-* The `sender_id` must not be existed in `self.next_validator_set` as `validator_id_in_near`.
-* The amount of deposit must not be smaller than `self.protocol_settings.minimum_validator_deposit`.
-
-Processing steps:
-
-* Create a new `validator` with following values:
-  * `validator_id_in_near`: `sender_id`
-  * `validator_id_in_appchain`: `account_id_in_appchain`
-  * `payee_id_in_appchain`: empty string
-  * `deposit_amount`: `amount`
-  * `staking_state`: `StakingState::Active`
-  * `is_reserved`: true
-* Add the new `validator` to `self.next_validator_set`.
-* Create a new `staking history` with fact `ValidatorAdded` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
-* Add `1` to `self.staking_history_end_index`.
-* Add `amount` to `self.oct_token.total_stake`.
-* Generate log: `Validator <sender_id> is registered with stake <amount>.`
 
 ### Register validator
 
@@ -859,7 +843,8 @@ Processing steps:
   * `payee_id_in_appchain`: `payee_account_id_in_appchain`
   * `deposit_amount`: `amount`
   * `staking_state`: `StakingState::Active`
-  * `is_reserved`: false
+  * `staking_unlock_time`: `u64::MAX`
+  * `can_accept_delegation`: `true`
 * Add the new `validator` to `self.next_validator_set`.
 * Create a new `staking history` with fact `ValidatorAdded` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add `1` to `self.staking_history_end_index`.
@@ -909,7 +894,7 @@ Qualification of this action:
 * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.next_validator_set`.
 * The pair (`sender_id`, `account_id`) as (`delegator_id`, `validator_id`) must not be existed in `self.unbonded_validator_set`.
 * The amount of deposit must not be smaller than `self.protocol_settings.minimum_delegator_deposit`.
-* The value of `is_reserved` of the `validator` corresponding to `account_id` in `self.next_validator_set` must be `false`.
+* The value of `can_accept_delegation` of the `validator` corresponding to `account_id` in `self.next_validator_set` must be `true`.
 * The count of `validator` of the `delegator` corresponding to `sender_id` in `self.next_validator_set` must be smaller than `self.protocol_settings.maximum_validators_per_delegator`.
 
 Processing steps:
@@ -921,6 +906,7 @@ Processing steps:
   * `validator_id_in_appchain`: validator account id in appchain, get from corresponding validator set (depends on `self.appchain_state`)
   * `deposit_amount`: `amount`
   * `staking_state`: `StakingState::Active`
+  * `staking_unlock_time`: `u64::MAX`
 * Add the new `delegator` to `self.next_validator_set`.
 * Create a new `staking history` with fact `DelegatorAdded` and insert it into `self.staking_histories` with key `self.staking_history_end_index + 1`.
 * Add 1 to `self.staking_history_end_index`.
@@ -967,8 +953,8 @@ Decode `encoded_message`, the real message will be one of `appchain message`:
 
 * `NativeTokenLocked`: Which indicate that the appchain has locked a certain amount of `wrapped appchain token`.
   * Perform [Mint wrapped appchain token](#mint-wrapped-appchain-token).
-* `Nep141TokenBurnt`: Which indicate that the appchain has burnt a certain amount of `NEP-141 token`.
-  * Perform [Unlock a certain amount of a NEP-141 token](#unlock-a-certain-amount-of-a-nep-141-token).
+* `NearFungibleTokenBurnt`: Which indicate that the appchain has burnt a certain amount of `NEAR fungible token`.
+  * Perform [Unlock a certain amount of a NEAR fungible token](#unlock-a-certain-amount-of-a-near-fungible-token).
 * `ValidatorUnbonded`: Which indicate that a validator has been unbonded on the appchain.
   * Perform [Unbond stake](#unbond-stake).
 * `DelegatorUnbonded`: Which indicate that a delegator of a valicator has been unbonded on the appchain.
@@ -996,11 +982,11 @@ Processing steps:
 
 * Get `validator_id_in_near` from `self.validator_account_id_mapping` using `validator_id_in_appchain` as key.
 * Get `validator` data from `self.next_validator_set`.
-* If the value of `is_reserved` of the `validator` is `true`, throws an error.
 * Remove `validator_id_in_near` from `self.next_validator_set`.
 * The `staking state` of the `validator` is set to `unbonded`.
 * Add the `validator` to `self.unbonded_validator_set`.
 * Reduce the value of `deposit_amount` of the `validator` and all its `delegators` from `self.oct_token.total_stake`.
+* The `staking_unlock_time` of the `validator` is set to `StakingState::Unbonded.timestamp + self.protocol_settings.unlock_period_of_validator_deposit * 86400 * NANO_SECONDS_MULTIPLE`.
 
 ### Decrease stake
 
@@ -1068,6 +1054,7 @@ Processing steps:
 * The `staking state` of the `delegator` is set to `unbonded`.
 * Add the `delegator` to `self.unbonded_validator_set`.
 * Reduce the value of `deposit_amount` of the `delegator` from `self.oct_token.total_stake`.
+* The `staking_unlock_time` of the `delegator` is set to `StakingState::Unbonded.timestamp + self.protocol_settings.unlock_period_of_delegator_deposit * 86400 * NANO_SECONDS_MULTIPLE`.
 
 ### Decrease delegation
 
@@ -1165,6 +1152,7 @@ Qualification of this action:
 * If the `contract_account` of `warpped appchain token` must be set.
 * The count of `validator` in `self.next_validator_set` must be not smaller than `self.protocol_settings.minimum_validator_count`.
 * The `self.oct_token.total_stake` must be not smaller than `self.protocol_settings.minimum_total_stake_for_booting`.
+* The `chain_spec`, `raw_chain_spec` and `boot_node` fields of `self.appchain_settings` must be set.
 
 Processing steps:
 

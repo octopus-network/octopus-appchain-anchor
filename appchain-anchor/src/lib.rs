@@ -1,6 +1,6 @@
 mod appchain_lifecycle;
 mod appchain_message;
-mod nep141_token;
+mod near_fungible_token;
 mod protocol_settings;
 mod staking_history;
 mod staking;
@@ -37,9 +37,9 @@ pub struct AppchainAnchor {
     /// The info of wrapped appchain token in NEAR protocol.
     pub wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
     /// The set of symbols of NEP-141 tokens.
-    pub nep141_token_symbols: UnorderedSet<String>,
+    pub near_fungible_token_symbols: UnorderedSet<String>,
     /// The NEP-141 tokens data, mapped by the symbol of the token.
-    pub nep141_tokens: LookupMap<String, Nep141Token>,
+    pub near_fungible_tokens: LookupMap<String, NearFungibleToken>,
     /// The history version of validator set, mapped by era number in appchain.
     pub validator_set_histories: LookupMap<u64, TaggedAppchainValidatorSet>,
     /// The validator set of the next era in appchain.
@@ -51,6 +51,8 @@ pub struct AppchainAnchor {
     pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
     /// The custom settings for appchain.
     pub appchain_settings: LazyOption<AppchainSettings>,
+    /// The anchor settings for appchain.
+    pub anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
     pub protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain.

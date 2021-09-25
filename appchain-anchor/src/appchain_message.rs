@@ -5,7 +5,7 @@ use crate::*;
 /// The message which is sent from the appchain
 pub enum AppchainFact {
     /// The fact that a certain amount of bridge token has been burnt on the appchain.
-    Nep141TokenBurnt { symbol: String, amount: U128 },
+    NearFungibleTokenBurnt { symbol: String, amount: U128 },
     /// The fact that a certain amount of appchain native token has been locked on the appchain.
     NativeTokenLocked { amount: U128 },
     /// The fact that a validator has been unbonded on the appchain.

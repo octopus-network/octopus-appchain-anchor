@@ -45,6 +45,12 @@ pub struct AppchainSettings {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub struct AnchorSettings {
+    pub token_price_maintainer_account: AccountId,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct ProtocolSettings {
     /// A validator has to deposit a certain amount of OCT token to this contract for
     /// being validator of the appchain.
@@ -56,7 +62,7 @@ pub struct ProtocolSettings {
     pub minimum_total_stake_for_booting: Balance,
     /// The maximum percentage of the total market value of all NEP-141 tokens to the total
     /// market value of OCT token staked in this contract
-    pub maximum_market_value_percent_of_nep141_tokens: u16,
+    pub maximum_market_value_percent_of_near_fungible_tokens: u16,
     /// The maximum percentage of the total market value of wrapped appchain token to the total
     /// market value of OCT token staked in this contract
     pub maximum_market_value_percent_of_wrapped_appchain_token: u16,
@@ -100,8 +106,7 @@ pub struct WrappedAppchainToken {
     pub contract_account: AccountId,
     pub initial_balance: Balance,
     pub changed_balance: I128,
-    pub exchange_rate_to_oct_token: U64,
-    pub exchange_rate_decimals_to_oct_token: u8,
+    pub price_in_usd: U64,
 }
 
 /// The bridging state of NEP-141 token.
@@ -116,7 +121,7 @@ pub enum BridgingState {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct Nep141TokenMetadata {
+pub struct NearFungibleTokenMetadata {
     pub symbol: String,
     pub name: String,
     pub decimals: u8,
@@ -124,8 +129,8 @@ pub struct Nep141TokenMetadata {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct Nep141Token {
-    pub metadata: Nep141TokenMetadata,
+pub struct NearFungibleToken {
+    pub metadata: NearFungibleTokenMetadata,
     pub contract_account: AccountId,
     pub price_in_usd: U64,
     /// The total balance locked in this contract
