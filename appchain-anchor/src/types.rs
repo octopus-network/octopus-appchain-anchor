@@ -77,6 +77,9 @@ pub struct ProtocolSettings {
     /// The unlock period (in days) for delegator(s) can withdraw their deposit after
     /// they no longer delegates their stake to a certain validator on the corresponding appchain.
     pub unlock_period_of_delegator_deposit: u16,
+    /// The maximum number of historical eras that the validators or delegators are allowed to
+    /// withdraw their benefit
+    pub maximum_era_count_of_delayed_benefit: u16,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

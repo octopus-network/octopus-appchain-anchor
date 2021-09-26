@@ -2,8 +2,8 @@ mod appchain_lifecycle;
 mod appchain_message;
 mod near_fungible_token;
 mod protocol_settings;
-mod staking_history;
 mod staking;
+mod staking_history;
 mod token_bridging_history;
 pub mod types;
 mod validator_set;
@@ -20,7 +20,7 @@ use near_sdk::{
 use staking_history::StakingHistory;
 use token_bridging_history::TokenBridgingHistory;
 use types::*;
-use validator_set::{AppchainValidatorSet, TaggedAppchainValidatorSet};
+use validator_set::{UnbondedDelegator, UnbondedValidator, ValidatorSet, ValidatorSetOfEra};
 
 /// The value of decimals value of OCT token
 const OCT_DECIMALS_VALUE: Balance = 1_000_000_000_000_000_000;
@@ -41,11 +41,11 @@ pub struct AppchainAnchor {
     /// The NEP-141 tokens data, mapped by the symbol of the token.
     pub near_fungible_tokens: LookupMap<String, NearFungibleToken>,
     /// The history version of validator set, mapped by era number in appchain.
-    pub validator_set_histories: LookupMap<u64, TaggedAppchainValidatorSet>,
+    pub validator_set_histories: LookupMap<u64, ValidatorSetOfEra>,
     /// The validator set of the next era in appchain.
-    pub next_validator_set: TaggedAppchainValidatorSet,
+    pub next_validator_set: ValidatorSetOfEra,
     /// The validator set for unbonded validators and delegators.
-    pub unbonded_validator_set: AppchainValidatorSet,
+    pub unbonded_validator_set: ValidatorSet<UnbondedValidator, UnbondedDelegator>,
     /// The mapping for validators' accounts, from account id in the appchain to
     /// account id in NEAR protocol.
     pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,

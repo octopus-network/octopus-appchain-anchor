@@ -12,6 +12,7 @@ impl Default for ProtocolSettings {
             maximum_validators_per_delegator: 16,
             unlock_period_of_validator_deposit: 21,
             unlock_period_of_delegator_deposit: 7,
+            maximum_era_count_of_delayed_benefit: 84,
         }
     }
 }

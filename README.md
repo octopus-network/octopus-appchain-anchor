@@ -82,23 +82,6 @@ pub enum AppchainState {
 }
 ```
 
-* `staking state`: The staking state of a validator or delegator of the appchain. It is defined as:
-
-```rust
-pub enum StakingState {
-    /// Active in staking on corresponding appchain.
-    Active {
-        block_height: BlockHeight,
-        timestamp: Timestamp,
-    },
-    /// Has been unbonded from staking on corresponding appchain.
-    Unbonded {
-        block_height: BlockHeight,
-        timestamp: Timestamp,
-    },
-}
-```
-
 * `account id in appchain`: The account id in the appchain, which is usually the public key of an account in the appchain. The id is bonded to an account id in NEAR protocol in this contract.
 
 ```rust
@@ -108,49 +91,39 @@ pub type AccountIdInAppchain = String;
 * `validator`: A person who wants to act as a validator on the appchain corresponding to this contract. The person has to deposit a certain amount of OCT token in this contract. It is defined as:
 
 ```rust
-pub struct AppchainValidator {
+pub struct Validator {
     /// The validator's id in NEAR protocol.
-    pub validator_id_in_near: AccountId,
+    pub validator_id: AccountId,
     /// The validator's id in the appchain.
     pub validator_id_in_appchain: AccountIdInAppchain,
     /// The account id in the appchain for receiving income of the validator in appchain.
     pub payee_id_in_appchain: AccountIdInAppchain,
-    /// Staked balance of the validator.
-    pub deposit_amount: Balance,
-    /// Staking state of the validator.
-    pub staking_state: StakingState,
-    /// The time when the validator can withdraw their deposit.
-    pub staking_unlock_time: Timestamp,
-    /// Whether the validator accepts delegation from delegators.
-    pub can_accept_delegation: bool,
+    /// The block height when the validator is registered.
+    pub registered_block_height: BlockHeight,
+    /// The timestamp when the validator is registered.
+    pub registered_timestamp: Timestamp,
 }
 ```
 
 * `delegator`: A person who wants to act as a delegator in the corresponding appchain. The person has to deposit a certain amount of OCT token in this contract, to indicate that he/she wants to delegate his/her voting rights to a certain `validator` of the appchain. It is defined as:
 
 ```rust
-pub struct AppchainDelegator {
+pub struct Delegator {
     /// The delegator's id in NEAR protocol.
-    pub delegator_id_in_near: AccountId,
-    /// The delegator's id in the appchain.
-    pub delegator_id_in_appchain: AccountIdInAppchain,
+    pub delegator_id: AccountId,
     /// The validator's id in NEAR protocol, which the delegator delegates his rights to.
-    pub validator_id_in_near: AccountId,
-    /// The validator's id in the appchain, which the delegator delegates his rights to.
-    pub validator_id_in_appchain: AccountIdInAppchain,
-    /// Delegated balance of the delegator.
-    pub deposit_amount: Balance,
-    /// Staking state of the delegator.
-    pub staking_state: StakingState,
-    /// The time when the delegator can withdraw their deposit.
-    pub staking_unlock_time: Timestamp,
+    pub validator_id: AccountId,
+    /// The block height when the delegator is registered.
+    pub registered_block_height: BlockHeight,
+    /// The timestamp when the delegator is registered.
+    pub registered_timestamp: Timestamp,
 }
 ```
 
 * `validator set`: A set of validators and delegators of the corresponding appchain. It is defined as:
 
 ```rust
-pub struct AppchainValidatorSet {
+pub struct ValidatorSet<V, D> {
     /// The set of account id of validators.
     pub validator_ids: LazyOption<UnorderedSet<AccountId>>,
     /// The set of account id of delegators.
@@ -161,10 +134,10 @@ pub struct AppchainValidatorSet {
     /// the delegator delegates his/her voting rights to.
     pub delegator_id_to_validator_ids: LookupMap<AccountId, UnorderedSet<AccountId>>,
     /// The validators data, mapped by their account id in NEAR protocol.
-    pub validators: LookupMap<AccountId, AppchainValidator>,
+    pub validators: LookupMap<AccountId, V>,
     /// The delegators data, mapped by the tuple of their delegator account id and
     /// validator account id in NEAR protocol.
-    pub delegators: LookupMap<(AccountId, AccountId), AppchainDelegator>,
+    pub delegators: LookupMap<(AccountId, AccountId), D>,
 }
 ```
 
@@ -418,6 +391,9 @@ pub struct ProtocolSettings {
     /// The unlock period (in days) for delegator(s) can withdraw their deposit after
     /// they no longer delegates their stake to a certain validator on the corresponding appchain.
     pub unlock_period_of_delegator_deposit: u16,
+    /// The maximum number of historical eras that the validators or delegators are allowed to
+    /// withdraw their benefit
+    pub maximum_era_count_of_delayed_benefit: u16,
 }
 ```
 
@@ -453,11 +429,11 @@ pub struct AppchainAnchor {
     /// The NEP-141 tokens data, mapped by the symbol of the token.
     pub near_fungible_tokens: LookupMap<String, NearFungibleToken>,
     /// The history version of validator set, mapped by era number in appchain.
-    pub validator_set_histories: LookupMap<u64, TaggedAppchainValidatorSet>,
+    pub validator_set_histories: LookupMap<u64, ValidatorSetOfEra>,
     /// The validator set of the next era in appchain.
-    pub next_validator_set: TaggedAppchainValidatorSet,
+    pub next_validator_set: ValidatorSetOfEra,
     /// The validator set for unbonded validators and delegators.
-    pub unbonded_validator_set: AppchainValidatorSet,
+    pub unbonded_validator_set: ValidatorSet<UnbondedValidator, UnbondedDelegator>,
     /// The mapping for validators' accounts, from account id in the appchain to
     /// account id in NEAR protocol.
     pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
@@ -488,18 +464,25 @@ Due to the relatively large amount of data volume in this contract, we use `Look
 
 Considering the possible huge amount of history data for `token bridging history` and `staking history`, we use `LookupMap` to store them. Then we can only store the start index and end index for valid history data in contract struct. If we want to clear some history data, we can simply specify a value of start index, and then delete all records with smaller index in the map of history data.
 
-Due to the gas limit of the transaction (single function call) in NEAR protocol, we may not be able to complete the copy of the entire validator set in one transaction, so we choose to recover the complete validator set at a certain moment by applying all the staking history in the past. This may take multiple transactions to complete the entire process. To store history version of validator set and support the recover process in multiple transactions, we define `TaggedAppchainValidatorSet` as:
+Due to the gas limit of the transaction (single function call) in NEAR protocol, we may not be able to complete the copy of the entire validator set in one transaction, so we choose to recover the complete validator set at a certain moment by applying all the staking history in the past. This may take multiple transactions to complete the entire process. To store history version of validator set and support the recover process in multiple transactions, we define `ValidatorSetOfEra` as:
 
 ```rust
-pub struct TaggedAppchainValidatorSet {
+pub struct ValidatorSetOfEra {
     /// The number of era in appchain.
     pub appchain_era_number: u64,
     /// The index of the latest staking history happened in the era of corresponding appchain
     pub staking_history_index: u64,
     /// The index of latest applied staking history
     pub applied_staking_history_index: u64,
-    /// The validator set for tagging
-    pub validator_set: AppchainValidatorSet,
+    /// Total benefit of this era (which will be distributed to validators and delegators),
+    /// in wrapped appchain token on NEAR protocol
+    pub total_benefit: Balance,
+    /// Total stake of this era
+    pub total_stake: Balance,
+    /// The set of validator id which will not be profited
+    pub unprofitable_validator_ids: UnorderedSet<AccountId>,
+    /// The validator set of this era
+    pub validator_set: ValidatorSet<ValidatorOfEra, DelegatorOfEra>,
 }
 ```
 
@@ -1118,12 +1101,12 @@ Qualification of this action:
 
 Processing steps:
 
-* Create a new `TaggedAppchainValidatorSet` with following values:
+* Create a new `ValidatorSetOfEra` with following values:
   * `appchain_era_number`: `appchain_era_number`
   * `staking_history_index`: `self.staking_history_end_index`
   * `applied_staking_history_index`: `0`
   * `validator_set`: a new (empty) `AppchainValidatorSet`
-* Insert the new `TaggedAppchainValidatorSet` into `self.validator_set_histories` using `appchain_era_number` as key.
+* Insert the new `ValidatorSetOfEra` into `self.validator_set_histories` using `appchain_era_number` as key.
 * The `self.applying_appchain_era_number` is set to `appchain_era_number`.
 * Perform [Apply staking history](#apply-staking-history).
 
@@ -1133,7 +1116,7 @@ Anyone can perform this action.
 
 Processing steps:
 
-* Get `TaggedAppchainValidatorSet` from `self.validator_set_histories` by key `self.applying_appchain_era_number` as `validator_set`.
+* Get `ValidatorSetOfEra` from `self.validator_set_histories` by key `self.applying_appchain_era_number` as `validator_set`.
 * Repeat the following process until `validator_set.applied_staking_history_index` is equal to `validator_set.staking_history_index` or the burnt gas reaches 180T (90% of gas limit per contract in a transaction of NEAR protocol):
   * Get `StakingHistory` from `self.staking_histories` by key `validator_set.applied_staking_history_index + 1` as `staking_history`.
   * Apply `staking_history` to `validator_set`.
