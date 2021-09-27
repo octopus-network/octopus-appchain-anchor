@@ -41,3 +41,23 @@ pub trait ProtocolSettingsManager {
     ///
     fn change_maximum_era_count_of_unwithdrawed_benefit(&mut self, value: u16);
 }
+
+pub trait AppchainSettingsManager {
+    ///
+    fn get_appchain_settings(&self) -> AppchainSettings;
+    ///
+    fn set_chain_spec(&mut self, chain_spec: String);
+    ///
+    fn set_raw_chain_spec(&mut self, raw_chain_spec: String);
+    ///
+    fn set_boot_nodes(&mut self, boot_nodes: String);
+    ///
+    fn set_rpc_endpoint(&mut self, rpc_endpoint: String);
+}
+
+pub trait AnchorSettingsManager {
+    ///
+    fn get_anchor_settings(&self) -> AnchorSettings;
+    ///
+    fn set_token_price_maintainer_account(&mut self, account_id: AccountId);
+}

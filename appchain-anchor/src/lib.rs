@@ -1,7 +1,7 @@
 mod appchain_lifecycle;
 mod appchain_message;
 mod near_fungible_token;
-mod protocol_settings;
+mod settings_manager;
 mod staking;
 mod staking_history;
 mod token_bridging_history;
