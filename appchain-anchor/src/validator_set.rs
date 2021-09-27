@@ -27,6 +27,8 @@ pub struct ValidatorOfEra {
     pub total_stake: Balance,
     /// Whether the validator accepts delegation from delegators.
     pub can_be_delegated_to: bool,
+    /// The unwithdrawed benefit of a era, in unit of wrapped appchain token.
+    pub unwithdrawed_benefit: Balance,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -61,6 +63,8 @@ pub struct DelegatorOfEra {
     pub delegator: Delegator,
     /// Delegated balance of the delegator in a era.
     pub deposit_amount: Balance,
+    /// The unwithdrawed benefit of a era, in unit of wrapped appchain token.
+    pub unwithdrawed_benefit: Balance,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]

@@ -79,7 +79,7 @@ pub struct ProtocolSettings {
     pub unlock_period_of_delegator_deposit: u16,
     /// The maximum number of historical eras that the validators or delegators are allowed to
     /// withdraw their benefit
-    pub maximum_era_count_of_delayed_benefit: u16,
+    pub maximum_era_count_of_unwithdrawed_benefit: u16,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
