@@ -69,7 +69,7 @@ This contract has a set of functions to manage the value of each field of `proto
 
 ### Manage NEAR fungible token
 
-This contract can bridge multiple NEAR fungible tokens to the corresponding appchain. The limitation is: the total market value of all `NEAR fungible token` bridged to the corresponding appchain, can not exceed the market value of a certain percent of all OCT token staked in this contract. The percentage is managed by `maximum_market_value_percent_of_near_fungible_tokens` of `protocol settings`.
+This contract can bridge multiple NEAR fungible tokens to the corresponding appchain. The limitation is: the total market value of all `NEAR fungible token` bridged to the corresponding appchain, cannot exceed the market value of a certain percent of all OCT token staked in this contract. The percentage is managed by `maximum_market_value_percent_of_near_fungible_tokens` of `protocol settings`.
 
 This contract should provide the following public interfaces related to NEAR fungible token management:
 
@@ -86,7 +86,7 @@ When this contract receives an `appchain message` which indicates that the appch
 
 The contract of `wrapped appchain token` in NEAR protocol should be deployed before the appchain go `active`. The owner of the token contract should be set to the owner of this contract. The initial total supply of `wrapped appchain token` should be minted to an account belongs to the appchain team.
 
-The limitation of `wrapped appchain token` is: the market value of `wrapped appchain token` in NEAR contract can not exceed the market value of a certain percent of all OCT token staked in this contract. The percentage is managed by `maximum_market_value_percent_of_wrapped_appchain_token` of `protocol settings`.
+The limitation of `wrapped appchain token` is: the market value of `wrapped appchain token` in NEAR contract cannot exceed the market value of a certain percent of all OCT token staked in this contract. The percentage is managed by `maximum_market_value_percent_of_wrapped_appchain_token` of `protocol settings`.
 
 This contract should provide the following public interfaces related to wrapped appchain token management:
 
@@ -100,7 +100,7 @@ When this contract receives an `appchain message` which indicates that the appch
 
 ### Manage staking
 
-Any user in NEAR protocol can deposit a certain amount (not less than `minimum_validator_deposit` of `protocol settings`) of OCT token to this contract to register his/her account as a `validator` of next `era` of corresponding appchain. The user should also specify the validator account id and payee account id which will be used in the corresponding appchain.
+Any user in NEAR protocol can deposit a certain amount (not less than `minimum_validator_deposit` of `protocol settings`) of OCT token to this contract to register his/her account as a `validator` of next `era` of corresponding appchain. The user should also specify the validator account id and payee account id which will be used in the corresponding appchain, and specify the flag which indicates that 'whether the validator wants to be delegated to'.
 
 Any user in NEAR protocol can deposit a certain amount of OCT token to this contract to increase his/her stake as a `validator` in next `era` of corresponding appchain. The user must be already a registered `validator` and the `validator` must not be unbonded.
 
@@ -115,11 +115,13 @@ When this contract receives an `appchain message` which indicates that a validat
 
 When this contract receives an `appchain message` which indicates that a delegator has been unbonded in corresponding appchain, this contract should remove the `delegator` from the `validator set` of next `era` of corresponding appchain and move it to `unbonded validator set`. The unlock time of the deposit of the `delegator` is set to current time plus the duration of `unlock_period_of_delegator_deposit` of `protocol settings`.
 
-A validator can withdraw his/her deposit from this contract at any time before the validator is unbonded in corresponding appchain. The deposit of the validator after the withdrawn can not be less than `minimum_validator_deposit` of `protocol settings`. If the validator has already been unbonded in corresponding appchain, he/she has to wait until the unlock period had passed before he/she can withdraw his/her all deposit.
+A validator can withdraw his/her deposit from this contract at any time before the validator is unbonded in corresponding appchain. The deposit of the validator after the withdrawn cannot be less than `minimum_validator_deposit` of `protocol settings`. If the validator has already been unbonded in corresponding appchain, he/she has to wait until the unlock period had passed before he/she can withdraw his/her all deposit.
 
-A delegator can withdraw his/her deposit from this contract at any time before the delegator is unbonded in corresponding appchain. The deposit of the delegator after the withdrawn can not be less than `minimum_delegator_deposit` of `protocol settings`. If the delegator has already been unbonded in corresponding appchain, he/she has to wait until the unlock period had passed before he/she can withdraw his/her all deposit.
+A delegator can withdraw his/her deposit from this contract at any time before the delegator is unbonded in corresponding appchain. The deposit of the delegator after the withdrawn cannot be less than `minimum_delegator_deposit` of `protocol settings`. If the delegator has already been unbonded in corresponding appchain, he/she has to wait until the unlock period had passed before he/she can withdraw his/her all deposit.
 
 Each of the above actions will generate a corresponding `staking history` that is stored in this contract. These staking histories are used to restore the `validator set` of a certain `era`.
+
+A validator can also change the flag which is set at registering time and stored in this contract, the flag indicates that 'whether he/she wants to be delegated to'. After this flag is set to `false`, delegators cannot delegate to this validator any more. But those delegators already delegated to this validator will be kept.
 
 ### Switch validator set
 
@@ -128,7 +130,7 @@ When this contract receives an `appchain message` which indicates that the corre
 * Create a new (empty) `validator set` for the next `era` that stored in this contract.
 * Store the `total benefit` and `unprofitable validator id list` carried by the `appchain message` in the `validator set` of next `era`.
 * Restore the state of the `validator set` of next `era` by sequentially applying all staking histories happened before the time of this `appchain message` is received. During this process, also generate a copy of the status of all `validator`(s) in the `validator set` of next `era` for the query of appchain nodes. (Because the data struct for query of appchain nodes may be defferent with the internal storage of this contract.)
-* Calculate the unwithdrawed benefit of all validators and delegators in the `validator set` of next `era` based on the `total benefit` and `unprofitable validator id list` of the `era`, and store the results in the `validator set` of next `era`.
+* Calculate the unwithdrawed benefit of all validators and delegators in the `validator set` of next `era` based on the `total benefit` and `unprxofitable validator id list` of the `era` (distribute the `total benefit` proportionally to all profitable validators and delegators), and store the results in the `validator set` of next `era`.
 * Change the next `era` stored in this contract to the new `era`.
 
 > The next `era` stored in this contract is the one before the new `era` specified by current `appchain message`. It is actually the `era` which is specified by the last `appchain message` of this type.
