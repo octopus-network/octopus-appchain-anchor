@@ -100,7 +100,7 @@ When this contract receives an `appchain message` which indicates that the appch
 
 ### Manage staking
 
-Any user in NEAR protocol can deposit a certain amount (not less than `minimum_validator_deposit` of `protocol settings`) of OCT token to this contract to register his/her account as a `validator` of next `era` of corresponding appchain. The user should also specify the validator account id and payee account id which will be used in the corresponding appchain, and specify the flag which indicates that 'whether the validator wants to be delegated to'.
+Any user in NEAR protocol can deposit a certain amount (not less than `minimum_validator_deposit` of `protocol settings`) of OCT token to this contract to register his/her account as a `validator` of next `era` of corresponding appchain. The user should also specify the validator account id which will be used in the corresponding appchain, and specify the flag which indicates that 'whether the validator wants to be delegated to'.
 
 Any user in NEAR protocol can deposit a certain amount of OCT token to this contract to increase his/her stake as a `validator` in next `era` of corresponding appchain. The user must be already a registered `validator` and the `validator` must not be unbonded.
 
@@ -108,12 +108,12 @@ Any user in NEAR protocol can deposit a certain amount (not less than `minimum_d
 
 Any user in NEAR protocol can deposit a certain amount of OCT token to this contract to increase his/her delegation as a `delegator` in next `era` of corresponding appchain. The user must be already a registered `delegator` of a certain `validator` and the `delegator` must not be unbonded.
 
-When this contract receives an `appchain message` which indicates that a validator has been unbonded in corresponding appchain, this contract should:
+A registered `validator` can unbond himself/herself from corresponding appchain. At this case, this contract should:
 
 * Remove the `validator` from the `validator set` of next `era` of corresponding appchain and move it to `unbonded validator set`. The unlock time of the deposit of this `validator` is set to current time plus the duration of `unlock_period_of_validator_deposit` of `protocol settings`.
 * Remove all delegators of the `validator` from the `validator set` of next `era` of corresponding appchain and move them to `unbonded validator set`. The unlock time of the deposit of these `delegator`(s) are set to current time plus the duration of `unlock_period_of_delegator_deposit` of `protocol settings`.
 
-When this contract receives an `appchain message` which indicates that a delegator has been unbonded in corresponding appchain, this contract should remove the `delegator` from the `validator set` of next `era` of corresponding appchain and move it to `unbonded validator set`. The unlock time of the deposit of the `delegator` is set to current time plus the duration of `unlock_period_of_delegator_deposit` of `protocol settings`.
+A registered `delegator` can unbond himself/herself from a specific `validator` of corresponding appchain. At this case, this contract should remove the `delegator` from the `validator set` of next `era` of corresponding appchain and move it to `unbonded validator set`. The unlock time of the deposit of the `delegator` is set to current time plus the duration of `unlock_period_of_delegator_deposit` of `protocol settings`.
 
 A validator can withdraw his/her deposit from this contract at any time before the validator is unbonded in corresponding appchain. The deposit of the validator after the withdrawn cannot be less than `minimum_validator_deposit` of `protocol settings`. If the validator has already been unbonded in corresponding appchain, he/she has to wait until the unlock period had passed before he/she can withdraw his/her all deposit.
 
