@@ -36,7 +36,7 @@ Contents
 * `staking history`: The staking history happens in this contract.
 * `appchain message`: The message which is relayed to this contract by `octopus relayer`.
 * `octopus relayer`: A standalone service which will relay the `appchain message` to this contract.
-* `appchain settings`: A set of settings for booting corresponding appchain, which includes `chain_spec`, `raw_chain_spec`, `boot_node`, `rpc_endpoint` and other necessary field(s).
+* `appchain settings`: A set of settings for booting corresponding appchain, which includes `chain_spec`, `raw_chain_spec`, `boot_nodes`, `rpc_endpoint` and other necessary field(s).
 * `anchor settings`: A set of settings for current appchain anchor, which includes `token_price_maintainer_account` and other necessary field(s).
 * `protocol settings`: A set of settings for Octopus Network protocol, maintained by the `owner`, which includes the following fields:
   * `minimum_validator_deposit`: The minimum deposit amount for a validator to register itself to this contract.
@@ -130,7 +130,7 @@ When this contract receives an `appchain message` which indicates that the corre
 * Create a new (empty) `validator set` for the next `era` that stored in this contract.
 * Store the `total benefit` and `unprofitable validator id list` carried by the `appchain message` in the `validator set` of next `era`.
 * Restore the state of the `validator set` of next `era` by sequentially applying all staking histories happened before the time of this `appchain message` is received. During this process, also generate a copy of the status of all `validator`(s) in the `validator set` of next `era` for the query of appchain nodes. (Because the data struct for query of appchain nodes may be defferent with the internal storage of this contract.)
-* Calculate the unwithdrawed benefit of all validators and delegators in the `validator set` of next `era` based on the `total benefit` and `unprxofitable validator id list` of the `era` (distribute the `total benefit` proportionally to all profitable validators and delegators), and store the results in the `validator set` of next `era`.
+* Calculate the unwithdrawed benefit of all validators and delegators in the `validator set` of next `era` based on the `total benefit` and `unprofitable validator id list` of the `era` (distribute the `total benefit` proportionally to all profitable validators and delegators), and store the results in the `validator set` of next `era`.
 * Change the next `era` stored in this contract to the new `era`.
 
 > The next `era` stored in this contract is the one before the new `era` specified by current `appchain message`. It is actually the `era` which is specified by the last `appchain message` of this type.
