@@ -32,9 +32,10 @@ Contents
 * `OCT token`: The OCT token is used to stake for the validators of corresponding appchain.
 * `NEAR fungible token`: A token which is lived in NEAR protocol. It should be a NEP-141 compatible contract. This contract can bridge the token to the corresponding appchain.
 * `wrapped appchain token`: The wrapped token of the appchain native token, which is managed by a contract in NEAR protocol.
-* `token bridging history`: The token bridging fact happens in this contract.
-* `staking history`: The staking history happens in this contract.
+* `token bridging history`: The token bridging fact happens in this contract. These data will be used to browse or audit all bridging actions happened in this contract.
+* `staking history`: The staking history happens in this contract. These data will be used to recover the status of `validator set` at a certain time.
 * `appchain message`: The message which is relayed to this contract by `octopus relayer`.
+* `anchor event`: The events which indicate that the corresponding appchain may need to perform necessary operations.
 * `octopus relayer`: A standalone service which will relay the `appchain message` to this contract.
 * `appchain settings`: A set of settings for booting corresponding appchain, which includes `chain_spec`, `raw_chain_spec`, `boot_nodes`, `rpc_endpoint` and other necessary field(s).
 * `anchor settings`: A set of settings for current appchain anchor, which includes `token_price_maintainer_account` and other necessary field(s).
@@ -42,7 +43,7 @@ Contents
   * `minimum_validator_deposit`: The minimum deposit amount for a validator to register itself to this contract.
   * `minimum_delegator_deposit`: The minimum deposit amount for a delegator to delegate his voting weight to a certain validator.
   * `minimum_total_stake_for_booting`: The minimum value of total stake in this contract for booting corresponding appchain.
-  * `maximum_market_value_percent_of_near_fungible_tokens`: The maximum percentage of the total market value of all NEP-141 tokens to the total market value of OCT token staked in this contract
+  * `maximum_market_value_percent_of_near_fungible_tokens`: The maximum percentage of the total market value of all NEAR fungible tokens to the total market value of OCT token staked in this contract
   * `maximum_market_value_percent_of_wrapped_appchain_token`: The maximum percentage of the total market value of wrapped appchain token to the total market value of OCT token staked in this contract.
   * `minimum_validator_count`: The minimum number of validator(s) registered in this contract for booting the corresponding appchain and keep it alive.
   * `maximum_validators_per_delegator`: The maximum number of validator(s) which a delegator can delegate to.
@@ -110,14 +111,14 @@ Any user in NEAR protocol can deposit a certain amount of OCT token to this cont
 
 A registered `validator` can unbond himself/herself from corresponding appchain. At this case, this contract should:
 
-* Remove the `validator` from the `validator set` of next `era` of corresponding appchain and move it to `unbonded validator set`. The unlock time of the deposit of this `validator` is set to current time plus the duration of `unlock_period_of_validator_deposit` of `protocol settings`.
-* Remove all delegators of the `validator` from the `validator set` of next `era` of corresponding appchain and move them to `unbonded validator set`. The unlock time of the deposit of these `delegator`(s) are set to current time plus the duration of `unlock_period_of_delegator_deposit` of `protocol settings`.
+* Remove the `validator` from the `validator set` of next `era` of corresponding appchain and move it to `unbonded validator set`. The lock period of the unbonded stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the unbonded stake.
+* Remove all delegators of the `validator` from the `validator set` of next `era` of corresponding appchain. The unlock time of the deposit of these `delegator`(s) are set to current time plus the duration of `unlock_period_of_delegator_deposit` of `protocol settings`.
 
-A registered `delegator` can unbond himself/herself from a specific `validator` of corresponding appchain. At this case, this contract should remove the `delegator` from the `validator set` of next `era` of corresponding appchain and move it to `unbonded validator set`. The unlock time of the deposit of the `delegator` is set to current time plus the duration of `unlock_period_of_delegator_deposit` of `protocol settings`.
+A registered `delegator` can unbond himself/herself from a specific `validator` of corresponding appchain. At this case, this contract should remove the `delegator` from the `validator set` of next `era` of corresponding appchain. The lock period of the unbonded delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the unbonded delegation.
 
-A validator can withdraw his/her deposit from this contract at any time before the validator is unbonded in corresponding appchain. The deposit of the validator after the withdrawn cannot be less than `minimum_validator_deposit` of `protocol settings`. If the validator has already been unbonded in corresponding appchain, he/she has to wait until the unlock period had passed before he/she can withdraw his/her all deposit.
+A validator can decrease his/her stake while the validator is still active (not unbonded) in corresponding appchain. The deposit of the validator after the reduction cannot be less than `minimum_validator_deposit` of `protocol settings`, and the total stake of the `validator set` of next `era` after the withdrawn cannot be less than 2/3 of the total stake of the `validator set` of last `era`. The lock period of the decreased stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the decreased stake.
 
-A delegator can withdraw his/her deposit from this contract at any time before the delegator is unbonded in corresponding appchain. The deposit of the delegator after the withdrawn cannot be less than `minimum_delegator_deposit` of `protocol settings`. If the delegator has already been unbonded in corresponding appchain, he/she has to wait until the unlock period had passed before he/she can withdraw his/her all deposit.
+A delegator can decrease his/her delegation while the delegator is still active (not unbonded) in corresponding appchain. The deposit of the delegator after the reduction cannot be less than `minimum_delegator_deposit` of `protocol settings`, and the total stake of the `validator set` of next `era` after the withdrawn cannot be less than 2/3 of the total stake of the `validator set` of last `era`. The lock period of the decreased delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the decreased delegation.
 
 Each of the above actions will generate a corresponding `staking history` that is stored in this contract. These staking histories are used to restore the `validator set` of a certain `era`.
 
@@ -143,4 +144,4 @@ A validator or deleagtor can withdraw their benefit in latest eras at any time. 
 
 ### Manage appchain lifecycle
 
-The owner of appchain anchor can manually change the state of corresponding appchain. These actions need to check necessary conditions before changing the state of corresponding appchain. And after changing the state, this contract will call function `sync_state_of` of `appchain registry` contract to synchronize the state to `appchain registry`.
+The owner of appchain anchor can manually change the state of corresponding appchain. These actions need to check necessary conditions before changing the state of corresponding appchain. And after changing the state, this contract will call function `sync_state_of` of `appchain registry` contract to synchronize the state to `appchain registry`. (The `appchain registry` will ensure the caller account of this function is `<appchain_id>.<appchain registry account>`.)
