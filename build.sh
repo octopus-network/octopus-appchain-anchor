@@ -1,5 +1,6 @@
 #!/bin/bash
-cargo build --all --target wasm32-unknown-unknown --release
+cargo fmt --all
+RUSTFLAGS='-C link-arg=-s' cargo build --all --target wasm32-unknown-unknown --release
 if [ ! -d "out" ]; then
     mkdir -p "out"
 fi

@@ -19,6 +19,33 @@ pub trait NearFungibleTokenManager {
     fn close_bridging_of_near_fungible_token(&mut self, symbol: String);
 }
 
+#[near_bindgen]
+impl NearFungibleTokenManager for AppchainAnchor {
+    fn register_near_fungible_token(
+        &mut self,
+        symbol: String,
+        name: String,
+        decimals: u8,
+        contract_account: AccountId,
+        price: U64,
+        price_decimals: u8,
+    ) {
+        todo!()
+    }
+
+    fn set_price_of_near_fungible_token(&mut self, symbol: String, price: U64) {
+        todo!()
+    }
+
+    fn open_bridging_of_near_fungible_token(&mut self, symbol: String) {
+        todo!()
+    }
+
+    fn close_bridging_of_near_fungible_token(&mut self, symbol: String) {
+        todo!()
+    }
+}
+
 impl AppchainAnchor {
     //
     fn total_market_value_of_near_fungible_tokens(&self) -> Balance {

@@ -1,4 +1,4 @@
-use near_sdk::json_types::I128;
+use near_sdk::{json_types::I128, BlockHeight};
 
 use crate::*;
 
@@ -39,8 +39,10 @@ pub enum AppchainState {
 pub struct AppchainSettings {
     pub chain_spec: String,
     pub raw_chain_spec: String,
-    pub boot_node: String,
+    pub boot_nodes: String,
     pub rpc_endpoint: String,
+    /// The total reward of an era in the appchain
+    pub era_reward: Balance,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -78,8 +80,10 @@ pub struct ProtocolSettings {
     /// they no longer delegates their stake to a certain validator on the corresponding appchain.
     pub unlock_period_of_delegator_deposit: u16,
     /// The maximum number of historical eras that the validators or delegators are allowed to
-    /// withdraw their benefit
-    pub maximum_era_count_of_unwithdrawed_benefit: u16,
+    /// withdraw their reward
+    pub maximum_era_count_of_unwithdrawed_reward: u16,
+    /// The percent of delegation fee of the a delegator's reward in an era
+    pub delegation_fee_percent: u16,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -139,4 +143,159 @@ pub struct NearFungibleToken {
     /// The total balance locked in this contract
     pub locked_balance: Balance,
     pub bridging_state: BridgingState,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum StakingFact {
+    /// A new validator is registered in appchain anchor
+    ValidatorRegistered {
+        validator_id: AccountId,
+        validator_id_in_appchain: AccountIdInAppchain,
+        amount: U128,
+        can_be_delegated_to: bool,
+    },
+    /// A validator increases his stake in appchain anchor
+    StakeIncreased {
+        validator_id: AccountId,
+        amount: U128,
+    },
+    /// A validator decreases his stake in appchain anchor
+    StakeDecreased {
+        validator_id: AccountId,
+        amount: U128,
+    },
+    /// A validator unbonded his stake in appchain anchor
+    ValidatorUnbonded { validator_id: AccountId },
+    /// The flag of `can_be_delegated_to` is set to `true`
+    ValidatorDelegationEnabled { validator_id: AccountId },
+    /// The flag of `can_be_delegated_to` is set to `false`
+    ValidatorDelegationDisabled { validator_id: AccountId },
+    /// A new delegator is registered in appchain anchor
+    DelegatorRegistered {
+        delegator_id: AccountId,
+        validator_id: AccountId,
+        amount: U128,
+    },
+    /// A delegator increases his delegation for a validator in appchain anchor
+    DelegationIncreased {
+        delegator_id: AccountId,
+        validator_id: AccountId,
+        amount: U128,
+    },
+    /// A delegator decreases his delegation for a validator in appchain anchor
+    DelegationDecreased {
+        delegator_id: AccountId,
+        validator_id: AccountId,
+        amount: U128,
+    },
+    /// A delegator unbonded his delegation for a validator in appchain anchor
+    DelegatorUnbonded {
+        delegator_id: AccountId,
+        validator_id: AccountId,
+    },
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct StakingHistory {
+    pub staking_fact: StakingFact,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub index: U64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum AnchorEvent {
+    /// The event that a certain amount of a NEAR fungible token has been locked in appchain anchor.
+    NearFungibleTokenLocked {
+        symbol: String,
+        /// The account id of sender in NEAR protocol
+        sender_id: AccountId,
+        /// The id of receiver on the appchain
+        receiver_id: String,
+        amount: U128,
+    },
+    /// The event that a certain amount of wrapped appchain token is burnt in its contract
+    /// in NEAR protocol.
+    WrappedAppchainTokenBurnt {
+        sender_id: AccountId,
+        /// The id of receiver on the appchain
+        receiver_id: String,
+        amount: U128,
+    },
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AppchainValidator {
+    validator_id: AccountIdInAppchain,
+    total_stake: Balance,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct UnbondedStake {
+    /// The number of era in appchain.
+    pub era_number: u64,
+    /// The index of corresponding `staking history`
+    pub staking_history_index: u64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct PermissionlessActionsStatus {
+    /// The era number that is switching by permissionless actions
+    pub switching_era_number: Option<u64>,
+    /// The era number that is distributing reward by permissionless actions
+    pub distributing_reward_era_number: Option<u64>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum TokenBridgingFact {
+    /// The fact that a certain amount of wrapped appchain token is minted in its contract
+    /// in NEAR protocol
+    WrappedAppchainTokenMinted {
+        request_id: String,
+        /// The account id of receiver in NEAR protocol
+        receiver_id: AccountId,
+        amount: U128,
+    },
+    /// The fact that a certain amount of wrapped appchain token is burnt in its contract
+    /// in NEAR protocol
+    WrappedAppchainTokenBurnt {
+        sender_id: AccountId,
+        /// The id of receiver on the appchain
+        receiver_id: String,
+        amount: U128,
+    },
+    /// The fact that a certain amount of NEP-141 token has been locked in appchain anchor.
+    NearFungibleTokenLocked {
+        symbol: String,
+        /// The account id of sender in NEAR protocol
+        sender_id: AccountId,
+        /// The id of receiver on the appchain
+        receiver_id: String,
+        amount: U128,
+    },
+    /// The fact that a certain amount of NEP-141 token has been unlocked and
+    /// transfered from this contract to the receiver.
+    NearFungibleTokenUnlocked {
+        request_id: String,
+        symbol: String,
+        /// The account id of receiver in NEAR protocol
+        receiver_id: AccountId,
+        amount: U128,
+    },
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct TokenBridgingHistory {
+    pub token_bridging_fact: TokenBridgingFact,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub index: U64,
 }

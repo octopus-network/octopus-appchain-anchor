@@ -1,4 +1,32 @@
+use near_sdk::json_types::I128;
+
 use crate::*;
+
+impl Default for WrappedAppchainTokenMetadata {
+    fn default() -> Self {
+        Self {
+            symbol: String::new(),
+            name: String::new(),
+            decimals: 0,
+            spec: String::new(),
+            icon: Option::None,
+            reference: Option::None,
+            reference_hash: Option::None,
+        }
+    }
+}
+
+impl Default for WrappedAppchainToken {
+    fn default() -> Self {
+        Self {
+            metadata: WrappedAppchainTokenMetadata::default(),
+            contract_account: AccountId::new(),
+            initial_balance: 0,
+            changed_balance: I128::from(0),
+            price_in_usd: U64::from(0),
+        }
+    }
+}
 
 pub trait WrappedAppchainTokenManager {
     ///
