@@ -6,9 +6,10 @@ pub enum StorageKey {
     WrappedAppchainToken,
     NearFungibleTokenSymbols,
     NearFungibleTokens,
+    NearFungibleTokensMap,
     NextValidatorSet,
     ValidatorSetHistories,
-    ValidatorListOfEras,
+    ValidatorSetHistoriesMap,
     UnwithdrawedValidatorRewards,
     UnwithdrawedDelegatorRewards,
     UnbondedStakes,
@@ -23,17 +24,20 @@ pub enum StorageKey {
     AnchorEvents,
     AnchorEventsMap,
     PermissionlessActionsStatus,
-    ValidatorIdsInValidatorSet(u64),
-    LookupMapOfVToDInValidatorSet(u64),
-    LookupMapOfDToVInValidatorSet(u64),
-    ValidatorsInValidatorSet(u64),
-    DelegatorsInValidatorSet(u64),
-    UnprofitableValidatorIdsInValidatorSet(u64),
-    DelegatorIdsInLookupMapOfVToDInValidatorSet {
+    ValidatorIdsOfEra(u64),
+    ValidatorToDelegatorsMapOfEra(u64),
+    DelegatorToValidatorsMapOfEra(u64),
+    ValidatorsOfEra(u64),
+    DelegatorsOfEra(u64),
+    UnprofitableValidatorIdsOfEra(u64),
+    ValidatorListOfEra(u64),
+    ValidatorRewardsOfEra(u64),
+    DelegatorRewardsOfEra(u64),
+    DelegatorIdsInMapOfVToDOfEra {
         era_number: u64,
         validator_id: AccountId,
     },
-    ValidatorIdsInLookupMapOfDToVInValidatorSet {
+    ValidatorIdsInMapOfDToVOfEra {
         era_number: u64,
         delegator_id: AccountId,
     },
@@ -46,9 +50,10 @@ impl StorageKey {
             StorageKey::WrappedAppchainToken => "wat".to_string(),
             StorageKey::NearFungibleTokenSymbols => "fts".to_string(),
             StorageKey::NearFungibleTokens => "ft".to_string(),
+            StorageKey::NearFungibleTokensMap => "ftm".to_string(),
             StorageKey::NextValidatorSet => "nvs".to_string(),
             StorageKey::ValidatorSetHistories => "vsh".to_string(),
-            StorageKey::ValidatorListOfEras => "vloe".to_string(),
+            StorageKey::ValidatorSetHistoriesMap => "vshm".to_string(),
             StorageKey::UnwithdrawedValidatorRewards => "uwvrs".to_string(),
             StorageKey::UnwithdrawedDelegatorRewards => "uwdrs".to_string(),
             StorageKey::UnbondedStakes => "ubss".to_string(),
@@ -63,19 +68,22 @@ impl StorageKey {
             StorageKey::AnchorEvents => "aes".to_string(),
             StorageKey::AnchorEventsMap => "aesm".to_string(),
             StorageKey::PermissionlessActionsStatus => "pas".to_string(),
-            StorageKey::ValidatorIdsInValidatorSet(era_number) => format!("{}vis", era_number),
-            StorageKey::LookupMapOfVToDInValidatorSet(era_number) => format!("{}lmvtd", era_number),
-            StorageKey::LookupMapOfDToVInValidatorSet(era_number) => format!("{}lmdtv", era_number),
-            StorageKey::ValidatorsInValidatorSet(era_number) => format!("{}vs", era_number),
-            StorageKey::DelegatorsInValidatorSet(era_number) => format!("{}ds", era_number),
-            StorageKey::UnprofitableValidatorIdsInValidatorSet(era_number) => {
+            StorageKey::ValidatorIdsOfEra(era_number) => format!("{}vis", era_number),
+            StorageKey::ValidatorToDelegatorsMapOfEra(era_number) => format!("{}lmvtd", era_number),
+            StorageKey::DelegatorToValidatorsMapOfEra(era_number) => format!("{}lmdtv", era_number),
+            StorageKey::ValidatorsOfEra(era_number) => format!("{}vs", era_number),
+            StorageKey::DelegatorsOfEra(era_number) => format!("{}ds", era_number),
+            StorageKey::UnprofitableValidatorIdsOfEra(era_number) => {
                 format!("{}upvis", era_number)
             }
-            StorageKey::DelegatorIdsInLookupMapOfVToDInValidatorSet {
+            StorageKey::ValidatorListOfEra(era_number) => format!("{}vl", era_number),
+            StorageKey::ValidatorRewardsOfEra(era_number) => format!("{}vrs", era_number),
+            StorageKey::DelegatorRewardsOfEra(era_number) => format!("{}drs", era_number),
+            StorageKey::DelegatorIdsInMapOfVToDOfEra {
                 era_number,
                 validator_id,
             } => format!("{}lmvtd{}", era_number, validator_id),
-            StorageKey::ValidatorIdsInLookupMapOfDToVInValidatorSet {
+            StorageKey::ValidatorIdsInMapOfDToVOfEra {
                 era_number,
                 delegator_id,
             } => format!("{}lmdtv{}", era_number, delegator_id),

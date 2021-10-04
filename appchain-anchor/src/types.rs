@@ -72,16 +72,16 @@ pub struct ProtocolSettings {
     /// booting the corresponding appchain and keep it alive.
     pub minimum_validator_count: u16,
     /// The maximum number of validator(s) which a delegator can delegate to.
-    pub maximum_validators_per_delegator: u16,
+    pub maximum_validators_per_delegator: u64,
     /// The unlock period (in days) for validator(s) can withdraw their deposit after
     /// they are removed from the corresponding appchain.
-    pub unlock_period_of_validator_deposit: u16,
+    pub unlock_period_of_validator_deposit: u64,
     /// The unlock period (in days) for delegator(s) can withdraw their deposit after
     /// they no longer delegates their stake to a certain validator on the corresponding appchain.
-    pub unlock_period_of_delegator_deposit: u16,
+    pub unlock_period_of_delegator_deposit: u64,
     /// The maximum number of historical eras that the validators or delegators are allowed to
     /// withdraw their reward
-    pub maximum_era_count_of_unwithdrawed_reward: u16,
+    pub maximum_era_count_of_unwithdrawed_reward: u64,
     /// The percent of delegation fee of the a delegator's reward in an era
     pub delegation_fee_percent: u16,
 }
@@ -90,8 +90,7 @@ pub struct ProtocolSettings {
 #[serde(crate = "near_sdk::serde")]
 pub struct OctToken {
     pub contract_account: AccountId,
-    pub price_in_usd: U64,
-    pub total_stake: Balance,
+    pub price_in_usd: U128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -113,7 +112,7 @@ pub struct WrappedAppchainToken {
     pub contract_account: AccountId,
     pub initial_balance: Balance,
     pub changed_balance: I128,
-    pub price_in_usd: U64,
+    pub price_in_usd: U128,
 }
 
 /// The bridging state of NEP-141 token.
@@ -166,7 +165,10 @@ pub enum StakingFact {
         amount: U128,
     },
     /// A validator unbonded his stake in appchain anchor
-    ValidatorUnbonded { validator_id: AccountId },
+    ValidatorUnbonded {
+        validator_id: AccountId,
+        amount: U128,
+    },
     /// The flag of `can_be_delegated_to` is set to `true`
     ValidatorDelegationEnabled { validator_id: AccountId },
     /// The flag of `can_be_delegated_to` is set to `false`
@@ -193,6 +195,7 @@ pub enum StakingFact {
     DelegatorUnbonded {
         delegator_id: AccountId,
         validator_id: AccountId,
+        amount: U128,
     },
 }
 
@@ -230,26 +233,30 @@ pub enum AnchorEvent {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainValidator {
-    validator_id: AccountIdInAppchain,
-    total_stake: Balance,
+    pub validator_id: AccountIdInAppchain,
+    pub total_stake: U128,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct UnbondedStake {
     /// The number of era in appchain.
-    pub era_number: u64,
-    /// The index of corresponding `staking history`
-    pub staking_history_index: u64,
+    pub era_number: U64,
+    /// The account id of the owner of unbonded stake
+    pub account_id: AccountId,
+    /// The amount of unbonded stake
+    pub amount: U128,
+    /// The unlock time of the stake
+    pub unlock_time: Timestamp,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PermissionlessActionsStatus {
     /// The era number that is switching by permissionless actions
-    pub switching_era_number: Option<u64>,
+    pub switching_era_number: Option<U64>,
     /// The era number that is distributing reward by permissionless actions
-    pub distributing_reward_era_number: Option<u64>,
+    pub distributing_reward_era_number: Option<U64>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -298,4 +305,19 @@ pub struct TokenBridgingHistory {
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub index: U64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct IndexRange {
+    pub start_index: U64,
+    pub end_index: U64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct RewardHistory {
+    pub era_number: U64,
+    pub reward: U128,
+    pub is_withdrawn: bool,
 }

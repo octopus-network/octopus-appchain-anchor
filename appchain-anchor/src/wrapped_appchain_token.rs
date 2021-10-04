@@ -23,7 +23,7 @@ impl Default for WrappedAppchainToken {
             contract_account: AccountId::new(),
             initial_balance: 0,
             changed_balance: I128::from(0),
-            price_in_usd: U64::from(0),
+            price_in_usd: U128::from(0),
         }
     }
 }

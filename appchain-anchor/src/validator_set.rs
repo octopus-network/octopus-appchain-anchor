@@ -64,6 +64,9 @@ pub enum ProcessingStatus {
     ApplyingStakingHistory {
         applying_index: u64,
     },
+    MakingValidatorList {
+        making_index: u64,
+    },
     ReadyForDistributingReward,
     DistributingReward {
         distributing_validator_index: u64,
@@ -76,6 +79,8 @@ pub enum ProcessingStatus {
 pub struct ValidatorSetOfEra {
     /// The validator set of this era
     pub validator_set: ValidatorSet,
+    /// The validator list for query
+    pub validator_list: Vector<AppchainValidator>,
     /// The block height when the era starts.
     pub start_block_height: BlockHeight,
     /// The timestamp when the era starts.
@@ -86,8 +91,55 @@ pub struct ValidatorSetOfEra {
     pub unprofitable_validator_ids: UnorderedSet<AccountId>,
     /// Total stake excluding all unprofitable validators' stake.
     pub valid_total_stake: Balance,
+    /// The rewards of validators in this era
+    pub validator_rewards: LookupMap<AccountId, Balance>,
+    /// The rewards of delegators in this era
+    pub delegator_rewards: LookupMap<(AccountId, AccountId), Balance>,
     /// The status of creation of this set
     pub processing_status: ProcessingStatus,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct ValidatorSetHistories {
+    /// The history version of validator set, mapped by era number in appchain.
+    histories: LookupMap<u64, ValidatorSetOfEra>,
+    /// The start index of valid validator set.
+    start_index: u64,
+    /// The end index of valid validator set.
+    end_index: u64,
+}
+
+impl ValidatorSetHistories {
+    ///
+    pub fn new() -> Self {
+        Self {
+            histories: LookupMap::new(StorageKey::ValidatorSetHistoriesMap.into_bytes()),
+            start_index: 0,
+            end_index: 0,
+        }
+    }
+    ///
+    pub fn index_range(&self) -> IndexRange {
+        IndexRange {
+            start_index: U64::from(self.start_index),
+            end_index: U64::from(self.end_index),
+        }
+    }
+    ///
+    pub fn contains(&self, era_number: &u64) -> bool {
+        self.histories.contains_key(era_number)
+    }
+    ///
+    pub fn get(&self, index: &u64) -> Option<ValidatorSetOfEra> {
+        self.histories.get(index)
+    }
+    ///
+    pub fn insert(&mut self, era_number: &u64, validator_set: &ValidatorSetOfEra) {
+        self.histories.insert(era_number, validator_set);
+        if *era_number > self.end_index {
+            self.end_index = *era_number;
+        }
+    }
 }
 
 pub trait ValidatorSetActions {
@@ -101,19 +153,19 @@ impl ValidatorSet {
         Self {
             era_number,
             validator_ids: UnorderedSet::new(
-                StorageKey::ValidatorIdsInValidatorSet(era_number).into_bytes(),
+                StorageKey::ValidatorIdsOfEra(era_number).into_bytes(),
             ),
             validator_id_to_delegator_ids: LookupMap::new(
-                StorageKey::LookupMapOfVToDInValidatorSet(era_number).into_bytes(),
+                StorageKey::ValidatorToDelegatorsMapOfEra(era_number).into_bytes(),
             ),
             delegator_id_to_validator_ids: LookupMap::new(
-                StorageKey::LookupMapOfDToVInValidatorSet(era_number).into_bytes(),
+                StorageKey::DelegatorToValidatorsMapOfEra(era_number).into_bytes(),
             ),
             validators: LookupMap::new(
-                StorageKey::ValidatorsInValidatorSet(era_number).into_bytes(),
+                StorageKey::ValidatorsOfEra(era_number).into_bytes(),
             ),
             delegators: LookupMap::new(
-                StorageKey::DelegatorsInValidatorSet(era_number).into_bytes(),
+                StorageKey::DelegatorsOfEra(era_number).into_bytes(),
             ),
             total_stake: 0,
         }
@@ -163,7 +215,10 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake -= amount.0;
             }
-            types::StakingFact::ValidatorUnbonded { validator_id } => {
+            types::StakingFact::ValidatorUnbonded {
+                validator_id,
+                amount: _,
+            } => {
                 let delegator_ids = self
                     .validator_id_to_delegator_ids
                     .get(validator_id)
@@ -212,7 +267,7 @@ impl ValidatorSetActions for ValidatorSet {
                         .insert(
                             validator_id,
                             &UnorderedSet::new(
-                                StorageKey::DelegatorIdsInLookupMapOfVToDInValidatorSet {
+                                StorageKey::DelegatorIdsInMapOfVToDOfEra {
                                     era_number: self.era_number,
                                     validator_id: validator_id.clone(),
                                 }
@@ -229,7 +284,7 @@ impl ValidatorSetActions for ValidatorSet {
                         .insert(
                             delegator_id,
                             &UnorderedSet::new(
-                                StorageKey::ValidatorIdsInLookupMapOfDToVInValidatorSet {
+                                StorageKey::ValidatorIdsInMapOfDToVOfEra {
                                     era_number: self.era_number,
                                     delegator_id: delegator_id.clone(),
                                 }
@@ -281,6 +336,7 @@ impl ValidatorSetActions for ValidatorSet {
             types::StakingFact::DelegatorUnbonded {
                 delegator_id,
                 validator_id,
+                amount: _,
             } => {
                 let mut d_ids = self
                     .validator_id_to_delegator_ids
@@ -320,6 +376,7 @@ impl ProcessingStatus {
                 copying_delegator_index: _,
             } => false,
             ProcessingStatus::ApplyingStakingHistory { applying_index: _ } => false,
+            ProcessingStatus::MakingValidatorList { making_index: _ } => false,
             ProcessingStatus::ReadyForDistributingReward => true,
             ProcessingStatus::DistributingReward {
                 distributing_validator_index: _,
@@ -338,10 +395,17 @@ impl ValidatorSetOfEra {
             start_timestamp: env::block_timestamp(),
             staking_history_index,
             unprofitable_validator_ids: UnorderedSet::new(
-                StorageKey::UnprofitableValidatorIdsInValidatorSet(era_number).into_bytes(),
+                StorageKey::UnprofitableValidatorIdsOfEra(era_number).into_bytes(),
             ),
             validator_set: ValidatorSet::new(era_number),
+            validator_list: Vector::new(StorageKey::ValidatorListOfEra(era_number).into_bytes()),
             valid_total_stake: 0,
+            validator_rewards: LookupMap::new(
+                StorageKey::ValidatorRewardsOfEra(era_number).into_bytes(),
+            ),
+            delegator_rewards: LookupMap::new(
+                StorageKey::DelegatorRewardsOfEra(era_number).into_bytes(),
+            ),
             processing_status: ProcessingStatus::CopyingFromLastEra {
                 copying_validator_index: 0,
                 copying_delegator_index: 0,

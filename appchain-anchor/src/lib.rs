@@ -11,6 +11,8 @@ mod validator_set;
 mod wrapped_appchain_token;
 
 use anchor_viewer::AnchorEvents;
+use near_contract_standards::upgrade::Ownable;
+use near_fungible_token::NearFungibleTokens;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet, Vector};
 use near_sdk::json_types::{U128, U64};
@@ -19,19 +21,27 @@ use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Duration, Gas, Promise,
     PromiseOrValue, PromiseResult, PublicKey, Timestamp,
 };
-use staking::StakingHistories;
+use staking::{StakingHistories, UnbondedStakeReference};
 use token_bridging::TokenBridgingHistories;
 use types::*;
-use validator_set::{ValidatorSet, ValidatorSetOfEra};
+use validator_set::{ValidatorSet, ValidatorSetHistories};
 
 use crate::storage_key::StorageKey;
 
+/// Constants for gas
+const T_GAS: u64 = 1_000_000_000_000;
+const GAS_FOR_FT_TRANSFER_CALL: u64 = 35 * T_GAS;
 /// The value of decimals value of OCT token
 const OCT_DECIMALS_VALUE: Balance = 1_000_000_000_000_000_000;
 /// Multiple of nano seconds for a second
 const NANO_SECONDS_MULTIPLE: u64 = 1_000_000_000;
 /// Gas cap for function `complete_switching_era`
 const GAS_CAP_FOR_COMPLETE_SWITCHING_ERA: Gas = 180_000_000_000_000;
+
+#[ext_contract(ext_fungible_token)]
+pub trait FungibleToken {
+    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
+}
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -40,27 +50,25 @@ pub struct AppchainAnchor {
     pub appchain_id: AppchainId,
     /// The account id of appchain registry contract.
     pub appchain_registry: AccountId,
+    /// The owner account id.
+    pub owner: AccountId,
     /// The info of OCT token.
     pub oct_token: LazyOption<OctToken>,
     /// The info of wrapped appchain token in NEAR protocol.
     pub wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
-    /// The set of symbols of NEP-141 tokens.
-    pub near_fungible_token_symbols: UnorderedSet<String>,
-    /// The NEP-141 tokens data, mapped by the symbol of the token.
-    pub near_fungible_tokens: LookupMap<String, NearFungibleToken>,
-    /// The history version of validator set, mapped by era number in appchain.
-    pub validator_set_histories: LookupMap<u64, ValidatorSetOfEra>,
+    /// The NEP-141 tokens data.
+    pub near_fungible_tokens: LazyOption<NearFungibleTokens>,
+    /// The history data of validator set.
+    pub validator_set_histories: LazyOption<ValidatorSetHistories>,
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
     pub next_validator_set: LazyOption<ValidatorSet>,
-    /// The validator list of eras
-    pub validator_list_of_eras: LookupMap<u64, Vector<AppchainValidator>>,
     /// The map of unwithdrawed validator rewards in eras, in unit of wrapped appchain token.
     pub unwithdrawed_validator_rewards: LookupMap<(u64, AccountId), Balance>,
     /// The map of unwithdrawed delegator rewards in eras, in unit of wrapped appchain token.
     pub unwithdrawed_delegator_rewards: LookupMap<(u64, AccountId, AccountId), Balance>,
     /// The map of unbonded stakes in eras.
-    pub unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStake>>,
+    pub unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
     /// The mapping for validators' accounts, from account id in the appchain to
     /// account id in NEAR protocol.
     pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
@@ -100,28 +108,30 @@ impl AppchainAnchor {
         Self {
             appchain_id,
             appchain_registry,
+            owner: env::predecessor_account_id(),
             oct_token: LazyOption::new(
                 StorageKey::OctToken.into_bytes(),
                 Some(&OctToken {
                     contract_account: oct_token,
-                    price_in_usd: U64::from(0),
-                    total_stake: 0,
+                    price_in_usd: U128::from(0),
                 }),
             ),
             wrapped_appchain_token: LazyOption::new(
                 StorageKey::WrappedAppchainToken.into_bytes(),
                 Some(&WrappedAppchainToken::default()),
             ),
-            near_fungible_token_symbols: UnorderedSet::new(
-                StorageKey::NearFungibleTokenSymbols.into_bytes(),
+            near_fungible_tokens: LazyOption::new(
+                StorageKey::NearFungibleTokens.into_bytes(),
+                Some(&NearFungibleTokens::new()),
             ),
-            near_fungible_tokens: LookupMap::new(StorageKey::NearFungibleTokens.into_bytes()),
-            validator_set_histories: LookupMap::new(StorageKey::ValidatorSetHistories.into_bytes()),
+            validator_set_histories: LazyOption::new(
+                StorageKey::ValidatorSetHistories.into_bytes(),
+                Some(&ValidatorSetHistories::new()),
+            ),
             next_validator_set: LazyOption::new(
                 StorageKey::NextValidatorSet.into_bytes(),
                 Some(&ValidatorSet::new(u64::MAX)),
             ),
-            validator_list_of_eras: LookupMap::new(StorageKey::ValidatorListOfEras.into_bytes()),
             unwithdrawed_validator_rewards: LookupMap::new(
                 StorageKey::UnwithdrawedValidatorRewards.into_bytes(),
             ),
@@ -155,27 +165,15 @@ impl AppchainAnchor {
             appchain_state: AppchainState::Staging,
             staking_histories: LazyOption::new(
                 StorageKey::StakingHistories.into_bytes(),
-                Some(&StakingHistories {
-                    histories: LookupMap::new(StorageKey::StakingHistoriesMap.into_bytes()),
-                    start_index: 0,
-                    end_index: 0,
-                }),
+                Some(&StakingHistories::new()),
             ),
             token_bridging_histories: LazyOption::new(
                 StorageKey::TokenBridgingHistories.into_bytes(),
-                Some(&TokenBridgingHistories {
-                    histories: LookupMap::new(StorageKey::TokenBridgingHistoriesMap.into_bytes()),
-                    start_index: 0,
-                    end_index: 0,
-                }),
+                Some(&TokenBridgingHistories::new()),
             ),
             anchor_events: LazyOption::new(
                 StorageKey::AnchorEvents.into_bytes(),
-                Some(&AnchorEvents {
-                    events: LookupMap::new(StorageKey::AnchorEventsMap.into_bytes()),
-                    start_index: 0,
-                    end_index: 0,
-                }),
+                Some(&AnchorEvents::new()),
             ),
             permissionless_actions_status: LazyOption::new(
                 StorageKey::PermissionlessActionsStatus.into_bytes(),
@@ -185,5 +183,64 @@ impl AppchainAnchor {
                 }),
             ),
         }
+    }
+    // Assert that the contract called by the owner.
+    fn assert_owner(&self) {
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.owner,
+            "Function can only be called by owner."
+        );
+    }
+    // Assert that the contract called by a registered validator.
+    fn assert_validator_id(&self, validator_id: &AccountId, next_validator_set: &ValidatorSet) {
+        assert!(
+            next_validator_set.validator_ids.contains(validator_id)
+                || next_validator_set.validators.contains_key(validator_id),
+            "Validator id {} is not valid.",
+            validator_id
+        );
+    }
+    // Assert that the contract called by a registered validator.
+    fn assert_delegator_id(
+        &self,
+        delegator_id: &AccountId,
+        validator_id: &AccountId,
+        next_validator_set: &ValidatorSet,
+    ) {
+        self.assert_validator_id(validator_id, next_validator_set);
+        assert!(
+            next_validator_set
+                .validator_id_to_delegator_ids
+                .contains_key(validator_id),
+            "Delegator id {} of validator {} is not valid.",
+            delegator_id,
+            validator_id
+        );
+        let delegator_ids = next_validator_set
+            .validator_id_to_delegator_ids
+            .get(validator_id)
+            .unwrap();
+        assert!(
+            delegator_ids.contains(delegator_id)
+                || next_validator_set
+                    .delegators
+                    .contains_key(&(delegator_id.clone(), validator_id.clone())),
+            "Delegator id {} of validator {} is not valid.",
+            delegator_id,
+            validator_id
+        );
+    }
+}
+
+#[near_bindgen]
+impl Ownable for AppchainAnchor {
+    fn get_owner(&self) -> AccountId {
+        self.owner.clone()
+    }
+
+    fn set_owner(&mut self, owner: AccountId) {
+        self.assert_owner();
+        self.owner = owner;
     }
 }

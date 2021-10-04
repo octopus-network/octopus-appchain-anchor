@@ -1,5 +1,23 @@
 use crate::*;
 
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct NearFungibleTokens {
+    /// The set of symbols of NEP-141 tokens.
+    pub symbols: UnorderedSet<String>,
+    /// The NEP-141 tokens data, mapped by the symbol of the token.
+    pub tokens: LookupMap<String, NearFungibleToken>,
+}
+
+impl NearFungibleTokens {
+    ///
+    pub fn new() -> Self {
+        Self {
+            symbols: UnorderedSet::new(StorageKey::NearFungibleTokenSymbols.into_bytes()),
+            tokens: LookupMap::new(StorageKey::NearFungibleTokensMap.into_bytes()),
+        }
+    }
+}
+
 pub trait NearFungibleTokenManager {
     ///
     fn register_near_fungible_token(
