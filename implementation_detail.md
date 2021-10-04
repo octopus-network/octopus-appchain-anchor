@@ -1007,7 +1007,7 @@ Processing steps:
 * Get `validator` from `self.unbonded_validator_set` using `sender` as `validator_id_in_near`.
 * Call function `ft_transfer` of `self.oct_token.contract_account` with parameters `sender` and `validator.deposit_amount`:
   * If success:
-    * Generate log: `Staking deposit of <sender> is withdrawed. Amount: <amount>`
+    * Generate log: `Staking deposit of <sender> is withdrawn. Amount: <amount>`
   * If fail:
     * Generate log: `Failed to withdraw staking deposit of <sender>. Amount: <amount>`
 * Remove the `validator` from `self.unbonded_validator_set`.
@@ -1081,7 +1081,7 @@ Processing steps:
 * Get the `delegator` data from `self.unbonded_validator_set` using pair (`sender`, `validator_id`) as the key.
 * Call function `ft_transfer` of `self.oct_token.contract_account` with parameters `sender` and `delegator.deposit_amount`:
   * If success:
-    * Generate log: `Delegating deposit of <sender> for <validator_id> is withdrawed. Amount: <deposit_amount>`
+    * Generate log: `Delegating deposit of <sender> for <validator_id> is withdrawn. Amount: <deposit_amount>`
   * If fail:
     * Generate log: `Failed to withdraw delegating deposit of <sender> for <validator_id>. Amount: <deposit_amount>`
 * Remove the `delegator` from `self.unbonded_validator_set`.

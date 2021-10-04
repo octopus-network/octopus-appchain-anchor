@@ -161,12 +161,8 @@ impl ValidatorSet {
             delegator_id_to_validator_ids: LookupMap::new(
                 StorageKey::DelegatorToValidatorsMapOfEra(era_number).into_bytes(),
             ),
-            validators: LookupMap::new(
-                StorageKey::ValidatorsOfEra(era_number).into_bytes(),
-            ),
-            delegators: LookupMap::new(
-                StorageKey::DelegatorsOfEra(era_number).into_bytes(),
-            ),
+            validators: LookupMap::new(StorageKey::ValidatorsOfEra(era_number).into_bytes()),
+            delegators: LookupMap::new(StorageKey::DelegatorsOfEra(era_number).into_bytes()),
             total_stake: 0,
         }
     }

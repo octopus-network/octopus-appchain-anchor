@@ -81,7 +81,7 @@ pub struct ProtocolSettings {
     pub unlock_period_of_delegator_deposit: u64,
     /// The maximum number of historical eras that the validators or delegators are allowed to
     /// withdraw their reward
-    pub maximum_era_count_of_unwithdrawed_reward: u64,
+    pub maximum_era_count_of_unwithdrawn_reward: u64,
     /// The percent of delegation fee of the a delegator's reward in an era
     pub delegation_fee_percent: u16,
 }

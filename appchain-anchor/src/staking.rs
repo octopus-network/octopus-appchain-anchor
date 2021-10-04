@@ -463,15 +463,15 @@ impl StakingManager for AppchainAnchor {
             .end_index
             .0;
         let protocol_settings = self.protocol_settings.get().unwrap();
-        let start_era = end_era - protocol_settings.maximum_era_count_of_unwithdrawed_reward;
+        let start_era = end_era - protocol_settings.maximum_era_count_of_unwithdrawn_reward;
         let mut reward_to_withdraw: u128 = 0;
         for era_number in start_era..end_era {
             if let Some(reward) = self
-                .unwithdrawed_validator_rewards
+                .unwithdrawn_validator_rewards
                 .get(&(era_number, validator_id.clone()))
             {
                 reward_to_withdraw += reward;
-                self.unwithdrawed_validator_rewards
+                self.unwithdrawn_validator_rewards
                     .remove(&(era_number, validator_id.clone()));
             }
         }
@@ -496,16 +496,16 @@ impl StakingManager for AppchainAnchor {
             .end_index
             .0;
         let protocol_settings = self.protocol_settings.get().unwrap();
-        let start_era = end_era - protocol_settings.maximum_era_count_of_unwithdrawed_reward;
+        let start_era = end_era - protocol_settings.maximum_era_count_of_unwithdrawn_reward;
         let mut reward_to_withdraw: u128 = 0;
         for era_number in start_era..end_era {
-            if let Some(reward) = self.unwithdrawed_delegator_rewards.get(&(
+            if let Some(reward) = self.unwithdrawn_delegator_rewards.get(&(
                 era_number,
                 delegator_id.clone(),
                 validator_id.clone(),
             )) {
                 reward_to_withdraw += reward;
-                self.unwithdrawed_delegator_rewards.remove(&(
+                self.unwithdrawn_delegator_rewards.remove(&(
                     era_number,
                     delegator_id.clone(),
                     validator_id.clone(),

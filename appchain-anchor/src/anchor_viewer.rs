@@ -162,7 +162,7 @@ impl AnchorViewer for AppchainAnchor {
                         era_number: U64::from(era_number),
                         reward: U128::from(reward),
                         is_withdrawn: !self
-                            .unwithdrawed_validator_rewards
+                            .unwithdrawn_validator_rewards
                             .contains_key(&(era_number, validator_id.clone())),
                     });
                 }
@@ -189,7 +189,7 @@ impl AnchorViewer for AppchainAnchor {
                     reward_histories.push(RewardHistory {
                         era_number: U64::from(era_number),
                         reward: U128::from(reward),
-                        is_withdrawn: !self.unwithdrawed_delegator_rewards.contains_key(&(
+                        is_withdrawn: !self.unwithdrawn_delegator_rewards.contains_key(&(
                             era_number,
                             delegator_id.clone(),
                             validator_id.clone(),

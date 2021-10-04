@@ -12,7 +12,7 @@ impl Default for ProtocolSettings {
             maximum_validators_per_delegator: 16,
             unlock_period_of_validator_deposit: 21,
             unlock_period_of_delegator_deposit: 7,
-            maximum_era_count_of_unwithdrawed_reward: 84,
+            maximum_era_count_of_unwithdrawn_reward: 84,
             delegation_fee_percent: 20,
         }
     }
@@ -40,7 +40,7 @@ pub trait ProtocolSettingsManager {
     ///
     fn change_unlock_period_of_delegator_deposit(&mut self, value: u16);
     ///
-    fn change_maximum_era_count_of_unwithdrawed_reward(&mut self, value: u16);
+    fn change_maximum_era_count_of_unwithdrawn_reward(&mut self, value: u16);
 }
 
 pub trait AppchainSettingsManager {

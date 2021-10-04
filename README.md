@@ -49,7 +49,7 @@ Contents
   * `maximum_validators_per_delegator`: The maximum number of validator(s) which a delegator can delegate to.
   * `unlock_period_of_validator_deposit`: The unlock period (in days) for validator(s) can withdraw their deposit after they are removed from the corresponding appchain.
   * `unlock_period_of_delegator_deposit`: The unlock period (in days) for delegator(s) can withdraw their deposit after they no longer delegates their stake to a certain validator on the corresponding appchain.
-  * `maximum_era_count_of_unwithdrawed_benefit`: The maximum number of historical eras that the validators or delegators are allowed to withdraw their benefit.
+  * `maximum_era_count_of_unwithdrawn_benefit`: The maximum number of historical eras that the validators or delegators are allowed to withdraw their benefit.
 * `sender`: A NEAR transaction sender, that is the account which perform actions (call functions) in this contract.
 
 ## Function specification
@@ -131,7 +131,7 @@ When this contract receives an `appchain message` which indicates that the corre
 * Create a new (empty) `validator set` for the next `era` that stored in this contract.
 * Store the `total benefit` and `unprofitable validator id list` carried by the `appchain message` in the `validator set` of next `era`.
 * Restore the state of the `validator set` of next `era` by sequentially applying all staking histories happened before the time of this `appchain message` is received. During this process, also generate a copy of the status of all `validator`(s) in the `validator set` of next `era` for the query of appchain nodes. (Because the data struct for query of appchain nodes may be defferent with the internal storage of this contract.)
-* Calculate the unwithdrawed benefit of all validators and delegators in the `validator set` of next `era` based on the `total benefit` and `unprofitable validator id list` of the `era` (distribute the `total benefit` proportionally to all profitable validators and delegators), and store the results in the `validator set` of next `era`.
+* Calculate the unwithdrawn benefit of all validators and delegators in the `validator set` of next `era` based on the `total benefit` and `unprofitable validator id list` of the `era` (distribute the `total benefit` proportionally to all profitable validators and delegators), and store the results in the `validator set` of next `era`.
 * Change the next `era` stored in this contract to the new `era`.
 
 > The next `era` stored in this contract is the one before the new `era` specified by current `appchain message`. It is actually the `era` which is specified by the last `appchain message` of this type.
@@ -140,7 +140,7 @@ Notice that, due to the gas limit of a transaction, the whole process may cost m
 
 ### Withdraw reward
 
-A validator or deleagtor can withdraw their benefit in latest eras at any time. The earliest era in which they can withdraw is limited by `maximum_era_count_of_unwithdrawed_benefit` of `protocol settings`.
+A validator or deleagtor can withdraw their benefit in latest eras at any time. The earliest era in which they can withdraw is limited by `maximum_era_count_of_unwithdrawn_benefit` of `protocol settings`.
 
 ### Manage appchain lifecycle
 

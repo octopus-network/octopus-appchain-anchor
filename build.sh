@@ -1,5 +1,6 @@
 #!/bin/bash
 cargo fmt --all
+cargo doc -p appchain-anchor --no-deps
 RUSTFLAGS='-C link-arg=-s' cargo build --all --target wasm32-unknown-unknown --release
 if [ ! -d "out" ]; then
     mkdir -p "out"

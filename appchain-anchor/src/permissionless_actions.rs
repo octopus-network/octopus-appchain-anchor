@@ -506,13 +506,13 @@ impl AppchainAnchor {
         let total_reward_of_validator =
             era_reward * validator.total_stake / validator_set.valid_total_stake;
         if !self
-            .unwithdrawed_validator_rewards
+            .unwithdrawn_validator_rewards
             .contains_key(&(validator_set.validator_set.era_number, validator_id.clone()))
         {
             validator_set
                 .validator_rewards
                 .insert(&validator_id, &total_reward_of_validator);
-            self.unwithdrawed_validator_rewards.insert(
+            self.unwithdrawn_validator_rewards.insert(
                 &(validator_set.validator_set.era_number, validator_id.clone()),
                 &total_reward_of_validator,
             );
@@ -538,14 +538,14 @@ impl AppchainAnchor {
             total_reward_of_validator * delegator.deposit_amount * (100 - delegation_fee_percent)
                 / (validator.total_stake * 100);
         let mut validator_reward = self
-            .unwithdrawed_validator_rewards
+            .unwithdrawn_validator_rewards
             .get(&(validator_set.validator_set.era_number, validator_id.clone()))
             .unwrap();
         validator_set.delegator_rewards.insert(
             &(delegator_id.clone(), validator_id.clone()),
             &delegator_reward,
         );
-        self.unwithdrawed_delegator_rewards.insert(
+        self.unwithdrawn_delegator_rewards.insert(
             &(
                 validator_set.validator_set.era_number,
                 delegator_id.clone(),
@@ -557,7 +557,7 @@ impl AppchainAnchor {
         validator_set
             .validator_rewards
             .insert(&validator_id, &validator_reward);
-        self.unwithdrawed_validator_rewards.insert(
+        self.unwithdrawn_validator_rewards.insert(
             &(validator_set.validator_set.era_number, validator_id.clone()),
             &validator_reward,
         );

@@ -63,10 +63,10 @@ pub struct AppchainAnchor {
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
     pub next_validator_set: LazyOption<ValidatorSet>,
-    /// The map of unwithdrawed validator rewards in eras, in unit of wrapped appchain token.
-    pub unwithdrawed_validator_rewards: LookupMap<(u64, AccountId), Balance>,
-    /// The map of unwithdrawed delegator rewards in eras, in unit of wrapped appchain token.
-    pub unwithdrawed_delegator_rewards: LookupMap<(u64, AccountId, AccountId), Balance>,
+    /// The map of unwithdrawn validator rewards in eras, in unit of wrapped appchain token.
+    pub unwithdrawn_validator_rewards: LookupMap<(u64, AccountId), Balance>,
+    /// The map of unwithdrawn delegator rewards in eras, in unit of wrapped appchain token.
+    pub unwithdrawn_delegator_rewards: LookupMap<(u64, AccountId, AccountId), Balance>,
     /// The map of unbonded stakes in eras.
     pub unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
     /// The mapping for validators' accounts, from account id in the appchain to
@@ -132,11 +132,11 @@ impl AppchainAnchor {
                 StorageKey::NextValidatorSet.into_bytes(),
                 Some(&ValidatorSet::new(u64::MAX)),
             ),
-            unwithdrawed_validator_rewards: LookupMap::new(
-                StorageKey::UnwithdrawedValidatorRewards.into_bytes(),
+            unwithdrawn_validator_rewards: LookupMap::new(
+                StorageKey::UnwithdrawnValidatorRewards.into_bytes(),
             ),
-            unwithdrawed_delegator_rewards: LookupMap::new(
-                StorageKey::UnwithdrawedDelegatorRewards.into_bytes(),
+            unwithdrawn_delegator_rewards: LookupMap::new(
+                StorageKey::UnwithdrawnDelegatorRewards.into_bytes(),
             ),
             unbonded_stakes: LookupMap::new(StorageKey::UnbondedStakes.into_bytes()),
             validator_account_id_mapping: LookupMap::new(
