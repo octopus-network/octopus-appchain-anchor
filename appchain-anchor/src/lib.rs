@@ -10,7 +10,6 @@ pub mod types;
 mod validator_set;
 mod wrapped_appchain_token;
 
-use anchor_viewer::AnchorEvents;
 use near_contract_standards::upgrade::Ownable;
 use near_fungible_token::NearFungibleTokens;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -21,12 +20,22 @@ use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Duration, Gas, Promise,
     PromiseOrValue, PromiseResult, PublicKey, Timestamp,
 };
+
+pub use anchor_viewer::AnchorViewer;
+pub use appchain_lifecycle::AppchainLifecycleManager;
+pub use near_fungible_token::NearFungibleTokenManager;
+pub use permissionless_actions::PermissionlessActions;
+pub use settings_manager::*;
+pub use staking::StakingManager;
+pub use token_bridging::TokenBridgingHistoryManager;
+pub use wrapped_appchain_token::WrappedAppchainTokenManager;
+
+use anchor_viewer::AnchorEvents;
 use staking::{StakingHistories, UnbondedStakeReference};
+use storage_key::StorageKey;
 use token_bridging::TokenBridgingHistories;
 use types::*;
 use validator_set::{ValidatorSet, ValidatorSetHistories};
-
-use crate::storage_key::StorageKey;
 
 /// Constants for gas
 const T_GAS: u64 = 1_000_000_000_000;
@@ -47,47 +56,47 @@ pub trait FungibleToken {
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainAnchor {
     /// The id of corresponding appchain.
-    pub appchain_id: AppchainId,
+    appchain_id: AppchainId,
     /// The account id of appchain registry contract.
-    pub appchain_registry: AccountId,
+    appchain_registry: AccountId,
     /// The owner account id.
-    pub owner: AccountId,
+    owner: AccountId,
     /// The info of OCT token.
-    pub oct_token: LazyOption<OctToken>,
+    oct_token: LazyOption<OctToken>,
     /// The info of wrapped appchain token in NEAR protocol.
-    pub wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
+    wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
     /// The NEP-141 tokens data.
-    pub near_fungible_tokens: LazyOption<NearFungibleTokens>,
+    near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
-    pub validator_set_histories: LazyOption<ValidatorSetHistories>,
+    validator_set_histories: LazyOption<ValidatorSetHistories>,
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
-    pub next_validator_set: LazyOption<ValidatorSet>,
+    next_validator_set: LazyOption<ValidatorSet>,
     /// The map of unwithdrawn validator rewards in eras, in unit of wrapped appchain token.
-    pub unwithdrawn_validator_rewards: LookupMap<(u64, AccountId), Balance>,
+    unwithdrawn_validator_rewards: LookupMap<(u64, AccountId), Balance>,
     /// The map of unwithdrawn delegator rewards in eras, in unit of wrapped appchain token.
-    pub unwithdrawn_delegator_rewards: LookupMap<(u64, AccountId, AccountId), Balance>,
+    unwithdrawn_delegator_rewards: LookupMap<(u64, AccountId, AccountId), Balance>,
     /// The map of unbonded stakes in eras.
-    pub unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
+    unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
     /// The mapping for validators' accounts, from account id in the appchain to
     /// account id in NEAR protocol.
-    pub validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
+    validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
     /// The custom settings for appchain.
-    pub appchain_settings: LazyOption<AppchainSettings>,
+    appchain_settings: LazyOption<AppchainSettings>,
     /// The anchor settings for appchain.
-    pub anchor_settings: LazyOption<AnchorSettings>,
+    anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
-    pub protocol_settings: LazyOption<ProtocolSettings>,
+    protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain.
-    pub appchain_state: AppchainState,
+    appchain_state: AppchainState,
     /// The staking history data happened in this contract.
-    pub staking_histories: LazyOption<StakingHistories>,
+    staking_histories: LazyOption<StakingHistories>,
     /// The token bridging histories data happened in this contract.
-    pub token_bridging_histories: LazyOption<TokenBridgingHistories>,
+    token_bridging_histories: LazyOption<TokenBridgingHistories>,
     /// The anchor events data.
-    pub anchor_events: LazyOption<AnchorEvents>,
+    anchor_events: LazyOption<AnchorEvents>,
     /// The status of permissionless actions
-    pub permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
+    permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
 }
 
 impl Default for AppchainAnchor {
