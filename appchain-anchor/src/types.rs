@@ -70,7 +70,7 @@ pub struct ProtocolSettings {
     pub maximum_market_value_percent_of_wrapped_appchain_token: u16,
     /// The minimum number of validator(s) registered in this contract for
     /// booting the corresponding appchain and keep it alive.
-    pub minimum_validator_count: u16,
+    pub minimum_validator_count: u64,
     /// The maximum number of validator(s) which a delegator can delegate to.
     pub maximum_validators_per_delegator: u64,
     /// The unlock period (in days) for validator(s) can withdraw their deposit after

@@ -33,6 +33,19 @@ impl AnchorEvents {
 }
 
 pub trait AnchorViewer {
+    /// Get anchor settings detail.
+    fn get_anchor_settings(&self) -> AnchorSettings;
+    /// Get appchain settings detail.
+    fn get_appchain_settings(&self) -> AppchainSettings;
+    /// Get protocol settings detail.
+    fn get_protocol_settings(&self) -> ProtocolSettings;
+    /// Get the index range of staking histories stored in anchor.
+    fn get_index_range_of_staking_history(&self) -> IndexRange;
+    /// Get staking history by index.
+    /// If the param `index `is omitted, the latest history will be returned.
+    /// If the paran `index` is smaller than the start index, or bigger than the end index
+    /// stored in anchor, or there is no history in anchor yet, `Option::None` will be returned.
+    fn get_staking_history(&self, index: Option<U64>) -> Option<StakingHistory>;
     /// Get the index range of anchor events stored in anchor.
     fn get_index_range_of_anchor_event(&self) -> IndexRange;
     /// Get anchor event by index.
@@ -40,6 +53,13 @@ pub trait AnchorViewer {
     /// If the paran `index` is smaller than the start index, or bigger than the end index
     /// stored in anchor, or there is no event in anchor yet, `Option::None` will be returned.
     fn get_anchor_event(&self, index: Option<U64>) -> Option<AnchorEvent>;
+    /// Get the index range of token bridging histories stored in anchor.
+    fn get_index_range_of_token_bridging_history(&self) -> IndexRange;
+    /// Get token bridging history by index.
+    /// If the param `index `is omitted, the latest history will be returned.
+    /// If the paran `index` is smaller than the start index, or bigger than the end index
+    /// stored in anchor, or there is no history in anchor yet, `Option::None` will be returned.
+    fn get_token_bridging_history(&self, index: Option<U64>) -> Option<TokenBridgingHistory>;
     /// Get the validator list of a certain era.
     fn get_validator_list_of_era(&self, era_number: U64) -> Vec<AppchainValidator>;
     /// Get unbonded stakes of an account.
@@ -64,6 +84,36 @@ pub trait AnchorViewer {
 #[near_bindgen]
 impl AnchorViewer for AppchainAnchor {
     //
+    fn get_anchor_settings(&self) -> AnchorSettings {
+        self.anchor_settings.get().unwrap()
+    }
+    //
+    fn get_appchain_settings(&self) -> AppchainSettings {
+        self.appchain_settings.get().unwrap()
+    }
+    //
+    fn get_protocol_settings(&self) -> ProtocolSettings {
+        self.protocol_settings.get().unwrap()
+    }
+    //
+    fn get_index_range_of_staking_history(&self) -> IndexRange {
+        self.staking_histories.get().unwrap().index_range()
+    }
+    //
+    fn get_staking_history(&self, index: Option<U64>) -> Option<StakingHistory> {
+        let index = match index {
+            Some(index) => index,
+            None => {
+                self.staking_histories
+                    .get()
+                    .unwrap()
+                    .index_range()
+                    .end_index
+            }
+        };
+        self.staking_histories.get().unwrap().get(&index.0)
+    }
+    //
     fn get_index_range_of_anchor_event(&self) -> IndexRange {
         self.anchor_events.get().unwrap().index_range()
     }
@@ -74,6 +124,24 @@ impl AnchorViewer for AppchainAnchor {
             None => self.anchor_events.get().unwrap().index_range().end_index,
         };
         self.anchor_events.get().unwrap().get(&index.0)
+    }
+    //
+    fn get_index_range_of_token_bridging_history(&self) -> IndexRange {
+        self.token_bridging_histories.get().unwrap().index_range()
+    }
+    //
+    fn get_token_bridging_history(&self, index: Option<U64>) -> Option<TokenBridgingHistory> {
+        let index = match index {
+            Some(index) => index,
+            None => {
+                self.token_bridging_histories
+                    .get()
+                    .unwrap()
+                    .index_range()
+                    .end_index
+            }
+        };
+        self.token_bridging_histories.get().unwrap().get(&index.0)
     }
     //
     fn get_validator_list_of_era(&self, era_number: U64) -> Vec<AppchainValidator> {
@@ -119,7 +187,7 @@ impl AnchorViewer for AppchainAnchor {
                         amount,
                         unlock_time: validator_set.start_timestamp
                             + protocol_settings.unlock_period_of_validator_deposit
-                                * 86400
+                                * SECONDS_OF_A_DAY
                                 * NANO_SECONDS_MULTIPLE,
                     }),
                     StakingFact::DelegationDecreased {
@@ -137,7 +205,7 @@ impl AnchorViewer for AppchainAnchor {
                         amount,
                         unlock_time: validator_set.start_timestamp
                             + protocol_settings.unlock_period_of_delegator_deposit
-                                * 86400
+                                * SECONDS_OF_A_DAY
                                 * NANO_SECONDS_MULTIPLE,
                     }),
                     _ => (),

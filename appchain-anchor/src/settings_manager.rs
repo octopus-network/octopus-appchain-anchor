@@ -20,8 +20,6 @@ impl Default for ProtocolSettings {
 
 pub trait ProtocolSettingsManager {
     ///
-    fn get_protocol_settings(&self) -> ProtocolSettings;
-    ///
     fn change_minimum_validator_deposit(&mut self, value: Balance);
     ///
     fn change_minimum_delegator_deposit(&mut self, value: Balance);
@@ -45,8 +43,6 @@ pub trait ProtocolSettingsManager {
 
 pub trait AppchainSettingsManager {
     ///
-    fn get_appchain_settings(&self) -> AppchainSettings;
-    ///
     fn set_chain_spec(&mut self, chain_spec: String);
     ///
     fn set_raw_chain_spec(&mut self, raw_chain_spec: String);
@@ -59,8 +55,6 @@ pub trait AppchainSettingsManager {
 }
 
 pub trait AnchorSettingsManager {
-    ///
-    fn get_anchor_settings(&self) -> AnchorSettings;
     ///
     fn set_token_price_maintainer_account(&mut self, account_id: AccountId);
 }

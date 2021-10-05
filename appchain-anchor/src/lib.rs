@@ -37,14 +37,16 @@ use token_bridging::TokenBridgingHistories;
 use types::*;
 use validator_set::{ValidatorSet, ValidatorSetHistories};
 
-/// Constants for gas
+/// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
 const GAS_FOR_FT_TRANSFER_CALL: u64 = 35 * T_GAS;
-/// The value of decimals value of OCT token
+/// The value of decimals value of OCT token.
 const OCT_DECIMALS_VALUE: Balance = 1_000_000_000_000_000_000;
-/// Multiple of nano seconds for a second
+/// The seconds of a day.
+const SECONDS_OF_A_DAY: u64 = 86400;
+/// Multiple of nano seconds for a second.
 const NANO_SECONDS_MULTIPLE: u64 = 1_000_000_000;
-/// Gas cap for function `complete_switching_era`
+/// Gas cap for function `complete_switching_era`.
 const GAS_CAP_FOR_COMPLETE_SWITCHING_ERA: Gas = 180_000_000_000_000;
 
 #[ext_contract(ext_fungible_token)]
@@ -251,5 +253,33 @@ impl Ownable for AppchainAnchor {
     fn set_owner(&mut self, owner: AccountId) {
         self.assert_owner();
         self.owner = owner;
+    }
+}
+
+#[near_bindgen]
+impl AppchainAnchor {
+    /// Callback function for `ft_transfer_call` of NEP-141 compatible contracts
+    pub fn ft_on_transfer(
+        &mut self,
+        sender_id: AccountId,
+        amount: U128,
+        msg: String,
+    ) -> PromiseOrValue<U128> {
+        log!(
+            "Deposit {} from @{} received. msg: {}",
+            amount.0,
+            &sender_id,
+            msg
+        );
+        if env::predecessor_account_id().eq(&self.oct_token.get().unwrap().contract_account) {
+            self.process_oct_deposit(sender_id, amount, msg)
+        } else {
+            log!(
+                "Invalid deposit '{}' of unknown NEP-141 asset from '{}' received. Return deposit.",
+                amount.0,
+                sender_id,
+            );
+            PromiseOrValue::Value(amount)
+        }
     }
 }

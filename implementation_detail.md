@@ -968,7 +968,7 @@ Processing steps:
 * The `staking state` of the `validator` is set to `unbonded`.
 * Add the `validator` to `self.unbonded_validator_set`.
 * Reduce the value of `deposit_amount` of the `validator` and all its `delegators` from `self.oct_token.total_stake`.
-* The `staking_unlock_time` of the `validator` is set to `StakingState::Unbonded.timestamp + self.protocol_settings.unlock_period_of_validator_deposit * 86400 * NANO_SECONDS_MULTIPLE`.
+* The `staking_unlock_time` of the `validator` is set to `StakingState::Unbonded.timestamp + self.protocol_settings.unlock_period_of_validator_deposit * SECONDS_OF_A_DAY * NANO_SECONDS_MULTIPLE`.
 
 ### Decrease stake
 
@@ -1036,7 +1036,7 @@ Processing steps:
 * The `staking state` of the `delegator` is set to `unbonded`.
 * Add the `delegator` to `self.unbonded_validator_set`.
 * Reduce the value of `deposit_amount` of the `delegator` from `self.oct_token.total_stake`.
-* The `staking_unlock_time` of the `delegator` is set to `StakingState::Unbonded.timestamp + self.protocol_settings.unlock_period_of_delegator_deposit * 86400 * NANO_SECONDS_MULTIPLE`.
+* The `staking_unlock_time` of the `delegator` is set to `StakingState::Unbonded.timestamp + self.protocol_settings.unlock_period_of_delegator_deposit * SECONDS_OF_A_DAY * NANO_SECONDS_MULTIPLE`.
 
 ### Decrease delegation
 

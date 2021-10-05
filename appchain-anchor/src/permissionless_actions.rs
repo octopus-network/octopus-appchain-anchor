@@ -92,7 +92,6 @@ impl PermissionlessActions for AppchainAnchor {
     }
 }
 
-#[near_bindgen]
 impl AppchainAnchor {
     //
     fn start_switching_era(&mut self, era_number: u64) {
@@ -365,7 +364,6 @@ impl AppchainAnchor {
     }
 }
 
-#[near_bindgen]
 impl AppchainAnchor {
     //
     fn start_distributing_reward_of_era(

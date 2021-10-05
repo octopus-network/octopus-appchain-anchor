@@ -60,33 +60,108 @@ impl StakingHistories {
 }
 
 pub trait StakingManager {
-    ///
+    /// Decrease stake of an account (validator).
+    /// This function can only be called by a validator.
     fn decrease_stake(&mut self, amount: U128);
-    ///
+    /// Unbond stake of an account (validator).
+    /// This function can only be called by a validator.
     fn unbond_stake(&mut self);
-    ///
+    /// Enable delegation for an account (validator).
+    /// This function can only be called by a validator.
     fn enable_delegation(&mut self);
-    ///
+    /// Disable delegation for an account (validator).
+    /// This function can only be called by a validator.
     fn disable_delegation(&mut self);
-    ///
+    /// Decrease delegation of an account (delegator) to a validator.
+    /// This function can only be called by a delegator.
     fn decrease_delegation(&mut self, validator_id: AccountId, amount: U128);
-    ///
+    /// Unbond delegation of an account (delegator) to a validator.
+    /// This function can only be called by a delegator.
     fn unbond_delegation(&mut self, validator_id: AccountId);
-    ///
+    /// Withdraw unbonded stake(s) of a certain account.
+    /// This function can be called by any account.
     fn withdraw_stake(&mut self, account_id: AccountId);
-    ///
+    /// Withdraw rewards of a certain validator.
+    /// This function can be called by any account.
     fn withdraw_validator_rewards(&mut self, validator_id: AccountId);
-    ///
+    /// Withdraw rewards of a certain delegator to a validator.
+    /// This function can be called by any account.
     fn withdraw_delegator_rewards(&mut self, delegator_id: AccountId, validator_id: AccountId);
 }
 
 impl AppchainAnchor {
     //
+    pub fn process_oct_deposit(
+        &mut self,
+        sender_id: AccountId,
+        amount: U128,
+        msg: String,
+    ) -> PromiseOrValue<U128> {
+        let msg_vec: Vec<String> = msg.split(",").map(|s| s.to_string()).collect();
+        match msg_vec.get(0).unwrap().as_str() {
+            "register_validator" => {
+                assert_eq!(
+                    msg_vec.len(),
+                    3,
+                    "Invalid params for `register_validator`. Return deposit."
+                );
+                let can_be_delegated_to = match msg_vec.get(2).unwrap().as_str() {
+                    "true" => true,
+                    "false" => false,
+                    _ => panic!("Invalid params for `register_validator`. Return deposit."),
+                };
+                self.register_validator(
+                    sender_id,
+                    msg_vec.get(1).unwrap().to_string(),
+                    amount,
+                    can_be_delegated_to,
+                );
+                PromiseOrValue::Value(0.into())
+            }
+            "increase_stake" => {
+                assert_eq!(
+                    msg_vec.len(),
+                    1,
+                    "Invalid params for `increase_stake`. Return deposit."
+                );
+                self.increase_stake(sender_id, amount);
+                PromiseOrValue::Value(0.into())
+            }
+            "register_delegator" => {
+                assert_eq!(
+                    msg_vec.len(),
+                    2,
+                    "Invalid params for `register_delegator`. Return deposit."
+                );
+                let validator_id = msg_vec.get(1).unwrap().to_string();
+                self.register_delegator(sender_id, validator_id, amount);
+                PromiseOrValue::Value(0.into())
+            }
+            "increase_delegation" => {
+                assert_eq!(
+                    msg_vec.len(),
+                    2,
+                    "Invalid params for `increase_delegation`. Return deposit."
+                );
+                let validator_id = msg_vec.get(1).unwrap().to_string();
+                self.increase_delegation(sender_id, validator_id, amount);
+                PromiseOrValue::Value(0.into())
+            }
+            _ => {
+                log!(
+                    "Invalid msg '{}' attached in `ft_transfer_call`. Return deposit.",
+                    msg
+                );
+                PromiseOrValue::Value(amount)
+            }
+        }
+    }
+    //
     fn register_validator(
         &mut self,
         validator_id: AccountId,
         validator_id_in_appchain: AccountIdInAppchain,
-        deposit_amount: u128,
+        deposit_amount: U128,
         can_be_delegated_to: bool,
     ) {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
@@ -109,14 +184,14 @@ impl AppchainAnchor {
         );
         let protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
-            deposit_amount >= protocol_settings.minimum_validator_deposit,
+            deposit_amount.0 >= protocol_settings.minimum_validator_deposit,
             "The deposit for registering validator is too few."
         );
         self.record_staking_fact(
             StakingFact::ValidatorRegistered {
                 validator_id: validator_id.clone(),
                 validator_id_in_appchain: validator_id_in_appchain.clone(),
-                amount: U128::from(deposit_amount),
+                amount: deposit_amount,
                 can_be_delegated_to,
             },
             &mut next_validator_set,
@@ -125,9 +200,8 @@ impl AppchainAnchor {
             .insert(&validator_id_in_appchain, &validator_id);
     }
     //
-    fn increase_stake(&mut self, amount: U128) {
+    fn increase_stake(&mut self, validator_id: AccountId, amount: U128) {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
-        let validator_id = env::predecessor_account_id();
         self.assert_validator_id(&validator_id, &next_validator_set);
         self.record_staking_fact(
             StakingFact::StakeIncreased {
@@ -142,7 +216,7 @@ impl AppchainAnchor {
         &mut self,
         delegator_id: AccountId,
         validator_id: AccountId,
-        deposit_amount: u128,
+        deposit_amount: U128,
     ) {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         assert!(
@@ -169,7 +243,7 @@ impl AppchainAnchor {
             );
         }
         assert!(
-            deposit_amount >= protocol_settings.minimum_delegator_deposit,
+            deposit_amount.0 >= protocol_settings.minimum_delegator_deposit,
             "The deposit for registering delegator is too few."
         );
         self.record_staking_fact(
@@ -195,9 +269,13 @@ impl AppchainAnchor {
         staking_history.index.0
     }
     //
-    fn increase_delegation(&mut self, validator_id: AccountId, amount: U128) {
+    fn increase_delegation(
+        &mut self,
+        delegator_id: AccountId,
+        validator_id: AccountId,
+        amount: U128,
+    ) {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
-        let delegator_id = env::predecessor_account_id();
         self.assert_delegator_id(&delegator_id, &validator_id, &next_validator_set);
         self.record_staking_fact(
             StakingFact::DelegationIncreased {
@@ -403,7 +481,7 @@ impl StakingManager for AppchainAnchor {
                     } => {
                         if validator_set.start_timestamp
                             + protocol_settings.unlock_period_of_validator_deposit
-                                * 86400
+                                * SECONDS_OF_A_DAY
                                 * NANO_SECONDS_MULTIPLE
                             > env::block_timestamp()
                         {
@@ -424,7 +502,7 @@ impl StakingManager for AppchainAnchor {
                     } => {
                         if validator_set.start_timestamp
                             + protocol_settings.unlock_period_of_delegator_deposit
-                                * 86400
+                                * SECONDS_OF_A_DAY
                                 * NANO_SECONDS_MULTIPLE
                             > env::block_timestamp()
                         {
