@@ -1,4 +1,5 @@
 use crate::*;
+use near_sdk::serde_json;
 use validator_set::ValidatorSetActions;
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
@@ -89,6 +90,22 @@ pub trait StakingManager {
     fn withdraw_delegator_rewards(&mut self, delegator_id: AccountId, validator_id: AccountId);
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+enum StakingDepositMessage {
+    RegisterValidator {
+        validator_id_in_appchain: AccountIdInAppchain,
+        can_be_delegated_to: bool,
+    },
+    IncreaseStake,
+    RegisterDelegator {
+        validator_id: AccountId,
+    },
+    IncreaseDelegation {
+        validator_id: AccountId,
+    },
+}
+
 impl AppchainAnchor {
     //
     pub fn process_oct_deposit(
@@ -97,62 +114,40 @@ impl AppchainAnchor {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128> {
-        let msg_vec: Vec<String> = msg.split(",").map(|s| s.to_string()).collect();
-        match msg_vec.get(0).unwrap().as_str() {
-            "register_validator" => {
-                assert_eq!(
-                    msg_vec.len(),
-                    3,
-                    "Invalid params for `register_validator`. Return deposit."
+        let deposit_message: StakingDepositMessage = match serde_json::from_str(msg.as_str()) {
+            Ok(msg) => msg,
+            Err(_) => {
+                log!(
+                    "Invalid msg '{}' attached in `ft_transfer_call`. Return deposit.",
+                    msg
                 );
-                let can_be_delegated_to = match msg_vec.get(2).unwrap().as_str() {
-                    "true" => true,
-                    "false" => false,
-                    _ => panic!("Invalid params for `register_validator`. Return deposit."),
-                };
+                return PromiseOrValue::Value(amount);
+            }
+        };
+        match deposit_message {
+            StakingDepositMessage::RegisterValidator {
+                validator_id_in_appchain,
+                can_be_delegated_to,
+            } => {
                 self.register_validator(
                     sender_id,
-                    msg_vec.get(1).unwrap().to_string(),
+                    validator_id_in_appchain,
                     amount,
                     can_be_delegated_to,
                 );
                 PromiseOrValue::Value(0.into())
             }
-            "increase_stake" => {
-                assert_eq!(
-                    msg_vec.len(),
-                    1,
-                    "Invalid params for `increase_stake`. Return deposit."
-                );
+            StakingDepositMessage::IncreaseStake => {
                 self.increase_stake(sender_id, amount);
                 PromiseOrValue::Value(0.into())
             }
-            "register_delegator" => {
-                assert_eq!(
-                    msg_vec.len(),
-                    2,
-                    "Invalid params for `register_delegator`. Return deposit."
-                );
-                let validator_id = msg_vec.get(1).unwrap().to_string();
+            StakingDepositMessage::RegisterDelegator { validator_id } => {
                 self.register_delegator(sender_id, validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
-            "increase_delegation" => {
-                assert_eq!(
-                    msg_vec.len(),
-                    2,
-                    "Invalid params for `increase_delegation`. Return deposit."
-                );
-                let validator_id = msg_vec.get(1).unwrap().to_string();
+            StakingDepositMessage::IncreaseDelegation { validator_id } => {
                 self.increase_delegation(sender_id, validator_id, amount);
                 PromiseOrValue::Value(0.into())
-            }
-            _ => {
-                log!(
-                    "Invalid msg '{}' attached in `ft_transfer_call`. Return deposit.",
-                    msg
-                );
-                PromiseOrValue::Value(amount)
             }
         }
     }
@@ -184,7 +179,7 @@ impl AppchainAnchor {
         );
         let protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
-            deposit_amount.0 >= protocol_settings.minimum_validator_deposit,
+            deposit_amount.0 >= protocol_settings.minimum_validator_deposit.0,
             "The deposit for registering validator is too few."
         );
         self.record_staking_fact(
@@ -238,12 +233,12 @@ impl AppchainAnchor {
             .get(&delegator_id)
         {
             assert!(
-                v_ids.len() < protocol_settings.maximum_validators_per_delegator,
+                v_ids.len() < protocol_settings.maximum_validators_per_delegator.0,
                 "Too many validators delegated."
             );
         }
         assert!(
-            deposit_amount.0 >= protocol_settings.minimum_delegator_deposit,
+            deposit_amount.0 >= protocol_settings.minimum_delegator_deposit.0,
             "The deposit for registering delegator is too few."
         );
         self.record_staking_fact(
@@ -303,7 +298,7 @@ impl StakingManager for AppchainAnchor {
                 .unwrap()
                 .deposit_amount
                 - amount.0
-                >= protocol_settings.minimum_validator_deposit,
+                >= protocol_settings.minimum_validator_deposit.0,
             "Unable to decrease so much stake."
         );
         let index = self.record_staking_fact(
@@ -391,7 +386,7 @@ impl StakingManager for AppchainAnchor {
                 .unwrap()
                 .deposit_amount
                 - amount.0
-                >= protocol_settings.minimum_delegator_deposit,
+                >= protocol_settings.minimum_delegator_deposit.0,
             "Unable to decrease so much stake."
         );
         let index = self.record_staking_fact(
@@ -480,7 +475,7 @@ impl StakingManager for AppchainAnchor {
                         amount,
                     } => {
                         if validator_set.start_timestamp
-                            + protocol_settings.unlock_period_of_validator_deposit
+                            + protocol_settings.unlock_period_of_validator_deposit.0
                                 * SECONDS_OF_A_DAY
                                 * NANO_SECONDS_MULTIPLE
                             > env::block_timestamp()
@@ -501,7 +496,7 @@ impl StakingManager for AppchainAnchor {
                         amount,
                     } => {
                         if validator_set.start_timestamp
-                            + protocol_settings.unlock_period_of_delegator_deposit
+                            + protocol_settings.unlock_period_of_delegator_deposit.0
                                 * SECONDS_OF_A_DAY
                                 * NANO_SECONDS_MULTIPLE
                             > env::block_timestamp()
@@ -541,7 +536,7 @@ impl StakingManager for AppchainAnchor {
             .end_index
             .0;
         let protocol_settings = self.protocol_settings.get().unwrap();
-        let start_era = end_era - protocol_settings.maximum_era_count_of_unwithdrawn_reward;
+        let start_era = end_era - protocol_settings.maximum_era_count_of_unwithdrawn_reward.0;
         let mut reward_to_withdraw: u128 = 0;
         for era_number in start_era..end_era {
             if let Some(reward) = self
@@ -574,7 +569,7 @@ impl StakingManager for AppchainAnchor {
             .end_index
             .0;
         let protocol_settings = self.protocol_settings.get().unwrap();
-        let start_era = end_era - protocol_settings.maximum_era_count_of_unwithdrawn_reward;
+        let start_era = end_era - protocol_settings.maximum_era_count_of_unwithdrawn_reward.0;
         let mut reward_to_withdraw: u128 = 0;
         for era_number in start_era..end_era {
             if let Some(reward) = self.unwithdrawn_delegator_rewards.get(&(

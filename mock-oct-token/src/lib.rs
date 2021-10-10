@@ -1,23 +1,23 @@
 use near_contract_standards::fungible_token::metadata::{
-    FungibleTokenMetadata, FungibleTokenMetadataProvider, FT_METADATA_SPEC,
+    FungibleTokenMetadata, FungibleTokenMetadataProvider,
 };
 use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LazyOption;
 use near_sdk::json_types::{ValidAccountId, U128};
-use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, PromiseOrValue};
+use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, PromiseOrValue};
 
 near_sdk::setup_alloc!();
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
-pub struct NEP141Token {
+pub struct MockOctToken {
     token: FungibleToken,
     metadata: LazyOption<FungibleTokenMetadata>,
 }
 
 #[near_bindgen]
-impl NEP141Token {
+impl MockOctToken {
     #[init]
     pub fn new(
         owner_id: ValidAccountId,
@@ -37,12 +37,12 @@ impl NEP141Token {
     }
 }
 
-near_contract_standards::impl_fungible_token_core!(NEP141Token, token);
-near_contract_standards::impl_fungible_token_storage!(NEP141Token, token);
+near_contract_standards::impl_fungible_token_core!(MockOctToken, token);
+near_contract_standards::impl_fungible_token_storage!(MockOctToken, token);
 
 #[near_bindgen]
-impl FungibleTokenMetadataProvider for NEP141Token {
+impl FungibleTokenMetadataProvider for MockOctToken {
     fn ft_metadata(&self) -> FungibleTokenMetadata {
-        self.metadata.get().unwrap()
+        unimplemented!()
     }
 }

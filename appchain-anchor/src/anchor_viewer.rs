@@ -39,6 +39,10 @@ pub trait AnchorViewer {
     fn get_appchain_settings(&self) -> AppchainSettings;
     /// Get protocol settings detail.
     fn get_protocol_settings(&self) -> ProtocolSettings;
+    /// Get state of corresponding appchain
+    fn get_appchain_state(&self) -> AppchainState;
+    /// Get current status of anchor
+    fn get_anchor_status(&self) -> AnchorStatus;
     /// Get the index range of staking histories stored in anchor.
     fn get_index_range_of_staking_history(&self) -> IndexRange;
     /// Get staking history by index.
@@ -94,6 +98,31 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_protocol_settings(&self) -> ProtocolSettings {
         self.protocol_settings.get().unwrap()
+    }
+    //
+    fn get_appchain_state(&self) -> AppchainState {
+        self.appchain_state.clone()
+    }
+    //
+    fn get_anchor_status(&self) -> AnchorStatus {
+        AnchorStatus {
+            total_stake_in_next_era: self.next_validator_set.get().unwrap().total_stake.into(),
+            validator_count_in_next_era: self
+                .next_validator_set
+                .get()
+                .unwrap()
+                .validator_ids
+                .len()
+                .into(),
+            index_range_of_anchor_event: self.anchor_events.get().unwrap().index_range(),
+            index_range_of_staking_history: self.staking_histories.get().unwrap().index_range(),
+            index_range_of_token_bridging_history: self
+                .token_bridging_histories
+                .get()
+                .unwrap()
+                .index_range(),
+            permissionless_actions_status: self.permissionless_actions_status.get().unwrap(),
+        }
     }
     //
     fn get_index_range_of_staking_history(&self) -> IndexRange {
@@ -186,7 +215,7 @@ impl AnchorViewer for AppchainAnchor {
                         account_id: validator_id,
                         amount,
                         unlock_time: validator_set.start_timestamp
-                            + protocol_settings.unlock_period_of_validator_deposit
+                            + protocol_settings.unlock_period_of_validator_deposit.0
                                 * SECONDS_OF_A_DAY
                                 * NANO_SECONDS_MULTIPLE,
                     }),
@@ -204,7 +233,7 @@ impl AnchorViewer for AppchainAnchor {
                         account_id: delegator_id,
                         amount,
                         unlock_time: validator_set.start_timestamp
-                            + protocol_settings.unlock_period_of_delegator_deposit
+                            + protocol_settings.unlock_period_of_delegator_deposit.0
                                 * SECONDS_OF_A_DAY
                                 * NANO_SECONDS_MULTIPLE,
                     }),

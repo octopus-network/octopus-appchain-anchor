@@ -7,7 +7,7 @@ impl AppchainSettings {
             || self.raw_chain_spec.is_empty()
             || self.boot_nodes.is_empty()
             || self.rpc_endpoint.is_empty()
-            || self.era_reward == 0)
+            || self.era_reward.0 == 0)
     }
 }
 
@@ -36,11 +36,11 @@ impl AppchainLifecycleManager for AppchainAnchor {
         let protocol_settings = self.protocol_settings.get().unwrap();
         let validator_set = self.next_validator_set.get().unwrap();
         assert!(
-            validator_set.validator_ids.len() >= protocol_settings.minimum_validator_count,
+            validator_set.validator_ids.len() >= protocol_settings.minimum_validator_count.0,
             "Not enough validators available."
         );
         assert!(
-            validator_set.total_stake >= protocol_settings.minimum_total_stake_for_booting,
+            validator_set.total_stake >= protocol_settings.minimum_total_stake_for_booting.0,
             "Not enough stake deposited."
         );
         self.appchain_state = AppchainState::Booting;

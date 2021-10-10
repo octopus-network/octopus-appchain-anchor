@@ -3,16 +3,16 @@ use crate::*;
 impl Default for ProtocolSettings {
     fn default() -> Self {
         Self {
-            minimum_validator_deposit: 10_000 * OCT_DECIMALS_VALUE,
-            minimum_delegator_deposit: 1000 * OCT_DECIMALS_VALUE,
-            minimum_total_stake_for_booting: 500_000 * OCT_DECIMALS_VALUE,
+            minimum_validator_deposit: U128::from(10_000 * OCT_DECIMALS_VALUE),
+            minimum_delegator_deposit: U128::from(1000 * OCT_DECIMALS_VALUE),
+            minimum_total_stake_for_booting: U128::from(500_000 * OCT_DECIMALS_VALUE),
             maximum_market_value_percent_of_near_fungible_tokens: 33,
             maximum_market_value_percent_of_wrapped_appchain_token: 67,
-            minimum_validator_count: 13,
-            maximum_validators_per_delegator: 16,
-            unlock_period_of_validator_deposit: 21,
-            unlock_period_of_delegator_deposit: 7,
-            maximum_era_count_of_unwithdrawn_reward: 84,
+            minimum_validator_count: U64::from(13),
+            maximum_validators_per_delegator: U64::from(16),
+            unlock_period_of_validator_deposit: U64::from(21),
+            unlock_period_of_delegator_deposit: U64::from(7),
+            maximum_era_count_of_unwithdrawn_reward: U64::from(84),
             delegation_fee_percent: 20,
         }
     }

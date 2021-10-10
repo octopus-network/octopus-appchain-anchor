@@ -5,8 +5,9 @@ use core::convert::{TryFrom, TryInto};
 use staking::UnbondedStakeReference;
 use validator_set::*;
 
-/// The message which is sent from the appchain
-pub enum AppchainFact {
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum AppchainEvent {
     /// The fact that a certain amount of bridge token has been burnt in the appchain.
     NearFungibleTokenBurnt { symbol: String, amount: U128 },
     /// The fact that a certain amount of appchain native token has been locked in the appchain.
@@ -26,8 +27,10 @@ pub enum AppchainFact {
     },
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct AppchainMessage {
-    pub appchain_fact: AppchainFact,
+    pub appchain_event: AppchainEvent,
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub nonce: u32,
@@ -94,7 +97,7 @@ impl PermissionlessActions for AppchainAnchor {
 
 impl AppchainAnchor {
     //
-    fn start_switching_era(&mut self, era_number: u64) {
+    pub fn start_switching_era(&mut self, era_number: u64) {
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
         assert!(
             permissionless_actions_status.switching_era_number.is_none(),
@@ -366,7 +369,7 @@ impl AppchainAnchor {
 
 impl AppchainAnchor {
     //
-    fn start_distributing_reward_of_era(
+    pub fn start_distributing_reward_of_era(
         &mut self,
         era_number: u64,
         unprofitable_validator_ids: Vec<AccountIdInAppchain>,
@@ -449,7 +452,7 @@ impl AppchainAnchor {
                         &mut validator_set,
                         validator_index,
                         delegator_index,
-                        era_reward,
+                        era_reward.0,
                         delegation_fee_percent,
                     ) {
                         ResultOfLoopingValidatorSet::NoMoreDelegator => {

@@ -1,5 +1,5 @@
 [package]
-name = "test-nep141-token"
+name = "mock-oct-token"
 version = "0.1.0"
 authors = ["Octopus Network"]
 edition = "2018"

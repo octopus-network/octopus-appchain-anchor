@@ -5,6 +5,7 @@ mod permissionless_actions;
 mod settings_manager;
 mod staking;
 mod storage_key;
+mod sudo_actions;
 mod token_bridging;
 pub mod types;
 mod validator_set;
@@ -24,7 +25,7 @@ use near_sdk::{
 pub use anchor_viewer::AnchorViewer;
 pub use appchain_lifecycle::AppchainLifecycleManager;
 pub use near_fungible_token::NearFungibleTokenManager;
-pub use permissionless_actions::PermissionlessActions;
+pub use permissionless_actions::{AppchainMessage, PermissionlessActions};
 pub use settings_manager::*;
 pub use staking::StakingManager;
 pub use token_bridging::TokenBridgingHistoryManager;
@@ -160,7 +161,7 @@ impl AppchainAnchor {
                     raw_chain_spec: String::new(),
                     boot_nodes: String::new(),
                     rpc_endpoint: String::new(),
-                    era_reward: 0,
+                    era_reward: U128::from(0),
                 }),
             ),
             anchor_settings: LazyOption::new(

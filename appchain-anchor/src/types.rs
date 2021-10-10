@@ -42,7 +42,7 @@ pub struct AppchainSettings {
     pub boot_nodes: String,
     pub rpc_endpoint: String,
     /// The total reward of an era in the appchain
-    pub era_reward: Balance,
+    pub era_reward: U128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -56,12 +56,12 @@ pub struct AnchorSettings {
 pub struct ProtocolSettings {
     /// A validator has to deposit a certain amount of OCT token to this contract for
     /// being validator of the appchain.
-    pub minimum_validator_deposit: Balance,
+    pub minimum_validator_deposit: U128,
     /// The minimum deposit amount for a delegator to delegate his voting weight to
     /// a certain validator.
-    pub minimum_delegator_deposit: Balance,
+    pub minimum_delegator_deposit: U128,
     /// The minimum value of total stake in this contract for booting corresponding appchain
-    pub minimum_total_stake_for_booting: Balance,
+    pub minimum_total_stake_for_booting: U128,
     /// The maximum percentage of the total market value of all NEP-141 tokens to the total
     /// market value of OCT token staked in this contract
     pub maximum_market_value_percent_of_near_fungible_tokens: u16,
@@ -70,18 +70,18 @@ pub struct ProtocolSettings {
     pub maximum_market_value_percent_of_wrapped_appchain_token: u16,
     /// The minimum number of validator(s) registered in this contract for
     /// booting the corresponding appchain and keep it alive.
-    pub minimum_validator_count: u64,
+    pub minimum_validator_count: U64,
     /// The maximum number of validator(s) which a delegator can delegate to.
-    pub maximum_validators_per_delegator: u64,
+    pub maximum_validators_per_delegator: U64,
     /// The unlock period (in days) for validator(s) can withdraw their deposit after
     /// they are removed from the corresponding appchain.
-    pub unlock_period_of_validator_deposit: u64,
+    pub unlock_period_of_validator_deposit: U64,
     /// The unlock period (in days) for delegator(s) can withdraw their deposit after
     /// they no longer delegates their stake to a certain validator on the corresponding appchain.
-    pub unlock_period_of_delegator_deposit: u64,
+    pub unlock_period_of_delegator_deposit: U64,
     /// The maximum number of historical eras that the validators or delegators are allowed to
     /// withdraw their reward
-    pub maximum_era_count_of_unwithdrawn_reward: u64,
+    pub maximum_era_count_of_unwithdrawn_reward: U64,
     /// The percent of delegation fee of the a delegator's reward in an era
     pub delegation_fee_percent: u16,
 }
@@ -320,4 +320,15 @@ pub struct RewardHistory {
     pub era_number: U64,
     pub reward: U128,
     pub is_withdrawn: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AnchorStatus {
+    pub total_stake_in_next_era: U128,
+    pub validator_count_in_next_era: U64,
+    pub index_range_of_anchor_event: IndexRange,
+    pub index_range_of_staking_history: IndexRange,
+    pub index_range_of_token_bridging_history: IndexRange,
+    pub permissionless_actions_status: PermissionlessActionsStatus,
 }
