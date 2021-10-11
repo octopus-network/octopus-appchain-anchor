@@ -60,8 +60,8 @@ pub struct ProtocolSettings {
     /// The minimum deposit amount for a delegator to delegate his voting weight to
     /// a certain validator.
     pub minimum_delegator_deposit: U128,
-    /// The minimum value of total stake in this contract for booting corresponding appchain
-    pub minimum_total_stake_for_booting: U128,
+    /// The minimum price (in USD) of total stake in this contract for booting corresponding appchain
+    pub minimum_total_stake_price_for_booting: U128,
     /// The maximum percentage of the total market value of all NEP-141 tokens to the total
     /// market value of OCT token staked in this contract
     pub maximum_market_value_percent_of_near_fungible_tokens: u16,

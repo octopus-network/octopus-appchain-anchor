@@ -227,6 +227,17 @@ impl AppchainAnchor {
             "The account {} is holding unbonded stake(s) which need to be withdrawn first.",
             &delegator_id
         );
+        assert!(
+            next_validator_set.validator_ids.contains(&validator_id),
+            "Invalid validator id '{}'",
+            &validator_id
+        );
+        let validator = next_validator_set.validators.get(&validator_id).unwrap();
+        assert!(
+            validator.can_be_delegated_to,
+            "Validator '{}' cannot be delegated to.",
+            &validator_id
+        );
         let protocol_settings = self.protocol_settings.get().unwrap();
         if let Some(v_ids) = next_validator_set
             .delegator_id_to_validator_ids
@@ -287,6 +298,13 @@ impl AppchainAnchor {
 impl StakingManager for AppchainAnchor {
     //
     fn decrease_stake(&mut self, amount: U128) {
+        match self.appchain_state {
+            AppchainState::Active => (),
+            _ => panic!(
+                "Cannot decrease stake while appchain state is '{}'.",
+                serde_json::to_string(&self.appchain_state).unwrap()
+            ),
+        };
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let validator_id = env::predecessor_account_id();
         self.assert_validator_id(&validator_id, &next_validator_set);
@@ -301,6 +319,7 @@ impl StakingManager for AppchainAnchor {
                 >= protocol_settings.minimum_validator_deposit.0,
             "Unable to decrease so much stake."
         );
+        self.assert_total_stake_price(amount.0);
         let index = self.record_staking_fact(
             StakingFact::StakeDecreased {
                 validator_id: validator_id.clone(),
@@ -326,10 +345,24 @@ impl StakingManager for AppchainAnchor {
     }
     //
     fn unbond_stake(&mut self) {
+        match self.appchain_state {
+            AppchainState::Active => (),
+            _ => panic!(
+                "Cannot unbond stake while appchain state is '{}'.",
+                serde_json::to_string(&self.appchain_state).unwrap()
+            ),
+        };
         let mut next_validator_set = self.next_validator_set.get().unwrap();
+        let protocol_settings = self.protocol_settings.get().unwrap();
+        assert_eq!(
+            next_validator_set.validator_ids.len(),
+            protocol_settings.minimum_validator_count.0,
+            "Too few validators. Cannot unbond any more."
+        );
         let validator_id = env::predecessor_account_id();
         self.assert_validator_id(&validator_id, &next_validator_set);
         let validator = next_validator_set.validators.get(&validator_id).unwrap();
+        self.assert_total_stake_price(validator.deposit_amount);
         let index = self.record_staking_fact(
             StakingFact::ValidatorUnbonded {
                 validator_id: validator_id.clone(),
@@ -375,6 +408,13 @@ impl StakingManager for AppchainAnchor {
     }
     //
     fn decrease_delegation(&mut self, validator_id: AccountId, amount: U128) {
+        match self.appchain_state {
+            AppchainState::Active => (),
+            _ => panic!(
+                "Cannot decrease delegation while appchain state is '{}'.",
+                serde_json::to_string(&self.appchain_state).unwrap()
+            ),
+        };
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let delegator_id = env::predecessor_account_id();
         self.assert_delegator_id(&delegator_id, &validator_id, &next_validator_set);
@@ -389,6 +429,7 @@ impl StakingManager for AppchainAnchor {
                 >= protocol_settings.minimum_delegator_deposit.0,
             "Unable to decrease so much stake."
         );
+        self.assert_total_stake_price(amount.0);
         let index = self.record_staking_fact(
             StakingFact::DelegationDecreased {
                 delegator_id: delegator_id.clone(),
@@ -415,6 +456,13 @@ impl StakingManager for AppchainAnchor {
     }
     //
     fn unbond_delegation(&mut self, validator_id: AccountId) {
+        match self.appchain_state {
+            AppchainState::Active => (),
+            _ => panic!(
+                "Cannot unbond delegation while appchain state is '{}'.",
+                serde_json::to_string(&self.appchain_state).unwrap()
+            ),
+        };
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let delegator_id = env::predecessor_account_id();
         self.assert_delegator_id(&delegator_id, &validator_id, &next_validator_set);
@@ -422,6 +470,7 @@ impl StakingManager for AppchainAnchor {
             .delegators
             .get(&(delegator_id.clone(), validator_id.clone()))
             .unwrap();
+        self.assert_total_stake_price(delegator.deposit_amount);
         let index = self.record_staking_fact(
             StakingFact::DelegatorUnbonded {
                 delegator_id: delegator_id.clone(),
@@ -595,5 +644,19 @@ impl StakingManager for AppchainAnchor {
                 GAS_FOR_FT_TRANSFER_CALL,
             );
         }
+    }
+}
+
+impl AppchainAnchor {
+    //
+    fn assert_total_stake_price(&self, stake_reduction: u128) {
+        let protocol_settings = self.protocol_settings.get().unwrap();
+        let validator_set = self.next_validator_set.get().unwrap();
+        let oct_token = self.oct_token.get().unwrap();
+        assert!(
+            (validator_set.total_stake - stake_reduction) * oct_token.price_in_usd.0
+                >= protocol_settings.minimum_total_stake_price_for_booting.0,
+            "Not enough stake deposited in anchor."
+        );
     }
 }

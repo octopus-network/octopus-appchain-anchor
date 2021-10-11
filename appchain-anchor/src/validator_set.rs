@@ -256,39 +256,45 @@ impl ValidatorSetActions for ValidatorSet {
                         deposit_amount: amount.0,
                     },
                 );
-                let mut d_ids = match self.validator_id_to_delegator_ids.get(validator_id) {
-                    Some(d_ids) => d_ids,
-                    None => self
-                        .validator_id_to_delegator_ids
-                        .insert(
-                            validator_id,
-                            &UnorderedSet::new(
-                                StorageKey::DelegatorIdsInMapOfVToDOfEra {
-                                    era_number: self.era_number,
-                                    validator_id: validator_id.clone(),
-                                }
-                                .into_bytes(),
-                            ),
-                        )
-                        .unwrap(),
-                };
+                if !self
+                    .validator_id_to_delegator_ids
+                    .contains_key(validator_id)
+                {
+                    self.validator_id_to_delegator_ids.insert(
+                        validator_id,
+                        &UnorderedSet::new(
+                            StorageKey::DelegatorIdsInMapOfVToDOfEra {
+                                era_number: self.era_number,
+                                validator_id: validator_id.clone(),
+                            }
+                            .into_bytes(),
+                        ),
+                    );
+                }
+                let mut d_ids = self
+                    .validator_id_to_delegator_ids
+                    .get(validator_id)
+                    .unwrap();
                 d_ids.insert(delegator_id);
-                let mut v_ids = match self.delegator_id_to_validator_ids.get(delegator_id) {
-                    Some(v_ids) => v_ids,
-                    None => self
-                        .delegator_id_to_validator_ids
-                        .insert(
-                            delegator_id,
-                            &UnorderedSet::new(
-                                StorageKey::ValidatorIdsInMapOfDToVOfEra {
-                                    era_number: self.era_number,
-                                    delegator_id: delegator_id.clone(),
-                                }
-                                .into_bytes(),
-                            ),
-                        )
-                        .unwrap(),
-                };
+                if !self
+                    .delegator_id_to_validator_ids
+                    .contains_key(delegator_id)
+                {
+                    self.delegator_id_to_validator_ids.insert(
+                        delegator_id,
+                        &UnorderedSet::new(
+                            StorageKey::ValidatorIdsInMapOfDToVOfEra {
+                                era_number: self.era_number,
+                                delegator_id: delegator_id.clone(),
+                            }
+                            .into_bytes(),
+                        ),
+                    );
+                }
+                let mut v_ids = self
+                    .delegator_id_to_validator_ids
+                    .get(delegator_id)
+                    .unwrap();
                 v_ids.insert(validator_id);
                 let mut validator = self.validators.get(validator_id).unwrap();
                 validator.total_stake += amount.0;

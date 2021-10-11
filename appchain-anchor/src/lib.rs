@@ -41,6 +41,8 @@ use validator_set::{ValidatorSet, ValidatorSetHistories};
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
 const GAS_FOR_FT_TRANSFER_CALL: u64 = 35 * T_GAS;
+/// The value of decimals value of USD.
+const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.
 const OCT_DECIMALS_VALUE: Balance = 1_000_000_000_000_000_000;
 /// The seconds of a day.
@@ -242,6 +244,19 @@ impl AppchainAnchor {
             delegator_id,
             validator_id
         );
+    }
+    /// Set the price (in USD) of OCT token
+    pub fn set_price_of_oct_token(&mut self, price: U128) {
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        assert_eq!(
+            env::predecessor_account_id(),
+            anchor_settings.token_price_maintainer_account,
+            "Only '{}' can call this function.",
+            anchor_settings.token_price_maintainer_account
+        );
+        let mut oct_token = self.oct_token.get().unwrap();
+        oct_token.price_in_usd = price;
+        self.oct_token.set(&oct_token);
     }
 }
 
