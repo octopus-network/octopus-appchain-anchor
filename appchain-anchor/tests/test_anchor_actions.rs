@@ -1,10 +1,14 @@
 use std::convert::TryInto;
 
-use appchain_anchor::types::{
-    AnchorSettings, AnchorStatus, AppchainSettings, AppchainState, ProtocolSettings,
-    ValidatorSetProcessingStatus,
+use appchain_anchor::{
+    types::{
+        AnchorSettings, AnchorStatus, AppchainSettings, AppchainState, ProtocolSettings,
+        ValidatorSetInfo, ValidatorSetProcessingStatus,
+    },
+    AppchainEvent, AppchainMessage,
 };
-use near_sdk::serde_json;
+use near_sdk::{json_types::U64, serde_json};
+use near_sdk_sim::outcome;
 
 mod anchor_viewer;
 mod common;
@@ -13,6 +17,7 @@ mod oct_token_viewer;
 mod permissionless_actions;
 mod settings_actions;
 mod staking_actions;
+mod sudo_actions;
 
 const TOTAL_SUPPLY: u128 = 100_000_000;
 
@@ -313,7 +318,7 @@ fn test_staging_actions() {
     outcome.assert_success();
     let outcome = settings_actions::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string());
     outcome.assert_success();
-    let outcome = settings_actions::set_era_reward(&root, &anchor, common::to_oct_amount(100));
+    let outcome = settings_actions::set_era_reward(&root, &anchor, common::to_oct_amount(10));
     outcome.assert_success();
     let outcome = lifecycle_actions::go_booting(&root, &anchor);
     assert!(!outcome.is_ok());
@@ -382,9 +387,113 @@ fn test_staging_actions() {
     let mut index = 0;
     for validator_list in validator_lists {
         println!(
-            "Validator list {}: {}",
+            "Validator {} of era {}: {}",
             index,
+            0,
             serde_json::to_string(&validator_list).unwrap()
+        );
+        index += 1;
+    }
+    //
+    // Start distributing reward of era0
+    //
+    let outcome = sudo_actions::apply_appchain_message(
+        &root,
+        &anchor,
+        AppchainMessage {
+            appchain_event: AppchainEvent::EraRewardConcluded {
+                era_number: U64::from(0),
+                unprofitable_validator_ids: Vec::new(),
+            },
+            block_height: U64::from(1),
+            timestamp: U64::from(1),
+            nonce: 1,
+        },
+    );
+    outcome.assert_success();
+    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+    println!(
+        "Anchor status: {}",
+        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+    );
+    //
+    // Try complete distributing reward of era0
+    //
+    loop {
+        let outcome = permissionless_actions::try_complete_distributing_reward(&users[2], &anchor);
+        println!(
+            "Try complete switching era: {}",
+            outcome.unwrap_json_value().as_bool().unwrap()
+        );
+        let processing_status = anchor_viewer::get_processing_status_of(&anchor, 0);
+        println!(
+            "Processing status of era {}: {}",
+            0,
+            serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
+        );
+        if outcome.unwrap_json_value().as_bool().unwrap() {
+            break;
+        }
+    }
+    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+    println!(
+        "Anchor status: {}",
+        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+    );
+    let validator_set_info = anchor_viewer::get_validator_set_info_of(&anchor, 0);
+    println!(
+        "Validator set info of era {}: {}",
+        0,
+        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
+    );
+    //
+    // Get reward histories
+    //
+    let reward_histories = anchor_viewer::get_validator_rewards_of(&anchor, 0, 0, &users[0]);
+    let mut index = 0;
+    for reward_history in reward_histories {
+        println!(
+            "Reward history {} of {}: {}",
+            index,
+            users[0].account_id().to_string(),
+            serde_json::to_string(&reward_history).unwrap()
+        );
+        index += 1;
+    }
+    let reward_histories = anchor_viewer::get_validator_rewards_of(&anchor, 0, 0, &users[1]);
+    let mut index = 0;
+    for reward_history in reward_histories {
+        println!(
+            "Reward history {} of {}: {}",
+            index,
+            users[1].account_id().to_string(),
+            serde_json::to_string(&reward_history).unwrap()
+        );
+        index += 1;
+    }
+    let reward_histories =
+        anchor_viewer::get_delegator_rewards_of(&anchor, 0, 0, &users[2], &users[0]);
+    let mut index = 0;
+    for reward_history in reward_histories {
+        println!(
+            "Reward history {} of {} to {}: {}",
+            index,
+            users[2].account_id().to_string(),
+            users[0].account_id().to_string(),
+            serde_json::to_string(&reward_history).unwrap()
+        );
+        index += 1;
+    }
+    let reward_histories =
+        anchor_viewer::get_delegator_rewards_of(&anchor, 0, 0, &users[3], &users[0]);
+    let mut index = 0;
+    for reward_history in reward_histories {
+        println!(
+            "Reward history {} of {} to {}: {}",
+            index,
+            users[3].account_id().to_string(),
+            users[0].account_id().to_string(),
+            serde_json::to_string(&reward_history).unwrap()
         );
         index += 1;
     }

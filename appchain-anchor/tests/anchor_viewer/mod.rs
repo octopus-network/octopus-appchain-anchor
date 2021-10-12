@@ -1,10 +1,11 @@
 use appchain_anchor::types::{
     AnchorSettings, AnchorStatus, AppchainSettings, AppchainState, AppchainValidator,
-    ProtocolSettings, StakingHistory, ValidatorSetProcessingStatus,
+    ProtocolSettings, RewardHistory, StakingHistory, ValidatorSetInfo,
+    ValidatorSetProcessingStatus,
 };
 use appchain_anchor::AppchainAnchorContract;
 
-use near_sdk::json_types::{U128, U64};
+use near_sdk::json_types::U64;
 use near_sdk_sim::{view, ContractAccount, UserAccount};
 
 pub fn get_anchor_settings(anchor: &ContractAccount<AppchainAnchorContract>) -> AnchorSettings {
@@ -46,6 +47,15 @@ pub fn get_processing_status_of(
     view_result.unwrap_json::<ValidatorSetProcessingStatus>()
 }
 
+pub fn get_validator_set_info_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    index: u64,
+) -> ValidatorSetInfo {
+    let view_result = view!(anchor.get_validator_set_info_of(U64::from(index)));
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<ValidatorSetInfo>()
+}
+
 pub fn get_staking_history(
     anchor: &ContractAccount<AppchainAnchorContract>,
     index: u64,
@@ -62,4 +72,36 @@ pub fn get_validator_list_of_era(
     let view_result = view!(anchor.get_validator_list_of_era(U64::from(index)));
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Vec<AppchainValidator>>()
+}
+
+pub fn get_validator_rewards_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_era: u64,
+    end_era: u64,
+    validator: &UserAccount,
+) -> Vec<RewardHistory> {
+    let view_result = view!(anchor.get_validator_rewards_of(
+        U64::from(start_era),
+        U64::from(end_era),
+        validator.valid_account_id().to_string()
+    ));
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<RewardHistory>>()
+}
+
+pub fn get_delegator_rewards_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_era: u64,
+    end_era: u64,
+    delegator: &UserAccount,
+    validator: &UserAccount,
+) -> Vec<RewardHistory> {
+    let view_result = view!(anchor.get_delegator_rewards_of(
+        U64::from(start_era),
+        U64::from(end_era),
+        delegator.valid_account_id().to_string(),
+        validator.valid_account_id().to_string()
+    ));
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<RewardHistory>>()
 }

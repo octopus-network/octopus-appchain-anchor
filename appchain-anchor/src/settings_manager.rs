@@ -16,6 +16,7 @@ impl Default for ProtocolSettings {
             unlock_period_of_validator_deposit: U64::from(21),
             unlock_period_of_delegator_deposit: U64::from(7),
             maximum_era_count_of_unwithdrawn_reward: U64::from(84),
+            maximum_era_count_of_valid_appchain_message: U64::from(7),
             delegation_fee_percent: 20,
         }
     }
@@ -42,6 +43,10 @@ pub trait ProtocolSettingsManager {
     fn change_unlock_period_of_delegator_deposit(&mut self, value: U64);
     ///
     fn change_maximum_era_count_of_unwithdrawn_reward(&mut self, value: U64);
+    ///
+    fn change_maximum_era_count_of_valid_appchain_message(&mut self, value: U64);
+    ///
+    fn change_delegation_fee_percent(&mut self, value: u16);
 }
 
 pub trait AppchainSettingsManager {
@@ -122,6 +127,18 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_maximum_era_count_of_unwithdrawn_reward(&mut self, value: U64) {
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         protocol_settings.maximum_era_count_of_unwithdrawn_reward = value;
+        self.protocol_settings.set(&protocol_settings);
+    }
+    //
+    fn change_maximum_era_count_of_valid_appchain_message(&mut self, value: U64) {
+        let mut protocol_settings = self.protocol_settings.get().unwrap();
+        protocol_settings.maximum_era_count_of_valid_appchain_message = value;
+        self.protocol_settings.set(&protocol_settings);
+    }
+    //
+    fn change_delegation_fee_percent(&mut self, value: u16) {
+        let mut protocol_settings = self.protocol_settings.get().unwrap();
+        protocol_settings.delegation_fee_percent = value;
         self.protocol_settings.set(&protocol_settings);
     }
 }

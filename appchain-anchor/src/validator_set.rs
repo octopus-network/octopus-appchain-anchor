@@ -411,6 +411,20 @@ impl ValidatorSetOfEra {
             self.valid_total_stake -= validator.total_stake;
         });
     }
+    ///
+    pub fn to_validator_set_info(&self) -> ValidatorSetInfo {
+        ValidatorSetInfo {
+            era_number: U64::from(self.validator_set.era_number),
+            total_stake: U128::from(self.validator_set.total_stake),
+            validator_list: self.validator_list.to_vec(),
+            start_block_height: U64::from(self.start_block_height),
+            start_timestamp: U64::from(self.start_timestamp),
+            staking_history_index: U64::from(self.staking_history_index),
+            unprofitable_validator_ids: self.unprofitable_validator_ids.to_vec(),
+            valid_total_stake: U128::from(self.valid_total_stake),
+            processing_status: self.processing_status.clone(),
+        }
+    }
 }
 
 impl ValidatorSetActions for ValidatorSetOfEra {

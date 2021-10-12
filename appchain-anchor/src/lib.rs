@@ -25,7 +25,7 @@ use near_sdk::{
 pub use anchor_viewer::AnchorViewer;
 pub use appchain_lifecycle::AppchainLifecycleManager;
 pub use near_fungible_token::NearFungibleTokenManager;
-pub use permissionless_actions::{AppchainMessage, PermissionlessActions};
+pub use permissionless_actions::*;
 pub use settings_manager::*;
 pub use staking::StakingManager;
 pub use token_bridging::TokenBridgingHistoryManager;

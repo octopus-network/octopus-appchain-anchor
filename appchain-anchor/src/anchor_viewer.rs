@@ -43,6 +43,8 @@ pub trait AnchorViewer {
     fn get_appchain_state(&self) -> AppchainState;
     /// Get current status of anchor
     fn get_anchor_status(&self) -> AnchorStatus;
+    /// Get validator set history info
+    fn get_validator_set_info_of(&self, era_number: U64) -> Option<ValidatorSetInfo>;
     /// Get processing status of validator set of era
     fn get_processing_status_of(&self, era_number: U64) -> Option<ValidatorSetProcessingStatus>;
     /// Get the index range of staking histories stored in anchor.
@@ -124,6 +126,16 @@ impl AnchorViewer for AppchainAnchor {
                 .unwrap()
                 .index_range(),
             permissionless_actions_status: self.permissionless_actions_status.get().unwrap(),
+        }
+    }
+    //
+    fn get_validator_set_info_of(&self, era_number: U64) -> Option<ValidatorSetInfo> {
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        if validator_set_histories.contains(&era_number.0) {
+            let validator_set = validator_set_histories.get(&era_number.0).unwrap();
+            Some(validator_set.to_validator_set_info())
+        } else {
+            None
         }
     }
     //
@@ -264,7 +276,7 @@ impl AnchorViewer for AppchainAnchor {
     ) -> Vec<RewardHistory> {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let mut reward_histories = Vec::<RewardHistory>::new();
-        for era_number in start_era.0..end_era.0 {
+        for era_number in start_era.0..end_era.0 + 1 {
             if let Some(validator_set) = validator_set_histories.get(&era_number) {
                 if let Some(reward) = validator_set.validator_rewards.get(&validator_id) {
                     reward_histories.push(RewardHistory {
@@ -289,7 +301,7 @@ impl AnchorViewer for AppchainAnchor {
     ) -> Vec<RewardHistory> {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let mut reward_histories = Vec::<RewardHistory>::new();
-        for era_number in start_era.0..end_era.0 {
+        for era_number in start_era.0..end_era.0 + 1 {
             if let Some(validator_set) = validator_set_histories.get(&era_number) {
                 if let Some(reward) = validator_set
                     .delegator_rewards

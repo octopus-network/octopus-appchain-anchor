@@ -1,5 +1,3 @@
-use near_sdk::BlockHeight;
-
 use crate::*;
 use core::convert::{TryFrom, TryInto};
 use staking::UnbondedStakeReference;
@@ -31,8 +29,8 @@ pub enum AppchainEvent {
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainMessage {
     pub appchain_event: AppchainEvent,
-    pub block_height: BlockHeight,
-    pub timestamp: Timestamp,
+    pub block_height: U64,
+    pub timestamp: U64,
     pub nonce: u32,
 }
 
@@ -380,8 +378,13 @@ impl AppchainAnchor {
         let validator_id = validator_ids
             .get(usize::try_from(making_index).unwrap())
             .unwrap();
+        let validator = validator_set
+            .validator_set
+            .validators
+            .get(&validator_id)
+            .unwrap();
         validator_set.validator_list.push(&AppchainValidator {
-            validator_id: validator_id.clone(),
+            validator_id: validator.validator_id_in_appchain.clone(),
             total_stake: U128::from(
                 validator_set
                     .validator_set
@@ -547,50 +550,59 @@ impl AppchainAnchor {
                 &total_reward_of_validator,
             );
         }
-        let delegater_ids = validator_set
+        if validator_set
             .validator_set
             .validator_id_to_delegator_ids
-            .get(validator_id)
-            .unwrap()
-            .to_vec();
-        if delegator_index >= delegater_ids.len().try_into().unwrap() {
+            .contains_key(validator_id)
+        {
+            let delegater_ids = validator_set
+                .validator_set
+                .validator_id_to_delegator_ids
+                .get(validator_id)
+                .unwrap()
+                .to_vec();
+            if delegator_index >= delegater_ids.len().try_into().unwrap() {
+                return ResultOfLoopingValidatorSet::NoMoreDelegator;
+            }
+            let delegator_id = delegater_ids
+                .get(usize::try_from(delegator_index).unwrap())
+                .unwrap();
+            let delegator = validator_set
+                .validator_set
+                .delegators
+                .get(&(delegator_id.clone(), validator_id.clone()))
+                .unwrap();
+            let delegator_reward = total_reward_of_validator
+                * delegator.deposit_amount
+                * (100 - delegation_fee_percent)
+                / (validator.total_stake * 100);
+            let mut validator_reward = self
+                .unwithdrawn_validator_rewards
+                .get(&(validator_set.validator_set.era_number, validator_id.clone()))
+                .unwrap();
+            validator_set.delegator_rewards.insert(
+                &(delegator_id.clone(), validator_id.clone()),
+                &delegator_reward,
+            );
+            self.unwithdrawn_delegator_rewards.insert(
+                &(
+                    validator_set.validator_set.era_number,
+                    delegator_id.clone(),
+                    validator_id.clone(),
+                ),
+                &delegator_reward,
+            );
+            validator_reward -= delegator_reward;
+            validator_set
+                .validator_rewards
+                .insert(&validator_id, &validator_reward);
+            self.unwithdrawn_validator_rewards.insert(
+                &(validator_set.validator_set.era_number, validator_id.clone()),
+                &validator_reward,
+            );
+            return ResultOfLoopingValidatorSet::NeedToContinue;
+        } else {
             return ResultOfLoopingValidatorSet::NoMoreDelegator;
         }
-        let delegator_id = delegater_ids
-            .get(usize::try_from(delegator_index).unwrap())
-            .unwrap();
-        let delegator = validator_set
-            .validator_set
-            .delegators
-            .get(&(delegator_id.clone(), validator_id.clone()))
-            .unwrap();
-        let delegator_reward =
-            total_reward_of_validator * delegator.deposit_amount * (100 - delegation_fee_percent)
-                / (validator.total_stake * 100);
-        let mut validator_reward = self
-            .unwithdrawn_validator_rewards
-            .get(&(validator_set.validator_set.era_number, validator_id.clone()))
-            .unwrap();
-        validator_set.delegator_rewards.insert(
-            &(delegator_id.clone(), validator_id.clone()),
-            &delegator_reward,
-        );
-        self.unwithdrawn_delegator_rewards.insert(
-            &(
-                validator_set.validator_set.era_number,
-                delegator_id.clone(),
-                validator_id.clone(),
-            ),
-            &delegator_reward,
-        );
-        validator_reward -= delegator_reward;
-        validator_set
-            .validator_rewards
-            .insert(&validator_id, &validator_reward);
-        self.unwithdrawn_validator_rewards.insert(
-            &(validator_set.validator_set.era_number, validator_id.clone()),
-            &validator_reward,
-        );
-        return ResultOfLoopingValidatorSet::NeedToContinue;
     }
 }
