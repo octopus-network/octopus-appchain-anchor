@@ -56,26 +56,6 @@ pub struct ValidatorSet {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub enum ProcessingStatus {
-    CopyingFromLastEra {
-        copying_validator_index: u64,
-        copying_delegator_index: u64,
-    },
-    ApplyingStakingHistory {
-        applying_index: u64,
-    },
-    MakingValidatorList {
-        making_index: u64,
-    },
-    ReadyForDistributingReward,
-    DistributingReward {
-        distributing_validator_index: u64,
-        distributing_delegator_index: u64,
-    },
-    Completed,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
 pub struct ValidatorSetOfEra {
     /// The validator set of this era
     pub validator_set: ValidatorSet,
@@ -96,7 +76,7 @@ pub struct ValidatorSetOfEra {
     /// The rewards of delegators in this era
     pub delegator_rewards: LookupMap<(AccountId, AccountId), Balance>,
     /// The status of creation of this set
-    pub processing_status: ProcessingStatus,
+    pub processing_status: ValidatorSetProcessingStatus,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -199,6 +179,7 @@ impl ValidatorSetActions for ValidatorSet {
             } => {
                 let mut validator = self.validators.get(validator_id).unwrap();
                 validator.deposit_amount += amount.0;
+                validator.total_stake += amount.0;
                 self.validators.insert(validator_id, &validator);
                 self.total_stake += amount.0;
             }
@@ -208,6 +189,7 @@ impl ValidatorSetActions for ValidatorSet {
             } => {
                 let mut validator = self.validators.get(validator_id).unwrap();
                 validator.deposit_amount -= amount.0;
+                validator.total_stake -= amount.0;
                 self.validators.insert(validator_id, &validator);
                 self.total_stake -= amount.0;
             }
@@ -369,22 +351,22 @@ impl ValidatorSetActions for ValidatorSet {
     }
 }
 
-impl ProcessingStatus {
+impl ValidatorSetProcessingStatus {
     ///
     pub fn is_ready_for_distributing_reward(&self) -> bool {
         match self {
-            ProcessingStatus::CopyingFromLastEra {
+            ValidatorSetProcessingStatus::CopyingFromLastEra {
                 copying_validator_index: _,
                 copying_delegator_index: _,
             } => false,
-            ProcessingStatus::ApplyingStakingHistory { applying_index: _ } => false,
-            ProcessingStatus::MakingValidatorList { making_index: _ } => false,
-            ProcessingStatus::ReadyForDistributingReward => true,
-            ProcessingStatus::DistributingReward {
+            ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index: _ } => false,
+            ValidatorSetProcessingStatus::MakingValidatorList { making_index: _ } => false,
+            ValidatorSetProcessingStatus::ReadyForDistributingReward => true,
+            ValidatorSetProcessingStatus::DistributingReward {
                 distributing_validator_index: _,
                 distributing_delegator_index: _,
             } => false,
-            ProcessingStatus::Completed => false,
+            ValidatorSetProcessingStatus::Completed => false,
         }
     }
 }
@@ -408,7 +390,7 @@ impl ValidatorSetOfEra {
             delegator_rewards: LookupMap::new(
                 StorageKey::DelegatorRewardsOfEra(era_number).into_bytes(),
             ),
-            processing_status: ProcessingStatus::CopyingFromLastEra {
+            processing_status: ValidatorSetProcessingStatus::CopyingFromLastEra {
                 copying_validator_index: 0,
                 copying_delegator_index: 0,
             },

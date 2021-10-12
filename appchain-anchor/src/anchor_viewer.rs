@@ -43,6 +43,8 @@ pub trait AnchorViewer {
     fn get_appchain_state(&self) -> AppchainState;
     /// Get current status of anchor
     fn get_anchor_status(&self) -> AnchorStatus;
+    /// Get processing status of validator set of era
+    fn get_processing_status_of(&self, era_number: U64) -> Option<ValidatorSetProcessingStatus>;
     /// Get the index range of staking histories stored in anchor.
     fn get_index_range_of_staking_history(&self) -> IndexRange;
     /// Get staking history by index.
@@ -122,6 +124,16 @@ impl AnchorViewer for AppchainAnchor {
                 .unwrap()
                 .index_range(),
             permissionless_actions_status: self.permissionless_actions_status.get().unwrap(),
+        }
+    }
+    //
+    fn get_processing_status_of(&self, era_number: U64) -> Option<ValidatorSetProcessingStatus> {
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        if validator_set_histories.contains(&era_number.0) {
+            let validator_set = validator_set_histories.get(&era_number.0).unwrap();
+            Some(validator_set.processing_status.clone())
+        } else {
+            None
         }
     }
     //

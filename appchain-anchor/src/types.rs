@@ -252,6 +252,27 @@ pub struct UnbondedStake {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub enum ValidatorSetProcessingStatus {
+    CopyingFromLastEra {
+        copying_validator_index: u64,
+        copying_delegator_index: u64,
+    },
+    ApplyingStakingHistory {
+        applying_index: u64,
+    },
+    MakingValidatorList {
+        making_index: u64,
+    },
+    ReadyForDistributingReward,
+    DistributingReward {
+        distributing_validator_index: u64,
+        distributing_delegator_index: u64,
+    },
+    Completed,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct PermissionlessActionsStatus {
     /// The era number that is switching by permissionless actions
     pub switching_era_number: Option<U64>,

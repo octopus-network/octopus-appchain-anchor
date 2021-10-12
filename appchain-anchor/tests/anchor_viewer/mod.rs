@@ -1,5 +1,6 @@
 use appchain_anchor::types::{
-    AnchorSettings, AnchorStatus, AppchainSettings, AppchainState, ProtocolSettings, StakingHistory,
+    AnchorSettings, AnchorStatus, AppchainSettings, AppchainState, AppchainValidator,
+    ProtocolSettings, StakingHistory, ValidatorSetProcessingStatus,
 };
 use appchain_anchor::AppchainAnchorContract;
 
@@ -36,6 +37,15 @@ pub fn get_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) -> An
     view_result.unwrap_json::<AnchorStatus>()
 }
 
+pub fn get_processing_status_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    index: u64,
+) -> ValidatorSetProcessingStatus {
+    let view_result = view!(anchor.get_processing_status_of(U64::from(index)));
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<ValidatorSetProcessingStatus>()
+}
+
 pub fn get_staking_history(
     anchor: &ContractAccount<AppchainAnchorContract>,
     index: u64,
@@ -43,4 +53,13 @@ pub fn get_staking_history(
     let view_result = view!(anchor.get_staking_history(Some(U64::from(index))));
     assert!(view_result.is_ok());
     view_result.unwrap_json::<StakingHistory>()
+}
+
+pub fn get_validator_list_of_era(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    index: u64,
+) -> Vec<AppchainValidator> {
+    let view_result = view!(anchor.get_validator_list_of_era(U64::from(index)));
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<AppchainValidator>>()
 }

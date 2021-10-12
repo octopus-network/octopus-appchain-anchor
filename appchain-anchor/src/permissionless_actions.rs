@@ -77,7 +77,17 @@ impl PermissionlessActions for AppchainAnchor {
             .unwrap()
             .switching_era_number
         {
-            Some(era_number) => self.complete_switching_era(era_number.0),
+            Some(era_number) => {
+                let completed = self.complete_switching_era(era_number.0);
+                if completed {
+                    let mut permissionless_actions_status =
+                        self.permissionless_actions_status.get().unwrap();
+                    permissionless_actions_status.switching_era_number = None;
+                    self.permissionless_actions_status
+                        .set(&permissionless_actions_status);
+                }
+                completed
+            }
             None => true,
         }
     }
@@ -89,7 +99,17 @@ impl PermissionlessActions for AppchainAnchor {
             .unwrap()
             .distributing_reward_era_number
         {
-            Some(era_number) => self.complete_distributing_reward_of_era(era_number.0),
+            Some(era_number) => {
+                let completed = self.complete_distributing_reward_of_era(era_number.0);
+                if completed {
+                    let mut permissionless_actions_status =
+                        self.permissionless_actions_status.get().unwrap();
+                    permissionless_actions_status.distributing_reward_era_number = None;
+                    self.permissionless_actions_status
+                        .set(&permissionless_actions_status);
+                }
+                completed
+            }
             None => true,
         }
     }
@@ -108,30 +128,32 @@ impl AppchainAnchor {
                 .0
         );
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        validator_set_histories.insert(
-            &era_number,
-            &ValidatorSetOfEra::new(
-                era_number,
-                self.staking_histories
-                    .get()
-                    .unwrap()
-                    .index_range()
-                    .end_index
-                    .0,
-            ),
-        );
-        self.validator_set_histories.set(&validator_set_histories);
+        if !validator_set_histories.contains(&era_number) {
+            validator_set_histories.insert(
+                &era_number,
+                &ValidatorSetOfEra::new(
+                    era_number,
+                    self.staking_histories
+                        .get()
+                        .unwrap()
+                        .index_range()
+                        .end_index
+                        .0,
+                ),
+            );
+            self.validator_set_histories.set(&validator_set_histories);
+        }
         permissionless_actions_status.switching_era_number = Some(U64::from(era_number));
+        self.complete_switching_era(era_number);
         self.permissionless_actions_status
             .set(&permissionless_actions_status);
-        self.complete_switching_era(era_number);
     }
     //
     fn complete_switching_era(&mut self, era_number: u64) -> bool {
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         let mut validator_set = validator_set_histories.get(&era_number).unwrap();
         match validator_set.processing_status {
-            ProcessingStatus::CopyingFromLastEra {
+            ValidatorSetProcessingStatus::CopyingFromLastEra {
                 copying_validator_index,
                 copying_delegator_index,
             } => {
@@ -159,7 +181,7 @@ impl AppchainAnchor {
                                 validator_set.validator_set.total_stake =
                                     last_validator_set.validator_set.total_stake;
                                 validator_set.processing_status =
-                                    ProcessingStatus::ApplyingStakingHistory {
+                                    ValidatorSetProcessingStatus::ApplyingStakingHistory {
                                         applying_index: last_validator_set.staking_history_index
                                             + 1,
                                     };
@@ -169,18 +191,19 @@ impl AppchainAnchor {
                             ResultOfLoopingValidatorSet::NeedToContinue => delegator_index += 1,
                         }
                     }
-                    validator_set.processing_status = ProcessingStatus::CopyingFromLastEra {
-                        copying_validator_index: validator_index,
-                        copying_delegator_index: delegator_index,
-                    };
+                    validator_set.processing_status =
+                        ValidatorSetProcessingStatus::CopyingFromLastEra {
+                            copying_validator_index: validator_index,
+                            copying_delegator_index: delegator_index,
+                        };
                 } else {
                     validator_set.processing_status =
-                        ProcessingStatus::ApplyingStakingHistory { applying_index: 0 };
+                        ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index: 0 };
                 }
                 validator_set_histories.insert(&era_number, &validator_set);
                 false
             }
-            ProcessingStatus::ApplyingStakingHistory { mut applying_index } => {
+            ValidatorSetProcessingStatus::ApplyingStakingHistory { mut applying_index } => {
                 while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA
                     && applying_index <= validator_set.staking_history_index
                 {
@@ -198,14 +221,15 @@ impl AppchainAnchor {
                 }
                 if applying_index > validator_set.staking_history_index {
                     validator_set.processing_status =
-                        ProcessingStatus::MakingValidatorList { making_index: 0 };
+                        ValidatorSetProcessingStatus::MakingValidatorList { making_index: 0 };
                 } else {
                     validator_set.processing_status =
-                        ProcessingStatus::ApplyingStakingHistory { applying_index };
+                        ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index };
                 }
+                validator_set_histories.insert(&era_number, &validator_set);
                 false
             }
-            ProcessingStatus::MakingValidatorList { mut making_index } => {
+            ValidatorSetProcessingStatus::MakingValidatorList { mut making_index } => {
                 while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA
                     && making_index < validator_set.validator_set.validator_ids.len()
                 {
@@ -213,12 +237,15 @@ impl AppchainAnchor {
                     making_index += 1;
                 }
                 validator_set_histories.insert(&era_number, &validator_set);
-                if making_index > validator_set.staking_history_index {
-                    validator_set.processing_status = ProcessingStatus::ReadyForDistributingReward;
+                if making_index >= validator_set.validator_set.validator_ids.len() {
+                    validator_set.processing_status =
+                        ValidatorSetProcessingStatus::ReadyForDistributingReward;
+                    validator_set_histories.insert(&era_number, &validator_set);
                     return true;
                 } else {
                     validator_set.processing_status =
-                        ProcessingStatus::MakingValidatorList { making_index };
+                        ValidatorSetProcessingStatus::MakingValidatorList { making_index };
+                    validator_set_histories.insert(&era_number, &validator_set);
                     return false;
                 }
             }
@@ -413,7 +440,7 @@ impl AppchainAnchor {
         }
         validator_set.set_unprofitable_validator_ids(uv_ids);
         validator_set.calculate_valid_total_stake();
-        validator_set.processing_status = ProcessingStatus::DistributingReward {
+        validator_set.processing_status = ValidatorSetProcessingStatus::DistributingReward {
             distributing_validator_index: 0,
             distributing_delegator_index: 0,
         };
@@ -431,14 +458,14 @@ impl AppchainAnchor {
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         let mut validator_set = validator_set_histories.get(&era_number).unwrap();
         match validator_set.processing_status {
-            ProcessingStatus::CopyingFromLastEra {
+            ValidatorSetProcessingStatus::CopyingFromLastEra {
                 copying_validator_index: _,
                 copying_delegator_index: _,
             } => false,
-            ProcessingStatus::ApplyingStakingHistory { applying_index: _ } => false,
-            ProcessingStatus::MakingValidatorList { making_index: _ } => false,
-            ProcessingStatus::ReadyForDistributingReward => false,
-            ProcessingStatus::DistributingReward {
+            ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index: _ } => false,
+            ValidatorSetProcessingStatus::MakingValidatorList { making_index: _ } => false,
+            ValidatorSetProcessingStatus::ReadyForDistributingReward => false,
+            ValidatorSetProcessingStatus::DistributingReward {
                 distributing_validator_index,
                 distributing_delegator_index,
             } => {
@@ -460,21 +487,23 @@ impl AppchainAnchor {
                             delegator_index = 0;
                         }
                         ResultOfLoopingValidatorSet::NoMoreValidator => {
-                            validator_set.processing_status = ProcessingStatus::Completed;
+                            validator_set.processing_status =
+                                ValidatorSetProcessingStatus::Completed;
                             validator_set_histories.insert(&era_number, &validator_set);
                             return false;
                         }
                         ResultOfLoopingValidatorSet::NeedToContinue => delegator_index += 1,
                     }
                 }
-                validator_set.processing_status = ProcessingStatus::DistributingReward {
-                    distributing_validator_index: validator_index,
-                    distributing_delegator_index: delegator_index,
-                };
+                validator_set.processing_status =
+                    ValidatorSetProcessingStatus::DistributingReward {
+                        distributing_validator_index: validator_index,
+                        distributing_delegator_index: delegator_index,
+                    };
                 validator_set_histories.insert(&era_number, &validator_set);
                 false
             }
-            ProcessingStatus::Completed => true,
+            ValidatorSetProcessingStatus::Completed => true,
         }
     }
     //

@@ -2,6 +2,7 @@ use std::convert::TryInto;
 
 use appchain_anchor::types::{
     AnchorSettings, AnchorStatus, AppchainSettings, AppchainState, ProtocolSettings,
+    ValidatorSetProcessingStatus,
 };
 use near_sdk::serde_json;
 
@@ -348,4 +349,43 @@ fn test_staging_actions() {
     //
     // Try complete switching era0
     //
+    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+    println!(
+        "Anchor status: {}",
+        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+    );
+    loop {
+        let outcome = permissionless_actions::try_complete_switching_era(&users[3], &anchor);
+        println!(
+            "Try complete switching era: {}",
+            outcome.unwrap_json_value().as_bool().unwrap()
+        );
+        let processing_status = anchor_viewer::get_processing_status_of(&anchor, 0);
+        println!(
+            "Processing status of era {}: {}",
+            0,
+            serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
+        );
+        if outcome.unwrap_json_value().as_bool().unwrap() {
+            break;
+        }
+    }
+    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+    println!(
+        "Anchor status: {}",
+        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+    );
+    //
+    // Get validator list of era0
+    //
+    let validator_lists = anchor_viewer::get_validator_list_of_era(&anchor, 0);
+    let mut index = 0;
+    for validator_list in validator_lists {
+        println!(
+            "Validator list {}: {}",
+            index,
+            serde_json::to_string(&validator_list).unwrap()
+        );
+        index += 1;
+    }
 }

@@ -46,6 +46,7 @@ impl AppchainLifecycleManager for AppchainAnchor {
             "Not enough stake deposited in anchor."
         );
         self.appchain_state = AppchainState::Booting;
+        self.start_switching_era(0);
     }
     //
     fn go_live(&mut self) {
