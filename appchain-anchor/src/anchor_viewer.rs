@@ -122,7 +122,7 @@ impl AnchorViewer for AppchainAnchor {
                 .next_validator_set
                 .get()
                 .unwrap()
-                .validator_ids
+                .validator_id_set
                 .len()
                 .into(),
             index_range_of_anchor_event: self.anchor_events.get().unwrap().index_range(),
@@ -229,7 +229,7 @@ impl AnchorViewer for AppchainAnchor {
                     Some(validator_set) => {
                         match validator_set
                             .validator_set
-                            .validator_id_to_delegator_ids
+                            .validator_id_to_delegator_id_set
                             .get(&validator_id)
                         {
                             Some(delegator_id_set) => {
@@ -255,7 +255,7 @@ impl AnchorViewer for AppchainAnchor {
             None => {
                 let next_validator_set = self.next_validator_set.get().unwrap();
                 match next_validator_set
-                    .validator_id_to_delegator_ids
+                    .validator_id_to_delegator_id_set
                     .get(&validator_id)
                 {
                     Some(delegator_id_set) => {

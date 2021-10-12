@@ -209,7 +209,7 @@ impl AppchainAnchor {
     // Assert that the contract called by a registered validator.
     fn assert_validator_id(&self, validator_id: &AccountId, next_validator_set: &ValidatorSet) {
         assert!(
-            next_validator_set.validator_ids.contains(validator_id)
+            next_validator_set.validator_id_set.contains(validator_id)
                 || next_validator_set.validators.contains_key(validator_id),
             "Validator id {} is not valid.",
             validator_id
@@ -225,18 +225,18 @@ impl AppchainAnchor {
         self.assert_validator_id(validator_id, next_validator_set);
         assert!(
             next_validator_set
-                .validator_id_to_delegator_ids
+                .validator_id_to_delegator_id_set
                 .contains_key(validator_id),
             "Delegator id {} of validator {} is not valid.",
             delegator_id,
             validator_id
         );
-        let delegator_ids = next_validator_set
-            .validator_id_to_delegator_ids
+        let delegator_id_set = next_validator_set
+            .validator_id_to_delegator_id_set
             .get(validator_id)
             .unwrap();
         assert!(
-            delegator_ids.contains(delegator_id)
+            delegator_id_set.contains(delegator_id)
                 || next_validator_set
                     .delegators
                     .contains_key(&(delegator_id.clone(), validator_id.clone())),

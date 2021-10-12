@@ -229,13 +229,13 @@ impl AppchainAnchor {
             }
             ValidatorSetProcessingStatus::MakingValidatorList { mut making_index } => {
                 while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA
-                    && making_index < validator_set.validator_set.validator_ids.len()
+                    && making_index < validator_set.validator_set.validator_id_set.len()
                 {
                     self.make_validator_list_in_validator_set(&mut validator_set, making_index);
                     making_index += 1;
                 }
                 validator_set_histories.insert(&era_number, &validator_set);
-                if making_index >= validator_set.validator_set.validator_ids.len() {
+                if making_index >= validator_set.validator_set.validator_id_set.len() {
                     validator_set.processing_status =
                         ValidatorSetProcessingStatus::ReadyForDistributingReward;
                     validator_set_histories.insert(&era_number, &validator_set);
@@ -258,7 +258,7 @@ impl AppchainAnchor {
         validator_index: u64,
         delegator_index: u64,
     ) -> ResultOfLoopingValidatorSet {
-        let validator_ids = source_validator_set.validator_set.validator_ids.to_vec();
+        let validator_ids = source_validator_set.validator_set.validator_id_set.to_vec();
         if validator_index >= validator_ids.len().try_into().unwrap() {
             return ResultOfLoopingValidatorSet::NoMoreValidator;
         }
@@ -272,12 +272,12 @@ impl AppchainAnchor {
             .unwrap();
         if !target_validator_set
             .validator_set
-            .validator_ids
+            .validator_id_set
             .contains(validator_id)
         {
             target_validator_set
                 .validator_set
-                .validator_ids
+                .validator_id_set
                 .insert(validator_id);
             target_validator_set
                 .validator_set
@@ -286,7 +286,7 @@ impl AppchainAnchor {
         }
         let delegater_ids = source_validator_set
             .validator_set
-            .validator_id_to_delegator_ids
+            .validator_id_to_delegator_id_set
             .get(validator_id)
             .unwrap()
             .to_vec();
@@ -307,13 +307,13 @@ impl AppchainAnchor {
             .insert(&(delegator_id.clone(), validator_id.clone()), &delegator);
         target_validator_set
             .validator_set
-            .validator_id_to_delegator_ids
+            .validator_id_to_delegator_id_set
             .get(validator_id)
             .unwrap()
             .insert(delegator_id);
         target_validator_set
             .validator_set
-            .delegator_id_to_validator_ids
+            .delegator_id_to_validator_id_set
             .get(delegator_id)
             .unwrap()
             .insert(validator_id);
@@ -374,7 +374,7 @@ impl AppchainAnchor {
         validator_set: &mut ValidatorSetOfEra,
         making_index: u64,
     ) {
-        let validator_ids = validator_set.validator_set.validator_ids.to_vec();
+        let validator_ids = validator_set.validator_set.validator_id_set.to_vec();
         let validator_id = validator_ids
             .get(usize::try_from(making_index).unwrap())
             .unwrap();
@@ -518,7 +518,7 @@ impl AppchainAnchor {
         era_reward: Balance,
         delegation_fee_percent: u128,
     ) -> ResultOfLoopingValidatorSet {
-        let validator_ids = validator_set.validator_set.validator_ids.to_vec();
+        let validator_ids = validator_set.validator_set.validator_id_set.to_vec();
         if validator_index >= validator_ids.len().try_into().unwrap() {
             return ResultOfLoopingValidatorSet::NoMoreValidator;
         }
@@ -526,7 +526,7 @@ impl AppchainAnchor {
             .get(usize::try_from(validator_index).unwrap())
             .unwrap();
         if validator_set
-            .unprofitable_validator_ids
+            .unprofitable_validator_id_set
             .contains(validator_id)
         {
             return ResultOfLoopingValidatorSet::NoMoreDelegator;
@@ -552,7 +552,7 @@ impl AppchainAnchor {
         }
         if let Some(delegator_id_set) = validator_set
             .validator_set
-            .validator_id_to_delegator_ids
+            .validator_id_to_delegator_id_set
             .get(&validator_id)
         {
             let delegater_ids = delegator_id_set.to_vec();

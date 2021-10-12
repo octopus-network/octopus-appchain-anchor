@@ -161,7 +161,7 @@ impl AppchainAnchor {
     ) {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         assert!(
-            !next_validator_set.validator_ids.contains(&validator_id),
+            !next_validator_set.validator_id_set.contains(&validator_id),
             "The account {} is already been registered.",
             &validator_id
         );
@@ -228,7 +228,7 @@ impl AppchainAnchor {
             &delegator_id
         );
         assert!(
-            next_validator_set.validator_ids.contains(&validator_id),
+            next_validator_set.validator_id_set.contains(&validator_id),
             "Invalid validator id '{}'",
             &validator_id
         );
@@ -239,12 +239,12 @@ impl AppchainAnchor {
             &validator_id
         );
         let protocol_settings = self.protocol_settings.get().unwrap();
-        if let Some(v_ids) = next_validator_set
-            .delegator_id_to_validator_ids
+        if let Some(validator_id_set) = next_validator_set
+            .delegator_id_to_validator_id_set
             .get(&delegator_id)
         {
             assert!(
-                v_ids.len() < protocol_settings.maximum_validators_per_delegator.0,
+                validator_id_set.len() < protocol_settings.maximum_validators_per_delegator.0,
                 "Too many validators delegated."
             );
         }
@@ -355,7 +355,7 @@ impl StakingManager for AppchainAnchor {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let protocol_settings = self.protocol_settings.get().unwrap();
         assert_eq!(
-            next_validator_set.validator_ids.len(),
+            next_validator_set.validator_id_set.len(),
             protocol_settings.minimum_validator_count.0,
             "Too few validators. Cannot unbond any more."
         );

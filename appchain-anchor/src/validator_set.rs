@@ -40,12 +40,12 @@ pub struct ValidatorSet {
     /// The number of era in appchain.
     pub era_number: u64,
     /// The set of account id of validators.
-    pub validator_ids: UnorderedSet<AccountId>,
-    /// The map from validator id to its delegators' ids.
-    pub validator_id_to_delegator_ids: LookupMap<AccountId, UnorderedSet<AccountId>>,
-    /// The map from delegator id to the validators' ids that
+    pub validator_id_set: UnorderedSet<AccountId>,
+    /// The map from validator id to the set of its delegators' id.
+    pub validator_id_to_delegator_id_set: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    /// The map from delegator id to the set of its validators' id that
     /// the delegator delegates his/her voting rights to.
-    pub delegator_id_to_validator_ids: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    pub delegator_id_to_validator_id_set: LookupMap<AccountId, UnorderedSet<AccountId>>,
     /// The validators data, mapped by their account id in NEAR protocol.
     pub validators: LookupMap<AccountId, Validator>,
     /// The delegators data, mapped by the tuple of their delegator account id and
@@ -68,7 +68,7 @@ pub struct ValidatorSetOfEra {
     /// The index of the latest staking history happened in the era of corresponding appchain.
     pub staking_history_index: u64,
     /// The set of validator id which will not be profited.
-    pub unprofitable_validator_ids: UnorderedSet<AccountId>,
+    pub unprofitable_validator_id_set: UnorderedSet<AccountId>,
     /// Total stake excluding all unprofitable validators' stake.
     pub valid_total_stake: Balance,
     /// The rewards of validators in this era
@@ -132,13 +132,13 @@ impl ValidatorSet {
     pub fn new(era_number: u64) -> Self {
         Self {
             era_number,
-            validator_ids: UnorderedSet::new(
+            validator_id_set: UnorderedSet::new(
                 StorageKey::ValidatorIdsOfEra(era_number).into_bytes(),
             ),
-            validator_id_to_delegator_ids: LookupMap::new(
+            validator_id_to_delegator_id_set: LookupMap::new(
                 StorageKey::ValidatorToDelegatorsMapOfEra(era_number).into_bytes(),
             ),
-            delegator_id_to_validator_ids: LookupMap::new(
+            delegator_id_to_validator_id_set: LookupMap::new(
                 StorageKey::DelegatorToValidatorsMapOfEra(era_number).into_bytes(),
             ),
             validators: LookupMap::new(StorageKey::ValidatorsOfEra(era_number).into_bytes()),
@@ -158,7 +158,7 @@ impl ValidatorSetActions for ValidatorSet {
                 amount,
                 can_be_delegated_to,
             } => {
-                self.validator_ids.insert(validator_id);
+                self.validator_id_set.insert(validator_id);
                 self.validators.insert(
                     validator_id,
                     &Validator {
@@ -198,7 +198,7 @@ impl ValidatorSetActions for ValidatorSet {
                 amount: _,
             } => {
                 let delegator_ids = self
-                    .validator_id_to_delegator_ids
+                    .validator_id_to_delegator_id_set
                     .get(validator_id)
                     .unwrap()
                     .to_vec();
@@ -206,20 +206,20 @@ impl ValidatorSetActions for ValidatorSet {
                     self.delegators
                         .remove(&(delegator_id.clone(), validator_id.clone()));
                     if let Some(mut validator_id_set) =
-                        self.delegator_id_to_validator_ids.get(delegator_id)
+                        self.delegator_id_to_validator_id_set.get(delegator_id)
                     {
                         validator_id_set.remove(validator_id);
                         if validator_id_set.len() > 0 {
-                            self.delegator_id_to_validator_ids
+                            self.delegator_id_to_validator_id_set
                                 .insert(delegator_id, &validator_id_set);
                         } else {
-                            self.delegator_id_to_validator_ids.remove(delegator_id);
+                            self.delegator_id_to_validator_id_set.remove(delegator_id);
                         }
                     }
                 });
                 let validator = self.validators.remove(validator_id).unwrap();
                 self.total_stake -= validator.total_stake;
-                self.validator_ids.remove(validator_id);
+                self.validator_id_set.remove(validator_id);
             }
             types::StakingFact::ValidatorDelegationEnabled { validator_id } => {
                 let mut validator = self.validators.get(validator_id).unwrap();
@@ -247,10 +247,10 @@ impl ValidatorSetActions for ValidatorSet {
                     },
                 );
                 if !self
-                    .validator_id_to_delegator_ids
+                    .validator_id_to_delegator_id_set
                     .contains_key(validator_id)
                 {
-                    self.validator_id_to_delegator_ids.insert(
+                    self.validator_id_to_delegator_id_set.insert(
                         validator_id,
                         &UnorderedSet::new(
                             StorageKey::DelegatorIdsInMapOfVToDOfEra {
@@ -262,17 +262,17 @@ impl ValidatorSetActions for ValidatorSet {
                     );
                 }
                 let mut delegator_id_set = self
-                    .validator_id_to_delegator_ids
+                    .validator_id_to_delegator_id_set
                     .get(validator_id)
                     .unwrap();
                 delegator_id_set.insert(delegator_id);
-                self.validator_id_to_delegator_ids
+                self.validator_id_to_delegator_id_set
                     .insert(validator_id, &delegator_id_set);
                 if !self
-                    .delegator_id_to_validator_ids
+                    .delegator_id_to_validator_id_set
                     .contains_key(delegator_id)
                 {
-                    self.delegator_id_to_validator_ids.insert(
+                    self.delegator_id_to_validator_id_set.insert(
                         delegator_id,
                         &UnorderedSet::new(
                             StorageKey::ValidatorIdsInMapOfDToVOfEra {
@@ -284,11 +284,11 @@ impl ValidatorSetActions for ValidatorSet {
                     );
                 }
                 let mut validator_id_set = self
-                    .delegator_id_to_validator_ids
+                    .delegator_id_to_validator_id_set
                     .get(delegator_id)
                     .unwrap();
                 validator_id_set.insert(validator_id);
-                self.delegator_id_to_validator_ids
+                self.delegator_id_to_validator_id_set
                     .insert(delegator_id, &validator_id_set);
                 let mut validator = self.validators.get(validator_id).unwrap();
                 validator.total_stake += amount.0;
@@ -335,26 +335,26 @@ impl ValidatorSetActions for ValidatorSet {
                 amount: _,
             } => {
                 let mut delegator_id_set = self
-                    .validator_id_to_delegator_ids
+                    .validator_id_to_delegator_id_set
                     .get(validator_id)
                     .unwrap();
                 delegator_id_set.remove(delegator_id);
                 if delegator_id_set.len() > 0 {
-                    self.validator_id_to_delegator_ids
+                    self.validator_id_to_delegator_id_set
                         .insert(validator_id, &delegator_id_set);
                 } else {
-                    self.validator_id_to_delegator_ids.remove(validator_id);
+                    self.validator_id_to_delegator_id_set.remove(validator_id);
                 }
                 let mut validator_id_set = self
-                    .delegator_id_to_validator_ids
+                    .delegator_id_to_validator_id_set
                     .get(delegator_id)
                     .unwrap();
                 validator_id_set.remove(validator_id);
                 if validator_id_set.len() > 0 {
-                    self.delegator_id_to_validator_ids
+                    self.delegator_id_to_validator_id_set
                         .insert(delegator_id, &validator_id_set);
                 } else {
-                    self.delegator_id_to_validator_ids.remove(delegator_id);
+                    self.delegator_id_to_validator_id_set.remove(delegator_id);
                 }
                 let delegator = self
                     .delegators
@@ -396,7 +396,7 @@ impl ValidatorSetOfEra {
             start_block_height: env::block_index(),
             start_timestamp: env::block_timestamp(),
             staking_history_index,
-            unprofitable_validator_ids: UnorderedSet::new(
+            unprofitable_validator_id_set: UnorderedSet::new(
                 StorageKey::UnprofitableValidatorIdsOfEra(era_number).into_bytes(),
             ),
             validator_set: ValidatorSet::new(era_number),
@@ -417,12 +417,12 @@ impl ValidatorSetOfEra {
     ///
     pub fn set_unprofitable_validator_ids(&mut self, unprofitable_validator_ids: Vec<AccountId>) {
         unprofitable_validator_ids.iter().for_each(|v_id| {
-            self.unprofitable_validator_ids.insert(&v_id);
+            self.unprofitable_validator_id_set.insert(&v_id);
         });
     }
     ///
     pub fn calculate_valid_total_stake(&mut self) {
-        let unprofitable_validator_ids = self.unprofitable_validator_ids.to_vec();
+        let unprofitable_validator_ids = self.unprofitable_validator_id_set.to_vec();
         self.valid_total_stake = self.validator_set.total_stake;
         unprofitable_validator_ids.iter().for_each(|v_id| {
             let validator = self.validator_set.validators.get(v_id).unwrap();
@@ -438,7 +438,7 @@ impl ValidatorSetOfEra {
             start_block_height: U64::from(self.start_block_height),
             start_timestamp: U64::from(self.start_timestamp),
             staking_history_index: U64::from(self.staking_history_index),
-            unprofitable_validator_ids: self.unprofitable_validator_ids.to_vec(),
+            unprofitable_validator_ids: self.unprofitable_validator_id_set.to_vec(),
             valid_total_stake: U128::from(self.valid_total_stake),
             processing_status: self.processing_status.clone(),
         }

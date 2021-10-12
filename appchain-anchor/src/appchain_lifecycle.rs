@@ -36,7 +36,7 @@ impl AppchainLifecycleManager for AppchainAnchor {
         let protocol_settings = self.protocol_settings.get().unwrap();
         let validator_set = self.next_validator_set.get().unwrap();
         assert!(
-            validator_set.validator_ids.len() >= protocol_settings.minimum_validator_count.0,
+            validator_set.validator_id_set.len() >= protocol_settings.minimum_validator_count.0,
             "Not enough validators available."
         );
         let oct_token = self.oct_token.get().unwrap();
