@@ -536,8 +536,8 @@ impl AppchainAnchor {
             .validators
             .get(validator_id)
             .unwrap();
-        let total_reward_of_validator =
-            era_reward * validator.total_stake / validator_set.valid_total_stake;
+        let total_reward_of_validator = era_reward * (validator.total_stake / OCT_DECIMALS_VALUE)
+            / (validator_set.valid_total_stake / OCT_DECIMALS_VALUE);
         if !self
             .unwithdrawn_validator_rewards
             .contains_key(&(validator_set.validator_set.era_number, validator_id.clone()))
@@ -550,17 +550,12 @@ impl AppchainAnchor {
                 &total_reward_of_validator,
             );
         }
-        if validator_set
+        if let Some(delegator_id_set) = validator_set
             .validator_set
             .validator_id_to_delegator_ids
-            .contains_key(validator_id)
+            .get(&validator_id)
         {
-            let delegater_ids = validator_set
-                .validator_set
-                .validator_id_to_delegator_ids
-                .get(validator_id)
-                .unwrap()
-                .to_vec();
+            let delegater_ids = delegator_id_set.to_vec();
             if delegator_index >= delegater_ids.len().try_into().unwrap() {
                 return ResultOfLoopingValidatorSet::NoMoreDelegator;
             }
@@ -573,13 +568,9 @@ impl AppchainAnchor {
                 .get(&(delegator_id.clone(), validator_id.clone()))
                 .unwrap();
             let delegator_reward = total_reward_of_validator
-                * delegator.deposit_amount
+                * (delegator.deposit_amount / OCT_DECIMALS_VALUE)
                 * (100 - delegation_fee_percent)
-                / (validator.total_stake * 100);
-            let mut validator_reward = self
-                .unwithdrawn_validator_rewards
-                .get(&(validator_set.validator_set.era_number, validator_id.clone()))
-                .unwrap();
+                / (validator.total_stake * 100 / OCT_DECIMALS_VALUE);
             validator_set.delegator_rewards.insert(
                 &(delegator_id.clone(), validator_id.clone()),
                 &delegator_reward,
@@ -592,6 +583,7 @@ impl AppchainAnchor {
                 ),
                 &delegator_reward,
             );
+            let mut validator_reward = validator_set.validator_rewards.get(&validator_id).unwrap();
             validator_reward -= delegator_reward;
             validator_set
                 .validator_rewards

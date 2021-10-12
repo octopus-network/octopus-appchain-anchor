@@ -244,6 +244,13 @@ pub struct AppchainValidator {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub struct AppchainDelegator {
+    pub delegator_id: AccountId,
+    pub delegation_amount: U128,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct UnbondedStake {
     /// The number of era in appchain.
     pub era_number: U64,

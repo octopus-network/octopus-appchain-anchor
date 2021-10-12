@@ -202,11 +202,19 @@ impl ValidatorSetActions for ValidatorSet {
                     .get(validator_id)
                     .unwrap()
                     .to_vec();
-                delegator_ids.iter().for_each(|d_id| {
+                delegator_ids.iter().for_each(|delegator_id| {
                     self.delegators
-                        .remove(&(d_id.clone(), validator_id.clone()));
-                    if let Some(mut v_ids) = self.delegator_id_to_validator_ids.get(d_id) {
-                        v_ids.remove(validator_id);
+                        .remove(&(delegator_id.clone(), validator_id.clone()));
+                    if let Some(mut validator_id_set) =
+                        self.delegator_id_to_validator_ids.get(delegator_id)
+                    {
+                        validator_id_set.remove(validator_id);
+                        if validator_id_set.len() > 0 {
+                            self.delegator_id_to_validator_ids
+                                .insert(delegator_id, &validator_id_set);
+                        } else {
+                            self.delegator_id_to_validator_ids.remove(delegator_id);
+                        }
                     }
                 });
                 let validator = self.validators.remove(validator_id).unwrap();
@@ -253,11 +261,13 @@ impl ValidatorSetActions for ValidatorSet {
                         ),
                     );
                 }
-                let mut d_ids = self
+                let mut delegator_id_set = self
                     .validator_id_to_delegator_ids
                     .get(validator_id)
                     .unwrap();
-                d_ids.insert(delegator_id);
+                delegator_id_set.insert(delegator_id);
+                self.validator_id_to_delegator_ids
+                    .insert(validator_id, &delegator_id_set);
                 if !self
                     .delegator_id_to_validator_ids
                     .contains_key(delegator_id)
@@ -273,11 +283,13 @@ impl ValidatorSetActions for ValidatorSet {
                         ),
                     );
                 }
-                let mut v_ids = self
+                let mut validator_id_set = self
                     .delegator_id_to_validator_ids
                     .get(delegator_id)
                     .unwrap();
-                v_ids.insert(validator_id);
+                validator_id_set.insert(validator_id);
+                self.delegator_id_to_validator_ids
+                    .insert(delegator_id, &validator_id_set);
                 let mut validator = self.validators.get(validator_id).unwrap();
                 validator.total_stake += amount.0;
                 self.validators.insert(validator_id, &validator);
@@ -322,20 +334,26 @@ impl ValidatorSetActions for ValidatorSet {
                 validator_id,
                 amount: _,
             } => {
-                let mut d_ids = self
+                let mut delegator_id_set = self
                     .validator_id_to_delegator_ids
                     .get(validator_id)
                     .unwrap();
-                d_ids.remove(delegator_id);
-                if d_ids.len() == 0 {
+                delegator_id_set.remove(delegator_id);
+                if delegator_id_set.len() > 0 {
+                    self.validator_id_to_delegator_ids
+                        .insert(validator_id, &delegator_id_set);
+                } else {
                     self.validator_id_to_delegator_ids.remove(validator_id);
                 }
-                let mut v_ids = self
+                let mut validator_id_set = self
                     .delegator_id_to_validator_ids
                     .get(delegator_id)
                     .unwrap();
-                v_ids.remove(validator_id);
-                if v_ids.len() == 0 {
+                validator_id_set.remove(validator_id);
+                if validator_id_set.len() > 0 {
+                    self.delegator_id_to_validator_ids
+                        .insert(delegator_id, &validator_id_set);
+                } else {
                     self.delegator_id_to_validator_ids.remove(delegator_id);
                 }
                 let delegator = self

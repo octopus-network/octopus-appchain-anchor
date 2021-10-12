@@ -383,14 +383,28 @@ fn test_staging_actions() {
     //
     // Get validator list of era0
     //
-    let validator_lists = anchor_viewer::get_validator_list_of_era(&anchor, 0);
+    let validator_list = anchor_viewer::get_validator_list_of_era(&anchor, 0);
     let mut index = 0;
-    for validator_list in validator_lists {
+    for validator in validator_list {
         println!(
             "Validator {} of era {}: {}",
             index,
             0,
-            serde_json::to_string(&validator_list).unwrap()
+            serde_json::to_string(&validator).unwrap()
+        );
+        index += 1;
+    }
+    //
+    // Get delegators of validator0
+    //
+    let delegator_list = anchor_viewer::get_delegators_of_validator_in_era(&anchor, 0, &users[0]);
+    let mut index = 0;
+    for delegator in delegator_list {
+        println!(
+            "Delegator {} of validator {}: {}",
+            index,
+            0,
+            serde_json::to_string(&delegator).unwrap()
         );
         index += 1;
     }
