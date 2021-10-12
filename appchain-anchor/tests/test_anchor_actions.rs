@@ -351,6 +351,16 @@ fn test_staging_actions() {
     outcome.assert_success();
     let outcome = lifecycle_actions::go_booting(&root, &anchor);
     outcome.assert_success();
+    assert_eq!(
+        anchor_viewer::get_appchain_state(&anchor),
+        AppchainState::Booting
+    );
+    let processing_status = anchor_viewer::get_processing_status_of(&anchor, 0);
+    println!(
+        "Processing status of era {}: {}",
+        0,
+        serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
+    );
     //
     // Try complete switching era0
     //
@@ -379,6 +389,12 @@ fn test_staging_actions() {
     println!(
         "Anchor status: {}",
         serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+    );
+    let validator_set_info = anchor_viewer::get_validator_set_info_of(&anchor, 0);
+    println!(
+        "Validator set info of era {}: {}",
+        0,
+        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
     );
     //
     // Get validator list of era0
@@ -508,6 +524,107 @@ fn test_staging_actions() {
             users[3].account_id().to_string(),
             users[0].account_id().to_string(),
             serde_json::to_string(&reward_history).unwrap()
+        );
+        index += 1;
+    }
+    //
+    // user4 register validator
+    //
+    let user4_balance = oct_token_viewer::get_ft_balance_of(&users[4], &oct_token);
+    let amount4 = common::to_oct_amount(13_000);
+    let user4_id_in_appchain = "user4_id_in_appchain".to_string();
+    let outcome = staking_actions::register_validator(
+        &users[4],
+        &oct_token,
+        &anchor,
+        &user4_id_in_appchain,
+        amount4,
+        true,
+    );
+    outcome.assert_success();
+    assert_eq!(
+        oct_token_viewer::get_ft_balance_of(&users[4], &oct_token).0,
+        user4_balance.0 - amount4
+    );
+    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+    println!(
+        "Anchor status: {}",
+        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+    );
+    assert_eq!(
+        anchor_status.total_stake_in_next_era.0,
+        amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p + amount4
+    );
+    assert_eq!(anchor_status.validator_count_in_next_era.0, 3);
+    //
+    // Go live
+    //
+    let outcome = lifecycle_actions::go_live(&root, &anchor);
+    outcome.assert_success();
+    assert_eq!(
+        anchor_viewer::get_appchain_state(&anchor),
+        AppchainState::Active
+    );
+    //
+    // Try start and complete switching era1
+    //
+    let outcome = sudo_actions::apply_appchain_message(
+        &root,
+        &anchor,
+        AppchainMessage {
+            appchain_event: AppchainEvent::EraSwitchPlaned {
+                era_number: U64::from(1),
+            },
+            block_height: U64::from(2),
+            timestamp: U64::from(2),
+            nonce: 2,
+        },
+    );
+    outcome.assert_success();
+    let processing_status = anchor_viewer::get_processing_status_of(&anchor, 1);
+    println!(
+        "Processing status of era {}: {}",
+        1,
+        serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
+    );
+    loop {
+        let outcome = permissionless_actions::try_complete_switching_era(&users[1], &anchor);
+        println!(
+            "Try complete switching era: {}",
+            outcome.unwrap_json_value().as_bool().unwrap()
+        );
+        let processing_status = anchor_viewer::get_processing_status_of(&anchor, 1);
+        println!(
+            "Processing status of era {}: {}",
+            1,
+            serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
+        );
+        if outcome.unwrap_json_value().as_bool().unwrap() {
+            break;
+        }
+    }
+    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+    println!(
+        "Anchor status: {}",
+        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+    );
+    let validator_set_info = anchor_viewer::get_validator_set_info_of(&anchor, 1);
+    println!(
+        "Validator set info of era {}: {}",
+        1,
+        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
+    );
+    //
+    // Get validator list of era1
+    //
+    let validator_list = anchor_viewer::get_validator_list_of_era(&anchor, 1);
+    let mut index = 0;
+    for validator in validator_list {
+        println!(
+            "Validator {} of era {}: {}",
+            index,
+            1,
+            serde_json::to_string(&validator).unwrap()
         );
         index += 1;
     }

@@ -12,3 +12,12 @@ pub fn go_booting(
     common::print_outcome_result("go_booting", &outcome);
     outcome
 }
+
+pub fn go_live(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> ExecutionResult {
+    let outcome = call!(signer, anchor.go_live());
+    common::print_outcome_result("go_live", &outcome);
+    outcome
+}
