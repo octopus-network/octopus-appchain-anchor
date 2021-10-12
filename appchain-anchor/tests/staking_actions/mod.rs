@@ -59,7 +59,7 @@ pub fn increase_stake(
         signer,
         &anchor.user_account,
         amount,
-        json!({"IncreaseStake": {}}).to_string(),
+        "\"IncreaseStake\"".to_string(),
         oct_token,
     )
 }

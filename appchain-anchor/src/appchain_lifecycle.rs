@@ -36,14 +36,17 @@ impl AppchainLifecycleManager for AppchainAnchor {
         let protocol_settings = self.protocol_settings.get().unwrap();
         let validator_set = self.next_validator_set.get().unwrap();
         assert!(
-            validator_set.validator_ids.len() >= protocol_settings.minimum_validator_count.0,
+            validator_set.validator_id_set.len() >= protocol_settings.minimum_validator_count.0,
             "Not enough validators available."
         );
+        let oct_token = self.oct_token.get().unwrap();
         assert!(
-            validator_set.total_stake >= protocol_settings.minimum_total_stake_for_booting.0,
-            "Not enough stake deposited."
+            validator_set.total_stake * oct_token.price_in_usd.0
+                >= protocol_settings.minimum_total_stake_price_for_booting.0,
+            "Not enough stake deposited in anchor."
         );
         self.appchain_state = AppchainState::Booting;
+        self.start_switching_era(0);
     }
     //
     fn go_live(&mut self) {

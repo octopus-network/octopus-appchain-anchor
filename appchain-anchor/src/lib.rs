@@ -25,7 +25,7 @@ use near_sdk::{
 pub use anchor_viewer::AnchorViewer;
 pub use appchain_lifecycle::AppchainLifecycleManager;
 pub use near_fungible_token::NearFungibleTokenManager;
-pub use permissionless_actions::{AppchainMessage, PermissionlessActions};
+pub use permissionless_actions::*;
 pub use settings_manager::*;
 pub use staking::StakingManager;
 pub use token_bridging::TokenBridgingHistoryManager;
@@ -41,6 +41,8 @@ use validator_set::{ValidatorSet, ValidatorSetHistories};
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
 const GAS_FOR_FT_TRANSFER_CALL: u64 = 35 * T_GAS;
+/// The value of decimals value of USD.
+const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.
 const OCT_DECIMALS_VALUE: Balance = 1_000_000_000_000_000_000;
 /// The seconds of a day.
@@ -207,7 +209,7 @@ impl AppchainAnchor {
     // Assert that the contract called by a registered validator.
     fn assert_validator_id(&self, validator_id: &AccountId, next_validator_set: &ValidatorSet) {
         assert!(
-            next_validator_set.validator_ids.contains(validator_id)
+            next_validator_set.validator_id_set.contains(validator_id)
                 || next_validator_set.validators.contains_key(validator_id),
             "Validator id {} is not valid.",
             validator_id
@@ -223,18 +225,18 @@ impl AppchainAnchor {
         self.assert_validator_id(validator_id, next_validator_set);
         assert!(
             next_validator_set
-                .validator_id_to_delegator_ids
+                .validator_id_to_delegator_id_set
                 .contains_key(validator_id),
             "Delegator id {} of validator {} is not valid.",
             delegator_id,
             validator_id
         );
-        let delegator_ids = next_validator_set
-            .validator_id_to_delegator_ids
+        let delegator_id_set = next_validator_set
+            .validator_id_to_delegator_id_set
             .get(validator_id)
             .unwrap();
         assert!(
-            delegator_ids.contains(delegator_id)
+            delegator_id_set.contains(delegator_id)
                 || next_validator_set
                     .delegators
                     .contains_key(&(delegator_id.clone(), validator_id.clone())),
@@ -242,6 +244,19 @@ impl AppchainAnchor {
             delegator_id,
             validator_id
         );
+    }
+    /// Set the price (in USD) of OCT token
+    pub fn set_price_of_oct_token(&mut self, price: U128) {
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        assert_eq!(
+            env::predecessor_account_id(),
+            anchor_settings.token_price_maintainer_account,
+            "Only '{}' can call this function.",
+            anchor_settings.token_price_maintainer_account
+        );
+        let mut oct_token = self.oct_token.get().unwrap();
+        oct_token.price_in_usd = price;
+        self.oct_token.set(&oct_token);
     }
 }
 

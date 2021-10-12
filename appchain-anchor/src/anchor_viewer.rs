@@ -39,10 +39,14 @@ pub trait AnchorViewer {
     fn get_appchain_settings(&self) -> AppchainSettings;
     /// Get protocol settings detail.
     fn get_protocol_settings(&self) -> ProtocolSettings;
-    /// Get state of corresponding appchain
+    /// Get state of corresponding appchain.
     fn get_appchain_state(&self) -> AppchainState;
-    /// Get current status of anchor
+    /// Get current status of anchor.
     fn get_anchor_status(&self) -> AnchorStatus;
+    /// Get validator set history info.
+    fn get_validator_set_info_of(&self, era_number: U64) -> Option<ValidatorSetInfo>;
+    /// Get processing status of validator set of era.
+    fn get_processing_status_of(&self, era_number: U64) -> Option<ValidatorSetProcessingStatus>;
     /// Get the index range of staking histories stored in anchor.
     fn get_index_range_of_staking_history(&self) -> IndexRange;
     /// Get staking history by index.
@@ -66,6 +70,13 @@ pub trait AnchorViewer {
     fn get_token_bridging_history(&self, index: Option<U64>) -> Option<TokenBridgingHistory>;
     /// Get the validator list of a certain era.
     fn get_validator_list_of_era(&self, era_number: U64) -> Vec<AppchainValidator>;
+    /// Get the delegators of a validator of a certain era.
+    /// If the param `era_number` is omitted, the latest validator set will be used.
+    fn get_delegators_of_validator_in_era(
+        &self,
+        era_number: Option<U64>,
+        validator_id: AccountId,
+    ) -> Vec<AppchainDelegator>;
     /// Get unbonded stakes of an account.
     fn get_unbonded_stakes_of(&self, account_id: AccountId) -> Vec<UnbondedStake>;
     /// Get validator rewards of a certain era range.
@@ -111,7 +122,7 @@ impl AnchorViewer for AppchainAnchor {
                 .next_validator_set
                 .get()
                 .unwrap()
-                .validator_ids
+                .validator_id_set
                 .len()
                 .into(),
             index_range_of_anchor_event: self.anchor_events.get().unwrap().index_range(),
@@ -122,6 +133,26 @@ impl AnchorViewer for AppchainAnchor {
                 .unwrap()
                 .index_range(),
             permissionless_actions_status: self.permissionless_actions_status.get().unwrap(),
+        }
+    }
+    //
+    fn get_validator_set_info_of(&self, era_number: U64) -> Option<ValidatorSetInfo> {
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        if validator_set_histories.contains(&era_number.0) {
+            let validator_set = validator_set_histories.get(&era_number.0).unwrap();
+            Some(validator_set.to_validator_set_info())
+        } else {
+            None
+        }
+    }
+    //
+    fn get_processing_status_of(&self, era_number: U64) -> Option<ValidatorSetProcessingStatus> {
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        if validator_set_histories.contains(&era_number.0) {
+            let validator_set = validator_set_histories.get(&era_number.0).unwrap();
+            Some(validator_set.processing_status.clone())
+        } else {
+            None
         }
     }
     //
@@ -183,6 +214,68 @@ impl AnchorViewer for AppchainAnchor {
             Some(validator_set_of_era) => validator_set_of_era.validator_list.to_vec(),
             None => Vec::new(),
         }
+    }
+    //
+    fn get_delegators_of_validator_in_era(
+        &self,
+        era_number: Option<U64>,
+        validator_id: AccountId,
+    ) -> Vec<AppchainDelegator> {
+        let mut result = Vec::<AppchainDelegator>::new();
+        match era_number {
+            Some(era_number) => {
+                let validator_set_histories = self.validator_set_histories.get().unwrap();
+                match validator_set_histories.get(&era_number.0) {
+                    Some(validator_set) => {
+                        match validator_set
+                            .validator_set
+                            .validator_id_to_delegator_id_set
+                            .get(&validator_id)
+                        {
+                            Some(delegator_id_set) => {
+                                let delegator_ids = delegator_id_set.to_vec();
+                                delegator_ids.iter().for_each(|delegator_id| {
+                                    let delegator = validator_set
+                                        .validator_set
+                                        .delegators
+                                        .get(&(delegator_id.clone(), validator_id.clone()))
+                                        .unwrap();
+                                    result.push(AppchainDelegator {
+                                        delegator_id: delegator_id.clone(),
+                                        delegation_amount: U128::from(delegator.deposit_amount),
+                                    });
+                                });
+                            }
+                            None => (),
+                        }
+                    }
+                    None => (),
+                }
+            }
+            None => {
+                let next_validator_set = self.next_validator_set.get().unwrap();
+                match next_validator_set
+                    .validator_id_to_delegator_id_set
+                    .get(&validator_id)
+                {
+                    Some(delegator_id_set) => {
+                        let delegator_ids = delegator_id_set.to_vec();
+                        delegator_ids.iter().for_each(|delegator_id| {
+                            let delegator = next_validator_set
+                                .delegators
+                                .get(&(delegator_id.clone(), validator_id.clone()))
+                                .unwrap();
+                            result.push(AppchainDelegator {
+                                delegator_id: delegator_id.clone(),
+                                delegation_amount: U128::from(delegator.deposit_amount),
+                            });
+                        });
+                    }
+                    None => (),
+                }
+            }
+        };
+        result
     }
     //
     fn get_unbonded_stakes_of(&self, account_id: AccountId) -> Vec<UnbondedStake> {
@@ -252,7 +345,7 @@ impl AnchorViewer for AppchainAnchor {
     ) -> Vec<RewardHistory> {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let mut reward_histories = Vec::<RewardHistory>::new();
-        for era_number in start_era.0..end_era.0 {
+        for era_number in start_era.0..end_era.0 + 1 {
             if let Some(validator_set) = validator_set_histories.get(&era_number) {
                 if let Some(reward) = validator_set.validator_rewards.get(&validator_id) {
                     reward_histories.push(RewardHistory {
@@ -277,7 +370,7 @@ impl AnchorViewer for AppchainAnchor {
     ) -> Vec<RewardHistory> {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let mut reward_histories = Vec::<RewardHistory>::new();
-        for era_number in start_era.0..end_era.0 {
+        for era_number in start_era.0..end_era.0 + 1 {
             if let Some(validator_set) = validator_set_histories.get(&era_number) {
                 if let Some(reward) = validator_set
                     .delegator_rewards

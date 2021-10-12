@@ -60,8 +60,9 @@ pub struct ProtocolSettings {
     /// The minimum deposit amount for a delegator to delegate his voting weight to
     /// a certain validator.
     pub minimum_delegator_deposit: U128,
-    /// The minimum value of total stake in this contract for booting corresponding appchain
-    pub minimum_total_stake_for_booting: U128,
+    /// The minimum price (in USD) of total stake in this contract for
+    /// booting corresponding appchain
+    pub minimum_total_stake_price_for_booting: U128,
     /// The maximum percentage of the total market value of all NEP-141 tokens to the total
     /// market value of OCT token staked in this contract
     pub maximum_market_value_percent_of_near_fungible_tokens: u16,
@@ -82,6 +83,10 @@ pub struct ProtocolSettings {
     /// The maximum number of historical eras that the validators or delegators are allowed to
     /// withdraw their reward
     pub maximum_era_count_of_unwithdrawn_reward: U64,
+    /// The maximum number of valid appchain message.
+    /// If the era number of appchain message is smaller than the latest era number minus
+    /// this value, the message will be considered as `invalid`.
+    pub maximum_era_count_of_valid_appchain_message: U64,
     /// The percent of delegation fee of the a delegator's reward in an era
     pub delegation_fee_percent: u16,
 }
@@ -239,6 +244,13 @@ pub struct AppchainValidator {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub struct AppchainDelegator {
+    pub delegator_id: AccountId,
+    pub delegation_amount: U128,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct UnbondedStake {
     /// The number of era in appchain.
     pub era_number: U64,
@@ -248,6 +260,27 @@ pub struct UnbondedStake {
     pub amount: U128,
     /// The unlock time of the stake
     pub unlock_time: Timestamp,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum ValidatorSetProcessingStatus {
+    CopyingFromLastEra {
+        copying_validator_index: u64,
+        copying_delegator_index: u64,
+    },
+    ApplyingStakingHistory {
+        applying_index: u64,
+    },
+    MakingValidatorList {
+        making_index: u64,
+    },
+    ReadyForDistributingReward,
+    DistributingReward {
+        distributing_validator_index: u64,
+        distributing_delegator_index: u64,
+    },
+    Completed,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -331,4 +364,27 @@ pub struct AnchorStatus {
     pub index_range_of_staking_history: IndexRange,
     pub index_range_of_token_bridging_history: IndexRange,
     pub permissionless_actions_status: PermissionlessActionsStatus,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ValidatorSetInfo {
+    /// The number of era in appchain.
+    pub era_number: U64,
+    /// Total stake of current set
+    pub total_stake: U128,
+    /// The validator list for query
+    pub validator_list: Vec<AppchainValidator>,
+    /// The block height when the era starts.
+    pub start_block_height: U64,
+    /// The timestamp when the era starts.
+    pub start_timestamp: U64,
+    /// The index of the latest staking history happened in the era of corresponding appchain.
+    pub staking_history_index: U64,
+    /// The set of validator id which will not be profited.
+    pub unprofitable_validator_ids: Vec<AccountId>,
+    /// Total stake excluding all unprofitable validators' stake.
+    pub valid_total_stake: U128,
+    /// The status of creation of this set
+    pub processing_status: ValidatorSetProcessingStatus,
 }
