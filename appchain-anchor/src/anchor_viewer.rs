@@ -307,10 +307,12 @@ impl AnchorViewer for AppchainAnchor {
                         era_number: U64::from(reference.era_number),
                         account_id: validator_id,
                         amount,
-                        unlock_time: validator_set.start_timestamp
-                            + protocol_settings.unlock_period_of_validator_deposit.0
-                                * SECONDS_OF_A_DAY
-                                * NANO_SECONDS_MULTIPLE,
+                        unlock_time: U64::from(
+                            validator_set.start_timestamp
+                                + protocol_settings.unlock_period_of_validator_deposit.0
+                                    * SECONDS_OF_A_DAY
+                                    * NANO_SECONDS_MULTIPLE,
+                        ),
                     }),
                     StakingFact::DelegationDecreased {
                         delegator_id,
@@ -325,10 +327,12 @@ impl AnchorViewer for AppchainAnchor {
                         era_number: U64::from(reference.era_number),
                         account_id: delegator_id,
                         amount,
-                        unlock_time: validator_set.start_timestamp
-                            + protocol_settings.unlock_period_of_delegator_deposit.0
-                                * SECONDS_OF_A_DAY
-                                * NANO_SECONDS_MULTIPLE,
+                        unlock_time: U64::from(
+                            validator_set.start_timestamp
+                                + protocol_settings.unlock_period_of_delegator_deposit.0
+                                    * SECONDS_OF_A_DAY
+                                    * NANO_SECONDS_MULTIPLE,
+                        ),
                     }),
                     _ => (),
                 };

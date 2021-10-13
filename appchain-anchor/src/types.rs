@@ -254,12 +254,13 @@ pub struct AppchainDelegator {
 pub struct UnbondedStake {
     /// The number of era in appchain.
     pub era_number: U64,
-    /// The account id of the owner of unbonded stake
+    /// The account id of the owner of unbonded stake.
     pub account_id: AccountId,
-    /// The amount of unbonded stake
+    /// The amount of unbonded stake.
     pub amount: U128,
-    /// The unlock time of the stake
-    pub unlock_time: Timestamp,
+    /// The unlock time of the stake.
+    /// If the unlock time is not determined at the time, the value will be `None`.
+    pub unlock_time: U64,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

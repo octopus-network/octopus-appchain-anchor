@@ -376,6 +376,7 @@ impl AppchainAnchor {
         validator_set: &mut ValidatorSetOfEra,
         staking_history: &StakingHistory,
     ) {
+        validator_set.apply_staking_history(staking_history);
         match &staking_history.staking_fact {
             StakingFact::StakeDecreased {
                 validator_id,
@@ -390,7 +391,7 @@ impl AppchainAnchor {
                     None => Vec::<UnbondedStakeReference>::new(),
                 };
                 stakes.push(UnbondedStakeReference {
-                    era_number: validator_set.validator_set.era_number + 1,
+                    era_number: validator_set.validator_set.era_number,
                     staking_history_index: staking_history.index.0,
                 });
                 self.unbonded_stakes.insert(validator_id, &stakes);
@@ -410,14 +411,13 @@ impl AppchainAnchor {
                     None => Vec::<UnbondedStakeReference>::new(),
                 };
                 stakes.push(UnbondedStakeReference {
-                    era_number: validator_set.validator_set.era_number + 1,
+                    era_number: validator_set.validator_set.era_number,
                     staking_history_index: staking_history.index.0,
                 });
                 self.unbonded_stakes.insert(delegator_id, &stakes);
             }
             _ => (),
         }
-        validator_set.apply_staking_history(staking_history);
     }
     //
     fn make_validator_list_in_validator_set(

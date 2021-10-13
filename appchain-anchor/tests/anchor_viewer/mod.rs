@@ -1,7 +1,7 @@
 use appchain_anchor::types::{
     AnchorSettings, AnchorStatus, AppchainDelegator, AppchainSettings, AppchainState,
-    AppchainValidator, ProtocolSettings, RewardHistory, StakingHistory, ValidatorSetInfo,
-    ValidatorSetProcessingStatus,
+    AppchainValidator, ProtocolSettings, RewardHistory, StakingHistory, UnbondedStake,
+    ValidatorSetInfo, ValidatorSetProcessingStatus,
 };
 use appchain_anchor::AppchainAnchorContract;
 
@@ -85,6 +85,15 @@ pub fn get_delegators_of_validator_in_era(
     ));
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Vec<AppchainDelegator>>()
+}
+
+pub fn get_unbonded_stakes_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    account: &UserAccount,
+) -> Vec<UnbondedStake> {
+    let view_result = view!(anchor.get_unbonded_stakes_of(account.valid_account_id().to_string()));
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<UnbondedStake>>()
 }
 
 pub fn get_validator_rewards_of(
