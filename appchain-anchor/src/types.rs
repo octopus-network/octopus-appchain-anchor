@@ -254,12 +254,34 @@ pub struct AppchainDelegator {
 pub struct UnbondedStake {
     /// The number of era in appchain.
     pub era_number: U64,
-    /// The account id of the owner of unbonded stake
+    /// The account id of the owner of unbonded stake.
     pub account_id: AccountId,
-    /// The amount of unbonded stake
+    /// The amount of unbonded stake.
     pub amount: U128,
-    /// The unlock time of the stake
-    pub unlock_time: Timestamp,
+    /// The unlock time of the stake.
+    /// If the unlock time is not determined at the time, the value will be `None`.
+    pub unlock_time: U64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum ValidatorSetProcessingStatus {
+    CopyingFromLastEra {
+        copying_validator_index: u64,
+        copying_delegator_index: u64,
+    },
+    ApplyingStakingHistory {
+        applying_index: u64,
+    },
+    MakingValidatorList {
+        making_index: u64,
+    },
+    ReadyForDistributingReward,
+    DistributingReward {
+        distributing_validator_index: u64,
+        distributing_delegator_index: u64,
+    },
+    Completed,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

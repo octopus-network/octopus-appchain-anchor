@@ -284,40 +284,91 @@ impl AppchainAnchor {
                 .validators
                 .insert(validator_id, &validator);
         }
-        let delegater_ids = source_validator_set
+        if let Some(delegator_id_set) = source_validator_set
             .validator_set
             .validator_id_to_delegator_id_set
             .get(validator_id)
-            .unwrap()
-            .to_vec();
-        if delegator_index >= delegater_ids.len().try_into().unwrap() {
+        {
+            let delegator_ids = delegator_id_set.to_vec();
+            if delegator_index >= delegator_ids.len().try_into().unwrap() {
+                return ResultOfLoopingValidatorSet::NoMoreDelegator;
+            }
+            let delegator_id = delegator_ids
+                .get(usize::try_from(delegator_index).unwrap())
+                .unwrap();
+            let delegator = source_validator_set
+                .validator_set
+                .delegators
+                .get(&(delegator_id.clone(), validator_id.clone()))
+                .unwrap();
+            target_validator_set
+                .validator_set
+                .delegators
+                .insert(&(delegator_id.clone(), validator_id.clone()), &delegator);
+            //
+            if !target_validator_set
+                .validator_set
+                .validator_id_to_delegator_id_set
+                .contains_key(validator_id)
+            {
+                target_validator_set
+                    .validator_set
+                    .validator_id_to_delegator_id_set
+                    .insert(
+                        validator_id,
+                        &UnorderedSet::new(
+                            StorageKey::DelegatorIdsInMapOfVToDOfEra {
+                                era_number: target_validator_set.validator_set.era_number,
+                                validator_id: validator_id.clone(),
+                            }
+                            .into_bytes(),
+                        ),
+                    );
+            }
+            let mut delegator_id_set = target_validator_set
+                .validator_set
+                .validator_id_to_delegator_id_set
+                .get(validator_id)
+                .unwrap();
+            delegator_id_set.insert(delegator_id);
+            target_validator_set
+                .validator_set
+                .validator_id_to_delegator_id_set
+                .insert(validator_id, &delegator_id_set);
+            //
+            if !target_validator_set
+                .validator_set
+                .delegator_id_to_validator_id_set
+                .contains_key(delegator_id)
+            {
+                target_validator_set
+                    .validator_set
+                    .delegator_id_to_validator_id_set
+                    .insert(
+                        delegator_id,
+                        &UnorderedSet::new(
+                            StorageKey::ValidatorIdsInMapOfDToVOfEra {
+                                era_number: target_validator_set.validator_set.era_number,
+                                delegator_id: delegator_id.clone(),
+                            }
+                            .into_bytes(),
+                        ),
+                    );
+            }
+            let mut validator_id_set = target_validator_set
+                .validator_set
+                .delegator_id_to_validator_id_set
+                .get(delegator_id)
+                .unwrap();
+            validator_id_set.insert(validator_id);
+            target_validator_set
+                .validator_set
+                .delegator_id_to_validator_id_set
+                .insert(delegator_id, &validator_id_set);
+            return ResultOfLoopingValidatorSet::NeedToContinue;
+        } else {
             return ResultOfLoopingValidatorSet::NoMoreDelegator;
         }
-        let delegator_id = delegater_ids
-            .get(usize::try_from(delegator_index).unwrap())
-            .unwrap();
-        let delegator = source_validator_set
-            .validator_set
-            .delegators
-            .get(&(delegator_id.clone(), validator_id.clone()))
-            .unwrap();
-        target_validator_set
-            .validator_set
-            .delegators
-            .insert(&(delegator_id.clone(), validator_id.clone()), &delegator);
-        target_validator_set
-            .validator_set
-            .validator_id_to_delegator_id_set
-            .get(validator_id)
-            .unwrap()
-            .insert(delegator_id);
-        target_validator_set
-            .validator_set
-            .delegator_id_to_validator_id_set
-            .get(delegator_id)
-            .unwrap()
-            .insert(validator_id);
-        return ResultOfLoopingValidatorSet::NeedToContinue;
     }
     //
     fn apply_staking_history_to_validator_set(
@@ -325,6 +376,7 @@ impl AppchainAnchor {
         validator_set: &mut ValidatorSetOfEra,
         staking_history: &StakingHistory,
     ) {
+        validator_set.apply_staking_history(staking_history);
         match &staking_history.staking_fact {
             StakingFact::StakeDecreased {
                 validator_id,
@@ -339,7 +391,7 @@ impl AppchainAnchor {
                     None => Vec::<UnbondedStakeReference>::new(),
                 };
                 stakes.push(UnbondedStakeReference {
-                    era_number: validator_set.validator_set.era_number + 1,
+                    era_number: validator_set.validator_set.era_number,
                     staking_history_index: staking_history.index.0,
                 });
                 self.unbonded_stakes.insert(validator_id, &stakes);
@@ -359,14 +411,13 @@ impl AppchainAnchor {
                     None => Vec::<UnbondedStakeReference>::new(),
                 };
                 stakes.push(UnbondedStakeReference {
-                    era_number: validator_set.validator_set.era_number + 1,
+                    era_number: validator_set.validator_set.era_number,
                     staking_history_index: staking_history.index.0,
                 });
                 self.unbonded_stakes.insert(delegator_id, &stakes);
             }
             _ => (),
         }
-        validator_set.apply_staking_history(staking_history);
     }
     //
     fn make_validator_list_in_validator_set(

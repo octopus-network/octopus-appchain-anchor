@@ -90,36 +90,36 @@ pub fn decrease_stake(
     anchor: &ContractAccount<AppchainAnchorContract>,
     amount: u128,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.decrease_stake(amount.into()));
-    common::print_outcome_result("decrease_stake", &outcome);
-    outcome
+    let result = call!(signer, anchor.decrease_stake(amount.into()));
+    common::print_execution_result("decrease_stake", &result);
+    result
 }
 
 pub fn unbond_stake(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.unbond_stake());
-    common::print_outcome_result("unbond_stake", &outcome);
-    outcome
+    let result = call!(signer, anchor.unbond_stake());
+    common::print_execution_result("unbond_stake", &result);
+    result
 }
 
 pub fn enable_delegation(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.enable_delegation());
-    common::print_outcome_result("enable_delegation", &outcome);
-    outcome
+    let result = call!(signer, anchor.enable_delegation());
+    common::print_execution_result("enable_delegation", &result);
+    result
 }
 
 pub fn disable_delegation(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.disable_delegation());
-    common::print_outcome_result("disable_delegation", &outcome);
-    outcome
+    let result = call!(signer, anchor.disable_delegation());
+    common::print_execution_result("disable_delegation", &result);
+    result
 }
 
 pub fn decrease_delegation(
@@ -128,12 +128,12 @@ pub fn decrease_delegation(
     validator_id: &String,
     amount: u128,
 ) -> ExecutionResult {
-    let outcome = call!(
+    let result = call!(
         signer,
         anchor.decrease_delegation(validator_id.clone(), amount.into())
     );
-    common::print_outcome_result("decrease_delegation", &outcome);
-    outcome
+    common::print_execution_result("decrease_delegation", &result);
+    result
 }
 
 pub fn unbond_delegation(
@@ -141,9 +141,9 @@ pub fn unbond_delegation(
     anchor: &ContractAccount<AppchainAnchorContract>,
     validator_id: &String,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.unbond_delegation(validator_id.clone()));
-    common::print_outcome_result("unbond_delegation", &outcome);
-    outcome
+    let result = call!(signer, anchor.unbond_delegation(validator_id.clone()));
+    common::print_execution_result("unbond_delegation", &result);
+    result
 }
 
 pub fn withdraw_stake(
@@ -151,9 +151,9 @@ pub fn withdraw_stake(
     anchor: &ContractAccount<AppchainAnchorContract>,
     account_id: &String,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.withdraw_stake(account_id.clone()));
-    common::print_outcome_result("withdraw_stake", &outcome);
-    outcome
+    let result = call!(signer, anchor.withdraw_stake(account_id.clone()));
+    common::print_execution_result("withdraw_stake", &result);
+    result
 }
 
 pub fn withdraw_validator_rewards(
@@ -161,12 +161,12 @@ pub fn withdraw_validator_rewards(
     anchor: &ContractAccount<AppchainAnchorContract>,
     validator_id: &String,
 ) -> ExecutionResult {
-    let outcome = call!(
+    let result = call!(
         signer,
         anchor.withdraw_validator_rewards(validator_id.clone())
     );
-    common::print_outcome_result("withdraw_validator_rewards", &outcome);
-    outcome
+    common::print_execution_result("withdraw_validator_rewards", &result);
+    result
 }
 
 pub fn withdraw_delegator_rewards(
@@ -175,10 +175,10 @@ pub fn withdraw_delegator_rewards(
     delegator_id: &String,
     validator_id: &String,
 ) -> ExecutionResult {
-    let outcome = call!(
+    let result = call!(
         signer,
         anchor.withdraw_delegator_rewards(delegator_id.clone(), validator_id.clone())
     );
-    common::print_outcome_result("withdraw_delegator_rewards", &outcome);
-    outcome
+    common::print_execution_result("withdraw_delegator_rewards", &result);
+    result
 }

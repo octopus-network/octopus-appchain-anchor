@@ -7,6 +7,9 @@ pub fn get_ft_balance_of(
     oct_token: &ContractAccount<MockOctTokenContract>,
 ) -> U128 {
     let view_result = view!(oct_token.ft_balance_of(user.valid_account_id()));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<U128>()
 }

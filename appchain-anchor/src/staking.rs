@@ -266,13 +266,12 @@ impl AppchainAnchor {
         &mut self,
         staking_fact: StakingFact,
         next_validator_set: &mut ValidatorSet,
-    ) -> u64 {
+    ) {
         let mut staking_histories = self.staking_histories.get().unwrap();
         let staking_history = staking_histories.append(staking_fact);
         self.staking_histories.set(&staking_histories);
         next_validator_set.apply_staking_history(&staking_history);
         self.next_validator_set.set(next_validator_set);
-        staking_history.index.0
     }
     //
     fn increase_delegation(
@@ -320,28 +319,13 @@ impl StakingManager for AppchainAnchor {
             "Unable to decrease so much stake."
         );
         self.assert_total_stake_price(amount.0);
-        let index = self.record_staking_fact(
+        self.record_staking_fact(
             StakingFact::StakeDecreased {
                 validator_id: validator_id.clone(),
                 amount,
             },
             &mut next_validator_set,
         );
-        let mut unbond_stakes = match self.unbonded_stakes.contains_key(&validator_id) {
-            true => self.unbonded_stakes.get(&validator_id).unwrap(),
-            false => Vec::<UnbondedStakeReference>::new(),
-        };
-        unbond_stakes.push(UnbondedStakeReference {
-            era_number: self
-                .validator_set_histories
-                .get()
-                .unwrap()
-                .index_range()
-                .end_index
-                .0
-                + 1,
-            staking_history_index: index,
-        });
     }
     //
     fn unbond_stake(&mut self) {
@@ -354,37 +338,41 @@ impl StakingManager for AppchainAnchor {
         };
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let protocol_settings = self.protocol_settings.get().unwrap();
-        assert_eq!(
-            next_validator_set.validator_id_set.len(),
-            protocol_settings.minimum_validator_count.0,
+        assert!(
+            next_validator_set.validator_id_set.len() > protocol_settings.minimum_validator_count.0,
             "Too few validators. Cannot unbond any more."
         );
         let validator_id = env::predecessor_account_id();
         self.assert_validator_id(&validator_id, &next_validator_set);
         let validator = next_validator_set.validators.get(&validator_id).unwrap();
-        self.assert_total_stake_price(validator.deposit_amount);
-        let index = self.record_staking_fact(
+        self.assert_total_stake_price(validator.total_stake);
+        if let Some(delegator_id_set) = next_validator_set
+            .validator_id_to_delegator_id_set
+            .get(&validator_id)
+        {
+            let delegator_ids = delegator_id_set.to_vec();
+            delegator_ids.iter().for_each(|delegator_id| {
+                let delegator = next_validator_set
+                    .delegators
+                    .get(&(delegator_id.clone(), validator_id.clone()))
+                    .unwrap();
+                self.record_staking_fact(
+                    StakingFact::DelegatorUnbonded {
+                        delegator_id: delegator_id.clone(),
+                        validator_id: validator_id.clone(),
+                        amount: U128::from(delegator.deposit_amount),
+                    },
+                    &mut next_validator_set,
+                );
+            });
+        }
+        self.record_staking_fact(
             StakingFact::ValidatorUnbonded {
                 validator_id: validator_id.clone(),
                 amount: U128::from(validator.deposit_amount),
             },
             &mut next_validator_set,
         );
-        let mut unbond_stakes = match self.unbonded_stakes.contains_key(&validator_id) {
-            true => self.unbonded_stakes.get(&validator_id).unwrap(),
-            false => Vec::<UnbondedStakeReference>::new(),
-        };
-        unbond_stakes.push(UnbondedStakeReference {
-            era_number: self
-                .validator_set_histories
-                .get()
-                .unwrap()
-                .index_range()
-                .end_index
-                .0
-                + 1,
-            staking_history_index: index,
-        });
     }
     //
     fn enable_delegation(&mut self) {
@@ -430,7 +418,7 @@ impl StakingManager for AppchainAnchor {
             "Unable to decrease so much stake."
         );
         self.assert_total_stake_price(amount.0);
-        let index = self.record_staking_fact(
+        self.record_staking_fact(
             StakingFact::DelegationDecreased {
                 delegator_id: delegator_id.clone(),
                 validator_id: validator_id.clone(),
@@ -438,21 +426,6 @@ impl StakingManager for AppchainAnchor {
             },
             &mut next_validator_set,
         );
-        let mut unbond_stakes = match self.unbonded_stakes.contains_key(&delegator_id) {
-            true => self.unbonded_stakes.get(&delegator_id).unwrap(),
-            false => Vec::<UnbondedStakeReference>::new(),
-        };
-        unbond_stakes.push(UnbondedStakeReference {
-            era_number: self
-                .validator_set_histories
-                .get()
-                .unwrap()
-                .index_range()
-                .end_index
-                .0
-                + 1,
-            staking_history_index: index,
-        });
     }
     //
     fn unbond_delegation(&mut self, validator_id: AccountId) {
@@ -471,7 +444,7 @@ impl StakingManager for AppchainAnchor {
             .get(&(delegator_id.clone(), validator_id.clone()))
             .unwrap();
         self.assert_total_stake_price(delegator.deposit_amount);
-        let index = self.record_staking_fact(
+        self.record_staking_fact(
             StakingFact::DelegatorUnbonded {
                 delegator_id: delegator_id.clone(),
                 validator_id: validator_id.clone(),
@@ -479,21 +452,6 @@ impl StakingManager for AppchainAnchor {
             },
             &mut next_validator_set,
         );
-        let mut unbond_stakes = match self.unbonded_stakes.contains_key(&delegator_id) {
-            true => self.unbonded_stakes.get(&delegator_id).unwrap(),
-            false => Vec::<UnbondedStakeReference>::new(),
-        };
-        unbond_stakes.push(UnbondedStakeReference {
-            era_number: self
-                .validator_set_histories
-                .get()
-                .unwrap()
-                .index_range()
-                .end_index
-                .0
-                + 1,
-            staking_history_index: index,
-        });
     }
     //
     fn withdraw_stake(&mut self, account_id: AccountId) {

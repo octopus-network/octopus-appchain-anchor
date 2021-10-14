@@ -197,26 +197,27 @@ impl ValidatorSetActions for ValidatorSet {
                 validator_id,
                 amount: _,
             } => {
-                let delegator_ids = self
-                    .validator_id_to_delegator_id_set
-                    .get(validator_id)
-                    .unwrap()
-                    .to_vec();
-                delegator_ids.iter().for_each(|delegator_id| {
-                    self.delegators
-                        .remove(&(delegator_id.clone(), validator_id.clone()));
-                    if let Some(mut validator_id_set) =
-                        self.delegator_id_to_validator_id_set.get(delegator_id)
-                    {
-                        validator_id_set.remove(validator_id);
-                        if validator_id_set.len() > 0 {
-                            self.delegator_id_to_validator_id_set
-                                .insert(delegator_id, &validator_id_set);
-                        } else {
-                            self.delegator_id_to_validator_id_set.remove(delegator_id);
+                if let Some(delegator_id_set) =
+                    self.validator_id_to_delegator_id_set.get(validator_id)
+                {
+                    let delegator_ids = delegator_id_set.to_vec();
+                    delegator_ids.iter().for_each(|delegator_id| {
+                        self.delegators
+                            .remove(&(delegator_id.clone(), validator_id.clone()));
+                        if let Some(mut validator_id_set) =
+                            self.delegator_id_to_validator_id_set.get(delegator_id)
+                        {
+                            validator_id_set.remove(validator_id);
+                            if validator_id_set.len() > 0 {
+                                self.delegator_id_to_validator_id_set
+                                    .insert(delegator_id, &validator_id_set);
+                            } else {
+                                self.delegator_id_to_validator_id_set.remove(delegator_id);
+                            }
                         }
-                    }
-                });
+                    });
+                    self.validator_id_to_delegator_id_set.remove(validator_id);
+                }
                 let validator = self.validators.remove(validator_id).unwrap();
                 self.total_stake -= validator.total_stake;
                 self.validator_id_set.remove(validator_id);
