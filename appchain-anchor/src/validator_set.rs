@@ -410,8 +410,8 @@ impl ValidatorSetOfEra {
                 StorageKey::DelegatorRewardsOfEra(era_number).into_bytes(),
             ),
             processing_status: ValidatorSetProcessingStatus::CopyingFromLastEra {
-                copying_validator_index: 0,
-                copying_delegator_index: 0,
+                copying_validator_index: U64::from(0),
+                copying_delegator_index: U64::from(0),
             },
         }
     }

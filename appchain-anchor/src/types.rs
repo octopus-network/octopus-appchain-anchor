@@ -267,40 +267,19 @@ pub struct UnbondedStake {
 #[serde(crate = "near_sdk::serde")]
 pub enum ValidatorSetProcessingStatus {
     CopyingFromLastEra {
-        copying_validator_index: u64,
-        copying_delegator_index: u64,
+        copying_validator_index: U64,
+        copying_delegator_index: U64,
     },
     ApplyingStakingHistory {
-        applying_index: u64,
+        applying_index: U64,
     },
     MakingValidatorList {
-        making_index: u64,
+        making_index: U64,
     },
     ReadyForDistributingReward,
     DistributingReward {
-        distributing_validator_index: u64,
-        distributing_delegator_index: u64,
-    },
-    Completed,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub enum ValidatorSetProcessingStatus {
-    CopyingFromLastEra {
-        copying_validator_index: u64,
-        copying_delegator_index: u64,
-    },
-    ApplyingStakingHistory {
-        applying_index: u64,
-    },
-    MakingValidatorList {
-        making_index: u64,
-    },
-    ReadyForDistributingReward,
-    DistributingReward {
-        distributing_validator_index: u64,
-        distributing_delegator_index: u64,
+        distributing_validator_index: U64,
+        distributing_delegator_index: U64,
     },
     Completed,
 }
