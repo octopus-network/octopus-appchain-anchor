@@ -8,7 +8,7 @@ use appchain_anchor::{
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
 use near_sdk::{json_types::U64, serde_json};
-use near_sdk_sim::{outcome, ContractAccount, UserAccount};
+use near_sdk_sim::{ContractAccount, UserAccount};
 
 mod anchor_viewer;
 mod common;
@@ -53,10 +53,6 @@ fn test_staging_actions() {
     );
     //
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
     //
@@ -79,10 +75,6 @@ fn test_staging_actions() {
         user0_balance.0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
     //
@@ -105,10 +97,6 @@ fn test_staging_actions() {
         user0_balance.0 - amount0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(anchor_status.total_stake_in_next_era.0, amount0);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 1);
     //
@@ -131,10 +119,6 @@ fn test_staging_actions() {
         user1_balance.0 - amount1
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
     //
@@ -155,10 +139,6 @@ fn test_staging_actions() {
         user2_balance.0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
     //
@@ -179,10 +159,6 @@ fn test_staging_actions() {
         user2_balance.0 - amount2_0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(
         anchor_status.total_stake_in_next_era.0,
         amount0 + amount1 + amount2_0
@@ -206,10 +182,6 @@ fn test_staging_actions() {
         user2_balance.0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(
         anchor_status.total_stake_in_next_era.0,
         amount0 + amount1 + amount2_0
@@ -233,10 +205,6 @@ fn test_staging_actions() {
         user3_balance.0 - amount3_0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(
         anchor_status.total_stake_in_next_era.0,
         amount0 + amount1 + amount2_0 + amount3_0
@@ -254,10 +222,6 @@ fn test_staging_actions() {
         user0_balance.0 - amount0_p
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(
         anchor_status.total_stake_in_next_era.0,
         amount0 + amount1 + amount2_0 + amount3_0 + amount0_p
@@ -281,26 +245,16 @@ fn test_staging_actions() {
         user2_balance.0 - amount2_0_p
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(
         anchor_status.total_stake_in_next_era.0,
         amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p
     );
     assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
     //
-    // Get staking histories
+    // Print anchor status and staking histories
     //
-    for i in 0..6 {
-        let staking_history = anchor_viewer::get_staking_history(&anchor, i.try_into().unwrap());
-        println!(
-            "Staking history {}: {}",
-            i,
-            serde_json::to_string(&staking_history).unwrap()
-        );
-    }
+    print_anchor_status(&anchor);
+    print_staking_histories(&anchor);
     //
     // Try go_booting
     //
@@ -355,12 +309,6 @@ fn test_staging_actions() {
         anchor_viewer::get_appchain_state(&anchor),
         AppchainState::Booting
     );
-    let processing_status = anchor_viewer::get_processing_status_of(&anchor, 0);
-    println!(
-        "Processing status of era {}: {}",
-        0,
-        serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
-    );
     //
     // Try complete switching era0
     //
@@ -376,14 +324,6 @@ fn test_staging_actions() {
         anchor_viewer::get_appchain_state(&anchor),
         AppchainState::Active
     );
-    //
-    // Distribut reward of era0
-    //
-    distribute_reward_of(&root, &anchor, 0);
-    print_validator_reward_histories(&anchor, &users[0], 0);
-    print_validator_reward_histories(&anchor, &users[1], 0);
-    print_delegator_reward_histories(&anchor, &users[2], &users[0], 0);
-    print_delegator_reward_histories(&anchor, &users[3], &users[0], 0);
     //
     // user4 register validator
     //
@@ -404,15 +344,15 @@ fn test_staging_actions() {
         user4_balance.0 - amount4
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
     assert_eq!(
         anchor_status.total_stake_in_next_era.0,
         amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p + amount4
     );
     assert_eq!(anchor_status.validator_count_in_next_era.0, 3);
+    //
+    // Print staking histories
+    //
+    print_staking_histories(&anchor);
     //
     // Try start and complete switching era1
     //
@@ -422,22 +362,18 @@ fn test_staging_actions() {
     //
     // Distribut reward of era0
     //
-    distribute_reward_of(&root, &anchor, 1);
-    print_validator_reward_histories(&anchor, &users[0], 1);
-    print_validator_reward_histories(&anchor, &users[1], 1);
-    print_delegator_reward_histories(&anchor, &users[2], &users[0], 1);
-    print_delegator_reward_histories(&anchor, &users[3], &users[0], 1);
-    print_validator_reward_histories(&anchor, &users[4], 1);
+    distribute_reward_of(&root, &anchor, 0);
+    print_validator_reward_histories(&anchor, &users[0], 0);
+    print_validator_reward_histories(&anchor, &users[1], 0);
+    print_delegator_reward_histories(&anchor, &users[2], &users[0], 0);
+    print_delegator_reward_histories(&anchor, &users[3], &users[0], 0);
+    print_validator_reward_histories(&anchor, &users[4], 0);
     //
     // user1 decrease stake
     //
     let outcome = staking_actions::decrease_stake(&users[1], &anchor, common::to_oct_amount(1000));
     outcome.assert_success();
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
+    print_anchor_status(&anchor);
     let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[1]);
     assert!(unbonded_stakes.len() == 0);
     //
@@ -450,13 +386,13 @@ fn test_staging_actions() {
         common::to_oct_amount(200),
     );
     outcome.assert_success();
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
+    print_anchor_status(&anchor);
     let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[2]);
     assert!(unbonded_stakes.len() == 0);
+    //
+    // Print staking histories
+    //
+    print_staking_histories(&anchor);
     //
     // Try start and complete switching era2
     //
@@ -464,15 +400,107 @@ fn test_staging_actions() {
     print_validator_list_of(&anchor, 2);
     print_delegator_list_of(&anchor, 2, &users[0]);
     //
+    // Distribute reward of era1
+    //
+    distribute_reward_of(&root, &anchor, 1);
+    print_validator_reward_histories(&anchor, &users[0], 1);
+    print_validator_reward_histories(&anchor, &users[1], 1);
+    print_delegator_reward_histories(&anchor, &users[2], &users[0], 1);
+    print_delegator_reward_histories(&anchor, &users[3], &users[0], 1);
+    print_validator_reward_histories(&anchor, &users[4], 1);
+    print_unbonded_stakes_of(&anchor, &users[0]);
+    print_unbonded_stakes_of(&anchor, &users[1]);
+    print_unbonded_stakes_of(&anchor, &users[2]);
+    print_unbonded_stakes_of(&anchor, &users[3]);
+    print_unbonded_stakes_of(&anchor, &users[4]);
+    //
+    // user3 unbond delegation
+    //
+    let outcome = staking_actions::unbond_delegation(
+        &users[2],
+        &anchor,
+        &users[0].valid_account_id().to_string(),
+    );
+    outcome.assert_success();
+    print_anchor_status(&anchor);
+    let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[2]);
+    assert!(unbonded_stakes.len() == 1);
+    //
+    // Print staking histories
+    //
+    print_staking_histories(&anchor);
+    //
+    // Try start and complete switching era3
+    //
+    switch_era(&root, &anchor, 3);
+    print_validator_list_of(&anchor, 3);
+    print_delegator_list_of(&anchor, 3, &users[0]);
+    //
     // Distribute reward of era2
     //
     distribute_reward_of(&root, &anchor, 2);
+    print_validator_reward_histories(&anchor, &users[0], 2);
     print_validator_reward_histories(&anchor, &users[1], 2);
     print_delegator_reward_histories(&anchor, &users[2], &users[0], 2);
     print_delegator_reward_histories(&anchor, &users[3], &users[0], 2);
     print_validator_reward_histories(&anchor, &users[4], 2);
+    print_unbonded_stakes_of(&anchor, &users[0]);
     print_unbonded_stakes_of(&anchor, &users[1]);
     print_unbonded_stakes_of(&anchor, &users[2]);
+    print_unbonded_stakes_of(&anchor, &users[3]);
+    print_unbonded_stakes_of(&anchor, &users[4]);
+    //
+    // user0 unbond stake
+    //
+    let outcome = staking_actions::unbond_stake(&users[0], &anchor);
+    outcome.assert_success();
+    print_anchor_status(&anchor);
+    let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[0]);
+    assert!(unbonded_stakes.len() == 0);
+    //
+    // Print staking histories
+    //
+    print_staking_histories(&anchor);
+    //
+    // Try start and complete switching era3
+    //
+    switch_era(&root, &anchor, 4);
+    print_validator_list_of(&anchor, 4);
+    print_delegator_list_of(&anchor, 4, &users[0]);
+    //
+    // Distribute reward of era2
+    //
+    distribute_reward_of(&root, &anchor, 3);
+    print_validator_reward_histories(&anchor, &users[0], 3);
+    print_validator_reward_histories(&anchor, &users[1], 3);
+    print_delegator_reward_histories(&anchor, &users[2], &users[0], 3);
+    print_delegator_reward_histories(&anchor, &users[3], &users[0], 3);
+    print_validator_reward_histories(&anchor, &users[4], 3);
+    print_unbonded_stakes_of(&anchor, &users[0]);
+    print_unbonded_stakes_of(&anchor, &users[1]);
+    print_unbonded_stakes_of(&anchor, &users[2]);
+    print_unbonded_stakes_of(&anchor, &users[3]);
+    print_unbonded_stakes_of(&anchor, &users[4]);
+}
+
+fn print_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let anchor_status = anchor_viewer::get_anchor_status(anchor);
+    println!(
+        "Anchor status: {}",
+        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+    );
+}
+
+fn print_staking_histories(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let index_range = anchor_viewer::get_index_range_of_staking_history(anchor);
+    for i in index_range.start_index.0..index_range.end_index.0 + 1 {
+        let staking_history = anchor_viewer::get_staking_history(anchor, i.try_into().unwrap());
+        println!(
+            "Staking history {}: {}",
+            i,
+            serde_json::to_string(&staking_history).unwrap()
+        );
+    }
 }
 
 fn switch_era(

@@ -9,12 +9,12 @@ pub fn change_minimum_validator_count(
     anchor: &ContractAccount<AppchainAnchorContract>,
     value: u64,
 ) -> ExecutionResult {
-    let outcome = call!(
+    let result = call!(
         signer,
         anchor.change_minimum_validator_count(U64::from(value))
     );
-    common::print_outcome_result("change_minimum_validator_count", &outcome);
-    outcome
+    common::print_execution_result("change_minimum_validator_count", &result);
+    result
 }
 
 pub fn set_chain_spec(
@@ -22,9 +22,9 @@ pub fn set_chain_spec(
     anchor: &ContractAccount<AppchainAnchorContract>,
     value: String,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.set_chain_spec(value));
-    common::print_outcome_result("set_chain_spec", &outcome);
-    outcome
+    let result = call!(signer, anchor.set_chain_spec(value));
+    common::print_execution_result("set_chain_spec", &result);
+    result
 }
 
 pub fn set_raw_chain_spec(
@@ -32,9 +32,9 @@ pub fn set_raw_chain_spec(
     anchor: &ContractAccount<AppchainAnchorContract>,
     value: String,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.set_raw_chain_spec(value));
-    common::print_outcome_result("set_raw_chain_spec", &outcome);
-    outcome
+    let result = call!(signer, anchor.set_raw_chain_spec(value));
+    common::print_execution_result("set_raw_chain_spec", &result);
+    result
 }
 
 pub fn set_boot_nodes(
@@ -42,9 +42,9 @@ pub fn set_boot_nodes(
     anchor: &ContractAccount<AppchainAnchorContract>,
     value: String,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.set_boot_nodes(value));
-    common::print_outcome_result("set_boot_nodes", &outcome);
-    outcome
+    let result = call!(signer, anchor.set_boot_nodes(value));
+    common::print_execution_result("set_boot_nodes", &result);
+    result
 }
 
 pub fn set_rpc_endpoint(
@@ -52,9 +52,9 @@ pub fn set_rpc_endpoint(
     anchor: &ContractAccount<AppchainAnchorContract>,
     value: String,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.set_rpc_endpoint(value));
-    common::print_outcome_result("set_rpc_endpoint", &outcome);
-    outcome
+    let result = call!(signer, anchor.set_rpc_endpoint(value));
+    common::print_execution_result("set_rpc_endpoint", &result);
+    result
 }
 
 pub fn set_era_reward(
@@ -62,9 +62,9 @@ pub fn set_era_reward(
     anchor: &ContractAccount<AppchainAnchorContract>,
     value: u128,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.set_era_reward(U128::from(value)));
-    common::print_outcome_result("set_era_reward", &outcome);
-    outcome
+    let result = call!(signer, anchor.set_era_reward(U128::from(value)));
+    common::print_execution_result("set_era_reward", &result);
+    result
 }
 
 pub fn set_token_price_maintainer_account(
@@ -72,12 +72,12 @@ pub fn set_token_price_maintainer_account(
     anchor: &ContractAccount<AppchainAnchorContract>,
     operator: &UserAccount,
 ) -> ExecutionResult {
-    let outcome = call!(
+    let result = call!(
         signer,
         anchor.set_token_price_maintainer_account(operator.valid_account_id().to_string())
     );
-    common::print_outcome_result("set_token_price_maintainer_account", &outcome);
-    outcome
+    common::print_execution_result("set_token_price_maintainer_account", &result);
+    result
 }
 
 pub fn set_price_of_oct_token(
@@ -85,9 +85,9 @@ pub fn set_price_of_oct_token(
     anchor: &ContractAccount<AppchainAnchorContract>,
     value: u128,
 ) -> ExecutionResult {
-    let outcome = call!(signer, anchor.set_price_of_oct_token(U128::from(value)));
-    common::print_outcome_result("set_price_of_oct_token", &outcome);
-    outcome
+    let result = call!(signer, anchor.set_price_of_oct_token(U128::from(value)));
+    common::print_execution_result("set_price_of_oct_token", &result);
+    result
 }
 
 pub fn change_minimum_total_stake_price_for_booting(
@@ -95,10 +95,10 @@ pub fn change_minimum_total_stake_price_for_booting(
     anchor: &ContractAccount<AppchainAnchorContract>,
     value: u128,
 ) -> ExecutionResult {
-    let outcome = call!(
+    let result = call!(
         signer,
         anchor.change_minimum_total_stake_price_for_booting(U128::from(value))
     );
-    common::print_outcome_result("change_minimum_total_stake_price_for_booting", &outcome);
-    outcome
+    common::print_execution_result("change_minimum_total_stake_price_for_booting", &result);
+    result
 }

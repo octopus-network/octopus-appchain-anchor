@@ -338,15 +338,34 @@ impl StakingManager for AppchainAnchor {
         };
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let protocol_settings = self.protocol_settings.get().unwrap();
-        assert_eq!(
-            next_validator_set.validator_id_set.len(),
-            protocol_settings.minimum_validator_count.0,
+        assert!(
+            next_validator_set.validator_id_set.len() > protocol_settings.minimum_validator_count.0,
             "Too few validators. Cannot unbond any more."
         );
         let validator_id = env::predecessor_account_id();
         self.assert_validator_id(&validator_id, &next_validator_set);
         let validator = next_validator_set.validators.get(&validator_id).unwrap();
-        self.assert_total_stake_price(validator.deposit_amount);
+        self.assert_total_stake_price(validator.total_stake);
+        if let Some(delegator_id_set) = next_validator_set
+            .validator_id_to_delegator_id_set
+            .get(&validator_id)
+        {
+            let delegator_ids = delegator_id_set.to_vec();
+            delegator_ids.iter().for_each(|delegator_id| {
+                let delegator = next_validator_set
+                    .delegators
+                    .get(&(delegator_id.clone(), validator_id.clone()))
+                    .unwrap();
+                self.record_staking_fact(
+                    StakingFact::DelegatorUnbonded {
+                        delegator_id: delegator_id.clone(),
+                        validator_id: validator_id.clone(),
+                        amount: U128::from(delegator.deposit_amount),
+                    },
+                    &mut next_validator_set,
+                );
+            });
+        }
         self.record_staking_fact(
             StakingFact::ValidatorUnbonded {
                 validator_id: validator_id.clone(),

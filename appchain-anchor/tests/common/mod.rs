@@ -47,7 +47,7 @@ pub fn ft_transfer_oct_token(
         1,
         near_sdk_sim::DEFAULT_GAS
     );
-    print_outcome_result("ft_transfer", &outcome);
+    print_execution_result("ft_transfer", &outcome);
     outcome.assert_success();
 }
 
@@ -69,7 +69,7 @@ pub fn ft_transfer_call_oct_token(
         1,
         near_sdk_sim::DEFAULT_GAS
     );
-    print_outcome_result("ft_transfer_call", &outcome);
+    print_execution_result("ft_transfer_call", &outcome);
     outcome.assert_success();
     outcome
 }
@@ -158,17 +158,21 @@ pub fn to_oct_amount(amount: u128) -> u128 {
     amount * bt_decimals_base
 }
 
-pub fn print_outcome_result(function_name: &str, outcome: &ExecutionResult) {
+pub fn print_execution_result(function_name: &str, result: &ExecutionResult) {
     println!(
         "Gas burnt of function '{}': {}",
         function_name,
-        outcome.gas_burnt().to_formatted_string(&Locale::en)
+        result.gas_burnt().to_formatted_string(&Locale::en)
     );
-    let results = outcome.promise_results();
-    for result in results {
-        let logs = result.as_ref().unwrap().logs();
-        if logs.len() > 0 {
-            println!("{:#?}", logs);
+    if result.is_ok() {
+        let results = result.promise_results();
+        for result in results {
+            let logs = result.as_ref().unwrap().logs();
+            if logs.len() > 0 {
+                println!("{:#?}", logs);
+            }
         }
+    } else {
+        println!("{:#?}", result.outcome());
     }
 }
