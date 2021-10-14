@@ -25,6 +25,7 @@ function getConfig(env) {
         walletUrl: 'https://wallet.testnet.near.org',
         helperUrl: 'https://helper.testnet.near.org',
         explorerUrl: 'https://explorer.testnet.near.org',
+        masterAccount: 'e2e-test.testnet',
       };
     case 'betanet':
       return {
@@ -41,7 +42,7 @@ function getConfig(env) {
       return {
         networkId: 'local',
         nodeUrl: 'http://localhost:3030',
-        keyPath: `${process.env.HOME}/.near/validator_key.json`,
+        keyPath: `${process.env.HOME}/.near/localnet/node0/validator_key.json`,
         walletUrl: 'http://localhost:4000/wallet',
         anchorName: ANCHOR_NAME,
         registryName: REGISTRY_NAME,

@@ -20,5 +20,10 @@ neardev/
 e2e-tests/nearkeys/shared-test/*
 !/e2e-tests/nearkeys/shared-test/test.near.json
 
+e2e-tests/nearkeys/testnet/*
+!/e2e-tests/nearkeys/testnet/e2e-test.testnet.json
+
+e2e-tests/nearkeys/local/*
+
 # e2e-tests/nearkeys/shared-test-staging/*
 # !/e2e-tests/nearkeys/hared-test-staging/test.near.json
