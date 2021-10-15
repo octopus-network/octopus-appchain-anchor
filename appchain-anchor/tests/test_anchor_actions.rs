@@ -7,30 +7,37 @@ use appchain_anchor::{
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
-use near_sdk::{json_types::U64, serde_json};
+use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
+use near_sdk::{
+    json_types::{U128, U64},
+    serde_json,
+};
 use near_sdk_sim::{ContractAccount, UserAccount};
 
 mod anchor_viewer;
 mod common;
 mod lifecycle_actions;
-mod oct_token_viewer;
 mod permissionless_actions;
 mod settings_actions;
 mod staking_actions;
 mod sudo_actions;
+mod token_viewer;
+mod wrapped_appchain_token_manager;
 
 const TOTAL_SUPPLY: u128 = 100_000_000;
 
 #[test]
-fn test_staging_actions() {
+fn test_staking_actions() {
     let total_supply = common::to_oct_amount(TOTAL_SUPPLY);
-    let (root, oct_token, registry, anchor, users) = common::init(total_supply);
+    let (root, oct_token, registry, anchor, wrapped_appchain_token, users) =
+        common::init(total_supply);
+    //
+    // Check initial status
     //
     assert_eq!(
         anchor_viewer::get_appchain_state(&anchor),
         AppchainState::Staging
     );
-    //
     let anchor_settings = anchor_viewer::get_anchor_settings(&anchor);
     println!(
         "Anchor settings: {}",
@@ -46,19 +53,26 @@ fn test_staging_actions() {
         "Protocol settings: {}",
         serde_json::to_string::<ProtocolSettings>(&protocol_settings).unwrap()
     );
-    //
     assert_eq!(
         protocol_settings.minimum_validator_deposit.0,
         common::to_oct_amount(10_000)
     );
-    //
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
     assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
     //
+    // Set the contract account of wrapped appchain token.
+    //
+    let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+    );
+    result.assert_success();
+    //
     // user0 register validator (error)
     //
-    let user0_balance = oct_token_viewer::get_ft_balance_of(&users[0], &oct_token);
+    let user0_balance = token_viewer::get_oct_balance_of(&users[0], &oct_token);
     let amount0 = common::to_oct_amount(9999);
     let user0_id_in_appchain = "user0_id_in_appchain".to_string();
     let outcome = staking_actions::register_validator(
@@ -71,7 +85,7 @@ fn test_staging_actions() {
     );
     outcome.assert_success();
     assert_eq!(
-        oct_token_viewer::get_ft_balance_of(&users[0], &oct_token).0,
+        token_viewer::get_oct_balance_of(&users[0], &oct_token).0,
         user0_balance.0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
@@ -80,7 +94,7 @@ fn test_staging_actions() {
     //
     // user0 register validator
     //
-    let user0_balance = oct_token_viewer::get_ft_balance_of(&users[0], &oct_token);
+    let user0_balance = token_viewer::get_oct_balance_of(&users[0], &oct_token);
     let amount0 = common::to_oct_amount(10_000);
     let user0_id_in_appchain = "user0_id_in_appchain".to_string();
     let outcome = staking_actions::register_validator(
@@ -93,7 +107,7 @@ fn test_staging_actions() {
     );
     outcome.assert_success();
     assert_eq!(
-        oct_token_viewer::get_ft_balance_of(&users[0], &oct_token).0,
+        token_viewer::get_oct_balance_of(&users[0], &oct_token).0,
         user0_balance.0 - amount0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
@@ -102,7 +116,7 @@ fn test_staging_actions() {
     //
     // user1 register validator
     //
-    let user1_balance = oct_token_viewer::get_ft_balance_of(&users[1], &oct_token);
+    let user1_balance = token_viewer::get_oct_balance_of(&users[1], &oct_token);
     let amount1 = common::to_oct_amount(15_000);
     let user1_id_in_appchain = "user1_id_in_appchain".to_string();
     let outcome = staking_actions::register_validator(
@@ -115,7 +129,7 @@ fn test_staging_actions() {
     );
     outcome.assert_success();
     assert_eq!(
-        oct_token_viewer::get_ft_balance_of(&users[1], &oct_token).0,
+        token_viewer::get_oct_balance_of(&users[1], &oct_token).0,
         user1_balance.0 - amount1
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
@@ -124,7 +138,7 @@ fn test_staging_actions() {
     //
     // user2 register delegator to user0 (error)
     //
-    let user2_balance = oct_token_viewer::get_ft_balance_of(&users[2], &oct_token);
+    let user2_balance = token_viewer::get_oct_balance_of(&users[2], &oct_token);
     let amount2 = common::to_oct_amount(999);
     let outcome = staking_actions::register_delegator(
         &users[2],
@@ -135,7 +149,7 @@ fn test_staging_actions() {
     );
     outcome.assert_success();
     assert_eq!(
-        oct_token_viewer::get_ft_balance_of(&users[2], &oct_token).0,
+        token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
@@ -144,7 +158,7 @@ fn test_staging_actions() {
     //
     // user2 register delegator to user0
     //
-    let user2_balance = oct_token_viewer::get_ft_balance_of(&users[2], &oct_token);
+    let user2_balance = token_viewer::get_oct_balance_of(&users[2], &oct_token);
     let amount2_0 = common::to_oct_amount(1000);
     let outcome = staking_actions::register_delegator(
         &users[2],
@@ -155,7 +169,7 @@ fn test_staging_actions() {
     );
     outcome.assert_success();
     assert_eq!(
-        oct_token_viewer::get_ft_balance_of(&users[2], &oct_token).0,
+        token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0 - amount2_0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
@@ -167,7 +181,7 @@ fn test_staging_actions() {
     //
     // user2 register delegator to user1 (error)
     //
-    let user2_balance = oct_token_viewer::get_ft_balance_of(&users[2], &oct_token);
+    let user2_balance = token_viewer::get_oct_balance_of(&users[2], &oct_token);
     let amount2_1 = common::to_oct_amount(1000);
     let outcome = staking_actions::register_delegator(
         &users[2],
@@ -178,7 +192,7 @@ fn test_staging_actions() {
     );
     outcome.assert_success();
     assert_eq!(
-        oct_token_viewer::get_ft_balance_of(&users[2], &oct_token).0,
+        token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
@@ -190,7 +204,7 @@ fn test_staging_actions() {
     //
     // user3 register delegator to user0
     //
-    let user3_balance = oct_token_viewer::get_ft_balance_of(&users[3], &oct_token);
+    let user3_balance = token_viewer::get_oct_balance_of(&users[3], &oct_token);
     let amount3_0 = common::to_oct_amount(2000);
     let outcome = staking_actions::register_delegator(
         &users[3],
@@ -201,7 +215,7 @@ fn test_staging_actions() {
     );
     outcome.assert_success();
     assert_eq!(
-        oct_token_viewer::get_ft_balance_of(&users[3], &oct_token).0,
+        token_viewer::get_oct_balance_of(&users[3], &oct_token).0,
         user3_balance.0 - amount3_0
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
@@ -213,12 +227,12 @@ fn test_staging_actions() {
     //
     // user0 increase stake
     //
-    let user0_balance = oct_token_viewer::get_ft_balance_of(&users[0], &oct_token);
+    let user0_balance = token_viewer::get_oct_balance_of(&users[0], &oct_token);
     let amount0_p = common::to_oct_amount(1_200);
     let outcome = staking_actions::increase_stake(&users[0], &oct_token, &anchor, amount0_p);
     outcome.assert_success();
     assert_eq!(
-        oct_token_viewer::get_ft_balance_of(&users[0], &oct_token).0,
+        token_viewer::get_oct_balance_of(&users[0], &oct_token).0,
         user0_balance.0 - amount0_p
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
@@ -230,7 +244,7 @@ fn test_staging_actions() {
     //
     // user2 increase delegation to user0
     //
-    let user2_balance = oct_token_viewer::get_ft_balance_of(&users[2], &oct_token);
+    let user2_balance = token_viewer::get_oct_balance_of(&users[2], &oct_token);
     let amount2_0_p = common::to_oct_amount(500);
     let outcome = staking_actions::increase_delegation(
         &users[2],
@@ -241,7 +255,7 @@ fn test_staging_actions() {
     );
     outcome.assert_success();
     assert_eq!(
-        oct_token_viewer::get_ft_balance_of(&users[2], &oct_token).0,
+        token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0 - amount2_0_p
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
@@ -327,7 +341,7 @@ fn test_staging_actions() {
     //
     // user4 register validator
     //
-    let user4_balance = oct_token_viewer::get_ft_balance_of(&users[4], &oct_token);
+    let user4_balance = token_viewer::get_oct_balance_of(&users[4], &oct_token);
     let amount4 = common::to_oct_amount(13_000);
     let user4_id_in_appchain = "user4_id_in_appchain".to_string();
     let outcome = staking_actions::register_validator(
@@ -340,7 +354,7 @@ fn test_staging_actions() {
     );
     outcome.assert_success();
     assert_eq!(
-        oct_token_viewer::get_ft_balance_of(&users[4], &oct_token).0,
+        token_viewer::get_oct_balance_of(&users[4], &oct_token).0,
         user4_balance.0 - amount4
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
@@ -362,7 +376,7 @@ fn test_staging_actions() {
     //
     // Distribut reward of era0
     //
-    distribute_reward_of(&root, &anchor, 0);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 0);
     print_validator_reward_histories(&anchor, &users[0], 0);
     print_validator_reward_histories(&anchor, &users[1], 0);
     print_delegator_reward_histories(&anchor, &users[2], &users[0], 0);
@@ -402,7 +416,7 @@ fn test_staging_actions() {
     //
     // Distribute reward of era1
     //
-    distribute_reward_of(&root, &anchor, 1);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 1);
     print_validator_reward_histories(&anchor, &users[0], 1);
     print_validator_reward_histories(&anchor, &users[1], 1);
     print_delegator_reward_histories(&anchor, &users[2], &users[0], 1);
@@ -438,7 +452,7 @@ fn test_staging_actions() {
     //
     // Distribute reward of era2
     //
-    distribute_reward_of(&root, &anchor, 2);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 2);
     print_validator_reward_histories(&anchor, &users[0], 2);
     print_validator_reward_histories(&anchor, &users[1], 2);
     print_delegator_reward_histories(&anchor, &users[2], &users[0], 2);
@@ -470,7 +484,7 @@ fn test_staging_actions() {
     //
     // Distribute reward of era2
     //
-    distribute_reward_of(&root, &anchor, 3);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 3);
     print_validator_reward_histories(&anchor, &users[0], 3);
     print_validator_reward_histories(&anchor, &users[1], 3);
     print_delegator_reward_histories(&anchor, &users[2], &users[0], 3);
@@ -595,8 +609,11 @@ fn print_delegator_list_of(
 fn distribute_reward_of(
     root: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
+    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
     era_number: u64,
 ) {
+    let anchor_balance_of_wat =
+        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token);
     let outcome = sudo_actions::apply_appchain_message(
         root,
         anchor,
@@ -632,6 +649,10 @@ fn distribute_reward_of(
             break;
         }
     }
+    assert_eq!(
+        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
+        anchor_balance_of_wat.0 + common::to_oct_amount(10)
+    );
     let anchor_status = anchor_viewer::get_anchor_status(anchor);
     println!(
         "Anchor status: {}",

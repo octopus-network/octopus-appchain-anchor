@@ -2,5 +2,6 @@
 members = [
     "appchain-anchor",
     "mock-appchain-registry",
-    "mock-oct-token"
+    "mock-oct-token",
+    "mock-wrapped-appchain-token"
 ]

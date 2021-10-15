@@ -17,6 +17,7 @@ Contents
   * [Switch validator set](#switch-validator-set)
   * [Withdraw reward](#withdraw-reward)
   * [Manage appchain lifecycle](#manage-appchain-lifecycle)
+* [Initial deployment](#initial-deployment)
 
 ## Terminology
 
@@ -145,3 +146,14 @@ A validator or deleagtor can withdraw their benefit in latest eras at any time. 
 ### Manage appchain lifecycle
 
 The owner of appchain anchor can manually change the state of corresponding appchain. These actions need to check necessary conditions before changing the state of corresponding appchain. And after changing the state, this contract will call function `sync_state_of` of `appchain registry` contract to synchronize the state to `appchain registry`. (The `appchain registry` will ensure the caller account of this function is `<appchain_id>.<appchain registry account>`.)
+
+## Initial deployment
+
+We should take the following steps to initialize this contract and all related contract:
+
+* Prepare the OCT token contract. (Deploy a new one in testnet or use the one created by Aurora Rainbow Bridge in mainnet.)
+* Deploy the appchain registry contract. Refer to [Octopus Appchain Registry](https://github.com/octopus-network/octopus-appchain-registry).
+* Deploy this contract with parameters `appchain id`, `contract account of OCT token` and `contract account of appchain registry`.
+* Determine the `premined beneficiary` and `premined balance`. (Normally decided by the appchain team and the `premined balance` will also be stored in appchain registry contract.) And Store them in this contract.
+* Deploy the wrapped appchain token contract with parameters `premined beneficiary`, `premined balance`, `contract account of appchain anchor (this contract)` and `FungibleTokenMetadata`. Refer to [Octopus Wrapped Appchain Token](https://github.com/octopus-network/wrapped-appchain-token).
+* Store the contract account id of wrapped appchain token in this contract. (By calling function `set_account_of_wrapped_appchain_token`.)

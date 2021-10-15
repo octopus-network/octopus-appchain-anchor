@@ -51,10 +51,13 @@ const SECONDS_OF_A_DAY: u64 = 86400;
 const NANO_SECONDS_MULTIPLE: u64 = 1_000_000_000;
 /// Gas cap for function `complete_switching_era`.
 const GAS_CAP_FOR_COMPLETE_SWITCHING_ERA: Gas = 180_000_000_000_000;
+/// Storage deposit for NEP-141 token (in yocto)
+const STORAGE_DEPOSIT_FOR_NEP141_TOEKN: Balance = 12_500_000_000_000_000_000_000;
 
 #[ext_contract(ext_fungible_token)]
 pub trait FungibleToken {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
+    fn mint(&mut self, account_id: AccountId, amount: U128);
 }
 
 #[near_bindgen]

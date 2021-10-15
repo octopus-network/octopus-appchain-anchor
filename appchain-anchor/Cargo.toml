@@ -19,3 +19,4 @@ num-format = "0.4.0"
 # remember to include related mock contracts
 mock-appchain-registry = { path = "../mock-appchain-registry" }
 mock-oct-token = { path = "../mock-oct-token" }
+mock-wrapped-appchain-token = { path = "../mock-wrapped-appchain-token" }

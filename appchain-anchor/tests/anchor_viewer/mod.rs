@@ -5,7 +5,7 @@ use appchain_anchor::types::{
 };
 use appchain_anchor::AppchainAnchorContract;
 
-use near_sdk::json_types::U64;
+use near_sdk::json_types::{U128, U64};
 use near_sdk_sim::{view, ContractAccount, UserAccount};
 
 pub fn get_anchor_settings(anchor: &ContractAccount<AppchainAnchorContract>) -> AnchorSettings {
