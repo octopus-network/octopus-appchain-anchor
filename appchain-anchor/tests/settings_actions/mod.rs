@@ -13,7 +13,7 @@ pub fn change_minimum_validator_count(
         signer,
         anchor.change_minimum_validator_count(U64::from(value))
     );
-    common::print_execution_result("change_minimum_validator_count", &result);
+    common::print_execution_result(anchor, "change_minimum_validator_count", &result);
     result
 }
 
@@ -23,7 +23,7 @@ pub fn set_chain_spec(
     value: String,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.set_chain_spec(value));
-    common::print_execution_result("set_chain_spec", &result);
+    common::print_execution_result(anchor, "set_chain_spec", &result);
     result
 }
 
@@ -33,7 +33,7 @@ pub fn set_raw_chain_spec(
     value: String,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.set_raw_chain_spec(value));
-    common::print_execution_result("set_raw_chain_spec", &result);
+    common::print_execution_result(anchor, "set_raw_chain_spec", &result);
     result
 }
 
@@ -43,7 +43,7 @@ pub fn set_boot_nodes(
     value: String,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.set_boot_nodes(value));
-    common::print_execution_result("set_boot_nodes", &result);
+    common::print_execution_result(anchor, "set_boot_nodes", &result);
     result
 }
 
@@ -53,7 +53,7 @@ pub fn set_rpc_endpoint(
     value: String,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.set_rpc_endpoint(value));
-    common::print_execution_result("set_rpc_endpoint", &result);
+    common::print_execution_result(anchor, "set_rpc_endpoint", &result);
     result
 }
 
@@ -63,7 +63,7 @@ pub fn set_era_reward(
     value: u128,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.set_era_reward(U128::from(value)));
-    common::print_execution_result("set_era_reward", &result);
+    common::print_execution_result(anchor, "set_era_reward", &result);
     result
 }
 
@@ -76,7 +76,7 @@ pub fn set_token_price_maintainer_account(
         signer,
         anchor.set_token_price_maintainer_account(operator.valid_account_id().to_string())
     );
-    common::print_execution_result("set_token_price_maintainer_account", &result);
+    common::print_execution_result(anchor, "set_token_price_maintainer_account", &result);
     result
 }
 
@@ -86,7 +86,7 @@ pub fn set_price_of_oct_token(
     value: u128,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.set_price_of_oct_token(U128::from(value)));
-    common::print_execution_result("set_price_of_oct_token", &result);
+    common::print_execution_result(anchor, "set_price_of_oct_token", &result);
     result
 }
 
@@ -99,6 +99,10 @@ pub fn change_minimum_total_stake_price_for_booting(
         signer,
         anchor.change_minimum_total_stake_price_for_booting(U128::from(value))
     );
-    common::print_execution_result("change_minimum_total_stake_price_for_booting", &result);
+    common::print_execution_result(
+        anchor,
+        "change_minimum_total_stake_price_for_booting",
+        &result,
+    );
     result
 }

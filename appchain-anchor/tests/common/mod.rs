@@ -1,20 +1,24 @@
 use appchain_anchor::AppchainAnchorContract;
 use mock_appchain_registry::MockAppchainRegistryContract;
 use mock_oct_token::MockOctTokenContract;
+use mock_wrapped_appchain_token::{MockWrappedAppchainToken, MockWrappedAppchainTokenContract};
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FT_METADATA_SPEC};
 
-use near_sdk::json_types::U128;
+use near_sdk::{json_types::U128, serde_json, Balance};
 use near_sdk_sim::{
-    call, deploy, init_simulator, lazy_static_include, runtime::GenesisConfig, to_yocto,
+    call, deploy, init_simulator, lazy_static_include, runtime::GenesisConfig, to_yocto, view,
     ContractAccount, ExecutionResult, UserAccount,
 };
 
 use num_format::{Locale, ToFormattedString};
 
+const INIT_DEPOSIT_FOR_CONTRACT: Balance = 30_000_000_000_000_000_000_000_000;
+
 lazy_static_include::lazy_static_include_bytes! {
     TOKEN_WASM_BYTES => "../res/mock_oct_token.wasm",
     REGISTRY_WASM_BYTES => "../res/mock_appchain_registry.wasm",
     ANCHOR_WASM_BYTES => "../res/appchain_anchor.wasm",
+    WAT_WASM_BYTES => "../res/mock_wrapped_appchain_token.wasm"
 }
 
 // Register the given `user` to oct_token
@@ -47,7 +51,6 @@ pub fn ft_transfer_oct_token(
         1,
         near_sdk_sim::DEFAULT_GAS
     );
-    print_execution_result("ft_transfer", &outcome);
     outcome.assert_success();
 }
 
@@ -69,7 +72,6 @@ pub fn ft_transfer_call_oct_token(
         1,
         near_sdk_sim::DEFAULT_GAS
     );
-    print_execution_result("ft_transfer_call", &outcome);
     outcome.assert_success();
     outcome
 }
@@ -87,15 +89,25 @@ pub fn init(
     ContractAccount<MockOctTokenContract>,
     ContractAccount<MockAppchainRegistryContract>,
     ContractAccount<AppchainAnchorContract>,
+    ContractAccount<MockWrappedAppchainTokenContract>,
     Vec<UserAccount>,
 ) {
     let root = init_simulator(Some(get_genesis_config()));
     let mut users: Vec<UserAccount> = Vec::new();
     // Deploy and initialize contracts
-    let ft_metadata = FungibleTokenMetadata {
+    let oct_ft_metadata = FungibleTokenMetadata {
         spec: FT_METADATA_SPEC.to_string(),
         name: "OCTToken".to_string(),
         symbol: "OCT".to_string(),
+        icon: None,
+        reference: None,
+        reference_hash: None,
+        decimals: 18,
+    };
+    let wat_ft_metadata = FungibleTokenMetadata {
+        spec: FT_METADATA_SPEC.to_string(),
+        name: "WrappedAppchainToken".to_string(),
+        symbol: "WAT".to_string(),
         icon: None,
         reference: None,
         reference_hash: None,
@@ -106,7 +118,7 @@ pub fn init(
         contract_id: "oct_token",
         bytes: &TOKEN_WASM_BYTES,
         signer_account: root,
-        init_method: new(root.valid_account_id(), U128::from(total_supply), ft_metadata)
+        init_method: new(root.valid_account_id(), U128::from(total_supply), oct_ft_metadata)
     };
     let registry = deploy! {
         contract: MockAppchainRegistryContract,
@@ -120,10 +132,23 @@ pub fn init(
         contract_id: "anchor",
         bytes: &ANCHOR_WASM_BYTES,
         signer_account: root,
+        deposit: INIT_DEPOSIT_FOR_CONTRACT,
         init_method: new(
             "test_appchain_id".to_string(),
             registry.valid_account_id().to_string(),
             oct_token.valid_account_id().to_string()
+        )
+    };
+    let wrapped_appchain_token = deploy! {
+        contract: MockWrappedAppchainTokenContract,
+        contract_id: "wrapped_appchain_token",
+        bytes: &WAT_WASM_BYTES,
+        signer_account: root,
+        init_method: new(
+            anchor.valid_account_id(),
+            root.valid_account_id(),
+            U128::from(total_supply / 2),
+            wat_ft_metadata
         )
     };
     register_user_to_oct_token(&registry.user_account, &oct_token);
@@ -149,8 +174,17 @@ pub fn init(
     register_user_to_oct_token(&eve, &oct_token);
     ft_transfer_oct_token(&root, &eve, total_supply / 10, &oct_token);
     users.push(eve);
-    // return initialized UserAccounts
-    (root, oct_token, registry, anchor, users)
+    // Print initial storage balance of anchor
+    print_anchor_storage_balance(&anchor);
+    // Return initialized UserAccounts
+    (
+        root,
+        oct_token,
+        registry,
+        anchor,
+        wrapped_appchain_token,
+        users,
+    )
 }
 
 pub fn to_oct_amount(amount: u128) -> u128 {
@@ -158,7 +192,11 @@ pub fn to_oct_amount(amount: u128) -> u128 {
     amount * bt_decimals_base
 }
 
-pub fn print_execution_result(function_name: &str, result: &ExecutionResult) {
+pub fn print_execution_result(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    function_name: &str,
+    result: &ExecutionResult,
+) {
     println!(
         "Gas burnt of function '{}': {}",
         function_name,
@@ -172,7 +210,20 @@ pub fn print_execution_result(function_name: &str, result: &ExecutionResult) {
                 println!("{:#?}", logs);
             }
         }
+        print_anchor_storage_balance(anchor);
     } else {
         println!("{:#?}", result.outcome());
     }
+}
+
+fn print_anchor_storage_balance(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let view_result = view!(anchor.get_storage_balance());
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    println!(
+        "Anchor storage balance: {}",
+        serde_json::to_string::<U128>(&view_result.unwrap_json::<U128>()).unwrap()
+    );
 }

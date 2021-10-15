@@ -115,7 +115,8 @@ pub struct WrappedAppchainTokenMetadata {
 pub struct WrappedAppchainToken {
     pub metadata: WrappedAppchainTokenMetadata,
     pub contract_account: AccountId,
-    pub initial_balance: Balance,
+    pub premined_beneficiary: AccountId,
+    pub premined_balance: U128,
     pub changed_balance: I128,
     pub price_in_usd: U128,
 }

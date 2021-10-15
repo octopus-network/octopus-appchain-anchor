@@ -94,6 +94,8 @@ pub trait AnchorViewer {
         delegator_id: AccountId,
         validator_id: AccountId,
     ) -> Vec<RewardHistory>;
+    /// Get current storage balance needed by this contract account
+    fn get_storage_balance(&self) -> U128;
 }
 
 #[near_bindgen]
@@ -393,5 +395,9 @@ impl AnchorViewer for AppchainAnchor {
             }
         }
         reward_histories
+    }
+    //
+    fn get_storage_balance(&self) -> U128 {
+        U128::from(u128::from(env::storage_usage()) * env::storage_byte_cost())
     }
 }

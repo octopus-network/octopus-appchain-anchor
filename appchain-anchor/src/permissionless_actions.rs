@@ -507,10 +507,17 @@ impl AppchainAnchor {
         permissionless_actions_status.distributing_reward_era_number = Some(U64::from(era_number));
         self.permissionless_actions_status
             .set(&permissionless_actions_status);
-        // TODO: mint `total_reward` in the contract of wrapped appchain token.
-
         // Start distributing reward of this era
         self.complete_distributing_reward_of_era(era_number);
+        // Mint `total_reward` in the contract of wrapped appchain token.
+        let appchain_settings = self.appchain_settings.get().unwrap();
+        ext_fungible_token::mint(
+            env::current_account_id(),
+            appchain_settings.era_reward,
+            &self.wrapped_appchain_token.get().unwrap().contract_account,
+            STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
+            GAS_FOR_FT_TRANSFER_CALL,
+        );
     }
     //
     fn complete_distributing_reward_of_era(&mut self, era_number: u64) -> bool {
