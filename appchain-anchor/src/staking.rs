@@ -485,7 +485,7 @@ impl StakingManager for AppchainAnchor {
                             + protocol_settings.unlock_period_of_validator_deposit.0
                                 * SECONDS_OF_A_DAY
                                 * NANO_SECONDS_MULTIPLE
-                            > env::block_timestamp()
+                            < env::block_timestamp()
                         {
                             balance_to_withdraw += amount.0;
                         } else {
@@ -506,7 +506,7 @@ impl StakingManager for AppchainAnchor {
                             + protocol_settings.unlock_period_of_delegator_deposit.0
                                 * SECONDS_OF_A_DAY
                                 * NANO_SECONDS_MULTIPLE
-                            > env::block_timestamp()
+                            < env::block_timestamp()
                         {
                             balance_to_withdraw += amount.0;
                         } else {
@@ -543,9 +543,13 @@ impl StakingManager for AppchainAnchor {
             .end_index
             .0;
         let protocol_settings = self.protocol_settings.get().unwrap();
-        let start_era = end_era - protocol_settings.maximum_era_count_of_unwithdrawn_reward.0;
+        let start_era = match end_era > protocol_settings.maximum_era_count_of_unwithdrawn_reward.0
+        {
+            true => end_era - protocol_settings.maximum_era_count_of_unwithdrawn_reward.0 + 1,
+            false => 0,
+        };
         let mut reward_to_withdraw: u128 = 0;
-        for era_number in start_era..end_era {
+        for era_number in start_era..end_era + 1 {
             if let Some(reward) = self
                 .unwithdrawn_validator_rewards
                 .get(&(era_number, validator_id.clone()))
@@ -576,7 +580,11 @@ impl StakingManager for AppchainAnchor {
             .end_index
             .0;
         let protocol_settings = self.protocol_settings.get().unwrap();
-        let start_era = end_era - protocol_settings.maximum_era_count_of_unwithdrawn_reward.0;
+        let start_era = match end_era > protocol_settings.maximum_era_count_of_unwithdrawn_reward.0
+        {
+            true => end_era - protocol_settings.maximum_era_count_of_unwithdrawn_reward.0 + 1,
+            false => 0,
+        };
         let mut reward_to_withdraw: u128 = 0;
         for era_number in start_era..end_era {
             if let Some(reward) = self.unwithdrawn_delegator_rewards.get(&(

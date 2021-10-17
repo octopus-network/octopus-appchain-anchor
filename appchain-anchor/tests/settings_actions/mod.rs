@@ -106,3 +106,29 @@ pub fn change_minimum_total_stake_price_for_booting(
     );
     result
 }
+
+pub fn change_unlock_period_of_validator_deposit(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    value: u64,
+) -> ExecutionResult {
+    let result = call!(
+        signer,
+        anchor.change_unlock_period_of_validator_deposit(U64::from(value))
+    );
+    common::print_execution_result(anchor, "change_unlock_period_of_validator_deposit", &result);
+    result
+}
+
+pub fn change_unlock_period_of_delegator_deposit(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    value: u64,
+) -> ExecutionResult {
+    let result = call!(
+        signer,
+        anchor.change_unlock_period_of_delegator_deposit(U64::from(value))
+    );
+    common::print_execution_result(anchor, "change_unlock_period_of_delegator_deposit", &result);
+    result
+}

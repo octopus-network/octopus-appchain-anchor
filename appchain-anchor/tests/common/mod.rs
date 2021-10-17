@@ -35,6 +35,19 @@ fn register_user_to_oct_token(
     outcome.assert_success();
 }
 
+fn register_user_to_wat_token(
+    account: &UserAccount,
+    contract: &ContractAccount<MockWrappedAppchainTokenContract>,
+) {
+    let outcome = call!(
+        account,
+        contract.storage_deposit(Option::from(account.valid_account_id()), Option::None),
+        near_sdk::env::storage_byte_cost() * 125,
+        near_sdk_sim::DEFAULT_GAS / 2
+    );
+    outcome.assert_success();
+}
+
 pub fn ft_transfer_oct_token(
     sender: &UserAccount,
     receiver: &UserAccount,
@@ -156,22 +169,27 @@ pub fn init(
     // Create users and transfer a certain amount of OCT token to them
     let alice = root.create_user("alice".to_string(), to_yocto("100"));
     register_user_to_oct_token(&alice, &oct_token);
+    register_user_to_wat_token(&alice, &wrapped_appchain_token);
     ft_transfer_oct_token(&root, &alice, total_supply / 10, &oct_token);
     users.push(alice);
     let bob = root.create_user("bob".to_string(), to_yocto("100"));
     register_user_to_oct_token(&bob, &oct_token);
+    register_user_to_wat_token(&bob, &wrapped_appchain_token);
     ft_transfer_oct_token(&root, &bob, total_supply / 10, &oct_token);
     users.push(bob);
     let charlie = root.create_user("charlie".to_string(), to_yocto("100"));
     register_user_to_oct_token(&charlie, &oct_token);
+    register_user_to_wat_token(&charlie, &wrapped_appchain_token);
     ft_transfer_oct_token(&root, &charlie, total_supply / 10, &oct_token);
     users.push(charlie);
     let dave = root.create_user("dave".to_string(), to_yocto("100"));
     register_user_to_oct_token(&dave, &oct_token);
+    register_user_to_wat_token(&dave, &wrapped_appchain_token);
     ft_transfer_oct_token(&root, &dave, total_supply / 10, &oct_token);
     users.push(dave);
     let eve = root.create_user("eve".to_string(), to_yocto("100"));
     register_user_to_oct_token(&eve, &oct_token);
+    register_user_to_wat_token(&eve, &wrapped_appchain_token);
     ft_transfer_oct_token(&root, &eve, total_supply / 10, &oct_token);
     users.push(eve);
     // Print initial storage balance of anchor

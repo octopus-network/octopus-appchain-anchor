@@ -7,6 +7,7 @@ use appchain_anchor::{
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
+use mock_oct_token::MockOctTokenContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 use near_sdk::{
     json_types::{U128, U64},
@@ -428,6 +429,13 @@ fn test_staking_actions() {
     print_unbonded_stakes_of(&anchor, &users[3]);
     print_unbonded_stakes_of(&anchor, &users[4]);
     //
+    // Change unlock period for testing
+    //
+    let outcome = settings_actions::change_unlock_period_of_validator_deposit(&root, &anchor, 3);
+    outcome.assert_success();
+    let outcome = settings_actions::change_unlock_period_of_delegator_deposit(&root, &anchor, 1);
+    outcome.assert_success();
+    //
     // user3 unbond delegation
     //
     let outcome = staking_actions::unbond_delegation(
@@ -495,6 +503,25 @@ fn test_staking_actions() {
     print_unbonded_stakes_of(&anchor, &users[2]);
     print_unbonded_stakes_of(&anchor, &users[3]);
     print_unbonded_stakes_of(&anchor, &users[4]);
+    //
+    // Withdraw validator rewards
+    //
+    withdraw_validator_rewards_of(&anchor, &users[0], &wrapped_appchain_token, 3);
+    withdraw_validator_rewards_of(&anchor, &users[1], &wrapped_appchain_token, 3);
+    withdraw_validator_rewards_of(&anchor, &users[4], &wrapped_appchain_token, 3);
+    //
+    // Withdraw delegator rewards
+    //
+    withdraw_delegator_rewards_of(&anchor, &users[2], &users[0], &wrapped_appchain_token, 3);
+    withdraw_delegator_rewards_of(&anchor, &users[3], &users[0], &wrapped_appchain_token, 3);
+    //
+    // Withdraw stake
+    //
+    withdraw_stake_of(&anchor, &users[0], &oct_token);
+    withdraw_stake_of(&anchor, &users[1], &oct_token);
+    withdraw_stake_of(&anchor, &users[2], &oct_token);
+    withdraw_stake_of(&anchor, &users[3], &oct_token);
+    withdraw_stake_of(&anchor, &users[4], &oct_token);
 }
 
 fn print_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) {
@@ -717,4 +744,69 @@ fn print_unbonded_stakes_of(anchor: &ContractAccount<AppchainAnchorContract>, us
         );
         index += 1;
     }
+}
+
+fn withdraw_validator_rewards_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    user: &UserAccount,
+    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    end_era: u64,
+) {
+    let wat_balance_before_withdraw =
+        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token);
+    let outcome = staking_actions::withdraw_validator_rewards(
+        user,
+        anchor,
+        &user.valid_account_id().to_string(),
+    );
+    outcome.assert_success();
+    println!(
+        "User '{}' withdrawed rewards: {}",
+        &user.valid_account_id().to_string(),
+        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token).0
+            - wat_balance_before_withdraw.0
+    );
+    print_validator_reward_histories(anchor, user, end_era);
+}
+
+fn withdraw_delegator_rewards_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    user: &UserAccount,
+    validator: &UserAccount,
+    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    end_era: u64,
+) {
+    let wat_balance_before_withdraw =
+        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token);
+    let outcome = staking_actions::withdraw_delegator_rewards(
+        user,
+        anchor,
+        &user.valid_account_id().to_string(),
+        &validator.valid_account_id().to_string(),
+    );
+    outcome.assert_success();
+    println!(
+        "User '{}' withdrawed delegator rewards: {}",
+        &user.valid_account_id().to_string(),
+        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token).0
+            - wat_balance_before_withdraw.0
+    );
+    print_delegator_reward_histories(anchor, user, validator, end_era);
+}
+
+fn withdraw_stake_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    user: &UserAccount,
+    oct_token: &ContractAccount<MockOctTokenContract>,
+) {
+    let oct_balance_before_withdraw = token_viewer::get_oct_balance_of(&user, oct_token);
+    let outcome =
+        staking_actions::withdraw_stake(user, anchor, &user.valid_account_id().to_string());
+    outcome.assert_success();
+    println!(
+        "User '{}' withdrawed stake: {}",
+        &user.valid_account_id().to_string(),
+        token_viewer::get_oct_balance_of(user, oct_token).0 - oct_balance_before_withdraw.0
+    );
+    print_unbonded_stakes_of(anchor, user);
 }
