@@ -15,7 +15,9 @@ Contents
   * [Manage wrapped appchain token](#manage-wrapped-appchain-token)
   * [Manage staking](#manage-staking)
   * [Switch validator set](#switch-validator-set)
+  * [Distribute reward of era](#distribute-reward-of-era)
   * [Withdraw reward](#withdraw-reward)
+  * [Withdraw unbonded stake](#withdraw-unbonded-stake)
   * [Manage appchain lifecycle](#manage-appchain-lifecycle)
 * [Initial deployment](#initial-deployment)
 
@@ -38,7 +40,7 @@ Contents
 * `appchain message`: The message which is relayed to this contract by `octopus relayer`.
 * `anchor event`: The events which indicate that the corresponding appchain may need to perform necessary operations.
 * `octopus relayer`: A standalone service which will relay the `appchain message` to this contract.
-* `appchain settings`: A set of settings for booting corresponding appchain, which includes `chain_spec`, `raw_chain_spec`, `boot_nodes`, `rpc_endpoint` and other necessary field(s).
+* `appchain settings`: A set of settings for booting corresponding appchain, which includes `chain_spec`, `raw_chain_spec`, `boot_nodes`, `rpc_endpoint`, `era_reward` and other necessary field(s).
 * `anchor settings`: A set of settings for current appchain anchor, which includes `token_price_maintainer_account` and other necessary field(s).
 * `protocol settings`: A set of settings for Octopus Network protocol, maintained by the `owner`, which includes the following fields:
   * `minimum_validator_deposit`: The minimum deposit amount for a validator to register itself to this contract.
@@ -50,12 +52,10 @@ Contents
   * `maximum_validators_per_delegator`: The maximum number of validator(s) which a delegator can delegate to.
   * `unlock_period_of_validator_deposit`: The unlock period (in days) for validator(s) can withdraw their deposit after they are removed from the corresponding appchain.
   * `unlock_period_of_delegator_deposit`: The unlock period (in days) for delegator(s) can withdraw their deposit after they no longer delegates their stake to a certain validator on the corresponding appchain.
-  * `maximum_era_count_of_unwithdrawn_benefit`: The maximum number of historical eras that the validators or delegators are allowed to withdraw their benefit.
+  * `maximum_era_count_of_unwithdrawn_reward`: The maximum number of historical eras that the validators or delegators are allowed to withdraw their rewards.
 * `sender`: A NEAR transaction sender, that is the account which perform actions (call functions) in this contract.
 
 ## Function specification
-
-> For the data design, interface design and processing details, please refer to [implementation detail](https://github.com/octopus-network/octopus-appchain-anchor/blob/main/implementation_detail.md).
 
 ### Manage appchain settings
 
@@ -129,19 +129,37 @@ A validator can also change the flag which is set at registering time and stored
 
 When this contract receives an `appchain message` which indicates that the corresponding appchain has switched to a new `era`, this contract should:
 
-* Create a new (empty) `validator set` for the next `era` that stored in this contract.
-* Store the `total benefit` and `unprofitable validator id list` carried by the `appchain message` in the `validator set` of next `era`.
-* Restore the state of the `validator set` of next `era` by sequentially applying all staking histories happened before the time of this `appchain message` is received. During this process, also generate a copy of the status of all `validator`(s) in the `validator set` of next `era` for the query of appchain nodes. (Because the data struct for query of appchain nodes may be defferent with the internal storage of this contract.)
-* Calculate the unwithdrawn benefit of all validators and delegators in the `validator set` of next `era` based on the `total benefit` and `unprofitable validator id list` of the `era` (distribute the `total benefit` proportionally to all profitable validators and delegators), and store the results in the `validator set` of next `era`.
-* Change the next `era` stored in this contract to the new `era`.
+* Create a new (empty) `validator set` for the given `era`.
+* Restore the state of the `validator set` by sequentially applying all staking histories happened by the time of this `appchain message` is received.
 
-> The next `era` stored in this contract is the one before the new `era` specified by current `appchain message`. It is actually the `era` which is specified by the last `appchain message` of this type.
+During this process:
+
+* Generate a copy of the status of all `validator`(s) in the `validator set` of the given `era`. It is for the query of appchain nodes. (Because the data struct for query of appchain nodes may be defferent with the internal storage of this contract.)
+* Generate the history of `unbonded stake` if `stake decreased`, `delegation decreased`, `validator unbonded` or `delegator unbonded` happened in last era of the given era. The rule is described in [Manage staking](#manage-staking).
+
+> The validator and delegator need to withdraw the unbonded stakes manually.
+
+Notice that, due to the gas limit of a transaction, the whole process may cost more than one transaction to complete.
+
+### Distribute reward of era
+
+When this contract receives an `appchain message` which indicates that the corresponding appchain has finished an `era` and needs to distribute the reward of the `era`, this contract should:
+
+* Store the `unprofitable validator id list` carried by the `appchain message` in the `validator set` of the given `era`.
+* Mint a certain amount of `wrapped appchain token` in the corresponding token contract. The amount is `era_reward` of `appchain settings`.
+* Distribute the `era_reward` proportionally to all profitable validators and delegators (only calculate the reward amount of each one validator and delegator), and store the results in this contract.
+
+> The validator and delegator need to withdraw the rewards manually.
 
 Notice that, due to the gas limit of a transaction, the whole process may cost more than one transaction to complete.
 
 ### Withdraw reward
 
-A validator or deleagtor can withdraw their benefit in latest eras at any time. The earliest era in which they can withdraw is limited by `maximum_era_count_of_unwithdrawn_benefit` of `protocol settings`.
+A validator or deleagtor can withdraw their reward in latest eras at any time. The earliest era in which they can withdraw is limited by `maximum_era_count_of_unwithdrawn_benefit` of `protocol settings`.
+
+### Withdraw unbonded stake
+
+A validator or delegator can withdraw the unbonded stake which is belonged them. Each unbond action will be recorded in this contract, and the unlock period of these unbonded stakes is calculated separatly (as described in [Manage staking](#manage-staking)).
 
 ### Manage appchain lifecycle
 
@@ -152,7 +170,7 @@ The owner of appchain anchor can manually change the state of corresponding appc
 We should take the following steps to initialize this contract and all related contract:
 
 * Prepare the OCT token contract. (Deploy a new one in testnet or use the one created by Aurora Rainbow Bridge in mainnet.)
-* Deploy the appchain registry contract. Refer to [Octopus Appchain Registry](https://github.com/octopus-network/octopus-appchain-registry).
+* Prepare the appchain registry contract. Refer to [Octopus Appchain Registry](https://github.com/octopus-network/octopus-appchain-registry).
 * Deploy this contract with parameters `appchain id`, `contract account of OCT token` and `contract account of appchain registry`.
 * Determine the `premined beneficiary` and `premined balance`. (Normally decided by the appchain team and the `premined balance` will also be stored in appchain registry contract.) And Store them in this contract.
 * Deploy the wrapped appchain token contract with parameters `premined beneficiary`, `premined balance`, `contract account of appchain anchor (this contract)` and `FungibleTokenMetadata`. Refer to [Octopus Wrapped Appchain Token](https://github.com/octopus-network/wrapped-appchain-token).
