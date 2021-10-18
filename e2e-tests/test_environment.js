@@ -1,9 +1,10 @@
 const NodeEnvironment = require('jest-environment-node');
 const nearAPI = require('near-api-js');
 const fs = require('fs');
+const util = require('util');
+const readFile = util.promisify(fs.readFile);
 let near, masterAccount;
 const PROJECT_KEY_DIR = './e2e-tests/nearkeys';
-// const { PROJECT_KEY_DIR } = require("near-cli//middleware/key-store");
 
 const INITIAL_BALANCE = '8000000000000000000000000';
 const keyStore = new nearAPI.keyStores.UnencryptedFileSystemKeyStore(
@@ -24,10 +25,6 @@ class LocalTestEnvironment extends NodeEnvironment {
   async setup() {
     near = await nearAPI.connect(config);
     masterAccount = await near.account(config.masterAccount);
-    const keyFile = require(config.keyPath);
-    const masterKey = nearAPI.utils.KeyPair.fromString(
-      keyFile.secret_key || keyFile.private_key
-    );
 
     this.global.testSettings = this.global.nearConfig = config;
     this.global.nearlib = require('near-api-js');
@@ -54,13 +51,31 @@ class LocalTestEnvironment extends NodeEnvironment {
         Math.random() * (9999999 - 1000000) + 1000000
       );
       const randomKey = await nearAPI.KeyPair.fromRandom('ed25519');
+      const newAccountId = accountId + '-' + now + '-' + randomNumber;
       await masterAccount.createAccount(
-        accountId + '-' + now + '-' + randomNumber,
-        masterKey.getPublicKey(),
+        newAccountId,
+        randomKey.getPublicKey(),
         INITIAL_BALANCE
       );
-      keyStore.setKey(config.networkId, accountId, randomKey);
-      return new nearAPI.Account(near.connection, accountId);
+      keyStore.setKey(config.networkId, newAccountId, randomKey);
+      return new nearAPI.Account(near.connection, newAccountId);
+    };
+
+    this.global.generateUser = async (near, index) => {
+      const account = await this.global.createUser(`alice-${index}`);
+      const accountId = account.accountId;
+      const user = {
+        accountId,
+        oct: await near.loadContract(config.octName, {
+          ...this.global.octMethods,
+          sender: accountId,
+        }),
+        anchor: await near.loadContract(config.anchorName, {
+          ...this.global.anchorMethods,
+          sender: accountId,
+        }),
+      };
+      return user;
     };
   }
 
