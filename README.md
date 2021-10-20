@@ -171,7 +171,11 @@ We should take the following steps to initialize this contract and all related c
 
 * Prepare the OCT token contract. (Deploy a new one in testnet or use the one created by Aurora Rainbow Bridge in mainnet.)
 * Prepare the appchain registry contract. Refer to [Octopus Appchain Registry](https://github.com/octopus-network/octopus-appchain-registry).
-* Deploy this contract with parameters `appchain id`, `contract account of OCT token` and `contract account of appchain registry`.
+* Conclude an appchain in Appchain Registry. After this, the anchor account, that is the account for this contract will be created automatically. The first full access key of anchor account will also be created in this action, with the public key of the owner account of Appchain Registry contract.
+* To deploy the contract code to anchor account by [near-cli](https://github.com/near/near-cli), we need to do the following actions:
+  * Copy the key pair file of the owner of Appchain Registry contract, which is used to call the function `new` to initialize the Appchain Registry contract. (The public key of owner can be queried by view funcion `get_owner_pk` of Appchain Registry contract.) The key pair file can be found in folder `~/.near-credentials/testnet`.
+  * Change name of the key pair file copy to `<appchain id>.<contract account of appchain registry>.json`, and change the value of `account_id` inside the json file to `<appchain id>.<contract account of appchain registry>`.
+* Deploy this contract on account `<appchain id>.<contract account of appchain registry>` with parameters `appchain id`, `contract account of OCT token` and `contract account of appchain registry` by `near-cli`.
 * Determine the `premined beneficiary` and `premined balance`. (Normally decided by the appchain team and the `premined balance` will also be stored in appchain registry contract.) And Store them in this contract.
 * Deploy the wrapped appchain token contract with parameters `premined beneficiary`, `premined balance`, `contract account of appchain anchor (this contract)` and `FungibleTokenMetadata`. Refer to [Octopus Wrapped Appchain Token](https://github.com/octopus-network/wrapped-appchain-token).
 * Store the contract account id of wrapped appchain token in this contract. (By calling function `set_account_of_wrapped_appchain_token`.)
