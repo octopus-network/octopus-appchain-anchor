@@ -16,6 +16,14 @@ impl NearFungibleTokens {
             tokens: LookupMap::new(StorageKey::NearFungibleTokensMap.into_bytes()),
         }
     }
+    ///
+    pub fn to_vec(&self) -> Vec<NearFungibleToken> {
+        let symbols = self.symbols.to_vec();
+        symbols
+            .iter()
+            .map(|symbol| self.tokens.get(symbol).unwrap())
+            .collect::<Vec<NearFungibleToken>>()
+    }
 }
 
 pub trait NearFungibleTokenManager {

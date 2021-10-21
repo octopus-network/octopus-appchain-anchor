@@ -511,12 +511,10 @@ impl AppchainAnchor {
         self.complete_distributing_reward_of_era(era_number);
         // Mint `total_reward` in the contract of wrapped appchain token.
         let appchain_settings = self.appchain_settings.get().unwrap();
-        ext_fungible_token::mint(
+        self.mint_wrapped_appchain_token(
+            None,
             env::current_account_id(),
             appchain_settings.era_reward,
-            &self.wrapped_appchain_token.get().unwrap().contract_account,
-            STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
-            GAS_FOR_FT_TRANSFER_CALL,
         );
     }
     //

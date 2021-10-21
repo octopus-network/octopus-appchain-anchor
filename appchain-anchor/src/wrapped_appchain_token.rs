@@ -16,6 +16,16 @@ impl Default for WrappedAppchainTokenMetadata {
     }
 }
 
+impl WrappedAppchainTokenMetadata {
+    ///
+    pub fn is_valid(&self) -> bool {
+        !(self.symbol.trim().is_empty()
+            || self.name.trim().is_empty()
+            || self.decimals == 0
+            || self.spec.trim().is_empty())
+    }
+}
+
 impl Default for WrappedAppchainToken {
     fn default() -> Self {
         Self {
@@ -26,6 +36,16 @@ impl Default for WrappedAppchainToken {
             changed_balance: I128::from(0),
             price_in_usd: U128::from(0),
         }
+    }
+}
+
+impl WrappedAppchainToken {
+    ///
+    pub fn is_valid(&self) -> bool {
+        !(self.contract_account.trim().is_empty()
+            || self.premined_beneficiary.trim().is_empty()
+            || self.price_in_usd.0 == 0)
+            && self.metadata.is_valid()
     }
 }
 
@@ -99,12 +119,18 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
 
 impl AppchainAnchor {
     //
-    fn mint_wrapped_appchain_token(
+    pub fn mint_wrapped_appchain_token(
         &mut self,
-        request_id: String,
+        request_id: Option<String>,
         receiver_id: AccountId,
-        amount: U64,
+        amount: U128,
     ) {
-        todo!()
+        ext_fungible_token::mint(
+            receiver_id,
+            amount,
+            &self.wrapped_appchain_token.get().unwrap().contract_account,
+            STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
+            GAS_FOR_FT_TRANSFER_CALL,
+        );
     }
 }

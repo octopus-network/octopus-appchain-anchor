@@ -39,6 +39,12 @@ pub trait AnchorViewer {
     fn get_appchain_settings(&self) -> AppchainSettings;
     /// Get protocol settings detail.
     fn get_protocol_settings(&self) -> ProtocolSettings;
+    /// Get info of OCT token
+    fn get_oct_token(&self) -> OctToken;
+    /// Get info of wrapped appchain token
+    fn get_wrapped_appchain_token(&self) -> WrappedAppchainToken;
+    /// Get info of near fungible tokens which has registered in this contract
+    fn get_near_fungible_tokens(&self) -> Vec<NearFungibleToken>;
     /// Get state of corresponding appchain.
     fn get_appchain_state(&self) -> AppchainState;
     /// Get current status of anchor.
@@ -111,6 +117,18 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_protocol_settings(&self) -> ProtocolSettings {
         self.protocol_settings.get().unwrap()
+    }
+    //
+    fn get_oct_token(&self) -> OctToken {
+        self.oct_token.get().unwrap()
+    }
+    //
+    fn get_wrapped_appchain_token(&self) -> WrappedAppchainToken {
+        self.wrapped_appchain_token.get().unwrap()
+    }
+    //
+    fn get_near_fungible_tokens(&self) -> Vec<NearFungibleToken> {
+        self.near_fungible_tokens.get().unwrap().to_vec()
     }
     //
     fn get_appchain_state(&self) -> AppchainState {
