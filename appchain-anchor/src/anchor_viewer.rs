@@ -102,6 +102,15 @@ pub trait AnchorViewer {
     ) -> Vec<RewardHistory>;
     /// Get current storage balance needed by this contract account
     fn get_storage_balance(&self) -> U128;
+    /// Get deposit of a certain validator in a certain era
+    fn get_validator_deposit_of(&self, validator_id: AccountId, era_number: Option<U64>) -> U128;
+    /// Get deposit of a certain delegator in a certain era
+    fn get_delegator_deposit_of(
+        &self,
+        delegator_id: AccountId,
+        validator_id: AccountId,
+        era_number: Option<U64>,
+    ) -> U128;
 }
 
 #[near_bindgen]
@@ -417,5 +426,60 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_storage_balance(&self) -> U128 {
         U128::from(u128::from(env::storage_usage()) * env::storage_byte_cost())
+    }
+    //
+    fn get_validator_deposit_of(&self, validator_id: AccountId, era_number: Option<U64>) -> U128 {
+        if let Some(era_number) = era_number {
+            let validator_set_histories = self.validator_set_histories.get().unwrap();
+            if validator_set_histories.contains(&era_number.0) {
+                let validator_set = validator_set_histories.get(&era_number.0).unwrap();
+                if let Some(validator) = validator_set.validator_set.validators.get(&validator_id) {
+                    return U128::from(validator.deposit_amount);
+                }
+            }
+        } else {
+            if let Some(validator) = self
+                .next_validator_set
+                .get()
+                .unwrap()
+                .validators
+                .get(&validator_id)
+            {
+                return U128::from(validator.deposit_amount);
+            }
+        }
+        U128::from(0)
+    }
+    //
+    fn get_delegator_deposit_of(
+        &self,
+        delegator_id: AccountId,
+        validator_id: AccountId,
+        era_number: Option<U64>,
+    ) -> U128 {
+        if let Some(era_number) = era_number {
+            let validator_set_histories = self.validator_set_histories.get().unwrap();
+            if validator_set_histories.contains(&era_number.0) {
+                let validator_set = validator_set_histories.get(&era_number.0).unwrap();
+                if let Some(delegator) = validator_set
+                    .validator_set
+                    .delegators
+                    .get(&(delegator_id.clone(), validator_id.clone()))
+                {
+                    return U128::from(delegator.deposit_amount);
+                }
+            }
+        } else {
+            if let Some(delegator) = self
+                .next_validator_set
+                .get()
+                .unwrap()
+                .delegators
+                .get(&(delegator_id.clone(), validator_id.clone()))
+            {
+                return U128::from(delegator.deposit_amount);
+            }
+        }
+        U128::from(0)
     }
 }
