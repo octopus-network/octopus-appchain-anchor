@@ -16,7 +16,7 @@ pub enum AppchainEvent {
     /// is concluded in the appchain.
     EraRewardConcluded {
         era_number: U64,
-        unprofitable_validator_ids: Vec<AccountIdInAppchain>,
+        unprofitable_validator_ids: Vec<String>,
     },
     /// The era reward is changed in the appchain
     EraRewardChanged {
@@ -440,7 +440,7 @@ impl AppchainAnchor {
             .get(&validator_id)
             .unwrap();
         validator_set.validator_list.push(&AppchainValidator {
-            validator_id: validator.validator_id_in_appchain.clone(),
+            validator_id: validator.validator_id_in_appchain.to_string(),
             total_stake: U128::from(
                 validator_set
                     .validator_set
@@ -458,7 +458,7 @@ impl AppchainAnchor {
     pub fn start_distributing_reward_of_era(
         &mut self,
         era_number: u64,
-        unprofitable_validator_ids: Vec<AccountIdInAppchain>,
+        unprofitable_validator_ids: Vec<String>,
     ) {
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
         assert!(
@@ -483,21 +483,27 @@ impl AppchainAnchor {
                 .is_ready_for_distributing_reward(),
             "Validator set is not ready for distributing reward."
         );
-        let mut uv_ids = Vec::<AccountId>::new();
+        let mut unprofitable_validator_ids_in_near = Vec::<AccountId>::new();
         for id_in_appchain in unprofitable_validator_ids {
+            let account_id_in_appchain = AccountIdInAppchain::new(id_in_appchain.clone());
+            assert!(
+                account_id_in_appchain.is_valid(),
+                "Invalid validator id in appchain: {}",
+                id_in_appchain
+            );
             assert!(
                 self.validator_account_id_mapping
                     .contains_key(&id_in_appchain),
                 "Invalid validator id in appchain: {}",
                 id_in_appchain
             );
-            uv_ids.push(
+            unprofitable_validator_ids_in_near.push(
                 self.validator_account_id_mapping
                     .get(&id_in_appchain)
                     .unwrap(),
             );
         }
-        validator_set.set_unprofitable_validator_ids(uv_ids);
+        validator_set.set_unprofitable_validator_ids(unprofitable_validator_ids_in_near);
         validator_set.calculate_valid_total_stake();
         validator_set.processing_status = ValidatorSetProcessingStatus::DistributingReward {
             distributing_validator_index: U64::from(0),

@@ -8,7 +8,7 @@ pub struct Validator {
     /// The validator's id in NEAR protocol.
     pub validator_id: AccountId,
     /// The validator's id in the appchain.
-    pub validator_id_in_appchain: AccountIdInAppchain,
+    pub validator_id_in_appchain: String,
     /// The block height when the validator is registered.
     pub registered_block_height: BlockHeight,
     /// The timestamp when the validator is registered.
@@ -163,7 +163,7 @@ impl ValidatorSetActions for ValidatorSet {
                     validator_id,
                     &Validator {
                         validator_id: validator_id.clone(),
-                        validator_id_in_appchain: validator_id_in_appchain.clone(),
+                        validator_id_in_appchain: validator_id_in_appchain.to_string(),
                         registered_block_height: env::block_index(),
                         registered_timestamp: env::block_timestamp(),
                         deposit_amount: amount.0,

@@ -70,7 +70,7 @@ pub trait WrappedAppchainTokenManager {
     ///
     fn set_account_of_wrapped_appchain_token(&mut self, contract_account: AccountId);
     ///
-    fn set_price_of_wrapped_appchain_token(&mut self, price: U64);
+    fn set_price_of_wrapped_appchain_token(&mut self, price: U128);
     ///
     fn burn_wrapped_appchain_token(&mut self, receiver_id: AccountIdInAppchain, amount: U64);
 }
@@ -88,7 +88,18 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         reference: Option<Vec<u8>>,
         reference_hash: Option<Vec<u8>>,
     ) {
-        todo!()
+        let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+        wrapped_appchain_token.metadata.spec.clear();
+        wrapped_appchain_token.metadata.spec.push_str(&spec);
+        wrapped_appchain_token.metadata.symbol.clear();
+        wrapped_appchain_token.metadata.symbol.push_str(&symbol);
+        wrapped_appchain_token.metadata.name.clear();
+        wrapped_appchain_token.metadata.name.push_str(&name);
+        wrapped_appchain_token.metadata.decimals = decimals;
+        wrapped_appchain_token.metadata.icon = icon;
+        wrapped_appchain_token.metadata.reference = reference;
+        wrapped_appchain_token.metadata.reference_hash = reference_hash;
+        self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
     fn set_premined_balance_of_wrapped_appchain_token(
@@ -96,7 +107,13 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         premined_beneficiary: AccountId,
         value: U128,
     ) {
-        todo!()
+        let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+        wrapped_appchain_token.premined_beneficiary.clear();
+        wrapped_appchain_token
+            .premined_beneficiary
+            .push_str(&premined_beneficiary);
+        wrapped_appchain_token.premined_balance = value;
+        self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
     fn set_account_of_wrapped_appchain_token(&mut self, contract_account: AccountId) {
@@ -108,8 +125,17 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
-    fn set_price_of_wrapped_appchain_token(&mut self, price: U64) {
-        todo!()
+    fn set_price_of_wrapped_appchain_token(&mut self, price: U128) {
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        assert_eq!(
+            env::predecessor_account_id(),
+            anchor_settings.token_price_maintainer_account,
+            "Only '{}' can call this function.",
+            anchor_settings.token_price_maintainer_account
+        );
+        let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+        wrapped_appchain_token.price_in_usd = price;
+        self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
     fn burn_wrapped_appchain_token(&mut self, receiver_id: AccountIdInAppchain, amount: U64) {

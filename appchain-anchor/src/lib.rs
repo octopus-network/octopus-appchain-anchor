@@ -88,7 +88,7 @@ pub struct AppchainAnchor {
     unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
     /// The mapping for validators' accounts, from account id in the appchain to
     /// account id in NEAR protocol.
-    validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
+    validator_account_id_mapping: LookupMap<String, AccountId>,
     /// The custom settings for appchain.
     appchain_settings: LazyOption<AppchainSettings>,
     /// The anchor settings for appchain.

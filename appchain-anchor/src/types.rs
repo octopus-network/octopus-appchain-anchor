@@ -3,7 +3,32 @@ use near_sdk::{json_types::I128, BlockHeight};
 use crate::*;
 
 pub type AppchainId = String;
-pub type AccountIdInAppchain = String;
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AccountIdInAppchain {
+    raw_string: String,
+}
+
+impl AccountIdInAppchain {
+    ///
+    pub fn new(id_in_appchain: String) -> Self {
+        let mut value = String::new();
+        if !id_in_appchain.starts_with("0x") {
+            value.push_str("0x");
+        }
+        value.push_str(&id_in_appchain);
+        Self { raw_string: value }
+    }
+    ///
+    pub fn is_valid(&self) -> bool {
+        hex::decode(&self.raw_string.as_str()[2..self.raw_string.len()]).is_ok()
+    }
+    ///
+    pub fn to_string(&self) -> String {
+        self.raw_string.clone()
+    }
+}
 
 /// The state of an appchain
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug, PartialEq)]
@@ -239,7 +264,7 @@ pub enum AnchorEvent {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainValidator {
-    pub validator_id: AccountIdInAppchain,
+    pub validator_id: String,
     pub total_stake: U128,
 }
 
