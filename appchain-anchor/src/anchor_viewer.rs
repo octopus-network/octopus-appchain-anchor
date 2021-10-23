@@ -43,7 +43,7 @@ pub trait AnchorViewer {
     /// stored in anchor, or there is no history in anchor yet, `Option::None` will be returned.
     fn get_token_bridging_history(&self, index: Option<U64>) -> Option<TokenBridgingHistory>;
     /// Get the validator list of a certain era.
-    fn get_validator_list_of_era(&self, era_number: U64) -> Vec<AppchainValidator>;
+    fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator>;
     /// Get the delegators of a validator of a certain era.
     /// If the param `era_number` is omitted, the latest validator set will be used.
     fn get_delegators_of_validator_in_era(
@@ -201,15 +201,20 @@ impl AnchorViewer for AppchainAnchor {
         self.token_bridging_histories.get().unwrap().get(&index.0)
     }
     //
-    fn get_validator_list_of_era(&self, era_number: U64) -> Vec<AppchainValidator> {
-        match self
-            .validator_set_histories
-            .get()
-            .unwrap()
-            .get(&era_number.0)
-        {
-            Some(validator_set_of_era) => validator_set_of_era.validator_list.to_vec(),
-            None => Vec::new(),
+    fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator> {
+        if let Some(era_number) = era_number {
+            if let Some(validator_set_of_era) = self
+                .validator_set_histories
+                .get()
+                .unwrap()
+                .get(&era_number.0)
+            {
+                validator_set_of_era.validator_set.get_validator_list()
+            } else {
+                Vec::new()
+            }
+        } else {
+            self.next_validator_set.get().unwrap().get_validator_list()
         }
     }
     //

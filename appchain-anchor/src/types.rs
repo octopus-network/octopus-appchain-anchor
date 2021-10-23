@@ -288,11 +288,13 @@ pub enum AnchorEvent {
     },
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainValidator {
     pub validator_id: String,
+    pub deposit_amount: U128,
     pub total_stake: U128,
+    pub delegators_count: U64,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -316,7 +318,7 @@ pub struct UnbondedStake {
     pub unlock_time: U64,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum ValidatorSetProcessingStatus {
     CopyingFromLastEra {
@@ -325,9 +327,6 @@ pub enum ValidatorSetProcessingStatus {
     },
     ApplyingStakingHistory {
         applying_index: U64,
-    },
-    MakingValidatorList {
-        making_index: U64,
     },
     ReadyForDistributingReward,
     DistributingReward {

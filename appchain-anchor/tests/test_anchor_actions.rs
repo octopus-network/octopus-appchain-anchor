@@ -307,6 +307,7 @@ fn test_staking_actions() {
     //
     print_anchor_status(&anchor);
     print_staking_histories(&anchor);
+    print_validator_list_of(&anchor, None);
     //
     // Try go_booting
     //
@@ -360,7 +361,7 @@ fn test_staking_actions() {
     // Try complete switching era0
     //
     switch_era(&root, &anchor, 0);
-    print_validator_list_of(&anchor, 0);
+    print_validator_list_of(&anchor, Some(0));
     print_delegator_list_of(&anchor, 0, &users[0]);
     //
     // Go live
@@ -403,7 +404,7 @@ fn test_staking_actions() {
     // Try start and complete switching era1
     //
     switch_era(&root, &anchor, 1);
-    print_validator_list_of(&anchor, 1);
+    print_validator_list_of(&anchor, Some(1));
     print_delegator_list_of(&anchor, 1, &users[0]);
     //
     // Distribut reward of era0
@@ -443,7 +444,7 @@ fn test_staking_actions() {
     // Try start and complete switching era2
     //
     switch_era(&root, &anchor, 2);
-    print_validator_list_of(&anchor, 2);
+    print_validator_list_of(&anchor, Some(2));
     print_delegator_list_of(&anchor, 2, &users[0]);
     //
     // Distribute reward of era1
@@ -486,7 +487,7 @@ fn test_staking_actions() {
     // Try start and complete switching era3
     //
     switch_era(&root, &anchor, 3);
-    print_validator_list_of(&anchor, 3);
+    print_validator_list_of(&anchor, Some(3));
     print_delegator_list_of(&anchor, 3, &users[0]);
     //
     // Distribute reward of era2
@@ -518,7 +519,7 @@ fn test_staking_actions() {
     // Try start and complete switching era3
     //
     switch_era(&root, &anchor, 4);
-    print_validator_list_of(&anchor, 4);
+    print_validator_list_of(&anchor, Some(4));
     print_delegator_list_of(&anchor, 4, &users[0]);
     //
     // Distribute reward of era3
@@ -646,16 +647,27 @@ fn switch_era(
     );
 }
 
-fn print_validator_list_of(anchor: &ContractAccount<AppchainAnchorContract>, era_number: u64) {
-    let validator_list = anchor_viewer::get_validator_list_of_era(anchor, era_number);
+fn print_validator_list_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    era_number: Option<u64>,
+) {
+    let validator_list = anchor_viewer::get_validator_list_of(anchor, era_number);
     let mut index = 0;
     for validator in validator_list {
-        println!(
-            "Validator {} in era {}: {}",
-            index,
-            era_number,
-            serde_json::to_string(&validator).unwrap()
-        );
+        if let Some(era_number) = era_number {
+            println!(
+                "Validator {} in era {}: {}",
+                index,
+                era_number,
+                serde_json::to_string(&validator).unwrap()
+            );
+        } else {
+            println!(
+                "Validator {} in next era: {}",
+                index,
+                serde_json::to_string(&validator).unwrap()
+            );
+        }
         index += 1;
     }
 }

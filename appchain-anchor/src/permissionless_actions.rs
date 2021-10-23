@@ -222,35 +222,13 @@ impl AppchainAnchor {
                 }
                 if applying_index.0 > validator_set.staking_history_index {
                     validator_set.processing_status =
-                        ValidatorSetProcessingStatus::MakingValidatorList {
-                            making_index: U64::from(0),
-                        };
+                        ValidatorSetProcessingStatus::ReadyForDistributingReward;
                 } else {
                     validator_set.processing_status =
                         ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index };
                 }
                 validator_set_histories.insert(&era_number, &validator_set);
                 false
-            }
-            ValidatorSetProcessingStatus::MakingValidatorList { mut making_index } => {
-                while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA
-                    && making_index.0 < validator_set.validator_set.validator_id_set.len()
-                {
-                    self.make_validator_list_in_validator_set(&mut validator_set, making_index.0);
-                    making_index.0 += 1;
-                }
-                validator_set_histories.insert(&era_number, &validator_set);
-                if making_index.0 >= validator_set.validator_set.validator_id_set.len() {
-                    validator_set.processing_status =
-                        ValidatorSetProcessingStatus::ReadyForDistributingReward;
-                    validator_set_histories.insert(&era_number, &validator_set);
-                    return true;
-                } else {
-                    validator_set.processing_status =
-                        ValidatorSetProcessingStatus::MakingValidatorList { making_index };
-                    validator_set_histories.insert(&era_number, &validator_set);
-                    return false;
-                }
             }
             _ => true,
         }
@@ -424,33 +402,6 @@ impl AppchainAnchor {
             _ => (),
         }
     }
-    //
-    fn make_validator_list_in_validator_set(
-        &mut self,
-        validator_set: &mut ValidatorSetOfEra,
-        making_index: u64,
-    ) {
-        let validator_ids = validator_set.validator_set.validator_id_set.to_vec();
-        let validator_id = validator_ids
-            .get(usize::try_from(making_index).unwrap())
-            .unwrap();
-        let validator = validator_set
-            .validator_set
-            .validators
-            .get(&validator_id)
-            .unwrap();
-        validator_set.validator_list.push(&AppchainValidator {
-            validator_id: validator.validator_id_in_appchain.to_string(),
-            total_stake: U128::from(
-                validator_set
-                    .validator_set
-                    .validators
-                    .get(&validator_id)
-                    .unwrap()
-                    .total_stake,
-            ),
-        });
-    }
 }
 
 impl AppchainAnchor {
@@ -481,7 +432,7 @@ impl AppchainAnchor {
         assert!(
             validator_set
                 .processing_status
-                .is_ready_for_distributing_reward(),
+                .eq(&ValidatorSetProcessingStatus::ReadyForDistributingReward),
             "Validator set is not ready for distributing reward."
         );
         let mut unprofitable_validator_ids_in_near = Vec::<AccountId>::new();
@@ -535,7 +486,6 @@ impl AppchainAnchor {
                 copying_delegator_index: _,
             } => false,
             ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index: _ } => false,
-            ValidatorSetProcessingStatus::MakingValidatorList { making_index: _ } => false,
             ValidatorSetProcessingStatus::ReadyForDistributingReward => false,
             ValidatorSetProcessingStatus::DistributingReward {
                 distributing_validator_index,

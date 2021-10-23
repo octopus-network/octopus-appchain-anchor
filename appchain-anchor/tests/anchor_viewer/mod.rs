@@ -125,11 +125,15 @@ pub fn get_staking_history(
     view_result.unwrap_json::<Option<StakingHistory>>()
 }
 
-pub fn get_validator_list_of_era(
+pub fn get_validator_list_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
-    index: u64,
+    index: Option<u64>,
 ) -> Vec<AppchainValidator> {
-    let view_result = view!(anchor.get_validator_list_of_era(U64::from(index)));
+    let index = match index {
+        Some(index) => Some(U64::from(index)),
+        None => None,
+    };
+    let view_result = view!(anchor.get_validator_list_of(index));
     if view_result.is_err() {
         println!("{:#?}", view_result);
     }
