@@ -29,12 +29,12 @@ pub trait AnchorViewer {
     /// stored in anchor, or there is no history in anchor yet, `Option::None` will be returned.
     fn get_staking_history(&self, index: Option<U64>) -> Option<StakingHistory>;
     /// Get the index range of anchor events stored in anchor.
-    fn get_index_range_of_anchor_event(&self) -> IndexRange;
+    fn get_index_range_of_anchor_event_history(&self) -> IndexRange;
     /// Get anchor event by index.
     /// If the param `index `is omitted, the latest event will be returned.
     /// If the paran `index` is smaller than the start index, or bigger than the end index
     /// stored in anchor, or there is no event in anchor yet, `Option::None` will be returned.
-    fn get_anchor_event(&self, index: Option<U64>) -> Option<AnchorEvent>;
+    fn get_anchor_event_history(&self, index: Option<U64>) -> Option<AnchorEventHistory>;
     /// Get the index range of token bridging histories stored in anchor.
     fn get_index_range_of_token_bridging_history(&self) -> IndexRange;
     /// Get token bridging history by index.
@@ -122,7 +122,7 @@ impl AnchorViewer for AppchainAnchor {
                 .validator_id_set
                 .len()
                 .into(),
-            index_range_of_anchor_event: self.anchor_events.get().unwrap().index_range(),
+            index_range_of_anchor_event: self.anchor_event_histories.get().unwrap().index_range(),
             index_range_of_staking_history: self.staking_histories.get().unwrap().index_range(),
             index_range_of_token_bridging_history: self
                 .token_bridging_histories
@@ -171,16 +171,22 @@ impl AnchorViewer for AppchainAnchor {
         self.staking_histories.get().unwrap().get(&index.0)
     }
     //
-    fn get_index_range_of_anchor_event(&self) -> IndexRange {
-        self.anchor_events.get().unwrap().index_range()
+    fn get_index_range_of_anchor_event_history(&self) -> IndexRange {
+        self.anchor_event_histories.get().unwrap().index_range()
     }
     //
-    fn get_anchor_event(&self, index: Option<U64>) -> Option<AnchorEvent> {
+    fn get_anchor_event_history(&self, index: Option<U64>) -> Option<AnchorEventHistory> {
         let index = match index {
             Some(index) => index,
-            None => self.anchor_events.get().unwrap().index_range().end_index,
+            None => {
+                self.anchor_event_histories
+                    .get()
+                    .unwrap()
+                    .index_range()
+                    .end_index
+            }
         };
-        self.anchor_events.get().unwrap().get(&index.0)
+        self.anchor_event_histories.get().unwrap().get(&index.0)
     }
     //
     fn get_index_range_of_token_bridging_history(&self) -> IndexRange {

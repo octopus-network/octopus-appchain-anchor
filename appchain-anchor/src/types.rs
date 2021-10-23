@@ -4,8 +4,6 @@ use crate::*;
 
 pub type AppchainId = String;
 
-#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug, PartialEq)]
-#[serde(crate = "near_sdk::serde")]
 pub struct AccountIdInAppchain {
     raw_string: String,
 }
@@ -181,7 +179,7 @@ pub enum StakingFact {
     /// A new validator is registered in appchain anchor
     ValidatorRegistered {
         validator_id: AccountId,
-        validator_id_in_appchain: AccountIdInAppchain,
+        validator_id_in_appchain: String,
         amount: U128,
         can_be_delegated_to: bool,
     },
@@ -286,6 +284,15 @@ pub enum AnchorEvent {
         appchain_message_nonce: u32,
         reason: String,
     },
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AnchorEventHistory {
+    pub anchor_event: AnchorEvent,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub index: U64,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

@@ -21,8 +21,8 @@ pub enum StorageKey {
     StakingHistoriesMap,
     TokenBridgingHistories,
     TokenBridgingHistoriesMap,
-    AnchorEvents,
-    AnchorEventsMap,
+    AnchorEventHistories,
+    AnchorEventHistoriesMap,
     PermissionlessActionsStatus,
     ValidatorIdsOfEra(u64),
     ValidatorToDelegatorsMapOfEra(u64),
@@ -30,7 +30,6 @@ pub enum StorageKey {
     ValidatorsOfEra(u64),
     DelegatorsOfEra(u64),
     UnprofitableValidatorIdsOfEra(u64),
-    ValidatorListOfEra(u64),
     ValidatorRewardsOfEra(u64),
     DelegatorRewardsOfEra(u64),
     DelegatorIdsInMapOfVToDOfEra {
@@ -65,8 +64,8 @@ impl StorageKey {
             StorageKey::StakingHistoriesMap => "skhm".to_string(),
             StorageKey::TokenBridgingHistories => "tbh".to_string(),
             StorageKey::TokenBridgingHistoriesMap => "tbhm".to_string(),
-            StorageKey::AnchorEvents => "aes".to_string(),
-            StorageKey::AnchorEventsMap => "aesm".to_string(),
+            StorageKey::AnchorEventHistories => "aes".to_string(),
+            StorageKey::AnchorEventHistoriesMap => "aesm".to_string(),
             StorageKey::PermissionlessActionsStatus => "pas".to_string(),
             StorageKey::ValidatorIdsOfEra(era_number) => format!("{}vis", era_number),
             StorageKey::ValidatorToDelegatorsMapOfEra(era_number) => format!("{}lmvtd", era_number),
@@ -76,7 +75,6 @@ impl StorageKey {
             StorageKey::UnprofitableValidatorIdsOfEra(era_number) => {
                 format!("{}upvis", era_number)
             }
-            StorageKey::ValidatorListOfEra(era_number) => format!("{}vl", era_number),
             StorageKey::ValidatorRewardsOfEra(era_number) => format!("{}vrs", era_number),
             StorageKey::DelegatorRewardsOfEra(era_number) => format!("{}drs", era_number),
             StorageKey::DelegatorIdsInMapOfVToDOfEra {

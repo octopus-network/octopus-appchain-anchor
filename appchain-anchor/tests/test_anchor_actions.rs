@@ -565,13 +565,15 @@ fn print_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) {
 }
 
 fn print_anchor_events(anchor: &ContractAccount<AppchainAnchorContract>) {
-    let index_range = anchor_viewer::get_index_range_of_anchor_event(anchor);
+    let index_range = anchor_viewer::get_index_range_of_anchor_event_history(anchor);
     for i in index_range.start_index.0..index_range.end_index.0 + 1 {
-        if let Some(anchor_event) = anchor_viewer::get_anchor_event(anchor, i.try_into().unwrap()) {
+        if let Some(anchor_event_history) =
+            anchor_viewer::get_anchor_event_history(anchor, i.try_into().unwrap())
+        {
             println!(
-                "Anchor event {}: {}",
+                "Anchor event history {}: {}",
                 i,
-                serde_json::to_string(&anchor_event).unwrap()
+                serde_json::to_string(&anchor_event_history).unwrap()
             );
         }
     }

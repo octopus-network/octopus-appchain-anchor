@@ -1,4 +1,4 @@
-mod anchor_events;
+mod anchor_event_histories;
 mod anchor_viewer;
 mod appchain_lifecycle;
 mod near_fungible_token;
@@ -6,6 +6,7 @@ mod permissionless_actions;
 mod settings_manager;
 mod staking;
 mod storage_key;
+mod storage_migration;
 mod sudo_actions;
 mod token_bridging;
 pub mod types;
@@ -15,15 +16,15 @@ mod wrapped_appchain_token;
 use near_contract_standards::upgrade::Ownable;
 use near_fungible_token::NearFungibleTokens;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet, Vector};
+use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Duration, Gas, Promise,
-    PromiseOrValue, PromiseResult, PublicKey, Timestamp,
+    assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Gas, PromiseOrValue,
+    PromiseResult, Timestamp,
 };
 
-pub use anchor_events::AnchorEvents;
+pub use anchor_event_histories::AnchorEventHistories;
 pub use anchor_viewer::AnchorViewer;
 pub use appchain_lifecycle::AppchainLifecycleManager;
 pub use near_fungible_token::NearFungibleTokenManager;
@@ -125,7 +126,7 @@ pub struct AppchainAnchor {
     /// The token bridging histories data happened in this contract.
     token_bridging_histories: LazyOption<TokenBridgingHistories>,
     /// The anchor events data.
-    anchor_events: LazyOption<AnchorEvents>,
+    anchor_event_histories: LazyOption<AnchorEventHistories>,
     /// The status of permissionless actions
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
 }
@@ -211,9 +212,9 @@ impl AppchainAnchor {
                 StorageKey::TokenBridgingHistories.into_bytes(),
                 Some(&TokenBridgingHistories::new()),
             ),
-            anchor_events: LazyOption::new(
-                StorageKey::AnchorEvents.into_bytes(),
-                Some(&AnchorEvents::new()),
+            anchor_event_histories: LazyOption::new(
+                StorageKey::AnchorEventHistories.into_bytes(),
+                Some(&AnchorEventHistories::new()),
             ),
             permissionless_actions_status: LazyOption::new(
                 StorageKey::PermissionlessActionsStatus.into_bytes(),
@@ -327,8 +328,8 @@ impl AppchainAnchor {
 impl AppchainAnchor {
     ///
     pub fn append_anchor_event(&mut self, anchor_event: AnchorEvent) {
-        let mut anchor_events = self.anchor_events.get().unwrap();
+        let mut anchor_events = self.anchor_event_histories.get().unwrap();
         anchor_events.append(anchor_event);
-        self.anchor_events.set(&anchor_events);
+        self.anchor_event_histories.set(&anchor_events);
     }
 }

@@ -190,9 +190,7 @@ impl AppchainAnchor {
         self.record_staking_fact(
             StakingFact::ValidatorRegistered {
                 validator_id: validator_id.clone(),
-                validator_id_in_appchain: AccountIdInAppchain::new(
-                    validator_id_in_appchain.clone(),
-                ),
+                validator_id_in_appchain: validator_id_in_appchain.clone(),
                 amount: deposit_amount,
                 can_be_delegated_to,
             },
