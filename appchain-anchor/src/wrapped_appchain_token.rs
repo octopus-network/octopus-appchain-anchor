@@ -120,12 +120,9 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
     ) {
         self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-        wrapped_appchain_token.metadata.spec.clear();
-        wrapped_appchain_token.metadata.spec.push_str(&spec);
-        wrapped_appchain_token.metadata.symbol.clear();
-        wrapped_appchain_token.metadata.symbol.push_str(&symbol);
-        wrapped_appchain_token.metadata.name.clear();
-        wrapped_appchain_token.metadata.name.push_str(&name);
+        wrapped_appchain_token.metadata.spec = spec;
+        wrapped_appchain_token.metadata.symbol = symbol;
+        wrapped_appchain_token.metadata.name = name;
         wrapped_appchain_token.metadata.decimals = decimals;
         wrapped_appchain_token.metadata.icon = icon;
         wrapped_appchain_token.metadata.reference = reference;
@@ -140,10 +137,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
     ) {
         self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-        wrapped_appchain_token.premined_beneficiary.clear();
-        wrapped_appchain_token
-            .premined_beneficiary
-            .push_str(&premined_beneficiary);
+        wrapped_appchain_token.premined_beneficiary = premined_beneficiary;
         wrapped_appchain_token.premined_balance = value;
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
@@ -151,10 +145,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
     fn set_account_of_wrapped_appchain_token(&mut self, contract_account: AccountId) {
         self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-        wrapped_appchain_token.contract_account.clear();
-        wrapped_appchain_token
-            .contract_account
-            .push_str(&contract_account);
+        wrapped_appchain_token.contract_account = contract_account;
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
