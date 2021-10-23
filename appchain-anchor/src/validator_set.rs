@@ -162,6 +162,7 @@ impl ValidatorSet {
                     deposit_amount: U128::from(validator.deposit_amount),
                     total_stake: U128::from(validator.total_stake),
                     delegators_count: U64::from(delegators_count),
+                    can_be_delegated_to: validator.can_be_delegated_to,
                 };
             })
             .collect()

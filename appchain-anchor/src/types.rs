@@ -322,6 +322,7 @@ pub struct AppchainValidator {
     pub deposit_amount: U128,
     pub total_stake: U128,
     pub delegators_count: U64,
+    pub can_be_delegated_to: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
