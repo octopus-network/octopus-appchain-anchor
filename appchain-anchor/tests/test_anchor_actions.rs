@@ -600,7 +600,7 @@ fn switch_era(
     era_number: u64,
 ) {
     if era_number > 0 {
-        let result = sudo_actions::apply_appchain_message_by_owner(
+        let result = sudo_actions::apply_appchain_message(
             root,
             anchor,
             AppchainMessage {
@@ -702,7 +702,7 @@ fn distribute_reward_of(
 ) {
     let anchor_balance_of_wat =
         token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token);
-    let result = sudo_actions::apply_appchain_message_by_owner(
+    let result = sudo_actions::apply_appchain_message(
         root,
         anchor,
         AppchainMessage {

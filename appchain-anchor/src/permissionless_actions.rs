@@ -124,7 +124,7 @@ impl PermissionlessActions for AppchainAnchor {
 
 impl AppchainAnchor {
     /// Apply a certain `AppchainMessage`
-    pub fn apply_appchain_message(&mut self, appchain_message: AppchainMessage) {
+    pub fn internal_apply_appchain_message(&mut self, appchain_message: AppchainMessage) {
         match appchain_message.appchain_event {
             permissionless_actions::AppchainEvent::NearFungibleTokenBurnt {
                 symbol,
@@ -132,7 +132,7 @@ impl AppchainAnchor {
                 receiver_id_in_near,
                 amount,
             } => {
-                self.unlock_near_fungible_token(
+                self.internal_unlock_near_fungible_token(
                     owner_id_in_appchain,
                     symbol,
                     receiver_id_in_near,
@@ -146,22 +146,14 @@ impl AppchainAnchor {
                 amount,
             } => {
                 let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-                let new_market_value_wrapped_appchain_token: i128 =
-                    ((i128::try_from(wrapped_appchain_token.premined_balance.0).unwrap()
-                        + wrapped_appchain_token.changed_balance.0
-                        + i128::try_from(amount.0).unwrap())
-                        / i128::pow(10, u32::from(wrapped_appchain_token.metadata.decimals)))
-                        * i128::try_from(wrapped_appchain_token.price_in_usd.0).unwrap();
-                let market_value_staked_oct_token: i128 =
-                    i128::try_from(self.get_market_value_of_staked_oct_token().0).unwrap();
                 let protocol_settings = self.protocol_settings.get().unwrap();
-                if new_market_value_wrapped_appchain_token
-                    > market_value_staked_oct_token
-                        * i128::try_from(
+                if wrapped_appchain_token.total_market_value()
+                    + wrapped_appchain_token.get_market_value_of(amount.0)
+                    > self.get_market_value_of_staked_oct_token().0
+                        * u128::from(
                             protocol_settings
                                 .maximum_market_value_percent_of_wrapped_appchain_token,
                         )
-                        .unwrap()
                         / 100
                 {
                     self.append_anchor_event(AnchorEvent::FailedToMintWrappedAppchainToken {
@@ -172,7 +164,7 @@ impl AppchainAnchor {
                         reason: format!("Too much wrapped appchain token to mint."),
                     });
                 } else {
-                    self.mint_wrapped_appchain_token(
+                    self.internal_mint_wrapped_appchain_token(
                         Some(owner_id_in_appchain),
                         receiver_id_in_near,
                         amount,
@@ -181,13 +173,13 @@ impl AppchainAnchor {
                 }
             }
             permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
-                self.start_switching_era(era_number.0);
+                self.internal_start_switching_era(era_number.0);
             }
             permissionless_actions::AppchainEvent::EraRewardConcluded {
                 era_number,
                 unprofitable_validator_ids,
             } => {
-                self.start_distributing_reward_of_era(
+                self.internal_start_distributing_reward_of_era(
                     appchain_message.nonce,
                     era_number.0,
                     unprofitable_validator_ids,
@@ -203,7 +195,7 @@ impl AppchainAnchor {
 
 impl AppchainAnchor {
     //
-    pub fn start_switching_era(&mut self, era_number: u64) {
+    pub fn internal_start_switching_era(&mut self, era_number: u64) {
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
         assert!(
             permissionless_actions_status.switching_era_number.is_none(),
@@ -494,7 +486,7 @@ impl AppchainAnchor {
 
 impl AppchainAnchor {
     //
-    pub fn start_distributing_reward_of_era(
+    pub fn internal_start_distributing_reward_of_era(
         &mut self,
         appchain_message_nonce: u32,
         era_number: u64,
@@ -557,7 +549,7 @@ impl AppchainAnchor {
         self.complete_distributing_reward_of_era(era_number);
         // Mint `total_reward` in the contract of wrapped appchain token.
         let appchain_settings = self.appchain_settings.get().unwrap();
-        self.mint_wrapped_appchain_token(
+        self.internal_mint_wrapped_appchain_token(
             None,
             env::current_account_id(),
             appchain_settings.era_reward,

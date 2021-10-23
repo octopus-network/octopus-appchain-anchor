@@ -46,7 +46,7 @@ impl AppchainLifecycleManager for AppchainAnchor {
             "Missing settings of wrapped appchain token."
         );
         self.appchain_state = AppchainState::Booting;
-        self.start_switching_era(0);
+        self.internal_start_switching_era(0);
     }
     //
     fn go_live(&mut self) {

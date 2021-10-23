@@ -322,9 +322,9 @@ impl AppchainAnchor {
             msg
         );
         if env::predecessor_account_id().eq(&self.oct_token.get().unwrap().contract_account) {
-            self.process_oct_deposit(sender_id, amount, msg)
+            self.internal_process_oct_deposit(sender_id, amount, msg)
         } else {
-            self.process_near_fungible_token_deposit(
+            self.internal_process_near_fungible_token_deposit(
                 env::predecessor_account_id(),
                 sender_id,
                 amount,

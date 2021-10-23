@@ -66,6 +66,17 @@ impl WrappedAppchainToken {
             || self.price_in_usd.0 == 0)
             && self.metadata.is_valid()
     }
+    ///
+    pub fn total_market_value(&self) -> Balance {
+        let total_balance: i128 =
+            i128::try_from(self.premined_balance.0).unwrap() + self.changed_balance.0;
+        u128::try_from(total_balance).unwrap() / u128::pow(10, u32::from(self.metadata.decimals))
+            * self.price_in_usd.0
+    }
+    ///
+    pub fn get_market_value_of(&self, amount: u128) -> Balance {
+        amount / u128::pow(10, u32::from(self.metadata.decimals)) * self.price_in_usd.0
+    }
 }
 
 pub trait WrappedAppchainTokenManager {
@@ -188,7 +199,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
 
 impl AppchainAnchor {
     //
-    pub fn mint_wrapped_appchain_token(
+    pub fn internal_mint_wrapped_appchain_token(
         &mut self,
         sender_id: Option<String>,
         receiver_id: AccountId,

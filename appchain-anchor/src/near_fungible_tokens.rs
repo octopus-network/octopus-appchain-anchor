@@ -219,7 +219,7 @@ enum NearFungibleTokenDepositMessage {
 
 impl AppchainAnchor {
     //
-    pub fn process_near_fungible_token_deposit(
+    pub fn internal_process_near_fungible_token_deposit(
         &mut self,
         predecessor_account_id: AccountId,
         sender_id: AccountId,
@@ -287,7 +287,7 @@ impl AppchainAnchor {
         );
     }
     //
-    pub fn unlock_near_fungible_token(
+    pub fn internal_unlock_near_fungible_token(
         &mut self,
         sender_id_in_appchain: String,
         symbol: String,

@@ -108,7 +108,7 @@ enum StakingDepositMessage {
 
 impl AppchainAnchor {
     //
-    pub fn process_oct_deposit(
+    pub fn internal_process_oct_deposit(
         &mut self,
         sender_id: AccountId,
         amount: U128,
