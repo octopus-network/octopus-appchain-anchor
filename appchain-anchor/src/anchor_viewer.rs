@@ -35,13 +35,6 @@ pub trait AnchorViewer {
     /// If the paran `index` is smaller than the start index, or bigger than the end index
     /// stored in anchor, or there is no event in anchor yet, `Option::None` will be returned.
     fn get_anchor_event_history(&self, index: Option<U64>) -> Option<AnchorEventHistory>;
-    /// Get the index range of token bridging histories stored in anchor.
-    fn get_index_range_of_token_bridging_history(&self) -> IndexRange;
-    /// Get token bridging history by index.
-    /// If the param `index `is omitted, the latest history will be returned.
-    /// If the paran `index` is smaller than the start index, or bigger than the end index
-    /// stored in anchor, or there is no history in anchor yet, `Option::None` will be returned.
-    fn get_token_bridging_history(&self, index: Option<U64>) -> Option<TokenBridgingHistory>;
     /// Get the validator list of a certain era.
     fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator>;
     /// Get the delegators of a validator of a certain era.
@@ -122,13 +115,12 @@ impl AnchorViewer for AppchainAnchor {
                 .validator_id_set
                 .len()
                 .into(),
-            index_range_of_anchor_event: self.anchor_event_histories.get().unwrap().index_range(),
-            index_range_of_staking_history: self.staking_histories.get().unwrap().index_range(),
-            index_range_of_token_bridging_history: self
-                .token_bridging_histories
+            index_range_of_anchor_event_history: self
+                .anchor_event_histories
                 .get()
                 .unwrap()
                 .index_range(),
+            index_range_of_staking_history: self.staking_histories.get().unwrap().index_range(),
             permissionless_actions_status: self.permissionless_actions_status.get().unwrap(),
         }
     }
@@ -187,24 +179,6 @@ impl AnchorViewer for AppchainAnchor {
             }
         };
         self.anchor_event_histories.get().unwrap().get(&index.0)
-    }
-    //
-    fn get_index_range_of_token_bridging_history(&self) -> IndexRange {
-        self.token_bridging_histories.get().unwrap().index_range()
-    }
-    //
-    fn get_token_bridging_history(&self, index: Option<U64>) -> Option<TokenBridgingHistory> {
-        let index = match index {
-            Some(index) => index,
-            None => {
-                self.token_bridging_histories
-                    .get()
-                    .unwrap()
-                    .index_range()
-                    .end_index
-            }
-        };
-        self.token_bridging_histories.get().unwrap().get(&index.0)
     }
     //
     fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator> {

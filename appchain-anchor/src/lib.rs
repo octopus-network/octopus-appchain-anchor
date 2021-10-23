@@ -1,20 +1,18 @@
 mod anchor_event_histories;
 mod anchor_viewer;
 mod appchain_lifecycle;
-mod near_fungible_token;
+mod near_fungible_tokens;
 mod permissionless_actions;
 mod settings_manager;
 mod staking;
 mod storage_key;
 mod storage_migration;
 mod sudo_actions;
-mod token_bridging;
 pub mod types;
 mod validator_set;
 mod wrapped_appchain_token;
 
 use near_contract_standards::upgrade::Ownable;
-use near_fungible_token::NearFungibleTokens;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
 use near_sdk::json_types::{U128, U64};
@@ -27,22 +25,21 @@ use near_sdk::{
 pub use anchor_event_histories::AnchorEventHistories;
 pub use anchor_viewer::AnchorViewer;
 pub use appchain_lifecycle::AppchainLifecycleManager;
-pub use near_fungible_token::NearFungibleTokenManager;
+pub use near_fungible_tokens::NearFungibleTokenManager;
 pub use permissionless_actions::*;
 pub use settings_manager::*;
 pub use staking::StakingManager;
-pub use token_bridging::TokenBridgingHistoryManager;
 pub use wrapped_appchain_token::WrappedAppchainTokenManager;
 
+use near_fungible_tokens::NearFungibleTokens;
 use staking::{StakingHistories, UnbondedStakeReference};
 use storage_key::StorageKey;
-use token_bridging::TokenBridgingHistories;
 use types::*;
 use validator_set::{ValidatorSet, ValidatorSetHistories};
 
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
-const GAS_FOR_FT_TRANSFER_CALL: u64 = 35 * T_GAS;
+const GAS_FOR_FT_TRANSFER_CALL: u64 = 60 * T_GAS;
 const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 80 * T_GAS;
 const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 80 * T_GAS;
 /// Gas cap for function `complete_switching_era`.
@@ -66,19 +63,28 @@ trait FungibleToken {
 }
 
 #[ext_contract(ext_self)]
-trait WrappedAppchainTokenContractResolver {
+trait FungibleTokenContractResolver {
     /// Resolver for burning wrapped appchain token
     fn resolve_wrapped_appchain_token_burning(
         &mut self,
-        sender_id: AccountId,
-        receiver_id: String,
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
         amount: Balance,
     );
     /// Resolver for minting wrapped appchain token
     fn resolve_wrapped_appchain_token_minting(
         &mut self,
-        sender_id: Option<String>,
-        receiver_id: AccountId,
+        sender_id_in_appchain: Option<String>,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+        appchain_message_nonce: u32,
+    );
+    /// Resolver for transfer NEAR fungible token
+    fn resolve_fungible_token_transfer(
+        &mut self,
+        symbol: String,
+        sender_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
     );
@@ -123,8 +129,6 @@ pub struct AppchainAnchor {
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
     staking_histories: LazyOption<StakingHistories>,
-    /// The token bridging histories data happened in this contract.
-    token_bridging_histories: LazyOption<TokenBridgingHistories>,
     /// The anchor events data.
     anchor_event_histories: LazyOption<AnchorEventHistories>,
     /// The status of permissionless actions
@@ -208,10 +212,6 @@ impl AppchainAnchor {
                 StorageKey::StakingHistories.into_bytes(),
                 Some(&StakingHistories::new()),
             ),
-            token_bridging_histories: LazyOption::new(
-                StorageKey::TokenBridgingHistories.into_bytes(),
-                Some(&TokenBridgingHistories::new()),
-            ),
             anchor_event_histories: LazyOption::new(
                 StorageKey::AnchorEventHistories.into_bytes(),
                 Some(&AnchorEventHistories::new()),
@@ -285,6 +285,13 @@ impl AppchainAnchor {
         oct_token.price_in_usd = price;
         self.oct_token.set(&oct_token);
     }
+    ///
+    pub fn get_market_value_of_staked_oct_token(&self) -> U128 {
+        U128::from(
+            self.next_validator_set.get().unwrap().total_stake / OCT_DECIMALS_VALUE
+                * self.oct_token.get().unwrap().price_in_usd.0,
+        )
+    }
 }
 
 #[near_bindgen]
@@ -317,10 +324,12 @@ impl AppchainAnchor {
         if env::predecessor_account_id().eq(&self.oct_token.get().unwrap().contract_account) {
             self.process_oct_deposit(sender_id, amount, msg)
         } else {
-            panic!(
-                "Invalid deposit '{}' of unknown NEP-141 asset from '{}' received. Return deposit.",
-                amount.0, sender_id,
-            );
+            self.process_near_fungible_token_deposit(
+                env::predecessor_account_id(),
+                sender_id,
+                amount,
+                msg,
+            )
         }
     }
 }

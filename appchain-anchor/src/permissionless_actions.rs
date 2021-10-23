@@ -132,7 +132,13 @@ impl AppchainAnchor {
                 receiver_id_in_near,
                 amount,
             } => {
-                todo!()
+                self.unlock_near_fungible_token(
+                    owner_id_in_appchain,
+                    symbol,
+                    receiver_id_in_near,
+                    amount,
+                    appchain_message.nonce,
+                );
             }
             permissionless_actions::AppchainEvent::NativeTokenLocked {
                 owner_id_in_appchain,
@@ -146,11 +152,8 @@ impl AppchainAnchor {
                         + i128::try_from(amount.0).unwrap())
                         / i128::pow(10, u32::from(wrapped_appchain_token.metadata.decimals)))
                         * i128::try_from(wrapped_appchain_token.price_in_usd.0).unwrap();
-                let market_value_staked_oct_token: i128 = i128::try_from(
-                    self.next_validator_set.get().unwrap().total_stake / OCT_DECIMALS_VALUE,
-                )
-                .unwrap()
-                    * i128::try_from(self.oct_token.get().unwrap().price_in_usd.0).unwrap();
+                let market_value_staked_oct_token: i128 =
+                    i128::try_from(self.get_market_value_of_staked_oct_token().0).unwrap();
                 let protocol_settings = self.protocol_settings.get().unwrap();
                 if new_market_value_wrapped_appchain_token
                     > market_value_staked_oct_token

@@ -7,15 +7,15 @@ pub trait WrappedAppchainTokenContractResolver {
     /// Resolver for burning wrapped appchain token
     fn resolve_wrapped_appchain_token_burning(
         &mut self,
-        sender_id: AccountId,
-        receiver_id: String,
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
         amount: U128,
     );
     /// Resolver for minting wrapped appchain token
     fn resolve_wrapped_appchain_token_minting(
         &mut self,
-        sender_id: Option<String>,
-        receiver_id: AccountId,
+        sender_id_in_appchain: Option<String>,
+        receiver_id_in_near: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
     );
@@ -107,6 +107,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         reference: Option<Vec<u8>>,
         reference_hash: Option<Vec<u8>>,
     ) {
+        self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         wrapped_appchain_token.metadata.spec.clear();
         wrapped_appchain_token.metadata.spec.push_str(&spec);
@@ -126,6 +127,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         premined_beneficiary: AccountId,
         value: U128,
     ) {
+        self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         wrapped_appchain_token.premined_beneficiary.clear();
         wrapped_appchain_token
@@ -136,6 +138,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
     }
     //
     fn set_account_of_wrapped_appchain_token(&mut self, contract_account: AccountId) {
+        self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         wrapped_appchain_token.contract_account.clear();
         wrapped_appchain_token
@@ -216,8 +219,8 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
     //
     fn resolve_wrapped_appchain_token_burning(
         &mut self,
-        sender_id: AccountId,
-        receiver_id: String,
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
         amount: U128,
     ) {
         assert_self();
@@ -227,13 +230,13 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                 env::log(
                     format!(
                         "Wrapped appchain token burnt by '{}' for '{}' in appchain. Amount: '{}'",
-                        &sender_id, &receiver_id, &amount.0
+                        &sender_id_in_near, &receiver_id_in_appchain, &amount.0
                     )
                     .as_bytes(),
                 );
                 self.append_anchor_event(AnchorEvent::WrappedAppchainTokenBurnt {
-                    sender_id_in_near: sender_id,
-                    receiver_id_in_appchain: receiver_id,
+                    sender_id_in_near,
+                    receiver_id_in_appchain,
                     amount: U128::from(amount),
                 });
                 let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
@@ -246,15 +249,15 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                 env::log(
                     format!(
                         "Failed to burn wrapped appchain token owned by '{}' for '{}' in appchain. Amount: '{}'",
-                        &sender_id, &receiver_id, &amount.0
+                        &sender_id_in_near, &receiver_id_in_appchain, &amount.0
                     )
                     .as_bytes(),
                 );
                 self.append_anchor_event(AnchorEvent::FailedToBurnWrappedAppchainToken {
-                    sender_id_in_near: sender_id.clone(),
-                    receiver_id_in_appchain: receiver_id,
+                    sender_id_in_near: sender_id_in_near.clone(),
+                    receiver_id_in_appchain,
                     amount: U128::from(amount),
-                    reason: format!("Maybe the balance of {} is not enough.", &sender_id),
+                    reason: format!("Maybe the balance of {} is not enough.", &sender_id_in_near),
                 });
             }
         }
@@ -262,8 +265,8 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
     //
     fn resolve_wrapped_appchain_token_minting(
         &mut self,
-        sender_id: Option<String>,
-        receiver_id: AccountId,
+        sender_id_in_appchain: Option<String>,
+        receiver_id_in_near: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
     ) {
@@ -274,13 +277,13 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                 env::log(
                     format!(
                         "Wrapped appchain token minted by for '{}'. Amount: '{}'",
-                        &receiver_id, &amount.0
+                        &receiver_id_in_near, &amount.0
                     )
                     .as_bytes(),
                 );
                 self.append_anchor_event(AnchorEvent::WrappedAppchainTokenMinted {
-                    sender_id_in_appchain: sender_id,
-                    receiver_id_in_near: receiver_id,
+                    sender_id_in_appchain,
+                    receiver_id_in_near,
                     amount: U128::from(amount),
                     appchain_message_nonce,
                 });
@@ -294,13 +297,13 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                 env::log(
                     format!(
                         "Failed to mint wrapped appchain token for '{}'. Amount: '{}'",
-                        &receiver_id, &amount.0
+                        &receiver_id_in_near, &amount.0
                     )
                     .as_bytes(),
                 );
                 self.append_anchor_event(AnchorEvent::FailedToMintWrappedAppchainToken {
-                    sender_id_in_appchain: sender_id,
-                    receiver_id_in_near: receiver_id,
+                    sender_id_in_appchain,
+                    receiver_id_in_near,
                     amount: U128::from(amount),
                     appchain_message_nonce,
                     reason: format!("Maybe the total supply will overflow."),

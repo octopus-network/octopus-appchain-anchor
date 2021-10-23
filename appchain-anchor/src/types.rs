@@ -167,9 +167,9 @@ pub struct NearFungibleTokenMetadata {
 pub struct NearFungibleToken {
     pub metadata: NearFungibleTokenMetadata,
     pub contract_account: AccountId,
-    pub price_in_usd: U64,
+    pub price_in_usd: U128,
     /// The total balance locked in this contract
-    pub locked_balance: Balance,
+    pub locked_balance: U128,
     pub bridging_state: BridgingState,
 }
 
@@ -240,14 +240,34 @@ pub struct StakingHistory {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AnchorEvent {
-    /// The event that a certain amount of a NEAR fungible token has been locked in appchain anchor.
+    /// The event that a certain amount of a NEAR fungible token has been locked
+    /// in appchain anchor.
     NearFungibleTokenLocked {
         symbol: String,
-        /// The account id of sender in NEAR protocol
-        sender_id: AccountId,
-        /// The id of receiver on the appchain
-        receiver_id: String,
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
         amount: U128,
+    },
+    /// The event that a certain amount of a NEAR fungible token has been unlocked and
+    /// transfered to a receiver in NEAR protocol.
+    NearFungibleTokenUnlocked {
+        symbol: String,
+        sender_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+        /// The nonce of the appchain message
+        appchain_message_nonce: u32,
+    },
+    /// The event that the action for unlocking a certain amount of a NEAR fungible token
+    /// had failed due to some reasons.
+    FailedToUnlockNearFungibleToken {
+        symbol: String,
+        sender_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+        /// The nonce of the appchain message
+        appchain_message_nonce: u32,
+        reason: String,
     },
     /// The event that a certain amount of wrapped appchain token is burnt in its contract
     /// in NEAR protocol.
@@ -352,54 +372,6 @@ pub struct PermissionlessActionsStatus {
     pub distributing_reward_era_number: Option<U64>,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub enum TokenBridgingFact {
-    /// The fact that a certain amount of wrapped appchain token is minted in its contract
-    /// in NEAR protocol
-    WrappedAppchainTokenMinted {
-        request_id: String,
-        /// The account id of receiver in NEAR protocol
-        receiver_id: AccountId,
-        amount: U128,
-    },
-    /// The fact that a certain amount of wrapped appchain token is burnt in its contract
-    /// in NEAR protocol
-    WrappedAppchainTokenBurnt {
-        sender_id: AccountId,
-        /// The id of receiver on the appchain
-        receiver_id: String,
-        amount: U128,
-    },
-    /// The fact that a certain amount of NEP-141 token has been locked in appchain anchor.
-    NearFungibleTokenLocked {
-        symbol: String,
-        /// The account id of sender in NEAR protocol
-        sender_id: AccountId,
-        /// The id of receiver on the appchain
-        receiver_id: String,
-        amount: U128,
-    },
-    /// The fact that a certain amount of NEP-141 token has been unlocked and
-    /// transfered from this contract to the receiver.
-    NearFungibleTokenUnlocked {
-        request_id: String,
-        symbol: String,
-        /// The account id of receiver in NEAR protocol
-        receiver_id: AccountId,
-        amount: U128,
-    },
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct TokenBridgingHistory {
-    pub token_bridging_fact: TokenBridgingFact,
-    pub block_height: BlockHeight,
-    pub timestamp: Timestamp,
-    pub index: U64,
-}
-
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct IndexRange {
@@ -420,9 +392,8 @@ pub struct RewardHistory {
 pub struct AnchorStatus {
     pub total_stake_in_next_era: U128,
     pub validator_count_in_next_era: U64,
-    pub index_range_of_anchor_event: IndexRange,
+    pub index_range_of_anchor_event_history: IndexRange,
     pub index_range_of_staking_history: IndexRange,
-    pub index_range_of_token_bridging_history: IndexRange,
     pub permissionless_actions_status: PermissionlessActionsStatus,
 }
 

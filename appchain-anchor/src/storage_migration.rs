@@ -2,7 +2,65 @@ use crate::*;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::{env, near_bindgen, AccountId, Balance};
+use near_sdk::{env, near_bindgen, AccountId, Balance, BlockHeight};
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum TokenBridgingFact {
+    /// The fact that a certain amount of wrapped appchain token is minted in its contract
+    /// in NEAR protocol
+    WrappedAppchainTokenMinted {
+        request_id: String,
+        /// The account id of receiver in NEAR protocol
+        receiver_id: AccountId,
+        amount: U128,
+    },
+    /// The fact that a certain amount of wrapped appchain token is burnt in its contract
+    /// in NEAR protocol
+    WrappedAppchainTokenBurnt {
+        sender_id: AccountId,
+        /// The id of receiver on the appchain
+        receiver_id: String,
+        amount: U128,
+    },
+    /// The fact that a certain amount of NEP-141 token has been locked in appchain anchor.
+    NearFungibleTokenLocked {
+        symbol: String,
+        /// The account id of sender in NEAR protocol
+        sender_id: AccountId,
+        /// The id of receiver on the appchain
+        receiver_id: String,
+        amount: U128,
+    },
+    /// The fact that a certain amount of NEP-141 token has been unlocked and
+    /// transfered from this contract to the receiver.
+    NearFungibleTokenUnlocked {
+        request_id: String,
+        symbol: String,
+        /// The account id of receiver in NEAR protocol
+        receiver_id: AccountId,
+        amount: U128,
+    },
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct TokenBridgingHistory {
+    pub token_bridging_fact: TokenBridgingFact,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub index: U64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct TokenBridgingHistories {
+    /// The token bridging history data happened in this contract.
+    histories: LookupMap<u64, TokenBridgingHistory>,
+    /// The start index of valid token bridging history.
+    start_index: u64,
+    /// The end index of valid token bridging history.
+    end_index: u64,
+}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
@@ -83,7 +141,6 @@ impl AppchainAnchor {
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
             staking_histories: old_contract.staking_histories,
-            token_bridging_histories: old_contract.token_bridging_histories,
             anchor_event_histories: LazyOption::new(
                 StorageKey::AnchorEventHistories.into_bytes(),
                 Some(&AnchorEventHistories::new()),
