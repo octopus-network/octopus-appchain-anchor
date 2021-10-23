@@ -23,7 +23,11 @@ impl SudoActions for AppchainAnchor {
                 unprofitable_validator_ids,
             } => {
                 self.assert_owner();
-                self.start_distributing_reward_of_era(era_number.0, unprofitable_validator_ids);
+                self.start_distributing_reward_of_era(
+                    appchain_message.nonce,
+                    era_number.0,
+                    unprofitable_validator_ids,
+                );
             }
             permissionless_actions::AppchainEvent::EraRewardChanged {
                 era_number,

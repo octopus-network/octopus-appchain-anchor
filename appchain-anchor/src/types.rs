@@ -254,10 +254,37 @@ pub enum AnchorEvent {
     /// The event that a certain amount of wrapped appchain token is burnt in its contract
     /// in NEAR protocol.
     WrappedAppchainTokenBurnt {
-        sender_id: AccountId,
-        /// The id of receiver on the appchain
-        receiver_id: String,
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
         amount: U128,
+    },
+    /// The event that the action for burning a certain amount of wrapped appchain token
+    /// had failed due to some reasons.
+    FailedToBurnWrappedAppchainToken {
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
+        amount: U128,
+        reason: String,
+    },
+    /// The event that a certain amount of wrapped appchain token had been minted in NEAR protocol
+    WrappedAppchainTokenMinted {
+        /// The id of sender on the appchain, or `None` in distributing era rewards case
+        sender_id_in_appchain: Option<String>,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+        /// The nonce of the appchain message
+        appchain_message_nonce: u32,
+    },
+    /// The event that the action for minting a certain amount of wrapped appchain token
+    /// had failed due to some reasons.
+    FailedToMintWrappedAppchainToken {
+        /// The id of sender on the appchain, or `None` in distributing era rewards case
+        sender_id_in_appchain: Option<String>,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+        /// The nonce of the appchain message
+        appchain_message_nonce: u32,
+        reason: String,
     },
 }
 

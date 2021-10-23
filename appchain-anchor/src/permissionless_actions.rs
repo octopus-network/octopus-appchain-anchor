@@ -457,6 +457,7 @@ impl AppchainAnchor {
     //
     pub fn start_distributing_reward_of_era(
         &mut self,
+        appchain_message_nonce: u32,
         era_number: u64,
         unprofitable_validator_ids: Vec<String>,
     ) {
@@ -521,6 +522,7 @@ impl AppchainAnchor {
             None,
             env::current_account_id(),
             appchain_settings.era_reward,
+            appchain_message_nonce,
         );
     }
     //

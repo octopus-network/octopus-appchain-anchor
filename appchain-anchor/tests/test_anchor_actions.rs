@@ -521,7 +521,7 @@ fn test_staking_actions() {
     print_validator_list_of(&anchor, 4);
     print_delegator_list_of(&anchor, 4, &users[0]);
     //
-    // Distribute reward of era2
+    // Distribute reward of era3
     //
     distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 3);
     print_validator_reward_histories(&anchor, &users[0], 3);
@@ -563,15 +563,31 @@ fn print_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) {
     );
 }
 
+fn print_anchor_events(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let index_range = anchor_viewer::get_index_range_of_anchor_event(anchor);
+    for i in index_range.start_index.0..index_range.end_index.0 + 1 {
+        if let Some(anchor_event) = anchor_viewer::get_anchor_event(anchor, i.try_into().unwrap()) {
+            println!(
+                "Anchor event {}: {}",
+                i,
+                serde_json::to_string(&anchor_event).unwrap()
+            );
+        }
+    }
+}
+
 fn print_staking_histories(anchor: &ContractAccount<AppchainAnchorContract>) {
     let index_range = anchor_viewer::get_index_range_of_staking_history(anchor);
     for i in index_range.start_index.0..index_range.end_index.0 + 1 {
-        let staking_history = anchor_viewer::get_staking_history(anchor, i.try_into().unwrap());
-        println!(
-            "Staking history {}: {}",
-            i,
-            serde_json::to_string(&staking_history).unwrap()
-        );
+        if let Some(staking_history) =
+            anchor_viewer::get_staking_history(anchor, i.try_into().unwrap())
+        {
+            println!(
+                "Staking history {}: {}",
+                i,
+                serde_json::to_string(&staking_history).unwrap()
+            );
+        }
     }
 }
 
@@ -722,6 +738,7 @@ fn distribute_reward_of(
         era_number,
         serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
     );
+    print_anchor_events(&anchor);
 }
 
 fn print_validator_reward_histories(
