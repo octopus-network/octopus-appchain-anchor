@@ -95,7 +95,6 @@ pub fn get_anchor_event(
     let view_result = view!(anchor.get_anchor_event(Some(U64::from(index))));
     if view_result.is_err() {
         println!("{:#?}", view_result);
-        return None;
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Option<AnchorEvent>>()
@@ -119,7 +118,6 @@ pub fn get_staking_history(
     let view_result = view!(anchor.get_staking_history(Some(U64::from(index))));
     if view_result.is_err() {
         println!("{:#?}", view_result);
-        return None;
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Option<StakingHistory>>()

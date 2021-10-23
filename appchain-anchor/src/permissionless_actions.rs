@@ -7,9 +7,18 @@ use validator_set::*;
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainEvent {
     /// The fact that a certain amount of bridge token has been burnt in the appchain.
-    NearFungibleTokenBurnt { symbol: String, amount: U128 },
+    NearFungibleTokenBurnt {
+        symbol: String,
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+    },
     /// The fact that a certain amount of appchain native token has been locked in the appchain.
-    NativeTokenLocked { amount: U128 },
+    NativeTokenLocked {
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+    },
     /// The fact that the era switch is planed in the appchain.
     EraSwitchPlaned { era_number: U64 },
     /// The fact that the total reward and unprofitable validator list
@@ -109,6 +118,82 @@ impl PermissionlessActions for AppchainAnchor {
                 completed
             }
             None => true,
+        }
+    }
+}
+
+impl AppchainAnchor {
+    /// Apply a certain `AppchainMessage`
+    pub fn apply_appchain_message(&mut self, appchain_message: AppchainMessage) {
+        match appchain_message.appchain_event {
+            permissionless_actions::AppchainEvent::NearFungibleTokenBurnt {
+                symbol,
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                amount,
+            } => {
+                todo!()
+            }
+            permissionless_actions::AppchainEvent::NativeTokenLocked {
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                amount,
+            } => {
+                let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+                let new_market_value_wrapped_appchain_token: i128 =
+                    ((i128::try_from(wrapped_appchain_token.premined_balance.0).unwrap()
+                        + wrapped_appchain_token.changed_balance.0
+                        + i128::try_from(amount.0).unwrap())
+                        / i128::pow(10, u32::from(wrapped_appchain_token.metadata.decimals)))
+                        * i128::try_from(wrapped_appchain_token.price_in_usd.0).unwrap();
+                let market_value_staked_oct_token: i128 = i128::try_from(
+                    self.next_validator_set.get().unwrap().total_stake / OCT_DECIMALS_VALUE,
+                )
+                .unwrap()
+                    * i128::try_from(self.oct_token.get().unwrap().price_in_usd.0).unwrap();
+                let protocol_settings = self.protocol_settings.get().unwrap();
+                if new_market_value_wrapped_appchain_token
+                    > market_value_staked_oct_token
+                        * i128::try_from(
+                            protocol_settings
+                                .maximum_market_value_percent_of_wrapped_appchain_token,
+                        )
+                        .unwrap()
+                        / 100
+                {
+                    self.append_anchor_event(AnchorEvent::FailedToMintWrappedAppchainToken {
+                        sender_id_in_appchain: Some(owner_id_in_appchain),
+                        receiver_id_in_near,
+                        amount,
+                        appchain_message_nonce: appchain_message.nonce,
+                        reason: format!("Too much wrapped appchain token to mint."),
+                    });
+                } else {
+                    self.mint_wrapped_appchain_token(
+                        Some(owner_id_in_appchain),
+                        receiver_id_in_near,
+                        amount,
+                        appchain_message.nonce,
+                    );
+                }
+            }
+            permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
+                self.start_switching_era(era_number.0);
+            }
+            permissionless_actions::AppchainEvent::EraRewardConcluded {
+                era_number,
+                unprofitable_validator_ids,
+            } => {
+                self.start_distributing_reward_of_era(
+                    appchain_message.nonce,
+                    era_number.0,
+                    unprofitable_validator_ids,
+                );
+            }
+            permissionless_actions::AppchainEvent::EraRewardChanged {
+                era_number,
+                era_reward,
+            } => todo!(),
         }
     }
 }

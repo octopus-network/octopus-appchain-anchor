@@ -316,12 +316,10 @@ impl AppchainAnchor {
         if env::predecessor_account_id().eq(&self.oct_token.get().unwrap().contract_account) {
             self.process_oct_deposit(sender_id, amount, msg)
         } else {
-            log!(
+            panic!(
                 "Invalid deposit '{}' of unknown NEP-141 asset from '{}' received. Return deposit.",
-                amount.0,
-                sender_id,
+                amount.0, sender_id,
             );
-            PromiseOrValue::Value(amount)
         }
     }
 }
