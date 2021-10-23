@@ -1,3 +1,4 @@
+use core::convert::TryFrom;
 use near_sdk::json_types::I128;
 
 use crate::*;
@@ -235,6 +236,11 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     receiver_id_in_appchain: receiver_id,
                     amount: U128::from(amount),
                 });
+                let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+                wrapped_appchain_token.changed_balance = I128::from(
+                    wrapped_appchain_token.changed_balance.0 - i128::try_from(amount.0).unwrap(),
+                );
+                self.wrapped_appchain_token.set(&wrapped_appchain_token);
             }
             PromiseResult::Failed => {
                 env::log(
@@ -278,6 +284,11 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     amount: U128::from(amount),
                     appchain_message_nonce,
                 });
+                let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+                wrapped_appchain_token.changed_balance = I128::from(
+                    wrapped_appchain_token.changed_balance.0 + i128::try_from(amount.0).unwrap(),
+                );
+                self.wrapped_appchain_token.set(&wrapped_appchain_token);
             }
             PromiseResult::Failed => {
                 env::log(
