@@ -7,16 +7,25 @@ use validator_set::*;
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainEvent {
     /// The fact that a certain amount of bridge token has been burnt in the appchain.
-    NearFungibleTokenBurnt { symbol: String, amount: U128 },
+    NearFungibleTokenBurnt {
+        symbol: String,
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+    },
     /// The fact that a certain amount of appchain native token has been locked in the appchain.
-    NativeTokenLocked { amount: U128 },
+    NativeTokenLocked {
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+    },
     /// The fact that the era switch is planed in the appchain.
     EraSwitchPlaned { era_number: U64 },
     /// The fact that the total reward and unprofitable validator list
     /// is concluded in the appchain.
     EraRewardConcluded {
         era_number: U64,
-        unprofitable_validator_ids: Vec<AccountIdInAppchain>,
+        unprofitable_validator_ids: Vec<String>,
     },
     /// The era reward is changed in the appchain
     EraRewardChanged {
@@ -109,6 +118,82 @@ impl PermissionlessActions for AppchainAnchor {
                 completed
             }
             None => true,
+        }
+    }
+}
+
+impl AppchainAnchor {
+    /// Apply a certain `AppchainMessage`
+    pub fn apply_appchain_message(&mut self, appchain_message: AppchainMessage) {
+        match appchain_message.appchain_event {
+            permissionless_actions::AppchainEvent::NearFungibleTokenBurnt {
+                symbol,
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                amount,
+            } => {
+                todo!()
+            }
+            permissionless_actions::AppchainEvent::NativeTokenLocked {
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                amount,
+            } => {
+                let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+                let new_market_value_wrapped_appchain_token: i128 =
+                    ((i128::try_from(wrapped_appchain_token.premined_balance.0).unwrap()
+                        + wrapped_appchain_token.changed_balance.0
+                        + i128::try_from(amount.0).unwrap())
+                        / i128::pow(10, u32::from(wrapped_appchain_token.metadata.decimals)))
+                        * i128::try_from(wrapped_appchain_token.price_in_usd.0).unwrap();
+                let market_value_staked_oct_token: i128 = i128::try_from(
+                    self.next_validator_set.get().unwrap().total_stake / OCT_DECIMALS_VALUE,
+                )
+                .unwrap()
+                    * i128::try_from(self.oct_token.get().unwrap().price_in_usd.0).unwrap();
+                let protocol_settings = self.protocol_settings.get().unwrap();
+                if new_market_value_wrapped_appchain_token
+                    > market_value_staked_oct_token
+                        * i128::try_from(
+                            protocol_settings
+                                .maximum_market_value_percent_of_wrapped_appchain_token,
+                        )
+                        .unwrap()
+                        / 100
+                {
+                    self.append_anchor_event(AnchorEvent::FailedToMintWrappedAppchainToken {
+                        sender_id_in_appchain: Some(owner_id_in_appchain),
+                        receiver_id_in_near,
+                        amount,
+                        appchain_message_nonce: appchain_message.nonce,
+                        reason: format!("Too much wrapped appchain token to mint."),
+                    });
+                } else {
+                    self.mint_wrapped_appchain_token(
+                        Some(owner_id_in_appchain),
+                        receiver_id_in_near,
+                        amount,
+                        appchain_message.nonce,
+                    );
+                }
+            }
+            permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
+                self.start_switching_era(era_number.0);
+            }
+            permissionless_actions::AppchainEvent::EraRewardConcluded {
+                era_number,
+                unprofitable_validator_ids,
+            } => {
+                self.start_distributing_reward_of_era(
+                    appchain_message.nonce,
+                    era_number.0,
+                    unprofitable_validator_ids,
+                );
+            }
+            permissionless_actions::AppchainEvent::EraRewardChanged {
+                era_number,
+                era_reward,
+            } => todo!(),
         }
     }
 }
@@ -222,35 +307,13 @@ impl AppchainAnchor {
                 }
                 if applying_index.0 > validator_set.staking_history_index {
                     validator_set.processing_status =
-                        ValidatorSetProcessingStatus::MakingValidatorList {
-                            making_index: U64::from(0),
-                        };
+                        ValidatorSetProcessingStatus::ReadyForDistributingReward;
                 } else {
                     validator_set.processing_status =
                         ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index };
                 }
                 validator_set_histories.insert(&era_number, &validator_set);
                 false
-            }
-            ValidatorSetProcessingStatus::MakingValidatorList { mut making_index } => {
-                while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA
-                    && making_index.0 < validator_set.validator_set.validator_id_set.len()
-                {
-                    self.make_validator_list_in_validator_set(&mut validator_set, making_index.0);
-                    making_index.0 += 1;
-                }
-                validator_set_histories.insert(&era_number, &validator_set);
-                if making_index.0 >= validator_set.validator_set.validator_id_set.len() {
-                    validator_set.processing_status =
-                        ValidatorSetProcessingStatus::ReadyForDistributingReward;
-                    validator_set_histories.insert(&era_number, &validator_set);
-                    return true;
-                } else {
-                    validator_set.processing_status =
-                        ValidatorSetProcessingStatus::MakingValidatorList { making_index };
-                    validator_set_histories.insert(&era_number, &validator_set);
-                    return false;
-                }
             }
             _ => true,
         }
@@ -424,41 +487,15 @@ impl AppchainAnchor {
             _ => (),
         }
     }
-    //
-    fn make_validator_list_in_validator_set(
-        &mut self,
-        validator_set: &mut ValidatorSetOfEra,
-        making_index: u64,
-    ) {
-        let validator_ids = validator_set.validator_set.validator_id_set.to_vec();
-        let validator_id = validator_ids
-            .get(usize::try_from(making_index).unwrap())
-            .unwrap();
-        let validator = validator_set
-            .validator_set
-            .validators
-            .get(&validator_id)
-            .unwrap();
-        validator_set.validator_list.push(&AppchainValidator {
-            validator_id: validator.validator_id_in_appchain.clone(),
-            total_stake: U128::from(
-                validator_set
-                    .validator_set
-                    .validators
-                    .get(&validator_id)
-                    .unwrap()
-                    .total_stake,
-            ),
-        });
-    }
 }
 
 impl AppchainAnchor {
     //
     pub fn start_distributing_reward_of_era(
         &mut self,
+        appchain_message_nonce: u32,
         era_number: u64,
-        unprofitable_validator_ids: Vec<AccountIdInAppchain>,
+        unprofitable_validator_ids: Vec<String>,
     ) {
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
         assert!(
@@ -480,24 +517,30 @@ impl AppchainAnchor {
         assert!(
             validator_set
                 .processing_status
-                .is_ready_for_distributing_reward(),
+                .eq(&ValidatorSetProcessingStatus::ReadyForDistributingReward),
             "Validator set is not ready for distributing reward."
         );
-        let mut uv_ids = Vec::<AccountId>::new();
+        let mut unprofitable_validator_ids_in_near = Vec::<AccountId>::new();
         for id_in_appchain in unprofitable_validator_ids {
+            let account_id_in_appchain = AccountIdInAppchain::new(id_in_appchain.clone());
+            assert!(
+                account_id_in_appchain.is_valid(),
+                "Invalid validator id in appchain: {}",
+                id_in_appchain
+            );
             assert!(
                 self.validator_account_id_mapping
                     .contains_key(&id_in_appchain),
                 "Invalid validator id in appchain: {}",
                 id_in_appchain
             );
-            uv_ids.push(
+            unprofitable_validator_ids_in_near.push(
                 self.validator_account_id_mapping
                     .get(&id_in_appchain)
                     .unwrap(),
             );
         }
-        validator_set.set_unprofitable_validator_ids(uv_ids);
+        validator_set.set_unprofitable_validator_ids(unprofitable_validator_ids_in_near);
         validator_set.calculate_valid_total_stake();
         validator_set.processing_status = ValidatorSetProcessingStatus::DistributingReward {
             distributing_validator_index: U64::from(0),
@@ -511,12 +554,11 @@ impl AppchainAnchor {
         self.complete_distributing_reward_of_era(era_number);
         // Mint `total_reward` in the contract of wrapped appchain token.
         let appchain_settings = self.appchain_settings.get().unwrap();
-        ext_fungible_token::mint(
+        self.mint_wrapped_appchain_token(
+            None,
             env::current_account_id(),
             appchain_settings.era_reward,
-            &self.wrapped_appchain_token.get().unwrap().contract_account,
-            STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
-            GAS_FOR_FT_TRANSFER_CALL,
+            appchain_message_nonce,
         );
     }
     //
@@ -529,7 +571,6 @@ impl AppchainAnchor {
                 copying_delegator_index: _,
             } => false,
             ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index: _ } => false,
-            ValidatorSetProcessingStatus::MakingValidatorList { making_index: _ } => false,
             ValidatorSetProcessingStatus::ReadyForDistributingReward => false,
             ValidatorSetProcessingStatus::DistributingReward {
                 distributing_validator_index,

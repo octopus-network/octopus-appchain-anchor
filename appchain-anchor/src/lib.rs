@@ -1,3 +1,4 @@
+mod anchor_events;
 mod anchor_viewer;
 mod appchain_lifecycle;
 mod near_fungible_token;
@@ -22,6 +23,7 @@ use near_sdk::{
     PromiseOrValue, PromiseResult, PublicKey, Timestamp,
 };
 
+pub use anchor_events::AnchorEvents;
 pub use anchor_viewer::AnchorViewer;
 pub use appchain_lifecycle::AppchainLifecycleManager;
 pub use near_fungible_token::NearFungibleTokenManager;
@@ -31,7 +33,6 @@ pub use staking::StakingManager;
 pub use token_bridging::TokenBridgingHistoryManager;
 pub use wrapped_appchain_token::WrappedAppchainTokenManager;
 
-use anchor_viewer::AnchorEvents;
 use staking::{StakingHistories, UnbondedStakeReference};
 use storage_key::StorageKey;
 use token_bridging::TokenBridgingHistories;
@@ -41,6 +42,10 @@ use validator_set::{ValidatorSet, ValidatorSetHistories};
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
 const GAS_FOR_FT_TRANSFER_CALL: u64 = 35 * T_GAS;
+const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 80 * T_GAS;
+const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 80 * T_GAS;
+/// Gas cap for function `complete_switching_era`.
+const GAS_CAP_FOR_COMPLETE_SWITCHING_ERA: Gas = 180 * T_GAS;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.
@@ -49,15 +54,33 @@ const OCT_DECIMALS_VALUE: Balance = 1_000_000_000_000_000_000;
 const SECONDS_OF_A_DAY: u64 = 86400;
 /// Multiple of nano seconds for a second.
 const NANO_SECONDS_MULTIPLE: u64 = 1_000_000_000;
-/// Gas cap for function `complete_switching_era`.
-const GAS_CAP_FOR_COMPLETE_SWITCHING_ERA: Gas = 180_000_000_000_000;
 /// Storage deposit for NEP-141 token (in yocto)
 const STORAGE_DEPOSIT_FOR_NEP141_TOEKN: Balance = 12_500_000_000_000_000_000_000;
 
 #[ext_contract(ext_fungible_token)]
-pub trait FungibleToken {
+trait FungibleToken {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
     fn mint(&mut self, account_id: AccountId, amount: U128);
+    fn burn(&mut self, account_id: AccountId, amount: U128);
+}
+
+#[ext_contract(ext_self)]
+trait WrappedAppchainTokenContractResolver {
+    /// Resolver for burning wrapped appchain token
+    fn resolve_wrapped_appchain_token_burning(
+        &mut self,
+        sender_id: AccountId,
+        receiver_id: String,
+        amount: Balance,
+    );
+    /// Resolver for minting wrapped appchain token
+    fn resolve_wrapped_appchain_token_minting(
+        &mut self,
+        sender_id: Option<String>,
+        receiver_id: AccountId,
+        amount: U128,
+        appchain_message_nonce: u32,
+    );
 }
 
 #[near_bindgen]
@@ -88,7 +111,7 @@ pub struct AppchainAnchor {
     unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
     /// The mapping for validators' accounts, from account id in the appchain to
     /// account id in NEAR protocol.
-    validator_account_id_mapping: LookupMap<AccountIdInAppchain, AccountId>,
+    validator_account_id_mapping: LookupMap<String, AccountId>,
     /// The custom settings for appchain.
     appchain_settings: LazyOption<AppchainSettings>,
     /// The anchor settings for appchain.
@@ -293,12 +316,19 @@ impl AppchainAnchor {
         if env::predecessor_account_id().eq(&self.oct_token.get().unwrap().contract_account) {
             self.process_oct_deposit(sender_id, amount, msg)
         } else {
-            log!(
+            panic!(
                 "Invalid deposit '{}' of unknown NEP-141 asset from '{}' received. Return deposit.",
-                amount.0,
-                sender_id,
+                amount.0, sender_id,
             );
-            PromiseOrValue::Value(amount)
         }
+    }
+}
+
+impl AppchainAnchor {
+    ///
+    pub fn append_anchor_event(&mut self, anchor_event: AnchorEvent) {
+        let mut anchor_events = self.anchor_events.get().unwrap();
+        anchor_events.append(anchor_event);
+        self.anchor_events.set(&anchor_events);
     }
 }

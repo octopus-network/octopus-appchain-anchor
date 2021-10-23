@@ -3,7 +3,32 @@ use near_sdk::{json_types::I128, BlockHeight};
 use crate::*;
 
 pub type AppchainId = String;
-pub type AccountIdInAppchain = String;
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AccountIdInAppchain {
+    raw_string: String,
+}
+
+impl AccountIdInAppchain {
+    ///
+    pub fn new(id_in_appchain: String) -> Self {
+        let mut value = String::new();
+        if !id_in_appchain.starts_with("0x") {
+            value.push_str("0x");
+        }
+        value.push_str(&id_in_appchain);
+        Self { raw_string: value }
+    }
+    ///
+    pub fn is_valid(&self) -> bool {
+        hex::decode(&self.raw_string.as_str()[2..self.raw_string.len()]).is_ok()
+    }
+    ///
+    pub fn to_string(&self) -> String {
+        self.raw_string.clone()
+    }
+}
 
 /// The state of an appchain
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug, PartialEq)]
@@ -229,18 +254,47 @@ pub enum AnchorEvent {
     /// The event that a certain amount of wrapped appchain token is burnt in its contract
     /// in NEAR protocol.
     WrappedAppchainTokenBurnt {
-        sender_id: AccountId,
-        /// The id of receiver on the appchain
-        receiver_id: String,
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
         amount: U128,
+    },
+    /// The event that the action for burning a certain amount of wrapped appchain token
+    /// had failed due to some reasons.
+    FailedToBurnWrappedAppchainToken {
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
+        amount: U128,
+        reason: String,
+    },
+    /// The event that a certain amount of wrapped appchain token had been minted in NEAR protocol
+    WrappedAppchainTokenMinted {
+        /// The id of sender on the appchain, or `None` in distributing era rewards case
+        sender_id_in_appchain: Option<String>,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+        /// The nonce of the appchain message
+        appchain_message_nonce: u32,
+    },
+    /// The event that the action for minting a certain amount of wrapped appchain token
+    /// had failed due to some reasons.
+    FailedToMintWrappedAppchainToken {
+        /// The id of sender on the appchain, or `None` in distributing era rewards case
+        sender_id_in_appchain: Option<String>,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+        /// The nonce of the appchain message
+        appchain_message_nonce: u32,
+        reason: String,
     },
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainValidator {
-    pub validator_id: AccountIdInAppchain,
+    pub validator_id: String,
+    pub deposit_amount: U128,
     pub total_stake: U128,
+    pub delegators_count: U64,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -264,7 +318,7 @@ pub struct UnbondedStake {
     pub unlock_time: U64,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum ValidatorSetProcessingStatus {
     CopyingFromLastEra {
@@ -273,9 +327,6 @@ pub enum ValidatorSetProcessingStatus {
     },
     ApplyingStakingHistory {
         applying_index: U64,
-    },
-    MakingValidatorList {
-        making_index: U64,
     },
     ReadyForDistributingReward,
     DistributingReward {

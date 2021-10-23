@@ -8,7 +8,7 @@ pub struct Validator {
     /// The validator's id in NEAR protocol.
     pub validator_id: AccountId,
     /// The validator's id in the appchain.
-    pub validator_id_in_appchain: AccountIdInAppchain,
+    pub validator_id_in_appchain: String,
     /// The block height when the validator is registered.
     pub registered_block_height: BlockHeight,
     /// The timestamp when the validator is registered.
@@ -59,8 +59,6 @@ pub struct ValidatorSet {
 pub struct ValidatorSetOfEra {
     /// The validator set of this era
     pub validator_set: ValidatorSet,
-    /// The validator list for query
-    pub validator_list: Vector<AppchainValidator>,
     /// The block height when the era starts.
     pub start_block_height: BlockHeight,
     /// The timestamp when the era starts.
@@ -146,6 +144,28 @@ impl ValidatorSet {
             total_stake: 0,
         }
     }
+    ///
+    pub fn get_validator_list(&self) -> Vec<AppchainValidator> {
+        let validator_ids = self.validator_id_set.to_vec();
+        validator_ids
+            .iter()
+            .map(|validator_id| {
+                let validator = self.validators.get(validator_id).unwrap();
+                let mut delegators_count: u64 = 0;
+                if let Some(delegator_id_set) =
+                    self.validator_id_to_delegator_id_set.get(validator_id)
+                {
+                    delegators_count = delegator_id_set.len();
+                }
+                return AppchainValidator {
+                    validator_id: validator.validator_id,
+                    deposit_amount: U128::from(validator.deposit_amount),
+                    total_stake: U128::from(validator.total_stake),
+                    delegators_count: U64::from(delegators_count),
+                };
+            })
+            .collect()
+    }
 }
 
 impl ValidatorSetActions for ValidatorSet {
@@ -163,7 +183,7 @@ impl ValidatorSetActions for ValidatorSet {
                     validator_id,
                     &Validator {
                         validator_id: validator_id.clone(),
-                        validator_id_in_appchain: validator_id_in_appchain.clone(),
+                        validator_id_in_appchain: validator_id_in_appchain.to_string(),
                         registered_block_height: env::block_index(),
                         registered_timestamp: env::block_timestamp(),
                         deposit_amount: amount.0,
@@ -370,26 +390,6 @@ impl ValidatorSetActions for ValidatorSet {
     }
 }
 
-impl ValidatorSetProcessingStatus {
-    ///
-    pub fn is_ready_for_distributing_reward(&self) -> bool {
-        match self {
-            ValidatorSetProcessingStatus::CopyingFromLastEra {
-                copying_validator_index: _,
-                copying_delegator_index: _,
-            } => false,
-            ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index: _ } => false,
-            ValidatorSetProcessingStatus::MakingValidatorList { making_index: _ } => false,
-            ValidatorSetProcessingStatus::ReadyForDistributingReward => true,
-            ValidatorSetProcessingStatus::DistributingReward {
-                distributing_validator_index: _,
-                distributing_delegator_index: _,
-            } => false,
-            ValidatorSetProcessingStatus::Completed => false,
-        }
-    }
-}
-
 impl ValidatorSetOfEra {
     ///
     pub fn new(era_number: u64, staking_history_index: u64) -> Self {
@@ -401,7 +401,6 @@ impl ValidatorSetOfEra {
                 StorageKey::UnprofitableValidatorIdsOfEra(era_number).into_bytes(),
             ),
             validator_set: ValidatorSet::new(era_number),
-            validator_list: Vector::new(StorageKey::ValidatorListOfEra(era_number).into_bytes()),
             valid_total_stake: 0,
             validator_rewards: LookupMap::new(
                 StorageKey::ValidatorRewardsOfEra(era_number).into_bytes(),
@@ -435,7 +434,7 @@ impl ValidatorSetOfEra {
         ValidatorSetInfo {
             era_number: U64::from(self.validator_set.era_number),
             total_stake: U128::from(self.validator_set.total_stake),
-            validator_list: self.validator_list.to_vec(),
+            validator_list: self.validator_set.get_validator_list(),
             start_block_height: U64::from(self.start_block_height),
             start_timestamp: U64::from(self.start_timestamp),
             staking_history_index: U64::from(self.staking_history_index),

@@ -220,13 +220,23 @@ pub fn print_execution_result(
         function_name,
         result.gas_burnt().to_formatted_string(&Locale::en)
     );
-    if result.is_ok() {
-        let results = result.promise_results();
-        for result in results {
-            let logs = result.as_ref().unwrap().logs();
-            if logs.len() > 0 {
-                println!("{:#?}", logs);
+    let results = result.promise_results();
+    for sub_result in results {
+        if let Some(sub_result) = sub_result {
+            if sub_result.is_ok() {
+                let logs = sub_result.logs();
+                if logs.len() > 0 {
+                    println!("{:#?}", logs);
+                }
+            } else {
+                println!("{:#?}", sub_result.outcome());
             }
+        }
+    }
+    if result.is_ok() {
+        let logs = result.logs();
+        if logs.len() > 0 {
+            println!("{:#?}", logs);
         }
         print_anchor_storage_balance(anchor);
     } else {

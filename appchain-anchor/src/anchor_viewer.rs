@@ -1,37 +1,5 @@
 use crate::*;
 
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct AnchorEvents {
-    /// The anchor event data map.
-    events: LookupMap<u64, AnchorEvent>,
-    /// The start index of valid anchor event.
-    start_index: u64,
-    /// The end index of valid anchor event.
-    end_index: u64,
-}
-
-impl AnchorEvents {
-    ///
-    pub fn new() -> Self {
-        Self {
-            events: LookupMap::new(StorageKey::AnchorEventsMap.into_bytes()),
-            start_index: 0,
-            end_index: 0,
-        }
-    }
-    ///
-    pub fn get(&self, index: &u64) -> Option<AnchorEvent> {
-        self.events.get(index)
-    }
-    ///
-    pub fn index_range(&self) -> IndexRange {
-        IndexRange {
-            start_index: U64::from(self.start_index),
-            end_index: U64::from(self.end_index),
-        }
-    }
-}
-
 pub trait AnchorViewer {
     /// Get anchor settings detail.
     fn get_anchor_settings(&self) -> AnchorSettings;
@@ -39,6 +7,12 @@ pub trait AnchorViewer {
     fn get_appchain_settings(&self) -> AppchainSettings;
     /// Get protocol settings detail.
     fn get_protocol_settings(&self) -> ProtocolSettings;
+    /// Get info of OCT token
+    fn get_oct_token(&self) -> OctToken;
+    /// Get info of wrapped appchain token
+    fn get_wrapped_appchain_token(&self) -> WrappedAppchainToken;
+    /// Get info of near fungible tokens which has registered in this contract
+    fn get_near_fungible_tokens(&self) -> Vec<NearFungibleToken>;
     /// Get state of corresponding appchain.
     fn get_appchain_state(&self) -> AppchainState;
     /// Get current status of anchor.
@@ -69,7 +43,7 @@ pub trait AnchorViewer {
     /// stored in anchor, or there is no history in anchor yet, `Option::None` will be returned.
     fn get_token_bridging_history(&self, index: Option<U64>) -> Option<TokenBridgingHistory>;
     /// Get the validator list of a certain era.
-    fn get_validator_list_of_era(&self, era_number: U64) -> Vec<AppchainValidator>;
+    fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator>;
     /// Get the delegators of a validator of a certain era.
     /// If the param `era_number` is omitted, the latest validator set will be used.
     fn get_delegators_of_validator_in_era(
@@ -96,6 +70,15 @@ pub trait AnchorViewer {
     ) -> Vec<RewardHistory>;
     /// Get current storage balance needed by this contract account
     fn get_storage_balance(&self) -> U128;
+    /// Get deposit of a certain validator in a certain era
+    fn get_validator_deposit_of(&self, validator_id: AccountId, era_number: Option<U64>) -> U128;
+    /// Get deposit of a certain delegator in a certain era
+    fn get_delegator_deposit_of(
+        &self,
+        delegator_id: AccountId,
+        validator_id: AccountId,
+        era_number: Option<U64>,
+    ) -> U128;
 }
 
 #[near_bindgen]
@@ -111,6 +94,18 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_protocol_settings(&self) -> ProtocolSettings {
         self.protocol_settings.get().unwrap()
+    }
+    //
+    fn get_oct_token(&self) -> OctToken {
+        self.oct_token.get().unwrap()
+    }
+    //
+    fn get_wrapped_appchain_token(&self) -> WrappedAppchainToken {
+        self.wrapped_appchain_token.get().unwrap()
+    }
+    //
+    fn get_near_fungible_tokens(&self) -> Vec<NearFungibleToken> {
+        self.near_fungible_tokens.get().unwrap().to_vec()
     }
     //
     fn get_appchain_state(&self) -> AppchainState {
@@ -206,15 +201,20 @@ impl AnchorViewer for AppchainAnchor {
         self.token_bridging_histories.get().unwrap().get(&index.0)
     }
     //
-    fn get_validator_list_of_era(&self, era_number: U64) -> Vec<AppchainValidator> {
-        match self
-            .validator_set_histories
-            .get()
-            .unwrap()
-            .get(&era_number.0)
-        {
-            Some(validator_set_of_era) => validator_set_of_era.validator_list.to_vec(),
-            None => Vec::new(),
+    fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator> {
+        if let Some(era_number) = era_number {
+            if let Some(validator_set_of_era) = self
+                .validator_set_histories
+                .get()
+                .unwrap()
+                .get(&era_number.0)
+            {
+                validator_set_of_era.validator_set.get_validator_list()
+            } else {
+                Vec::new()
+            }
+        } else {
+            self.next_validator_set.get().unwrap().get_validator_list()
         }
     }
     //
@@ -399,5 +399,60 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_storage_balance(&self) -> U128 {
         U128::from(u128::from(env::storage_usage()) * env::storage_byte_cost())
+    }
+    //
+    fn get_validator_deposit_of(&self, validator_id: AccountId, era_number: Option<U64>) -> U128 {
+        if let Some(era_number) = era_number {
+            let validator_set_histories = self.validator_set_histories.get().unwrap();
+            if validator_set_histories.contains(&era_number.0) {
+                let validator_set = validator_set_histories.get(&era_number.0).unwrap();
+                if let Some(validator) = validator_set.validator_set.validators.get(&validator_id) {
+                    return U128::from(validator.deposit_amount);
+                }
+            }
+        } else {
+            if let Some(validator) = self
+                .next_validator_set
+                .get()
+                .unwrap()
+                .validators
+                .get(&validator_id)
+            {
+                return U128::from(validator.deposit_amount);
+            }
+        }
+        U128::from(0)
+    }
+    //
+    fn get_delegator_deposit_of(
+        &self,
+        delegator_id: AccountId,
+        validator_id: AccountId,
+        era_number: Option<U64>,
+    ) -> U128 {
+        if let Some(era_number) = era_number {
+            let validator_set_histories = self.validator_set_histories.get().unwrap();
+            if validator_set_histories.contains(&era_number.0) {
+                let validator_set = validator_set_histories.get(&era_number.0).unwrap();
+                if let Some(delegator) = validator_set
+                    .validator_set
+                    .delegators
+                    .get(&(delegator_id.clone(), validator_id.clone()))
+                {
+                    return U128::from(delegator.deposit_amount);
+                }
+            }
+        } else {
+            if let Some(delegator) = self
+                .next_validator_set
+                .get()
+                .unwrap()
+                .delegators
+                .get(&(delegator_id.clone(), validator_id.clone()))
+            {
+                return U128::from(delegator.deposit_amount);
+            }
+        }
+        U128::from(0)
     }
 }

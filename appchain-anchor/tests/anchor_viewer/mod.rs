@@ -1,11 +1,11 @@
 use appchain_anchor::types::{
-    AnchorSettings, AnchorStatus, AppchainDelegator, AppchainSettings, AppchainState,
+    AnchorEvent, AnchorSettings, AnchorStatus, AppchainDelegator, AppchainSettings, AppchainState,
     AppchainValidator, IndexRange, ProtocolSettings, RewardHistory, StakingHistory, UnbondedStake,
     ValidatorSetInfo, ValidatorSetProcessingStatus,
 };
 use appchain_anchor::AppchainAnchorContract;
 
-use near_sdk::json_types::{U128, U64};
+use near_sdk::json_types::U64;
 use near_sdk_sim::{view, ContractAccount, UserAccount};
 
 pub fn get_anchor_settings(anchor: &ContractAccount<AppchainAnchorContract>) -> AnchorSettings {
@@ -77,6 +77,29 @@ pub fn get_validator_set_info_of(
     view_result.unwrap_json::<ValidatorSetInfo>()
 }
 
+pub fn get_index_range_of_anchor_event(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> IndexRange {
+    let view_result = view!(anchor.get_index_range_of_anchor_event());
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<IndexRange>()
+}
+
+pub fn get_anchor_event(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    index: u64,
+) -> Option<AnchorEvent> {
+    let view_result = view!(anchor.get_anchor_event(Some(U64::from(index))));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Option<AnchorEvent>>()
+}
+
 pub fn get_index_range_of_staking_history(
     anchor: &ContractAccount<AppchainAnchorContract>,
 ) -> IndexRange {
@@ -91,20 +114,24 @@ pub fn get_index_range_of_staking_history(
 pub fn get_staking_history(
     anchor: &ContractAccount<AppchainAnchorContract>,
     index: u64,
-) -> StakingHistory {
+) -> Option<StakingHistory> {
     let view_result = view!(anchor.get_staking_history(Some(U64::from(index))));
     if view_result.is_err() {
         println!("{:#?}", view_result);
     }
     assert!(view_result.is_ok());
-    view_result.unwrap_json::<StakingHistory>()
+    view_result.unwrap_json::<Option<StakingHistory>>()
 }
 
-pub fn get_validator_list_of_era(
+pub fn get_validator_list_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
-    index: u64,
+    index: Option<u64>,
 ) -> Vec<AppchainValidator> {
-    let view_result = view!(anchor.get_validator_list_of_era(U64::from(index)));
+    let index = match index {
+        Some(index) => Some(U64::from(index)),
+        None => None,
+    };
+    let view_result = view!(anchor.get_validator_list_of(index));
     if view_result.is_err() {
         println!("{:#?}", view_result);
     }

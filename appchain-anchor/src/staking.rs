@@ -94,7 +94,7 @@ pub trait StakingManager {
 #[serde(crate = "near_sdk::serde")]
 enum StakingDepositMessage {
     RegisterValidator {
-        validator_id_in_appchain: AccountIdInAppchain,
+        validator_id_in_appchain: String,
         can_be_delegated_to: bool,
     },
     IncreaseStake,
@@ -155,7 +155,7 @@ impl AppchainAnchor {
     fn register_validator(
         &mut self,
         validator_id: AccountId,
-        validator_id_in_appchain: AccountIdInAppchain,
+        validator_id_in_appchain: String,
         deposit_amount: U128,
         can_be_delegated_to: bool,
     ) {
@@ -169,6 +169,11 @@ impl AppchainAnchor {
             !self.unbonded_stakes.contains_key(&validator_id),
             "The account {} is holding unbonded stake(s) which need to be withdrawn first.",
             &validator_id
+        );
+        assert!(
+            AccountIdInAppchain::new(validator_id_in_appchain.clone()).is_valid(),
+            "Invalid validator id in appchain: {}",
+            &validator_id_in_appchain
         );
         assert!(
             !self
@@ -185,7 +190,9 @@ impl AppchainAnchor {
         self.record_staking_fact(
             StakingFact::ValidatorRegistered {
                 validator_id: validator_id.clone(),
-                validator_id_in_appchain: validator_id_in_appchain.clone(),
+                validator_id_in_appchain: AccountIdInAppchain::new(
+                    validator_id_in_appchain.clone(),
+                ),
                 amount: deposit_amount,
                 can_be_delegated_to,
             },
