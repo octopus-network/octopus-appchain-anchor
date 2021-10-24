@@ -26,26 +26,28 @@ fn register_user_to_oct_token(
     account: &UserAccount,
     contract: &ContractAccount<MockOctTokenContract>,
 ) {
-    let outcome = call!(
+    let result = call!(
         account,
         contract.storage_deposit(Option::from(account.valid_account_id()), Option::None),
         near_sdk::env::storage_byte_cost() * 125,
         near_sdk_sim::DEFAULT_GAS / 2
     );
-    outcome.assert_success();
+    print_execution_result("register_user_to_oct_token", &result);
+    result.assert_success();
 }
 
 fn register_user_to_wat_token(
     account: &UserAccount,
     contract: &ContractAccount<MockWrappedAppchainTokenContract>,
 ) {
-    let outcome = call!(
+    let result = call!(
         account,
         contract.storage_deposit(Option::from(account.valid_account_id()), Option::None),
         near_sdk::env::storage_byte_cost() * 125,
         near_sdk_sim::DEFAULT_GAS / 2
     );
-    outcome.assert_success();
+    print_execution_result("register_user_to_wat_token", &result);
+    result.assert_success();
 }
 
 pub fn ft_transfer_oct_token(
@@ -54,7 +56,7 @@ pub fn ft_transfer_oct_token(
     amount: u128,
     oct_token: &ContractAccount<MockOctTokenContract>,
 ) {
-    let outcome = call!(
+    let result = call!(
         sender,
         oct_token.ft_transfer(
             receiver.valid_account_id(),
@@ -64,7 +66,8 @@ pub fn ft_transfer_oct_token(
         1,
         near_sdk_sim::DEFAULT_GAS
     );
-    outcome.assert_success();
+    print_execution_result("ft_transfer_oct_token", &result);
+    result.assert_success();
 }
 
 pub fn ft_transfer_call_oct_token(
@@ -74,7 +77,7 @@ pub fn ft_transfer_call_oct_token(
     msg: String,
     oct_token: &ContractAccount<MockOctTokenContract>,
 ) -> ExecutionResult {
-    let outcome = call!(
+    let result = call!(
         sender,
         oct_token.ft_transfer_call(
             receiver.valid_account_id(),
@@ -85,8 +88,9 @@ pub fn ft_transfer_call_oct_token(
         1,
         near_sdk_sim::DEFAULT_GAS
     );
-    outcome.assert_success();
-    outcome
+    print_execution_result("ft_transfer_call_oct_token", &result);
+    result.assert_success();
+    result
 }
 
 fn get_genesis_config() -> GenesisConfig {
@@ -210,11 +214,7 @@ pub fn to_oct_amount(amount: u128) -> u128 {
     amount * bt_decimals_base
 }
 
-pub fn print_execution_result(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    function_name: &str,
-    result: &ExecutionResult,
-) {
+pub fn print_execution_result(function_name: &str, result: &ExecutionResult) {
     println!(
         "Gas burnt of function '{}': {}",
         function_name,
@@ -238,7 +238,6 @@ pub fn print_execution_result(
         if logs.len() > 0 {
             println!("{:#?}", logs);
         }
-        print_anchor_storage_balance(anchor);
     } else {
         println!("{:#?}", result.outcome());
     }

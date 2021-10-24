@@ -9,6 +9,6 @@ pub fn apply_appchain_message(
     message: AppchainMessage,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.apply_appchain_message(message));
-    common::print_execution_result(anchor, "apply_appchain_message", &result);
+    common::print_execution_result("apply_appchain_message", &result);
     result
 }

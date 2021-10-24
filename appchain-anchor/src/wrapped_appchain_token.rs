@@ -102,7 +102,7 @@ pub trait WrappedAppchainTokenManager {
     ///
     fn set_price_of_wrapped_appchain_token(&mut self, price: U128);
     ///
-    fn burn_wrapped_appchain_token(&mut self, receiver_id: String, amount: U128);
+    fn burn_wrapped_appchain_token(&self, receiver_id: String, amount: U128);
 }
 
 #[near_bindgen]
@@ -162,7 +162,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
-    fn burn_wrapped_appchain_token(&mut self, receiver_id: String, amount: U128) {
+    fn burn_wrapped_appchain_token(&self, receiver_id: String, amount: U128) {
         let sender_id = env::predecessor_account_id();
         let account_id_in_appchain = AccountIdInAppchain::new(receiver_id.clone());
         assert!(
@@ -191,7 +191,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
 impl AppchainAnchor {
     //
     pub fn internal_mint_wrapped_appchain_token(
-        &mut self,
+        &self,
         sender_id: Option<String>,
         receiver_id: AccountId,
         amount: U128,
@@ -236,7 +236,7 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     )
                     .as_bytes(),
                 );
-                self.append_anchor_event(AnchorEvent::WrappedAppchainTokenBurnt {
+                self.internal_append_anchor_event(AnchorEvent::WrappedAppchainTokenBurnt {
                     sender_id_in_near,
                     receiver_id_in_appchain,
                     amount: U128::from(amount),
@@ -255,7 +255,7 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     )
                     .as_bytes(),
                 );
-                self.append_anchor_event(AnchorEvent::FailedToBurnWrappedAppchainToken {
+                self.internal_append_anchor_event(AnchorEvent::FailedToBurnWrappedAppchainToken {
                     sender_id_in_near: sender_id_in_near.clone(),
                     receiver_id_in_appchain,
                     amount: U128::from(amount),
@@ -283,7 +283,7 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     )
                     .as_bytes(),
                 );
-                self.append_anchor_event(AnchorEvent::WrappedAppchainTokenMinted {
+                self.internal_append_anchor_event(AnchorEvent::WrappedAppchainTokenMinted {
                     sender_id_in_appchain,
                     receiver_id_in_near,
                     amount: U128::from(amount),
@@ -303,7 +303,7 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     )
                     .as_bytes(),
                 );
-                self.append_anchor_event(AnchorEvent::FailedToMintWrappedAppchainToken {
+                self.internal_append_anchor_event(AnchorEvent::FailedToMintWrappedAppchainToken {
                     sender_id_in_appchain,
                     receiver_id_in_near,
                     amount: U128::from(amount),

@@ -45,7 +45,7 @@ pub struct AppchainMessage {
 
 pub trait PermissionlessActions {
     ///
-    fn handle_appchain_message(
+    fn verify_and_apply_appchain_message(
         &mut self,
         encoded_message: Vec<u8>,
         header_partial: Vec<u8>,
@@ -67,7 +67,7 @@ enum ResultOfLoopingValidatorSet {
 #[near_bindgen]
 impl PermissionlessActions for AppchainAnchor {
     //
-    fn handle_appchain_message(
+    fn verify_and_apply_appchain_message(
         &mut self,
         encoded_message: Vec<u8>,
         header_partial: Vec<u8>,
@@ -156,13 +156,15 @@ impl AppchainAnchor {
                         )
                         / 100
                 {
-                    self.append_anchor_event(AnchorEvent::FailedToMintWrappedAppchainToken {
-                        sender_id_in_appchain: Some(owner_id_in_appchain),
-                        receiver_id_in_near,
-                        amount,
-                        appchain_message_nonce: appchain_message.nonce,
-                        reason: format!("Too much wrapped appchain token to mint."),
-                    });
+                    self.internal_append_anchor_event(
+                        AnchorEvent::FailedToMintWrappedAppchainToken {
+                            sender_id_in_appchain: Some(owner_id_in_appchain),
+                            receiver_id_in_near,
+                            amount,
+                            appchain_message_nonce: appchain_message.nonce,
+                            reason: format!("Too much wrapped appchain token to mint."),
+                        },
+                    );
                 } else {
                     self.internal_mint_wrapped_appchain_token(
                         Some(owner_id_in_appchain),

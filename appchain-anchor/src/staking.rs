@@ -187,7 +187,7 @@ impl AppchainAnchor {
             deposit_amount.0 >= protocol_settings.minimum_validator_deposit.0,
             "The deposit for registering validator is too few."
         );
-        self.record_staking_fact(
+        self.record_and_apply_staking_fact(
             StakingFact::ValidatorRegistered {
                 validator_id: validator_id.clone(),
                 validator_id_in_appchain: validator_id_in_appchain.clone(),
@@ -203,7 +203,7 @@ impl AppchainAnchor {
     fn increase_stake(&mut self, validator_id: AccountId, amount: U128) {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_validator_id(&validator_id, &next_validator_set);
-        self.record_staking_fact(
+        self.record_and_apply_staking_fact(
             StakingFact::StakeIncreased {
                 validator_id,
                 amount,
@@ -257,7 +257,7 @@ impl AppchainAnchor {
             deposit_amount.0 >= protocol_settings.minimum_delegator_deposit.0,
             "The deposit for registering delegator is too few."
         );
-        self.record_staking_fact(
+        self.record_and_apply_staking_fact(
             StakingFact::DelegatorRegistered {
                 delegator_id,
                 validator_id,
@@ -267,7 +267,7 @@ impl AppchainAnchor {
         );
     }
     //
-    fn record_staking_fact(
+    fn record_and_apply_staking_fact(
         &mut self,
         staking_fact: StakingFact,
         next_validator_set: &mut ValidatorSet,
@@ -277,6 +277,7 @@ impl AppchainAnchor {
         self.staking_histories.set(&staking_histories);
         next_validator_set.apply_staking_history(&staking_history);
         self.next_validator_set.set(next_validator_set);
+        self.sync_state_to_registry();
     }
     //
     fn increase_delegation(
@@ -287,7 +288,7 @@ impl AppchainAnchor {
     ) {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_delegator_id(&delegator_id, &validator_id, &next_validator_set);
-        self.record_staking_fact(
+        self.record_and_apply_staking_fact(
             StakingFact::DelegationIncreased {
                 delegator_id,
                 validator_id,
@@ -324,7 +325,7 @@ impl StakingManager for AppchainAnchor {
             "Unable to decrease so much stake."
         );
         self.assert_total_stake_price(amount.0);
-        self.record_staking_fact(
+        self.record_and_apply_staking_fact(
             StakingFact::StakeDecreased {
                 validator_id: validator_id.clone(),
                 amount,
@@ -361,7 +362,7 @@ impl StakingManager for AppchainAnchor {
                     .delegators
                     .get(&(delegator_id.clone(), validator_id.clone()))
                     .unwrap();
-                self.record_staking_fact(
+                self.record_and_apply_staking_fact(
                     StakingFact::DelegatorUnbonded {
                         delegator_id: delegator_id.clone(),
                         validator_id: validator_id.clone(),
@@ -371,7 +372,7 @@ impl StakingManager for AppchainAnchor {
                 );
             });
         }
-        self.record_staking_fact(
+        self.record_and_apply_staking_fact(
             StakingFact::ValidatorUnbonded {
                 validator_id: validator_id.clone(),
                 amount: U128::from(validator.deposit_amount),
@@ -384,7 +385,7 @@ impl StakingManager for AppchainAnchor {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let validator_id = env::predecessor_account_id();
         self.assert_validator_id(&validator_id, &next_validator_set);
-        self.record_staking_fact(
+        self.record_and_apply_staking_fact(
             StakingFact::ValidatorDelegationEnabled { validator_id },
             &mut next_validator_set,
         );
@@ -394,7 +395,7 @@ impl StakingManager for AppchainAnchor {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let validator_id = env::predecessor_account_id();
         self.assert_validator_id(&validator_id, &next_validator_set);
-        self.record_staking_fact(
+        self.record_and_apply_staking_fact(
             StakingFact::ValidatorDelegationDisabled { validator_id },
             &mut next_validator_set,
         );
@@ -423,7 +424,7 @@ impl StakingManager for AppchainAnchor {
             "Unable to decrease so much stake."
         );
         self.assert_total_stake_price(amount.0);
-        self.record_staking_fact(
+        self.record_and_apply_staking_fact(
             StakingFact::DelegationDecreased {
                 delegator_id: delegator_id.clone(),
                 validator_id: validator_id.clone(),
@@ -449,7 +450,7 @@ impl StakingManager for AppchainAnchor {
             .get(&(delegator_id.clone(), validator_id.clone()))
             .unwrap();
         self.assert_total_stake_price(delegator.deposit_amount);
-        self.record_staking_fact(
+        self.record_and_apply_staking_fact(
             StakingFact::DelegatorUnbonded {
                 delegator_id: delegator_id.clone(),
                 validator_id: validator_id.clone(),

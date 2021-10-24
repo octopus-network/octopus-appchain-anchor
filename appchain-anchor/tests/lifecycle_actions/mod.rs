@@ -8,7 +8,7 @@ pub fn go_booting(
     anchor: &ContractAccount<AppchainAnchorContract>,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.go_booting());
-    common::print_execution_result(anchor, "go_booting", &result);
+    common::print_execution_result("go_booting", &result);
     result
 }
 
@@ -17,6 +17,6 @@ pub fn go_live(
     anchor: &ContractAccount<AppchainAnchorContract>,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.go_live());
-    common::print_execution_result(anchor, "go_live", &result);
+    common::print_execution_result("go_live", &result);
     result
 }

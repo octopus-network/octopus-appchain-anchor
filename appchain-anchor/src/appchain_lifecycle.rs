@@ -47,6 +47,7 @@ impl AppchainLifecycleManager for AppchainAnchor {
         );
         self.appchain_state = AppchainState::Booting;
         self.internal_start_switching_era(0);
+        self.sync_state_to_registry();
     }
     //
     fn go_live(&mut self) {
@@ -62,5 +63,6 @@ impl AppchainLifecycleManager for AppchainAnchor {
             "Missing appchain settings."
         );
         self.appchain_state = AppchainState::Active;
+        self.sync_state_to_registry();
     }
 }

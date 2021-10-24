@@ -1,4 +1,4 @@
-use appchain_anchor::{AppchainAnchorContract, AppchainMessage};
+use appchain_anchor::AppchainAnchorContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 use near_sdk::json_types::U128;
 use near_sdk_sim::{call, ContractAccount, ExecutionResult, UserAccount};
@@ -28,7 +28,7 @@ pub fn set_metadata_of_wrapped_appchain_token(
             reference_hash
         )
     );
-    common::print_execution_result(anchor, "set_metadata_of_wrapped_appchain_token", &result);
+    common::print_execution_result("set_metadata_of_wrapped_appchain_token", &result);
     result
 }
 
@@ -45,11 +45,7 @@ pub fn set_premined_balance_of_wrapped_appchain_token(
             U128::from(premined_balance)
         )
     );
-    common::print_execution_result(
-        anchor,
-        "set_premined_balance_of_wrapped_appchain_token",
-        &result,
-    );
+    common::print_execution_result("set_premined_balance_of_wrapped_appchain_token", &result);
     result
 }
 
@@ -62,7 +58,7 @@ pub fn set_price_of_wrapped_appchain_token(
         signer,
         anchor.set_price_of_wrapped_appchain_token(U128::from(price))
     );
-    common::print_execution_result(anchor, "set_price_of_wrapped_appchain_token", &result);
+    common::print_execution_result("set_price_of_wrapped_appchain_token", &result);
     result
 }
 
@@ -75,6 +71,6 @@ pub fn set_account_of_wrapped_appchain_token(
         signer,
         anchor.set_account_of_wrapped_appchain_token(wat_account.valid_account_id().to_string())
     );
-    common::print_execution_result(anchor, "apply_appchain_message", &result);
+    common::print_execution_result("apply_appchain_message", &result);
     result
 }

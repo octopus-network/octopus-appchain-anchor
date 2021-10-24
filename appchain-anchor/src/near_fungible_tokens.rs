@@ -271,7 +271,7 @@ impl AppchainAnchor {
                             None => panic!("Locked balance overflow. Return deposit."),
                         };
                     near_fungible_tokens.insert(&near_fungible_token);
-                    self.append_anchor_event(AnchorEvent::NearFungibleTokenLocked {
+                    self.internal_append_anchor_event(AnchorEvent::NearFungibleTokenLocked {
                         symbol: near_fungible_token.metadata.symbol.clone(),
                         sender_id_in_near: sender_id,
                         receiver_id_in_appchain,
@@ -334,7 +334,7 @@ impl FungibleTokenContractResolver for AppchainAnchor {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                self.append_anchor_event(AnchorEvent::NearFungibleTokenUnlocked {
+                self.internal_append_anchor_event(AnchorEvent::NearFungibleTokenUnlocked {
                     symbol: symbol.clone(),
                     sender_id_in_appchain,
                     receiver_id_in_near,
@@ -352,7 +352,7 @@ impl FungibleTokenContractResolver for AppchainAnchor {
                 };
             }
             PromiseResult::Failed => {
-                self.append_anchor_event(AnchorEvent::FailedToUnlockNearFungibleToken {
+                self.internal_append_anchor_event(AnchorEvent::FailedToUnlockNearFungibleToken {
                     symbol: symbol.clone(),
                     sender_id_in_appchain,
                     receiver_id_in_near: receiver_id_in_near.clone(),

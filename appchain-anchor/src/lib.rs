@@ -12,6 +12,8 @@ pub mod types;
 mod validator_set;
 mod wrapped_appchain_token;
 
+use std::convert::TryInto;
+
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
@@ -42,7 +44,7 @@ const T_GAS: u64 = 1_000_000_000_000;
 const GAS_FOR_FT_TRANSFER_CALL: u64 = 60 * T_GAS;
 const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 80 * T_GAS;
 const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 80 * T_GAS;
-/// Gas cap for function `complete_switching_era`.
+const GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 40 * T_GAS;
 const GAS_CAP_FOR_COMPLETE_SWITCHING_ERA: Gas = 180 * T_GAS;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
@@ -60,6 +62,17 @@ trait FungibleToken {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
     fn mint(&mut self, account_id: AccountId, amount: U128);
     fn burn(&mut self, account_id: AccountId, amount: U128);
+}
+
+#[ext_contract(ext_appchain_registry)]
+trait AppchainRegistry {
+    fn sync_state_of(
+        &mut self,
+        appchain_id: AppchainId,
+        appchain_state: AppchainState,
+        validator_count: u32,
+        total_stake: Balance,
+    );
 }
 
 #[ext_contract(ext_self)]
@@ -336,9 +349,26 @@ impl AppchainAnchor {
 
 impl AppchainAnchor {
     ///
-    pub fn append_anchor_event(&mut self, anchor_event: AnchorEvent) {
+    pub fn internal_append_anchor_event(&mut self, anchor_event: AnchorEvent) {
         let mut anchor_events = self.anchor_event_histories.get().unwrap();
         anchor_events.append(anchor_event);
         self.anchor_event_histories.set(&anchor_events);
+    }
+    ///
+    pub fn sync_state_to_registry(&self) {
+        let next_validator_set = self.next_validator_set.get().unwrap();
+        ext_appchain_registry::sync_state_of(
+            self.appchain_id.clone(),
+            self.appchain_state.clone(),
+            next_validator_set
+                .validator_id_set
+                .len()
+                .try_into()
+                .unwrap(),
+            next_validator_set.total_stake,
+            &self.appchain_registry,
+            0,
+            GAS_FOR_SYNC_STATE_TO_REGISTRY,
+        );
     }
 }
