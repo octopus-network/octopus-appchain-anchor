@@ -2,64 +2,57 @@ use crate::*;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::{env, near_bindgen, AccountId, Balance, BlockHeight};
+use near_sdk::json_types::I128;
+use near_sdk::{env, near_bindgen, AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub enum TokenBridgingFact {
-    /// The fact that a certain amount of wrapped appchain token is minted in its contract
-    /// in NEAR protocol
-    WrappedAppchainTokenMinted {
-        request_id: String,
-        /// The account id of receiver in NEAR protocol
-        receiver_id: AccountId,
-        amount: U128,
-    },
-    /// The fact that a certain amount of wrapped appchain token is burnt in its contract
-    /// in NEAR protocol
-    WrappedAppchainTokenBurnt {
-        sender_id: AccountId,
-        /// The id of receiver on the appchain
-        receiver_id: String,
-        amount: U128,
-    },
-    /// The fact that a certain amount of NEP-141 token has been locked in appchain anchor.
-    NearFungibleTokenLocked {
-        symbol: String,
-        /// The account id of sender in NEAR protocol
-        sender_id: AccountId,
-        /// The id of receiver on the appchain
-        receiver_id: String,
-        amount: U128,
-    },
-    /// The fact that a certain amount of NEP-141 token has been unlocked and
-    /// transfered from this contract to the receiver.
-    NearFungibleTokenUnlocked {
-        request_id: String,
-        symbol: String,
-        /// The account id of receiver in NEAR protocol
-        receiver_id: AccountId,
-        amount: U128,
-    },
+pub struct WrappedAppchainTokenMetadata {
+    pub symbol: String,
+    pub name: String,
+    pub decimals: u8,
+    pub spec: String,
+    pub icon: Option<Vec<u8>>,
+    pub reference: Option<Vec<u8>>,
+    pub reference_hash: Option<Vec<u8>>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct TokenBridgingHistory {
-    pub token_bridging_fact: TokenBridgingFact,
-    pub block_height: BlockHeight,
-    pub timestamp: Timestamp,
-    pub index: U64,
+pub struct OldWrappedAppchainToken {
+    pub metadata: WrappedAppchainTokenMetadata,
+    pub contract_account: AccountId,
+    pub premined_beneficiary: AccountId,
+    pub premined_balance: U128,
+    pub changed_balance: I128,
+    pub price_in_usd: U128,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct NearFungibleTokenMetadata {
+    pub symbol: String,
+    pub name: String,
+    pub decimals: u8,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OldNearFungibleToken {
+    pub metadata: NearFungibleTokenMetadata,
+    pub contract_account: AccountId,
+    pub price_in_usd: U128,
+    /// The total balance locked in this contract
+    pub locked_balance: U128,
+    pub bridging_state: BridgingState,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct TokenBridgingHistories {
-    /// The token bridging history data happened in this contract.
-    histories: LookupMap<u64, TokenBridgingHistory>,
-    /// The start index of valid token bridging history.
-    start_index: u64,
-    /// The end index of valid token bridging history.
-    end_index: u64,
+pub struct OldNearFungibleTokens {
+    /// The set of symbols of NEP-141 tokens.
+    symbols: UnorderedSet<String>,
+    /// The NEP-141 tokens data, mapped by the symbol of the token.
+    tokens: LookupMap<String, OldNearFungibleToken>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -73,9 +66,9 @@ pub struct OldAppchainAnchor {
     /// The info of OCT token.
     pub oct_token: LazyOption<OctToken>,
     /// The info of wrapped appchain token in NEAR protocol.
-    pub wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
+    pub wrapped_appchain_token: LazyOption<OldWrappedAppchainToken>,
     /// The NEP-141 tokens data.
-    pub near_fungible_tokens: LazyOption<NearFungibleTokens>,
+    pub near_fungible_tokens: LazyOption<OldNearFungibleTokens>,
     /// The history data of validator set.
     pub validator_set_histories: LazyOption<ValidatorSetHistories>,
     /// The validator set of the next era in appchain.
@@ -100,10 +93,8 @@ pub struct OldAppchainAnchor {
     pub appchain_state: AppchainState,
     /// The staking history data happened in this contract.
     pub staking_histories: LazyOption<StakingHistories>,
-    /// The token bridging histories data happened in this contract.
-    pub token_bridging_histories: LazyOption<TokenBridgingHistories>,
     /// The anchor events data.
-    pub anchor_events: LazyOption<AnchorEventHistories>,
+    pub anchor_event_histories: LazyOption<AnchorEventHistories>,
     /// The status of permissionless actions
     pub permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
 }
@@ -128,8 +119,14 @@ impl AppchainAnchor {
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
             oct_token: old_contract.oct_token,
-            wrapped_appchain_token: old_contract.wrapped_appchain_token,
-            near_fungible_tokens: old_contract.near_fungible_tokens,
+            wrapped_appchain_token: LazyOption::new(
+                StorageKey::WrappedAppchainToken.into_bytes(),
+                Some(&WrappedAppchainToken::default()),
+            ),
+            near_fungible_tokens: LazyOption::new(
+                StorageKey::NearFungibleTokens.into_bytes(),
+                Some(&NearFungibleTokens::new()),
+            ),
             validator_set_histories: old_contract.validator_set_histories,
             next_validator_set: old_contract.next_validator_set,
             unwithdrawn_validator_rewards: old_contract.unwithdrawn_validator_rewards,

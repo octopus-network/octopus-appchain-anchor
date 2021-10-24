@@ -1,6 +1,6 @@
 use appchain_anchor::AppchainAnchorContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
-use near_sdk::json_types::U128;
+use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk_sim::{call, ContractAccount, ExecutionResult, UserAccount};
 
 use crate::common;
@@ -12,9 +12,9 @@ pub fn set_metadata_of_wrapped_appchain_token(
     name: String,
     decimals: u8,
     spec: String,
-    icon: Option<Vec<u8>>,
-    reference: Option<Vec<u8>>,
-    reference_hash: Option<Vec<u8>>,
+    icon: Option<String>,
+    reference: Option<String>,
+    reference_hash: Option<Base64VecU8>,
 ) -> ExecutionResult {
     let result = call!(
         signer,

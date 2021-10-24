@@ -1,3 +1,4 @@
+use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_sdk::{json_types::I128, BlockHeight};
 
 use crate::*;
@@ -123,20 +124,8 @@ pub struct OctToken {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct WrappedAppchainTokenMetadata {
-    pub symbol: String,
-    pub name: String,
-    pub decimals: u8,
-    pub spec: String,
-    pub icon: Option<Vec<u8>>,
-    pub reference: Option<Vec<u8>>,
-    pub reference_hash: Option<Vec<u8>>,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
 pub struct WrappedAppchainToken {
-    pub metadata: WrappedAppchainTokenMetadata,
+    pub metadata: FungibleTokenMetadata,
     pub contract_account: AccountId,
     pub premined_beneficiary: AccountId,
     pub premined_balance: U128,
@@ -156,16 +145,8 @@ pub enum BridgingState {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct NearFungibleTokenMetadata {
-    pub symbol: String,
-    pub name: String,
-    pub decimals: u8,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
 pub struct NearFungibleToken {
-    pub metadata: NearFungibleTokenMetadata,
+    pub metadata: FungibleTokenMetadata,
     pub contract_account: AccountId,
     pub price_in_usd: U128,
     /// The total balance locked in this contract

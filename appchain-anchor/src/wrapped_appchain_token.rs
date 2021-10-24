@@ -1,5 +1,6 @@
 use core::convert::TryFrom;
-use near_sdk::json_types::I128;
+use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
+use near_sdk::json_types::{Base64VecU8, I128};
 
 use crate::*;
 
@@ -21,34 +22,18 @@ pub trait WrappedAppchainTokenContractResolver {
     );
 }
 
-impl Default for WrappedAppchainTokenMetadata {
-    fn default() -> Self {
-        Self {
-            symbol: String::new(),
-            name: String::new(),
-            decimals: 0,
-            spec: String::new(),
-            icon: Option::None,
-            reference: Option::None,
-            reference_hash: Option::None,
-        }
-    }
-}
-
-impl WrappedAppchainTokenMetadata {
-    ///
-    pub fn is_valid(&self) -> bool {
-        !(self.symbol.trim().is_empty()
-            || self.name.trim().is_empty()
-            || self.decimals == 0
-            || self.spec.trim().is_empty())
-    }
-}
-
 impl Default for WrappedAppchainToken {
     fn default() -> Self {
         Self {
-            metadata: WrappedAppchainTokenMetadata::default(),
+            metadata: FungibleTokenMetadata {
+                spec: "ft-1.0.0".to_string(),
+                symbol: String::new(),
+                name: String::new(),
+                decimals: 0,
+                icon: None,
+                reference: None,
+                reference_hash: None,
+            },
             contract_account: AccountId::new(),
             premined_beneficiary: AccountId::new(),
             premined_balance: U128::from(0),
@@ -63,8 +48,10 @@ impl WrappedAppchainToken {
     pub fn is_valid(&self) -> bool {
         !(self.contract_account.trim().is_empty()
             || self.premined_beneficiary.trim().is_empty()
-            || self.price_in_usd.0 == 0)
-            && self.metadata.is_valid()
+            || self.price_in_usd.0 == 0
+            || self.metadata.symbol.is_empty()
+            || self.metadata.name.is_empty()
+            || self.metadata.decimals == 0)
     }
     ///
     pub fn total_market_value(&self) -> Balance {
@@ -87,9 +74,9 @@ pub trait WrappedAppchainTokenManager {
         name: String,
         decimals: u8,
         spec: String,
-        icon: Option<Vec<u8>>,
-        reference: Option<Vec<u8>>,
-        reference_hash: Option<Vec<u8>>,
+        icon: Option<String>,
+        reference: Option<String>,
+        reference_hash: Option<Base64VecU8>,
     );
     ///
     fn set_premined_balance_of_wrapped_appchain_token(
@@ -114,9 +101,9 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         name: String,
         decimals: u8,
         spec: String,
-        icon: Option<Vec<u8>>,
-        reference: Option<Vec<u8>>,
-        reference_hash: Option<Vec<u8>>,
+        icon: Option<String>,
+        reference: Option<String>,
+        reference_hash: Option<Base64VecU8>,
     ) {
         self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
