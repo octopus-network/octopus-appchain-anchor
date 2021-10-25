@@ -527,13 +527,13 @@ impl AppchainAnchor {
             );
             assert!(
                 self.validator_account_id_mapping
-                    .contains_key(&id_in_appchain),
+                    .contains_key(&account_id_in_appchain.to_string()),
                 "Invalid validator id in appchain: {}",
                 id_in_appchain
             );
             unprofitable_validator_ids_in_near.push(
                 self.validator_account_id_mapping
-                    .get(&id_in_appchain)
+                    .get(&account_id_in_appchain.to_string())
                     .unwrap(),
             );
         }

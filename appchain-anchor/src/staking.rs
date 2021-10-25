@@ -177,15 +177,17 @@ impl AppchainAnchor {
             "The account {} is holding unbonded stake(s) which need to be withdrawn first.",
             &validator_id
         );
+        let formatted_validator_id_in_appchain =
+            AccountIdInAppchain::new(validator_id_in_appchain.clone());
         assert!(
-            AccountIdInAppchain::new(validator_id_in_appchain.clone()).is_valid(),
+            formatted_validator_id_in_appchain.is_valid(),
             "Invalid validator id in appchain: {}",
             &validator_id_in_appchain
         );
         assert!(
             !self
                 .validator_account_id_mapping
-                .contains_key(&validator_id_in_appchain),
+                .contains_key(&formatted_validator_id_in_appchain.to_string()),
             "The account {} in appchain is already been registered.",
             &validator_id_in_appchain
         );
@@ -197,14 +199,16 @@ impl AppchainAnchor {
         self.record_and_apply_staking_fact(
             StakingFact::ValidatorRegistered {
                 validator_id: validator_id.clone(),
-                validator_id_in_appchain: validator_id_in_appchain.clone(),
+                validator_id_in_appchain: formatted_validator_id_in_appchain.to_string(),
                 amount: deposit_amount,
                 can_be_delegated_to,
             },
             &mut next_validator_set,
         );
-        self.validator_account_id_mapping
-            .insert(&validator_id_in_appchain, &validator_id);
+        self.validator_account_id_mapping.insert(
+            &formatted_validator_id_in_appchain.to_string(),
+            &validator_id,
+        );
     }
     //
     fn increase_stake(&mut self, validator_id: AccountId, amount: U128) {
