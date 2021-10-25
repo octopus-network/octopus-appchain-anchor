@@ -2,7 +2,7 @@
 
 ## 20211025
 
-* Add view function `get_delegations_of` for querying all delegations of a certain validator in a certain era.
+* Add view function `get_delegations_of` for querying all delegations of a certain delegator in a certain era.
 * Add field `validator_id_in_appchain` to `types::AppchainValidator`.
 * Add field `validator_id` to `types::AppchainDelegator`.
 * Move function `set_metadata_of_wrapped_appchain_token` and `set_premined_balance_of_wrapped_appchain_token` to module `sudo_actions`.
