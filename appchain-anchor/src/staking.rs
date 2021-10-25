@@ -169,7 +169,7 @@ impl AppchainAnchor {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         assert!(
             !next_validator_set.validator_id_set.contains(&validator_id),
-            "The account {} is already been registered.",
+            "The account {} has already been registered.",
             &validator_id
         );
         assert!(
@@ -188,7 +188,7 @@ impl AppchainAnchor {
             !self
                 .validator_account_id_mapping
                 .contains_key(&formatted_validator_id_in_appchain.to_string()),
-            "The account {} in appchain is already been registered.",
+            "The account {} in appchain has already been registered.",
             &validator_id_in_appchain
         );
         let protocol_settings = self.protocol_settings.get().unwrap();
@@ -248,7 +248,7 @@ impl AppchainAnchor {
             !next_validator_set
                 .delegators
                 .contains_key(&(delegator_id.clone(), validator_id.clone())),
-            "The account {} is already been registered to validator {}.",
+            "The account {} has already been registered to validator {}.",
             &delegator_id,
             &validator_id
         );
