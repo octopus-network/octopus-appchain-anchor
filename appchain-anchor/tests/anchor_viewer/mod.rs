@@ -1,7 +1,7 @@
 use appchain_anchor::types::{
     AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainDelegator, AppchainSettings,
     AppchainState, AppchainValidator, IndexRange, ProtocolSettings, RewardHistory, StakingHistory,
-    UnbondedStake, ValidatorSetInfo, ValidatorSetProcessingStatus,
+    UnbondedStake, ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
 };
 use appchain_anchor::AppchainAnchorContract;
 
@@ -33,6 +33,17 @@ pub fn get_protocol_settings(anchor: &ContractAccount<AppchainAnchorContract>) -
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<ProtocolSettings>()
+}
+
+pub fn get_wrapped_appchain_token(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> WrappedAppchainToken {
+    let view_result = view!(anchor.get_wrapped_appchain_token());
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<WrappedAppchainToken>()
 }
 
 pub fn get_appchain_state(anchor: &ContractAccount<AppchainAnchorContract>) -> AppchainState {

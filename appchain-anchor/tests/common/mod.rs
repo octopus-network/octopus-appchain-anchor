@@ -1,7 +1,7 @@
 use appchain_anchor::AppchainAnchorContract;
 use mock_appchain_registry::MockAppchainRegistryContract;
 use mock_oct_token::MockOctTokenContract;
-use mock_wrapped_appchain_token::{MockWrappedAppchainToken, MockWrappedAppchainTokenContract};
+use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FT_METADATA_SPEC};
 
 use near_sdk::{json_types::U128, serde_json, Balance};
@@ -106,7 +106,6 @@ pub fn init(
     ContractAccount<MockOctTokenContract>,
     ContractAccount<MockAppchainRegistryContract>,
     ContractAccount<AppchainAnchorContract>,
-    ContractAccount<MockWrappedAppchainTokenContract>,
     Vec<UserAccount>,
 ) {
     let root = init_simulator(Some(get_genesis_config()));
@@ -116,15 +115,6 @@ pub fn init(
         spec: FT_METADATA_SPEC.to_string(),
         name: "OCTToken".to_string(),
         symbol: "OCT".to_string(),
-        icon: None,
-        reference: None,
-        reference_hash: None,
-        decimals: 18,
-    };
-    let wat_ft_metadata = FungibleTokenMetadata {
-        spec: FT_METADATA_SPEC.to_string(),
-        name: "WrappedAppchainToken".to_string(),
-        symbol: "WAT".to_string(),
         icon: None,
         reference: None,
         reference_hash: None,
@@ -156,6 +146,50 @@ pub fn init(
             oct_token.valid_account_id().to_string()
         )
     };
+    register_user_to_oct_token(&registry.user_account, &oct_token);
+    register_user_to_oct_token(&anchor.user_account, &oct_token);
+    // Create users and transfer a certain amount of OCT token to them
+    let alice = root.create_user("alice".to_string(), to_yocto("100"));
+    register_user_to_oct_token(&alice, &oct_token);
+    ft_transfer_oct_token(&root, &alice, total_supply / 10, &oct_token);
+    users.push(alice);
+    let bob = root.create_user("bob".to_string(), to_yocto("100"));
+    register_user_to_oct_token(&bob, &oct_token);
+    ft_transfer_oct_token(&root, &bob, total_supply / 10, &oct_token);
+    users.push(bob);
+    let charlie = root.create_user("charlie".to_string(), to_yocto("100"));
+    register_user_to_oct_token(&charlie, &oct_token);
+    ft_transfer_oct_token(&root, &charlie, total_supply / 10, &oct_token);
+    users.push(charlie);
+    let dave = root.create_user("dave".to_string(), to_yocto("100"));
+    register_user_to_oct_token(&dave, &oct_token);
+    ft_transfer_oct_token(&root, &dave, total_supply / 10, &oct_token);
+    users.push(dave);
+    let eve = root.create_user("eve".to_string(), to_yocto("100"));
+    register_user_to_oct_token(&eve, &oct_token);
+    ft_transfer_oct_token(&root, &eve, total_supply / 10, &oct_token);
+    users.push(eve);
+    // Print initial storage balance of anchor
+    print_anchor_storage_balance(&anchor);
+    // Return initialized UserAccounts
+    (root, oct_token, registry, anchor, users)
+}
+
+pub fn deploy_wrapped_appchain_token_contract(
+    root: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    premined_balance: U128,
+    users: &Vec<UserAccount>,
+) -> ContractAccount<MockWrappedAppchainTokenContract> {
+    let wat_ft_metadata = FungibleTokenMetadata {
+        spec: FT_METADATA_SPEC.to_string(),
+        name: "WrappedAppchainToken".to_string(),
+        symbol: "WAT".to_string(),
+        icon: None,
+        reference: None,
+        reference_hash: None,
+        decimals: 18,
+    };
     let wrapped_appchain_token = deploy! {
         contract: MockWrappedAppchainTokenContract,
         contract_id: "wrapped_appchain_token",
@@ -164,49 +198,14 @@ pub fn init(
         init_method: new(
             anchor.valid_account_id(),
             root.valid_account_id(),
-            U128::from(total_supply / 2),
+            premined_balance,
             wat_ft_metadata
         )
     };
-    register_user_to_oct_token(&registry.user_account, &oct_token);
-    register_user_to_oct_token(&anchor.user_account, &oct_token);
-    // Create users and transfer a certain amount of OCT token to them
-    let alice = root.create_user("alice".to_string(), to_yocto("100"));
-    register_user_to_oct_token(&alice, &oct_token);
-    register_user_to_wat_token(&alice, &wrapped_appchain_token);
-    ft_transfer_oct_token(&root, &alice, total_supply / 10, &oct_token);
-    users.push(alice);
-    let bob = root.create_user("bob".to_string(), to_yocto("100"));
-    register_user_to_oct_token(&bob, &oct_token);
-    register_user_to_wat_token(&bob, &wrapped_appchain_token);
-    ft_transfer_oct_token(&root, &bob, total_supply / 10, &oct_token);
-    users.push(bob);
-    let charlie = root.create_user("charlie".to_string(), to_yocto("100"));
-    register_user_to_oct_token(&charlie, &oct_token);
-    register_user_to_wat_token(&charlie, &wrapped_appchain_token);
-    ft_transfer_oct_token(&root, &charlie, total_supply / 10, &oct_token);
-    users.push(charlie);
-    let dave = root.create_user("dave".to_string(), to_yocto("100"));
-    register_user_to_oct_token(&dave, &oct_token);
-    register_user_to_wat_token(&dave, &wrapped_appchain_token);
-    ft_transfer_oct_token(&root, &dave, total_supply / 10, &oct_token);
-    users.push(dave);
-    let eve = root.create_user("eve".to_string(), to_yocto("100"));
-    register_user_to_oct_token(&eve, &oct_token);
-    register_user_to_wat_token(&eve, &wrapped_appchain_token);
-    ft_transfer_oct_token(&root, &eve, total_supply / 10, &oct_token);
-    users.push(eve);
-    // Print initial storage balance of anchor
-    print_anchor_storage_balance(&anchor);
-    // Return initialized UserAccounts
-    (
-        root,
-        oct_token,
-        registry,
-        anchor,
-        wrapped_appchain_token,
-        users,
-    )
+    for user in users {
+        register_user_to_wat_token(&user, &wrapped_appchain_token);
+    }
+    wrapped_appchain_token
 }
 
 pub fn to_oct_amount(amount: u128) -> u128 {

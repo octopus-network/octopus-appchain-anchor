@@ -125,6 +125,19 @@ Each of the above actions will generate a corresponding `staking history` that i
 
 A validator can also change the flag which is set at registering time and stored in this contract, the flag indicates that 'whether he/she wants to be delegated to'. After this flag is set to `false`, delegators cannot delegate to this validator any more. But those delegators already delegated to this validator will be kept.
 
+The staking actions also depend on the state of corresponding appchain:
+
+Staking action | AppchainState: Staging | AppchainState: Booting | AppchainState: Active | AppchainState: Frozen | AppchainState: Broken
+---|---|---|---|---|---
+register_validator | allowed |  | allowed |  |
+increase_stake | allowed |  | allowed |  |
+register_delegator | allowed |  | allowed |  |
+increase_delegation | allowed |  | allowed |  |
+decrease_stake |  |  | allowed |  |
+decrease_delegation |  |  | allowed |  |
+unbond_stake |  |  | allowed |  | allowed
+unbond_delegation |  |  | allowed |  | allowed
+
 ### Switch validator set
 
 When this contract receives an `appchain message` which indicates that the corresponding appchain has switched to a new `era`, this contract should:
@@ -176,6 +189,6 @@ We should take the following steps to initialize this contract and all related c
   * Copy the key pair file of the owner of Appchain Registry contract, which is used to call the function `new` to initialize the Appchain Registry contract. (The public key of owner can be queried by view funcion `get_owner_pk` of Appchain Registry contract.) The key pair file can be found in folder `~/.near-credentials/testnet`.
   * Change name of the key pair file copy to `<appchain id>.<contract account of appchain registry>.json`, and change the value of `account_id` inside the json file to `<appchain id>.<contract account of appchain registry>`.
 * Deploy this contract on account `<appchain id>.<contract account of appchain registry>` with parameters `appchain id`, `contract account of OCT token` and `contract account of appchain registry` by `near-cli`.
-* Determine the `premined beneficiary` and `premined balance`. (Normally decided by the appchain team and the `premined balance` will also be stored in appchain registry contract.) And Store them in this contract.
-* Deploy the wrapped appchain token contract with parameters `premined beneficiary`, `premined balance`, `contract account of appchain anchor (this contract)` and `FungibleTokenMetadata`. Refer to [Octopus Wrapped Appchain Token](https://github.com/octopus-network/wrapped-appchain-token).
-* Store the contract account id of wrapped appchain token in this contract. (By calling function `set_account_of_wrapped_appchain_token`.)
+* Determine the account id of wrapped appchain token contract, and store it in this contract. (By calling function `set_account_of_wrapped_appchain_token`.)
+* Determine the `premined beneficiary` and `premined balance`. (Normally decided by the appchain team.)
+* Deploy the wrapped appchain token contract with parameters `premined beneficiary`, `premined balance`, `contract account of appchain anchor (this contract)` and `FungibleTokenMetadata`. (These initial parameters will be synced to this contract by calling function `sync_basedata_of_wrapped_appchain_token` at construction time of wrapped appchain token contract. Refer to [Octopus Wrapped Appchain Token](https://github.com/octopus-network/wrapped-appchain-token).)

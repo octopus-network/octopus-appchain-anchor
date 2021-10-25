@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use appchain_anchor::{
     types::{
         AnchorSettings, AnchorStatus, AppchainSettings, AppchainState, ProtocolSettings,
-        ValidatorSetInfo, ValidatorSetProcessingStatus,
+        ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -30,8 +30,7 @@ const TOTAL_SUPPLY: u128 = 100_000_000;
 #[test]
 fn test_staking_actions() {
     let total_supply = common::to_oct_amount(TOTAL_SUPPLY);
-    let (root, oct_token, registry, anchor, wrapped_appchain_token, users) =
-        common::init(total_supply);
+    let (root, oct_token, registry, anchor, users) = common::init(total_supply);
     let user0_id_in_appchain =
         "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
     let user1_id_in_appchain =
@@ -79,27 +78,8 @@ fn test_staking_actions() {
     let result = settings_actions::set_token_price_maintainer_account(&root, &anchor, &users[4]);
     result.assert_success();
     //
-    // Set necessary data of wrapped appchain token.
+    // Initialize wrapped appchain token contract.
     //
-    let result = wrapped_appchain_token_manager::set_metadata_of_wrapped_appchain_token(
-        &root,
-        &anchor,
-        "WAT".to_string(),
-        "Wrapped Appchain Token".to_string(),
-        18,
-        "ft-1.0.0".to_string(),
-        None,
-        None,
-        None,
-    );
-    result.assert_success();
-    let result = wrapped_appchain_token_manager::set_premined_balance_of_wrapped_appchain_token(
-        &root,
-        &anchor,
-        users[4].valid_account_id().to_string(),
-        total_supply / 2,
-    );
-    result.assert_success();
     let result = wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
         &users[4], &anchor, 110_000,
     );
@@ -107,9 +87,20 @@ fn test_staking_actions() {
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
         &root,
         &anchor,
-        &wrapped_appchain_token,
+        "wrapped_appchain_token".to_string(),
     );
     result.assert_success();
+    let wrapped_appchain_token = common::deploy_wrapped_appchain_token_contract(
+        &root,
+        &anchor,
+        U128::from(total_supply / 2),
+        &users,
+    );
+    let wrapped_appchain_token_info = anchor_viewer::get_wrapped_appchain_token(&anchor);
+    println!(
+        "Wrapped appchain token: {}",
+        serde_json::to_string::<WrappedAppchainToken>(&wrapped_appchain_token_info).unwrap()
+    );
     //
     // user0 register validator (error)
     //
@@ -348,7 +339,7 @@ fn test_staking_actions() {
     let result = settings_actions::change_minimum_total_stake_price_for_booting(
         &root,
         &anchor,
-        common::to_oct_amount(6_000_000_000),
+        63_000_000_000,
     );
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);

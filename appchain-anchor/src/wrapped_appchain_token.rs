@@ -1,6 +1,6 @@
 use core::convert::TryFrom;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
-use near_sdk::json_types::{Base64VecU8, I128};
+use near_sdk::json_types::I128;
 
 use crate::*;
 
@@ -68,21 +68,11 @@ impl WrappedAppchainToken {
 
 pub trait WrappedAppchainTokenManager {
     ///
-    fn set_metadata_of_wrapped_appchain_token(
+    fn sync_basedata_of_wrapped_appchain_token(
         &mut self,
-        symbol: String,
-        name: String,
-        decimals: u8,
-        spec: String,
-        icon: Option<String>,
-        reference: Option<String>,
-        reference_hash: Option<Base64VecU8>,
-    );
-    ///
-    fn set_premined_balance_of_wrapped_appchain_token(
-        &mut self,
+        metadata: FungibleTokenMetadata,
         premined_beneficiary: AccountId,
-        value: U128,
+        premined_balance: U128,
     );
     ///
     fn set_account_of_wrapped_appchain_token(&mut self, contract_account: AccountId);
@@ -95,37 +85,22 @@ pub trait WrappedAppchainTokenManager {
 #[near_bindgen]
 impl WrappedAppchainTokenManager for AppchainAnchor {
     //
-    fn set_metadata_of_wrapped_appchain_token(
+    fn sync_basedata_of_wrapped_appchain_token(
         &mut self,
-        symbol: String,
-        name: String,
-        decimals: u8,
-        spec: String,
-        icon: Option<String>,
-        reference: Option<String>,
-        reference_hash: Option<Base64VecU8>,
-    ) {
-        self.assert_owner();
-        let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-        wrapped_appchain_token.metadata.spec = spec;
-        wrapped_appchain_token.metadata.symbol = symbol;
-        wrapped_appchain_token.metadata.name = name;
-        wrapped_appchain_token.metadata.decimals = decimals;
-        wrapped_appchain_token.metadata.icon = icon;
-        wrapped_appchain_token.metadata.reference = reference;
-        wrapped_appchain_token.metadata.reference_hash = reference_hash;
-        self.wrapped_appchain_token.set(&wrapped_appchain_token);
-    }
-    //
-    fn set_premined_balance_of_wrapped_appchain_token(
-        &mut self,
+        metadata: FungibleTokenMetadata,
         premined_beneficiary: AccountId,
-        value: U128,
+        premined_balance: U128,
     ) {
-        self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+        assert_eq!(
+            env::predecessor_account_id(),
+            wrapped_appchain_token.contract_account,
+            "Only '{}' can call this function.",
+            wrapped_appchain_token.contract_account
+        );
+        wrapped_appchain_token.metadata = metadata;
         wrapped_appchain_token.premined_beneficiary = premined_beneficiary;
-        wrapped_appchain_token.premined_balance = value;
+        wrapped_appchain_token.premined_balance = premined_balance;
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //

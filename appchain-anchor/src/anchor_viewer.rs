@@ -72,6 +72,12 @@ pub trait AnchorViewer {
         validator_id: AccountId,
         era_number: Option<U64>,
     ) -> U128;
+    /// Get delegation list of a certain delegator in a certain era
+    fn get_delegations_of(
+        &self,
+        delegator_id: AccountId,
+        era_number: Option<U64>,
+    ) -> Vec<AppchainDelegator>;
 }
 
 #[near_bindgen]
@@ -224,6 +230,7 @@ impl AnchorViewer for AppchainAnchor {
                                         .unwrap();
                                     result.push(AppchainDelegator {
                                         delegator_id: delegator_id.clone(),
+                                        validator_id: validator_id.clone(),
                                         delegation_amount: U128::from(delegator.deposit_amount),
                                     });
                                 });
@@ -249,6 +256,7 @@ impl AnchorViewer for AppchainAnchor {
                                 .unwrap();
                             result.push(AppchainDelegator {
                                 delegator_id: delegator_id.clone(),
+                                validator_id: validator_id.clone(),
                                 delegation_amount: U128::from(delegator.deposit_amount),
                             });
                         });
@@ -434,5 +442,47 @@ impl AnchorViewer for AppchainAnchor {
             }
         }
         U128::from(0)
+    }
+    //
+    fn get_delegations_of(
+        &self,
+        delegator_id: AccountId,
+        era_number: Option<U64>,
+    ) -> Vec<AppchainDelegator> {
+        let validator_set = match era_number {
+            Some(era_number) => {
+                if let Some(validator_set_of_era) = self
+                    .validator_set_histories
+                    .get()
+                    .unwrap()
+                    .get(&era_number.0)
+                {
+                    validator_set_of_era.validator_set
+                } else {
+                    return Vec::new();
+                }
+            }
+            None => self.next_validator_set.get().unwrap(),
+        };
+        let mut result = Vec::<AppchainDelegator>::new();
+        if let Some(validator_id_set) = validator_set
+            .delegator_id_to_validator_id_set
+            .get(&delegator_id)
+        {
+            let validator_ids = validator_id_set.to_vec();
+            validator_ids.iter().for_each(|validator_id| {
+                if let Some(delegator) = validator_set
+                    .delegators
+                    .get(&(delegator_id.clone(), validator_id.clone()))
+                {
+                    result.push(AppchainDelegator {
+                        delegator_id: delegator_id.clone(),
+                        validator_id: validator_id.clone(),
+                        delegation_amount: U128::from(delegator.deposit_amount),
+                    });
+                }
+            });
+        }
+        result
     }
 }

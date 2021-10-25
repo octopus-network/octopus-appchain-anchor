@@ -5,9 +5,21 @@ use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LazyOption;
 use near_sdk::json_types::{ValidAccountId, U128};
-use near_sdk::{assert_one_yocto, env, near_bindgen, AccountId, PanicOnDefault, PromiseOrValue};
+use near_sdk::{
+    assert_one_yocto, env, ext_contract, near_bindgen, AccountId, PanicOnDefault, PromiseOrValue,
+};
 
 near_sdk::setup_alloc!();
+
+#[ext_contract(ext_appchain_anchor)]
+trait AppchainAnchor {
+    fn sync_basedata_of_wrapped_appchain_token(
+        &mut self,
+        metadata: FungibleTokenMetadata,
+        premined_beneficiary: AccountId,
+        premined_balance: U128,
+    );
+}
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
@@ -37,6 +49,14 @@ impl MockWrappedAppchainToken {
             .internal_register_account(premined_beneficiary.as_ref());
         this.token
             .internal_deposit(premined_beneficiary.as_ref(), premined_balance.into());
+        ext_appchain_anchor::sync_basedata_of_wrapped_appchain_token(
+            metadata,
+            premined_beneficiary.to_string(),
+            premined_balance,
+            &owner_id,
+            0,
+            80_000_000_000_000,
+        );
         this
     }
 

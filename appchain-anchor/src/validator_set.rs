@@ -159,6 +159,7 @@ impl ValidatorSet {
                 }
                 return AppchainValidator {
                     validator_id: validator.validator_id,
+                    validator_id_in_appchain: validator.validator_id_in_appchain,
                     deposit_amount: U128::from(validator.deposit_amount),
                     total_stake: U128::from(validator.total_stake),
                     delegators_count: U64::from(delegators_count),

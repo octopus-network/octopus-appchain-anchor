@@ -300,6 +300,7 @@ pub struct AnchorEventHistory {
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainValidator {
     pub validator_id: String,
+    pub validator_id_in_appchain: String,
     pub deposit_amount: U128,
     pub total_stake: U128,
     pub delegators_count: U64,
@@ -310,6 +311,7 @@ pub struct AppchainValidator {
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainDelegator {
     pub delegator_id: AccountId,
+    pub validator_id: AccountId,
     pub delegation_amount: U128,
 }
 
