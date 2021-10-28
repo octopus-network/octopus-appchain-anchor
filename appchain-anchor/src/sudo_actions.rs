@@ -1,3 +1,4 @@
+use crate::message_decoder::AppchainMessage;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 
 use crate::*;

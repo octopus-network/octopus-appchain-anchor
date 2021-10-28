@@ -1,6 +1,7 @@
 mod anchor_event_histories;
 mod anchor_viewer;
 mod appchain_lifecycle;
+mod message_decoder;
 mod near_fungible_tokens;
 mod permissionless_actions;
 mod settings_manager;

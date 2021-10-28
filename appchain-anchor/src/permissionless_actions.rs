@@ -1,3 +1,5 @@
+use crate::message_decoder::AppchainMessage;
+use crate::message_decoder::ProofDecoder;
 use crate::*;
 use core::convert::{TryFrom, TryInto};
 use staking::UnbondedStakeReference;
@@ -34,20 +36,11 @@ pub enum AppchainEvent {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct AppchainMessage {
-    pub appchain_event: AppchainEvent,
-    pub block_height: U64,
-    pub timestamp: U64,
-    pub nonce: u32,
-}
-
 pub trait PermissionlessActions {
     ///
-    fn verify_and_apply_appchain_message(
+    fn verify_and_apply_appchain_messages(
         &mut self,
-        encoded_message: Vec<u8>,
+        encoded_messages: Vec<u8>,
         header_partial: Vec<u8>,
         leaf_proof: Vec<u8>,
         mmr_root: Vec<u8>,
@@ -67,14 +60,17 @@ enum ResultOfLoopingValidatorSet {
 #[near_bindgen]
 impl PermissionlessActions for AppchainAnchor {
     //
-    fn verify_and_apply_appchain_message(
+    fn verify_and_apply_appchain_messages(
         &mut self,
-        encoded_message: Vec<u8>,
+        encoded_messages: Vec<u8>,
         header_partial: Vec<u8>,
         leaf_proof: Vec<u8>,
         mmr_root: Vec<u8>,
     ) {
-        todo!()
+        let messages = self.decode(encoded_messages);
+        messages.iter().for_each(|m| {
+            self.internal_apply_appchain_message(m.clone());
+        })
     }
     //
     fn try_complete_switching_era(&mut self) -> bool {
