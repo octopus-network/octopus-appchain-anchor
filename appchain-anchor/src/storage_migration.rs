@@ -2,57 +2,46 @@ use crate::*;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::json_types::I128;
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub struct WrappedAppchainTokenMetadata {
-    pub symbol: String,
-    pub name: String,
-    pub decimals: u8,
-    pub spec: String,
-    pub icon: Option<Vec<u8>>,
-    pub reference: Option<Vec<u8>>,
-    pub reference_hash: Option<Vec<u8>>,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct OldWrappedAppchainToken {
-    pub metadata: WrappedAppchainTokenMetadata,
-    pub contract_account: AccountId,
-    pub premined_beneficiary: AccountId,
-    pub premined_balance: U128,
-    pub changed_balance: I128,
-    pub price_in_usd: U128,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct NearFungibleTokenMetadata {
-    pub symbol: String,
-    pub name: String,
-    pub decimals: u8,
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct OldNearFungibleToken {
-    pub metadata: NearFungibleTokenMetadata,
-    pub contract_account: AccountId,
-    pub price_in_usd: U128,
-    /// The total balance locked in this contract
-    pub locked_balance: U128,
-    pub bridging_state: BridgingState,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct OldNearFungibleTokens {
-    /// The set of symbols of NEP-141 tokens.
-    symbols: UnorderedSet<String>,
-    /// The NEP-141 tokens data, mapped by the symbol of the token.
-    tokens: LookupMap<String, OldNearFungibleToken>,
+pub struct OldProtocolSettings {
+    /// A validator has to deposit a certain amount of OCT token to this contract for
+    /// being validator of the appchain.
+    pub minimum_validator_deposit: U128,
+    /// The minimum deposit amount for a delegator to delegate his voting weight to
+    /// a certain validator.
+    pub minimum_delegator_deposit: U128,
+    /// The minimum price (in USD) of total stake in this contract for
+    /// booting corresponding appchain
+    pub minimum_total_stake_price_for_booting: U128,
+    /// The maximum percentage of the total market value of all NEP-141 tokens to the total
+    /// market value of OCT token staked in this contract
+    pub maximum_market_value_percent_of_near_fungible_tokens: u16,
+    /// The maximum percentage of the total market value of wrapped appchain token to the total
+    /// market value of OCT token staked in this contract
+    pub maximum_market_value_percent_of_wrapped_appchain_token: u16,
+    /// The minimum number of validator(s) registered in this contract for
+    /// booting the corresponding appchain and keep it alive.
+    pub minimum_validator_count: U64,
+    /// The maximum number of validator(s) which a delegator can delegate to.
+    pub maximum_validators_per_delegator: U64,
+    /// The unlock period (in days) for validator(s) can withdraw their deposit after
+    /// they are removed from the corresponding appchain.
+    pub unlock_period_of_validator_deposit: U64,
+    /// The unlock period (in days) for delegator(s) can withdraw their deposit after
+    /// they no longer delegates their stake to a certain validator on the corresponding appchain.
+    pub unlock_period_of_delegator_deposit: U64,
+    /// The maximum number of historical eras that the validators or delegators are allowed to
+    /// withdraw their reward
+    pub maximum_era_count_of_unwithdrawn_reward: U64,
+    /// The maximum number of valid appchain message.
+    /// If the era number of appchain message is smaller than the latest era number minus
+    /// this value, the message will be considered as `invalid`.
+    pub maximum_era_count_of_valid_appchain_message: U64,
+    /// The percent of delegation fee of the a delegator's reward in an era
+    pub delegation_fee_percent: u16,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -66,9 +55,9 @@ pub struct OldAppchainAnchor {
     /// The info of OCT token.
     pub oct_token: LazyOption<OctToken>,
     /// The info of wrapped appchain token in NEAR protocol.
-    pub wrapped_appchain_token: LazyOption<OldWrappedAppchainToken>,
+    pub wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
     /// The NEP-141 tokens data.
-    pub near_fungible_tokens: LazyOption<OldNearFungibleTokens>,
+    pub near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
     pub validator_set_histories: LazyOption<ValidatorSetHistories>,
     /// The validator set of the next era in appchain.
@@ -88,7 +77,7 @@ pub struct OldAppchainAnchor {
     /// The anchor settings for appchain.
     pub anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
-    pub protocol_settings: LazyOption<ProtocolSettings>,
+    pub protocol_settings: LazyOption<OldProtocolSettings>,
     /// The state of the corresponding appchain.
     pub appchain_state: AppchainState,
     /// The staking history data happened in this contract.
@@ -119,14 +108,8 @@ impl AppchainAnchor {
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
             oct_token: old_contract.oct_token,
-            wrapped_appchain_token: LazyOption::new(
-                StorageKey::WrappedAppchainToken.into_bytes(),
-                Some(&WrappedAppchainToken::default()),
-            ),
-            near_fungible_tokens: LazyOption::new(
-                StorageKey::NearFungibleTokens.into_bytes(),
-                Some(&NearFungibleTokens::new()),
-            ),
+            wrapped_appchain_token: old_contract.wrapped_appchain_token,
+            near_fungible_tokens: old_contract.near_fungible_tokens,
             validator_set_histories: old_contract.validator_set_histories,
             next_validator_set: old_contract.next_validator_set,
             unwithdrawn_validator_rewards: old_contract.unwithdrawn_validator_rewards,
@@ -135,13 +118,13 @@ impl AppchainAnchor {
             validator_account_id_mapping: old_contract.validator_account_id_mapping,
             appchain_settings: old_contract.appchain_settings,
             anchor_settings: old_contract.anchor_settings,
-            protocol_settings: old_contract.protocol_settings,
+            protocol_settings: LazyOption::new(
+                StorageKey::ProtocolSettings.into_bytes(),
+                Some(&ProtocolSettings::default()),
+            ),
             appchain_state: old_contract.appchain_state,
             staking_histories: old_contract.staking_histories,
-            anchor_event_histories: LazyOption::new(
-                StorageKey::AnchorEventHistories.into_bytes(),
-                Some(&AnchorEventHistories::new()),
-            ),
+            anchor_event_histories: old_contract.anchor_event_histories,
             permissionless_actions_status: old_contract.permissionless_actions_status,
         };
 

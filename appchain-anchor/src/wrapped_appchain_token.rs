@@ -133,8 +133,8 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
             &receiver_id
         );
         ext_fungible_token::burn(
-            receiver_id.clone(),
-            amount.into(),
+            sender_id.clone(),
+            amount,
             &self.wrapped_appchain_token.get().unwrap().contract_account,
             1,
             GAS_FOR_BURN_FUNGIBLE_TOKEN,
@@ -142,7 +142,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         .then(ext_self::resolve_wrapped_appchain_token_burning(
             sender_id.clone(),
             receiver_id.clone(),
-            amount.0,
+            amount,
             &env::current_account_id(),
             0,
             env::prepaid_gas() / 4,

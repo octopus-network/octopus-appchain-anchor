@@ -82,7 +82,7 @@ trait FungibleTokenContractResolver {
         &mut self,
         sender_id_in_near: AccountId,
         receiver_id_in_appchain: String,
-        amount: Balance,
+        amount: U128,
     );
     /// Resolver for minting wrapped appchain token
     fn resolve_wrapped_appchain_token_minting(

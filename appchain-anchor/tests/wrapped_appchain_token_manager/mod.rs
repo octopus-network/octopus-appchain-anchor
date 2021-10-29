@@ -74,3 +74,17 @@ pub fn set_account_of_wrapped_appchain_token(
     common::print_execution_result("apply_appchain_message", &result);
     result
 }
+
+pub fn burn_wrapped_appchain_token(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    receiver_id: String,
+    amount: u128,
+) -> ExecutionResult {
+    let result = call!(
+        signer,
+        anchor.burn_wrapped_appchain_token(receiver_id, U128::from(amount))
+    );
+    common::print_execution_result("burn_wrapped_appchain_token", &result);
+    result
+}

@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use appchain_anchor::{
     types::{
         AnchorSettings, AnchorStatus, AppchainSettings, AppchainState, ProtocolSettings,
-        ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
+        ValidatorSetInfo, ValidatorSetProcessingStatus,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -30,7 +30,7 @@ const TOTAL_SUPPLY: u128 = 100_000_000;
 #[test]
 fn test_staking_actions() {
     let total_supply = common::to_oct_amount(TOTAL_SUPPLY);
-    let (root, oct_token, registry, anchor, users) = common::init(total_supply);
+    let (root, oct_token, _registry, anchor, users) = common::init(total_supply);
     let user0_id_in_appchain =
         "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
     let user1_id_in_appchain =
@@ -96,11 +96,7 @@ fn test_staking_actions() {
         U128::from(total_supply / 2),
         &users,
     );
-    let wrapped_appchain_token_info = anchor_viewer::get_wrapped_appchain_token(&anchor);
-    println!(
-        "Wrapped appchain token: {}",
-        serde_json::to_string::<WrappedAppchainToken>(&wrapped_appchain_token_info).unwrap()
-    );
+    common::print_wrapped_appchain_token_info(&anchor);
     //
     // user0 register validator (error)
     //
@@ -296,9 +292,10 @@ fn test_staking_actions() {
     //
     // Print anchor status and staking histories
     //
-    print_anchor_status(&anchor);
-    print_staking_histories(&anchor);
-    print_validator_list_of(&anchor, None);
+    common::print_anchor_status(&anchor);
+    common::print_wrapped_appchain_token_info(&anchor);
+    common::print_staking_histories(&anchor);
+    common::print_validator_list_of(&anchor, None);
     //
     // Try go_booting
     //
@@ -351,9 +348,9 @@ fn test_staking_actions() {
     //
     // Try complete switching era0
     //
-    switch_era(&root, &anchor, 0);
-    print_validator_list_of(&anchor, Some(0));
-    print_delegator_list_of(&anchor, 0, &users[0]);
+    common::switch_era(&root, &anchor, 0);
+    common::print_validator_list_of(&anchor, Some(0));
+    common::print_delegator_list_of(&anchor, 0, &users[0]);
     //
     // Go live
     //
@@ -390,28 +387,29 @@ fn test_staking_actions() {
     //
     // Print staking histories
     //
-    print_staking_histories(&anchor);
+    common::print_staking_histories(&anchor);
     //
     // Try start and complete switching era1
     //
-    switch_era(&root, &anchor, 1);
-    print_validator_list_of(&anchor, Some(1));
-    print_delegator_list_of(&anchor, 1, &users[0]);
+    common::switch_era(&root, &anchor, 1);
+    common::print_validator_list_of(&anchor, Some(1));
+    common::print_delegator_list_of(&anchor, 1, &users[0]);
     //
     // Distribut reward of era0
     //
     distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 0);
-    print_validator_reward_histories(&anchor, &users[0], 0);
-    print_validator_reward_histories(&anchor, &users[1], 0);
-    print_delegator_reward_histories(&anchor, &users[2], &users[0], 0);
-    print_delegator_reward_histories(&anchor, &users[3], &users[0], 0);
-    print_validator_reward_histories(&anchor, &users[4], 0);
+    common::print_wrapped_appchain_token_info(&anchor);
+    common::print_validator_reward_histories(&anchor, &users[0], 0);
+    common::print_validator_reward_histories(&anchor, &users[1], 0);
+    common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 0);
+    common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 0);
+    common::print_validator_reward_histories(&anchor, &users[4], 0);
     //
     // user1 decrease stake
     //
     let result = staking_actions::decrease_stake(&users[1], &anchor, common::to_oct_amount(1000));
     result.assert_success();
-    print_anchor_status(&anchor);
+    common::print_anchor_status(&anchor);
     let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[1]);
     assert!(unbonded_stakes.len() == 0);
     //
@@ -424,33 +422,34 @@ fn test_staking_actions() {
         common::to_oct_amount(200),
     );
     result.assert_success();
-    print_anchor_status(&anchor);
+    common::print_anchor_status(&anchor);
     let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[2]);
     assert!(unbonded_stakes.len() == 0);
     //
     // Print staking histories
     //
-    print_staking_histories(&anchor);
+    common::print_staking_histories(&anchor);
     //
     // Try start and complete switching era2
     //
-    switch_era(&root, &anchor, 2);
-    print_validator_list_of(&anchor, Some(2));
-    print_delegator_list_of(&anchor, 2, &users[0]);
+    common::switch_era(&root, &anchor, 2);
+    common::print_validator_list_of(&anchor, Some(2));
+    common::print_delegator_list_of(&anchor, 2, &users[0]);
     //
     // Distribute reward of era1
     //
     distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 1);
-    print_validator_reward_histories(&anchor, &users[0], 1);
-    print_validator_reward_histories(&anchor, &users[1], 1);
-    print_delegator_reward_histories(&anchor, &users[2], &users[0], 1);
-    print_delegator_reward_histories(&anchor, &users[3], &users[0], 1);
-    print_validator_reward_histories(&anchor, &users[4], 1);
-    print_unbonded_stakes_of(&anchor, &users[0]);
-    print_unbonded_stakes_of(&anchor, &users[1]);
-    print_unbonded_stakes_of(&anchor, &users[2]);
-    print_unbonded_stakes_of(&anchor, &users[3]);
-    print_unbonded_stakes_of(&anchor, &users[4]);
+    common::print_wrapped_appchain_token_info(&anchor);
+    common::print_validator_reward_histories(&anchor, &users[0], 1);
+    common::print_validator_reward_histories(&anchor, &users[1], 1);
+    common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 1);
+    common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 1);
+    common::print_validator_reward_histories(&anchor, &users[4], 1);
+    common::print_unbonded_stakes_of(&anchor, &users[0]);
+    common::print_unbonded_stakes_of(&anchor, &users[1]);
+    common::print_unbonded_stakes_of(&anchor, &users[2]);
+    common::print_unbonded_stakes_of(&anchor, &users[3]);
+    common::print_unbonded_stakes_of(&anchor, &users[4]);
     //
     // Change unlock period for testing
     //
@@ -467,65 +466,67 @@ fn test_staking_actions() {
         &users[0].valid_account_id().to_string(),
     );
     result.assert_success();
-    print_anchor_status(&anchor);
+    common::print_anchor_status(&anchor);
     let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[2]);
     assert!(unbonded_stakes.len() == 1);
     //
     // Print staking histories
     //
-    print_staking_histories(&anchor);
+    common::print_staking_histories(&anchor);
     //
     // Try start and complete switching era3
     //
-    switch_era(&root, &anchor, 3);
-    print_validator_list_of(&anchor, Some(3));
-    print_delegator_list_of(&anchor, 3, &users[0]);
+    common::switch_era(&root, &anchor, 3);
+    common::print_validator_list_of(&anchor, Some(3));
+    common::print_delegator_list_of(&anchor, 3, &users[0]);
     //
     // Distribute reward of era2
     //
     distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 2);
-    print_validator_reward_histories(&anchor, &users[0], 2);
-    print_validator_reward_histories(&anchor, &users[1], 2);
-    print_delegator_reward_histories(&anchor, &users[2], &users[0], 2);
-    print_delegator_reward_histories(&anchor, &users[3], &users[0], 2);
-    print_validator_reward_histories(&anchor, &users[4], 2);
-    print_unbonded_stakes_of(&anchor, &users[0]);
-    print_unbonded_stakes_of(&anchor, &users[1]);
-    print_unbonded_stakes_of(&anchor, &users[2]);
-    print_unbonded_stakes_of(&anchor, &users[3]);
-    print_unbonded_stakes_of(&anchor, &users[4]);
+    common::print_wrapped_appchain_token_info(&anchor);
+    common::print_validator_reward_histories(&anchor, &users[0], 2);
+    common::print_validator_reward_histories(&anchor, &users[1], 2);
+    common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 2);
+    common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 2);
+    common::print_validator_reward_histories(&anchor, &users[4], 2);
+    common::print_unbonded_stakes_of(&anchor, &users[0]);
+    common::print_unbonded_stakes_of(&anchor, &users[1]);
+    common::print_unbonded_stakes_of(&anchor, &users[2]);
+    common::print_unbonded_stakes_of(&anchor, &users[3]);
+    common::print_unbonded_stakes_of(&anchor, &users[4]);
     //
     // user0 unbond stake
     //
     let result = staking_actions::unbond_stake(&users[0], &anchor);
     result.assert_success();
-    print_anchor_status(&anchor);
+    common::print_anchor_status(&anchor);
     let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[0]);
     assert!(unbonded_stakes.len() == 0);
     //
     // Print staking histories
     //
-    print_staking_histories(&anchor);
+    common::print_staking_histories(&anchor);
     //
     // Try start and complete switching era3
     //
-    switch_era(&root, &anchor, 4);
-    print_validator_list_of(&anchor, Some(4));
-    print_delegator_list_of(&anchor, 4, &users[0]);
+    common::switch_era(&root, &anchor, 4);
+    common::print_validator_list_of(&anchor, Some(4));
+    common::print_delegator_list_of(&anchor, 4, &users[0]);
     //
     // Distribute reward of era3
     //
     distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 3);
-    print_validator_reward_histories(&anchor, &users[0], 3);
-    print_validator_reward_histories(&anchor, &users[1], 3);
-    print_delegator_reward_histories(&anchor, &users[2], &users[0], 3);
-    print_delegator_reward_histories(&anchor, &users[3], &users[0], 3);
-    print_validator_reward_histories(&anchor, &users[4], 3);
-    print_unbonded_stakes_of(&anchor, &users[0]);
-    print_unbonded_stakes_of(&anchor, &users[1]);
-    print_unbonded_stakes_of(&anchor, &users[2]);
-    print_unbonded_stakes_of(&anchor, &users[3]);
-    print_unbonded_stakes_of(&anchor, &users[4]);
+    common::print_wrapped_appchain_token_info(&anchor);
+    common::print_validator_reward_histories(&anchor, &users[0], 3);
+    common::print_validator_reward_histories(&anchor, &users[1], 3);
+    common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 3);
+    common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 3);
+    common::print_validator_reward_histories(&anchor, &users[4], 3);
+    common::print_unbonded_stakes_of(&anchor, &users[0]);
+    common::print_unbonded_stakes_of(&anchor, &users[1]);
+    common::print_unbonded_stakes_of(&anchor, &users[2]);
+    common::print_unbonded_stakes_of(&anchor, &users[3]);
+    common::print_unbonded_stakes_of(&anchor, &users[4]);
     //
     // Withdraw validator rewards
     //
@@ -545,144 +546,6 @@ fn test_staking_actions() {
     withdraw_stake_of(&anchor, &users[2], &oct_token);
     withdraw_stake_of(&anchor, &users[3], &oct_token);
     withdraw_stake_of(&anchor, &users[4], &oct_token);
-}
-
-fn print_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) {
-    let anchor_status = anchor_viewer::get_anchor_status(anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
-}
-
-fn print_anchor_events(anchor: &ContractAccount<AppchainAnchorContract>) {
-    let index_range = anchor_viewer::get_index_range_of_anchor_event_history(anchor);
-    for i in index_range.start_index.0..index_range.end_index.0 + 1 {
-        if let Some(anchor_event_history) =
-            anchor_viewer::get_anchor_event_history(anchor, i.try_into().unwrap())
-        {
-            println!(
-                "Anchor event history {}: {}",
-                i,
-                serde_json::to_string(&anchor_event_history).unwrap()
-            );
-        }
-    }
-}
-
-fn print_staking_histories(anchor: &ContractAccount<AppchainAnchorContract>) {
-    let index_range = anchor_viewer::get_index_range_of_staking_history(anchor);
-    for i in index_range.start_index.0..index_range.end_index.0 + 1 {
-        if let Some(staking_history) =
-            anchor_viewer::get_staking_history(anchor, i.try_into().unwrap())
-        {
-            println!(
-                "Staking history {}: {}",
-                i,
-                serde_json::to_string(&staking_history).unwrap()
-            );
-        }
-    }
-}
-
-fn switch_era(
-    root: &UserAccount,
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    era_number: u64,
-) {
-    if era_number > 0 {
-        let result = sudo_actions::apply_appchain_message(
-            root,
-            anchor,
-            AppchainMessage {
-                appchain_event: AppchainEvent::EraSwitchPlaned {
-                    era_number: U64::from(era_number),
-                },
-                block_height: U64::from(era_number + 1),
-                timestamp: U64::from(era_number + 1),
-                nonce: (era_number + 1).try_into().unwrap(),
-            },
-        );
-        result.assert_success();
-        let processing_status = anchor_viewer::get_processing_status_of(anchor, era_number);
-        println!(
-            "Processing status of era {}: {}",
-            era_number,
-            serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
-        );
-    }
-    loop {
-        let result = permissionless_actions::try_complete_switching_era(root, &anchor);
-        println!(
-            "Try complete switching era: {}",
-            result.unwrap_json_value().as_bool().unwrap()
-        );
-        let processing_status = anchor_viewer::get_processing_status_of(anchor, era_number);
-        println!(
-            "Processing status of era {}: {}",
-            era_number,
-            serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
-        );
-        if result.unwrap_json_value().as_bool().unwrap() {
-            break;
-        }
-    }
-    let anchor_status = anchor_viewer::get_anchor_status(anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
-    let validator_set_info = anchor_viewer::get_validator_set_info_of(anchor, era_number);
-    println!(
-        "Validator set info of era {}: {}",
-        era_number,
-        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
-    );
-}
-
-fn print_validator_list_of(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    era_number: Option<u64>,
-) {
-    let validator_list = anchor_viewer::get_validator_list_of(anchor, era_number);
-    let mut index = 0;
-    for validator in validator_list {
-        if let Some(era_number) = era_number {
-            println!(
-                "Validator {} in era {}: {}",
-                index,
-                era_number,
-                serde_json::to_string(&validator).unwrap()
-            );
-        } else {
-            println!(
-                "Validator {} in next era: {}",
-                index,
-                serde_json::to_string(&validator).unwrap()
-            );
-        }
-        index += 1;
-    }
-}
-
-fn print_delegator_list_of(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    era_number: u64,
-    validator: &UserAccount,
-) {
-    let delegator_list =
-        anchor_viewer::get_delegators_of_validator_in_era(&anchor, era_number, validator);
-    let mut index = 0;
-    for delegator in delegator_list {
-        println!(
-            "Delegator {} of {} in era {}: {}",
-            index,
-            validator.valid_account_id().to_string(),
-            era_number,
-            serde_json::to_string(&delegator).unwrap()
-        );
-        index += 1;
-    }
 }
 
 fn distribute_reward_of(
@@ -743,60 +606,7 @@ fn distribute_reward_of(
         era_number,
         serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
     );
-    print_anchor_events(&anchor);
-}
-
-fn print_validator_reward_histories(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    validator: &UserAccount,
-    end_era: u64,
-) {
-    let reward_histories = anchor_viewer::get_validator_rewards_of(anchor, 0, end_era, validator);
-    let mut index = 0;
-    for reward_history in reward_histories {
-        println!(
-            "Reward history {} of {}: {}",
-            index,
-            validator.account_id().to_string(),
-            serde_json::to_string(&reward_history).unwrap()
-        );
-        index += 1;
-    }
-}
-
-fn print_delegator_reward_histories(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    delegator: &UserAccount,
-    validator: &UserAccount,
-    end_era: u64,
-) {
-    let reward_histories =
-        anchor_viewer::get_delegator_rewards_of(anchor, 0, end_era, delegator, validator);
-    let mut index = 0;
-    for reward_history in reward_histories {
-        println!(
-            "Reward history {} of {} to {}: {}",
-            index,
-            delegator.account_id().to_string(),
-            validator.account_id().to_string(),
-            serde_json::to_string(&reward_history).unwrap()
-        );
-        index += 1;
-    }
-}
-
-fn print_unbonded_stakes_of(anchor: &ContractAccount<AppchainAnchorContract>, user: &UserAccount) {
-    let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(anchor, user);
-    let mut index = 0;
-    for unbonded_stake in unbonded_stakes {
-        println!(
-            "Unbonded stake {} of {}: {}",
-            index,
-            user.valid_account_id().to_string(),
-            serde_json::to_string(&unbonded_stake).unwrap()
-        );
-        index += 1;
-    }
+    common::print_anchor_events(&anchor);
 }
 
 fn withdraw_validator_rewards_of(
@@ -819,7 +629,7 @@ fn withdraw_validator_rewards_of(
         token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token).0
             - wat_balance_before_withdraw.0
     );
-    print_validator_reward_histories(anchor, user, end_era);
+    common::print_validator_reward_histories(anchor, user, end_era);
 }
 
 fn withdraw_delegator_rewards_of(
@@ -844,7 +654,7 @@ fn withdraw_delegator_rewards_of(
         token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token).0
             - wat_balance_before_withdraw.0
     );
-    print_delegator_reward_histories(anchor, user, validator, end_era);
+    common::print_delegator_reward_histories(anchor, user, validator, end_era);
 }
 
 fn withdraw_stake_of(
@@ -861,5 +671,5 @@ fn withdraw_stake_of(
         &user.valid_account_id().to_string(),
         token_viewer::get_oct_balance_of(user, oct_token).0 - oct_balance_before_withdraw.0
     );
-    print_unbonded_stakes_of(anchor, user);
+    common::print_unbonded_stakes_of(anchor, user);
 }
