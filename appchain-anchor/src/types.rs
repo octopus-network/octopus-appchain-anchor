@@ -96,6 +96,9 @@ pub struct ProtocolSettings {
     /// The minimum number of validator(s) registered in this contract for
     /// booting the corresponding appchain and keep it alive.
     pub minimum_validator_count: U64,
+    /// The maximum number of validator(s) registered in this contract for
+    /// the corresponding appchain.
+    pub maximum_validator_count: U64,
     /// The maximum number of validator(s) which a delegator can delegate to.
     pub maximum_validators_per_delegator: U64,
     /// The unlock period (in days) for validator(s) can withdraw their deposit after
@@ -111,8 +114,8 @@ pub struct ProtocolSettings {
     /// If the era number of appchain message is smaller than the latest era number minus
     /// this value, the message will be considered as `invalid`.
     pub maximum_era_count_of_valid_appchain_message: U64,
-    /// The percent of delegation fee of the a delegator's reward in an era
-    pub delegation_fee_percent: u16,
+    /// The percent of commission fees of a validator's reward in an era
+    pub validator_commission_percent: u16,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

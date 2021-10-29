@@ -143,6 +143,12 @@ impl AppchainAnchor {
             } => {
                 let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
                 let protocol_settings = self.protocol_settings.get().unwrap();
+                let owner_id = AccountIdInAppchain::new(owner_id_in_appchain.clone());
+                assert!(
+                    owner_id.is_valid(),
+                    "Invalid owner id in appchain: '{}'",
+                    owner_id_in_appchain
+                );
                 if wrapped_appchain_token.total_market_value()
                     + wrapped_appchain_token.get_market_value_of(amount.0)
                     > self.get_market_value_of_staked_oct_token().0
@@ -154,7 +160,7 @@ impl AppchainAnchor {
                 {
                     self.internal_append_anchor_event(
                         AnchorEvent::FailedToMintWrappedAppchainToken {
-                            sender_id_in_appchain: Some(owner_id_in_appchain),
+                            sender_id_in_appchain: Some(owner_id.to_string()),
                             receiver_id_in_near,
                             amount,
                             appchain_message_nonce: appchain_message.nonce,
@@ -163,7 +169,7 @@ impl AppchainAnchor {
                     );
                 } else {
                     self.internal_mint_wrapped_appchain_token(
-                        Some(owner_id_in_appchain),
+                        Some(owner_id.to_string()),
                         receiver_id_in_near,
                         amount,
                         appchain_message.nonce,
@@ -569,8 +575,12 @@ impl AppchainAnchor {
                 distributing_validator_index,
                 distributing_delegator_index,
             } => {
-                let delegation_fee_percent =
-                    u128::from(self.protocol_settings.get().unwrap().delegation_fee_percent);
+                let validator_commission_percent = u128::from(
+                    self.protocol_settings
+                        .get()
+                        .unwrap()
+                        .validator_commission_percent,
+                );
                 let mut validator_index = distributing_validator_index.0;
                 let mut delegator_index = distributing_delegator_index.0;
                 let era_reward = self.appchain_settings.get().unwrap().era_reward;
@@ -580,7 +590,7 @@ impl AppchainAnchor {
                         validator_index,
                         delegator_index,
                         era_reward.0,
-                        delegation_fee_percent,
+                        validator_commission_percent,
                     ) {
                         ResultOfLoopingValidatorSet::NoMoreDelegator => {
                             validator_index += 1;
@@ -613,7 +623,7 @@ impl AppchainAnchor {
         validator_index: u64,
         delegator_index: u64,
         era_reward: Balance,
-        delegation_fee_percent: u128,
+        validator_commission_percent: u128,
     ) -> ResultOfLoopingValidatorSet {
         let validator_ids = validator_set.validator_set.validator_id_set.to_vec();
         if validator_index >= validator_ids.len().try_into().unwrap() {
@@ -639,9 +649,14 @@ impl AppchainAnchor {
             .unwithdrawn_validator_rewards
             .contains_key(&(validator_set.validator_set.era_number, validator_id.clone()))
         {
+            let validator_reward = total_reward_of_validator * validator_commission_percent / 100
+                + total_reward_of_validator
+                    * (100 - validator_commission_percent)
+                    * (validator.deposit_amount / OCT_DECIMALS_VALUE)
+                    / (validator.total_stake * 100 / OCT_DECIMALS_VALUE);
             validator_set
                 .validator_rewards
-                .insert(&validator_id, &total_reward_of_validator);
+                .insert(&validator_id, &validator_reward);
             self.unwithdrawn_validator_rewards.insert(
                 &(validator_set.validator_set.era_number, validator_id.clone()),
                 &total_reward_of_validator,
@@ -666,8 +681,7 @@ impl AppchainAnchor {
                 .unwrap();
             let delegator_reward = total_reward_of_validator
                 * (delegator.deposit_amount / OCT_DECIMALS_VALUE)
-                * (100 - delegation_fee_percent)
-                / (validator.total_stake * 100 / OCT_DECIMALS_VALUE);
+                / (validator.total_stake / OCT_DECIMALS_VALUE);
             validator_set.delegator_rewards.insert(
                 &(delegator_id.clone(), validator_id.clone()),
                 &delegator_reward,
@@ -679,15 +693,6 @@ impl AppchainAnchor {
                     validator_id.clone(),
                 ),
                 &delegator_reward,
-            );
-            let mut validator_reward = validator_set.validator_rewards.get(&validator_id).unwrap();
-            validator_reward -= delegator_reward;
-            validator_set
-                .validator_rewards
-                .insert(&validator_id, &validator_reward);
-            self.unwithdrawn_validator_rewards.insert(
-                &(validator_set.validator_set.era_number, validator_id.clone()),
-                &validator_reward,
             );
             return ResultOfLoopingValidatorSet::NeedToContinue;
         } else {

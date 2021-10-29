@@ -196,6 +196,10 @@ impl AppchainAnchor {
             deposit_amount.0 >= protocol_settings.minimum_validator_deposit.0,
             "The deposit for registering validator is too few."
         );
+        assert!(
+            next_validator_set.validator_id_set.len() < protocol_settings.maximum_validator_count.0,
+            "Too many validators registered."
+        );
         self.record_and_apply_staking_fact(
             StakingFact::ValidatorRegistered {
                 validator_id: validator_id.clone(),
