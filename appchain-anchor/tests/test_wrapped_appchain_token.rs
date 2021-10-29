@@ -6,10 +6,7 @@ use appchain_anchor::{
     },
     AppchainEvent, AppchainMessage,
 };
-use near_sdk::{
-    json_types::{U128, U64},
-    serde_json,
-};
+use near_sdk::{json_types::U128, serde_json};
 
 mod anchor_viewer;
 mod common;
@@ -310,8 +307,6 @@ fn test_wrapped_appchain_token_bridging() {
                 receiver_id_in_near: users[1].account_id(),
                 amount: U128::from(total_supply / 10),
             },
-            block_height: U64::from(era_number + 1),
-            timestamp: U64::from(era_number + 1),
             nonce: (era_number + 1).try_into().unwrap(),
         },
     );
@@ -348,8 +343,6 @@ fn test_wrapped_appchain_token_bridging() {
                 receiver_id_in_near: users[1].account_id(),
                 amount: U128::from(common::to_oct_amount(200)),
             },
-            block_height: U64::from(era_number + 2),
-            timestamp: U64::from(era_number + 2),
             nonce: (era_number + 2).try_into().unwrap(),
         },
     );

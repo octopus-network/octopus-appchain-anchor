@@ -564,8 +564,6 @@ fn distribute_reward_of(
                 era_number: U64::from(era_number),
                 unprofitable_validator_ids: Vec::new(),
             },
-            block_height: U64::from(era_number + 1),
-            timestamp: U64::from(era_number + 1),
             nonce: (era_number + 1).try_into().unwrap(),
         },
     );

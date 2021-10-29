@@ -28,6 +28,7 @@ use near_sdk::{
 pub use anchor_event_histories::AnchorEventHistories;
 pub use anchor_viewer::AnchorViewer;
 pub use appchain_lifecycle::AppchainLifecycleManager;
+pub use message_decoder::AppchainMessage;
 pub use near_fungible_tokens::NearFungibleTokenManager;
 pub use permissionless_actions::*;
 pub use settings_manager::*;

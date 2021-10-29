@@ -426,8 +426,6 @@ pub fn switch_era(
                 appchain_event: AppchainEvent::EraSwitchPlaned {
                     era_number: U64::from(era_number),
                 },
-                block_height: U64::from(era_number + 1),
-                timestamp: U64::from(era_number + 1),
                 nonce: (era_number + 1).try_into().unwrap(),
             },
         );
