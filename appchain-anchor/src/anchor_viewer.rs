@@ -35,6 +35,13 @@ pub trait AnchorViewer {
     /// If the paran `index` is smaller than the start index, or bigger than the end index
     /// stored in anchor, or there is no event in anchor yet, `Option::None` will be returned.
     fn get_anchor_event_history(&self, index: Option<U64>) -> Option<AnchorEventHistory>;
+    /// Get anchor event by start index and max count.
+    /// If the param `quantity `is omitted, up to 50 events will be returned.
+    fn get_anchor_event_histories(
+        &self,
+        start_index: U64,
+        quantity: Option<U64>,
+    ) -> Vec<AnchorEventHistory>;
     /// Get the validator list of a certain era.
     fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator>;
     /// Get the delegators of a validator of a certain era.
@@ -185,6 +192,38 @@ impl AnchorViewer for AppchainAnchor {
             }
         };
         self.anchor_event_histories.get().unwrap().get(&index.0)
+    }
+    //
+    fn get_anchor_event_histories(
+        &self,
+        start_index: U64,
+        quantity: Option<U64>,
+    ) -> Vec<AnchorEventHistory> {
+        let anchor_event_histories = self.anchor_event_histories.get().unwrap();
+        let index_range = anchor_event_histories.index_range();
+        let mut result = Vec::<AnchorEventHistory>::new();
+        let start_index = match index_range.start_index.0 > start_index.0 {
+            true => index_range.start_index.0,
+            false => start_index.0,
+        };
+        let mut end_index = index_range.start_index.0
+            + match quantity {
+                Some(quantity) => match quantity.0 > 50 {
+                    true => 49,
+                    false => quantity.0 - 1,
+                },
+                None => 49,
+            };
+        end_index = match end_index < index_range.end_index.0 {
+            true => end_index,
+            false => index_range.end_index.0,
+        };
+        for index in start_index..end_index + 1 {
+            if let Some(record) = anchor_event_histories.get(&index) {
+                result.push(record);
+            }
+        }
+        result
     }
     //
     fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator> {

@@ -295,6 +295,14 @@ pub fn print_anchor_events(anchor: &ContractAccount<AppchainAnchorContract>) {
             );
         }
     }
+    let records = anchor_viewer::get_anchor_event_histories(anchor, 0, None);
+    records.iter().for_each(|record| {
+        println!(
+            "Anchor event history {}: {}",
+            record.index.0,
+            serde_json::to_string(&record).unwrap()
+        );
+    });
 }
 
 pub fn print_staking_histories(anchor: &ContractAccount<AppchainAnchorContract>) {

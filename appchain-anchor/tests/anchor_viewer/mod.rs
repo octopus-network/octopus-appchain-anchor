@@ -111,6 +111,19 @@ pub fn get_anchor_event_history(
     view_result.unwrap_json::<Option<AnchorEventHistory>>()
 }
 
+pub fn get_anchor_event_histories(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_index: u64,
+    max_count: Option<U64>,
+) -> Vec<AnchorEventHistory> {
+    let view_result = view!(anchor.get_anchor_event_histories(U64::from(start_index), max_count));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<AnchorEventHistory>>()
+}
+
 pub fn get_index_range_of_staking_history(
     anchor: &ContractAccount<AppchainAnchorContract>,
 ) -> IndexRange {
