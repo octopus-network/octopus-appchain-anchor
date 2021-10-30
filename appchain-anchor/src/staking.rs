@@ -1,4 +1,5 @@
 use crate::*;
+use borsh::maybestd::collections::HashMap;
 use near_sdk::serde_json;
 use validator_set::ValidatorSetActions;
 
@@ -132,6 +133,7 @@ impl AppchainAnchor {
                 self.register_validator(
                     sender_id,
                     validator_id_in_appchain,
+                    HashMap::new(),
                     amount,
                     can_be_delegated_to,
                 );
@@ -156,6 +158,7 @@ impl AppchainAnchor {
         &mut self,
         validator_id: AccountId,
         validator_id_in_appchain: String,
+        profile: HashMap<String, String>,
         deposit_amount: U128,
         can_be_delegated_to: bool,
     ) {
@@ -184,10 +187,11 @@ impl AppchainAnchor {
             "Invalid validator id in appchain: {}",
             &validator_id_in_appchain
         );
+        let mut validator_profiles = self.validator_profiles.get().unwrap();
         assert!(
-            !self
-                .validator_account_id_mapping
-                .contains_key(&formatted_validator_id_in_appchain.to_string()),
+            validator_profiles
+                .get_by_id_in_appchain(&formatted_validator_id_in_appchain.to_string())
+                .is_none(),
             "The account {} in appchain has already been registered.",
             &validator_id_in_appchain
         );
@@ -209,10 +213,12 @@ impl AppchainAnchor {
             },
             &mut next_validator_set,
         );
-        self.validator_account_id_mapping.insert(
-            &formatted_validator_id_in_appchain.to_string(),
-            &validator_id,
-        );
+        validator_profiles.insert(ValidatorProfile {
+            validator_id,
+            validator_id_in_appchain: formatted_validator_id_in_appchain.to_string(),
+            profile,
+        });
+        self.validator_profiles.set(&validator_profiles);
     }
     //
     fn increase_stake(&mut self, validator_id: AccountId, amount: U128) {

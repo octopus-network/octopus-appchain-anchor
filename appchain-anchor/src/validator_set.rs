@@ -2,7 +2,6 @@ use near_sdk::BlockHeight;
 
 use crate::*;
 
-/// Appchain validator of an appchain.
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Validator {
     /// The validator's id in NEAR protocol.

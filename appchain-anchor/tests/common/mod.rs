@@ -1,7 +1,10 @@
 use std::convert::TryInto;
 
 use appchain_anchor::{
-    types::{AnchorStatus, ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken},
+    types::{
+        AnchorStatus, ValidatorProfile, ValidatorSetInfo, ValidatorSetProcessingStatus,
+        WrappedAppchainToken,
+    },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
 use mock_appchain_registry::MockAppchainRegistryContract;
@@ -11,7 +14,7 @@ use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FT_METADATA_SPEC};
 use near_sdk::{
     json_types::{U128, U64},
-    serde_json, Balance,
+    serde_json, AccountId, Balance,
 };
 use near_sdk_sim::{
     call, deploy, init_simulator, lazy_static_include, runtime::GenesisConfig, to_yocto, view,
@@ -279,6 +282,26 @@ pub fn print_wrapped_appchain_token_info(anchor: &ContractAccount<AppchainAnchor
     println!(
         "Wrapped appchain token: {}",
         serde_json::to_string::<WrappedAppchainToken>(&wrapped_appchain_token_info).unwrap()
+    );
+}
+
+pub fn print_validator_profile(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    account_id: &AccountId,
+    account_id_in_appchain: &String,
+) {
+    let validator_profile = anchor_viewer::get_validator_profile(&anchor, &account_id);
+    println!(
+        "Profile of '{}': {}",
+        &account_id,
+        serde_json::to_string::<ValidatorProfile>(&validator_profile.unwrap()).unwrap()
+    );
+    let validator_profile =
+        anchor_viewer::get_validator_profile_by_id_in_appchain(&anchor, &account_id_in_appchain);
+    println!(
+        "Profile of '{}': {}",
+        &account_id_in_appchain,
+        serde_json::to_string::<ValidatorProfile>(&validator_profile.unwrap()).unwrap()
     );
 }
 

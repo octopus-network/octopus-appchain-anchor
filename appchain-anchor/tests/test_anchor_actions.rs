@@ -139,6 +139,7 @@ fn test_staking_actions() {
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
     assert_eq!(anchor_status.total_stake_in_next_era.0, amount0);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 1);
+    common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
     //
     // user1 register validator
     //
@@ -160,6 +161,7 @@ fn test_staking_actions() {
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
     assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
     //
     // user2 register delegator to user0 (error)
     //
@@ -384,6 +386,7 @@ fn test_staking_actions() {
         amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p + amount4
     );
     assert_eq!(anchor_status.validator_count_in_next_era.0, 3);
+    common::print_validator_profile(&anchor, &users[4].account_id(), &user4_id_in_appchain);
     //
     // Print staking histories
     //

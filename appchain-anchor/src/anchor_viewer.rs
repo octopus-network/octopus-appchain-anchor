@@ -7,11 +7,11 @@ pub trait AnchorViewer {
     fn get_appchain_settings(&self) -> AppchainSettings;
     /// Get protocol settings detail.
     fn get_protocol_settings(&self) -> ProtocolSettings;
-    /// Get info of OCT token
+    /// Get info of OCT token.
     fn get_oct_token(&self) -> OctToken;
-    /// Get info of wrapped appchain token
+    /// Get info of wrapped appchain token.
     fn get_wrapped_appchain_token(&self) -> WrappedAppchainToken;
-    /// Get info of near fungible tokens which has registered in this contract
+    /// Get info of near fungible tokens which has registered in this contract.
     fn get_near_fungible_tokens(&self) -> Vec<NearFungibleToken>;
     /// Get state of corresponding appchain.
     fn get_appchain_state(&self) -> AppchainState;
@@ -68,23 +68,30 @@ pub trait AnchorViewer {
         delegator_id: AccountId,
         validator_id: AccountId,
     ) -> Vec<RewardHistory>;
-    /// Get current storage balance needed by this contract account
+    /// Get current storage balance needed by this contract account.
     fn get_storage_balance(&self) -> U128;
-    /// Get deposit of a certain validator in a certain era
+    /// Get deposit of a certain validator in a certain era.
     fn get_validator_deposit_of(&self, validator_id: AccountId, era_number: Option<U64>) -> U128;
-    /// Get deposit of a certain delegator in a certain era
+    /// Get deposit of a certain delegator in a certain era.
     fn get_delegator_deposit_of(
         &self,
         delegator_id: AccountId,
         validator_id: AccountId,
         era_number: Option<U64>,
     ) -> U128;
-    /// Get delegation list of a certain delegator in a certain era
+    /// Get delegation list of a certain delegator in a certain era.
     fn get_delegations_of(
         &self,
         delegator_id: AccountId,
         era_number: Option<U64>,
     ) -> Vec<AppchainDelegator>;
+    /// Get profile of a certain validator.
+    fn get_validator_profile(&self, validator_id: AccountId) -> Option<ValidatorProfile>;
+    /// Get validator profile by his/her account id in appchain.
+    fn get_validator_profile_by_id_in_appchain(
+        &self,
+        validator_id_in_appchain: String,
+    ) -> Option<ValidatorProfile>;
 }
 
 #[near_bindgen]
@@ -523,5 +530,25 @@ impl AnchorViewer for AppchainAnchor {
             });
         }
         result
+    }
+    //
+    fn get_validator_profile(&self, validator_id: AccountId) -> Option<ValidatorProfile> {
+        self.validator_profiles.get().unwrap().get(&validator_id)
+    }
+    //
+    fn get_validator_profile_by_id_in_appchain(
+        &self,
+        validator_id_in_appchain: String,
+    ) -> Option<ValidatorProfile> {
+        let formatted_id = AccountIdInAppchain::new(validator_id_in_appchain.clone());
+        assert!(
+            formatted_id.is_valid(),
+            "Invalid validator id in appchain: '{}'",
+            validator_id_in_appchain
+        );
+        self.validator_profiles
+            .get()
+            .unwrap()
+            .get_by_id_in_appchain(&formatted_id.to_string())
     }
 }

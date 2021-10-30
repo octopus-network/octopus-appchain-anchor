@@ -1,48 +1,8 @@
 use crate::*;
 
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::borsh::{self, maybestd::collections::HashMap, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct OldProtocolSettings {
-    /// A validator has to deposit a certain amount of OCT token to this contract for
-    /// being validator of the appchain.
-    pub minimum_validator_deposit: U128,
-    /// The minimum deposit amount for a delegator to delegate his voting weight to
-    /// a certain validator.
-    pub minimum_delegator_deposit: U128,
-    /// The minimum price (in USD) of total stake in this contract for
-    /// booting corresponding appchain
-    pub minimum_total_stake_price_for_booting: U128,
-    /// The maximum percentage of the total market value of all NEP-141 tokens to the total
-    /// market value of OCT token staked in this contract
-    pub maximum_market_value_percent_of_near_fungible_tokens: u16,
-    /// The maximum percentage of the total market value of wrapped appchain token to the total
-    /// market value of OCT token staked in this contract
-    pub maximum_market_value_percent_of_wrapped_appchain_token: u16,
-    /// The minimum number of validator(s) registered in this contract for
-    /// booting the corresponding appchain and keep it alive.
-    pub minimum_validator_count: U64,
-    /// The maximum number of validator(s) which a delegator can delegate to.
-    pub maximum_validators_per_delegator: U64,
-    /// The unlock period (in days) for validator(s) can withdraw their deposit after
-    /// they are removed from the corresponding appchain.
-    pub unlock_period_of_validator_deposit: U64,
-    /// The unlock period (in days) for delegator(s) can withdraw their deposit after
-    /// they no longer delegates their stake to a certain validator on the corresponding appchain.
-    pub unlock_period_of_delegator_deposit: U64,
-    /// The maximum number of historical eras that the validators or delegators are allowed to
-    /// withdraw their reward
-    pub maximum_era_count_of_unwithdrawn_reward: U64,
-    /// The maximum number of valid appchain message.
-    /// If the era number of appchain message is smaller than the latest era number minus
-    /// this value, the message will be considered as `invalid`.
-    pub maximum_era_count_of_valid_appchain_message: U64,
-    /// The percent of delegation fee of the a delegator's reward in an era
-    pub delegation_fee_percent: u16,
-}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
@@ -77,7 +37,7 @@ pub struct OldAppchainAnchor {
     /// The anchor settings for appchain.
     pub anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
-    pub protocol_settings: LazyOption<OldProtocolSettings>,
+    pub protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain.
     pub appchain_state: AppchainState,
     /// The staking history data happened in this contract.
@@ -103,7 +63,7 @@ impl AppchainAnchor {
         );
 
         // Create the new contract using the data from the old contract.
-        let new_contract = AppchainAnchor {
+        let mut new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
@@ -115,18 +75,30 @@ impl AppchainAnchor {
             unwithdrawn_validator_rewards: old_contract.unwithdrawn_validator_rewards,
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
             unbonded_stakes: old_contract.unbonded_stakes,
-            validator_account_id_mapping: old_contract.validator_account_id_mapping,
+            validator_profiles: LazyOption::new(
+                StorageKey::ValidatorProfiles.into_bytes(),
+                Some(&ValidatorProfiles::new()),
+            ),
             appchain_settings: old_contract.appchain_settings,
             anchor_settings: old_contract.anchor_settings,
-            protocol_settings: LazyOption::new(
-                StorageKey::ProtocolSettings.into_bytes(),
-                Some(&ProtocolSettings::default()),
-            ),
+            protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
             staking_histories: old_contract.staking_histories,
             anchor_event_histories: old_contract.anchor_event_histories,
             permissionless_actions_status: old_contract.permissionless_actions_status,
         };
+
+        let next_validator_set = new_contract.next_validator_set.get().unwrap();
+        let validators = next_validator_set.get_validator_list();
+        let mut validator_profiles = new_contract.validator_profiles.get().unwrap();
+        validators.iter().for_each(|validator| {
+            validator_profiles.insert(ValidatorProfile {
+                validator_id: validator.validator_id.clone(),
+                validator_id_in_appchain: validator.validator_id_in_appchain.clone(),
+                profile: HashMap::new(),
+            });
+        });
+        new_contract.validator_profiles.set(&validator_profiles);
 
         new_contract
     }

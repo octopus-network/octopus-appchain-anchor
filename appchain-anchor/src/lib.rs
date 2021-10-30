@@ -10,6 +10,7 @@ mod storage_key;
 mod storage_migration;
 mod sudo_actions;
 pub mod types;
+mod validator_profiles;
 mod validator_set;
 mod wrapped_appchain_token;
 
@@ -39,6 +40,7 @@ use near_fungible_tokens::NearFungibleTokens;
 use staking::{StakingHistories, UnbondedStakeReference};
 use storage_key::StorageKey;
 use types::*;
+use validator_profiles::ValidatorProfiles;
 use validator_set::{ValidatorSet, ValidatorSetHistories};
 
 /// Constants for gas.
@@ -131,9 +133,8 @@ pub struct AppchainAnchor {
     unwithdrawn_delegator_rewards: LookupMap<(u64, AccountId, AccountId), Balance>,
     /// The map of unbonded stakes in eras.
     unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
-    /// The mapping for validators' accounts, from account id in the appchain to
-    /// account id in NEAR protocol.
-    validator_account_id_mapping: LookupMap<String, AccountId>,
+    /// The validators' profiles data.
+    validator_profiles: LazyOption<ValidatorProfiles>,
     /// The custom settings for appchain.
     appchain_settings: LazyOption<AppchainSettings>,
     /// The anchor settings for appchain.
@@ -199,8 +200,9 @@ impl AppchainAnchor {
                 StorageKey::UnwithdrawnDelegatorRewards.into_bytes(),
             ),
             unbonded_stakes: LookupMap::new(StorageKey::UnbondedStakes.into_bytes()),
-            validator_account_id_mapping: LookupMap::new(
-                StorageKey::LookupMapOfValidatorIdsInAppchain.into_bytes(),
+            validator_profiles: LazyOption::new(
+                StorageKey::ValidatorProfiles.into_bytes(),
+                Some(&ValidatorProfiles::new()),
             ),
             appchain_settings: LazyOption::new(
                 StorageKey::AppchainSettings.into_bytes(),

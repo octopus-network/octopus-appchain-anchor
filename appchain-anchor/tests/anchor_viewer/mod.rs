@@ -1,11 +1,13 @@
 use appchain_anchor::types::{
     AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainDelegator, AppchainSettings,
     AppchainState, AppchainValidator, IndexRange, ProtocolSettings, RewardHistory, StakingHistory,
-    UnbondedStake, ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
+    UnbondedStake, ValidatorProfile, ValidatorSetInfo, ValidatorSetProcessingStatus,
+    WrappedAppchainToken,
 };
 use appchain_anchor::AppchainAnchorContract;
 
 use near_sdk::json_types::U64;
+use near_sdk::AccountId;
 use near_sdk_sim::{view, ContractAccount, UserAccount};
 
 pub fn get_anchor_settings(anchor: &ContractAccount<AppchainAnchorContract>) -> AnchorSettings {
@@ -161,6 +163,31 @@ pub fn get_validator_list_of(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Vec<AppchainValidator>>()
+}
+
+pub fn get_validator_profile(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    account_id: &AccountId,
+) -> Option<ValidatorProfile> {
+    let view_result = view!(anchor.get_validator_profile(account_id.clone()));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Option<ValidatorProfile>>()
+}
+
+pub fn get_validator_profile_by_id_in_appchain(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    account_id_in_appchain: &String,
+) -> Option<ValidatorProfile> {
+    let view_result =
+        view!(anchor.get_validator_profile_by_id_in_appchain(account_id_in_appchain.clone()));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Option<ValidatorProfile>>()
 }
 
 pub fn get_delegators_of_validator_in_era(

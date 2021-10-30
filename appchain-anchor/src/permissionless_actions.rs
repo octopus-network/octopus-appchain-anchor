@@ -520,6 +520,7 @@ impl AppchainAnchor {
             "Validator set is not ready for distributing reward."
         );
         let mut unprofitable_validator_ids_in_near = Vec::<AccountId>::new();
+        let validator_profiles = self.validator_profiles.get().unwrap();
         for id_in_appchain in unprofitable_validator_ids {
             let account_id_in_appchain = AccountIdInAppchain::new(id_in_appchain.clone());
             assert!(
@@ -528,15 +529,17 @@ impl AppchainAnchor {
                 id_in_appchain
             );
             assert!(
-                self.validator_account_id_mapping
-                    .contains_key(&account_id_in_appchain.to_string()),
+                validator_profiles
+                    .get_by_id_in_appchain(&account_id_in_appchain.to_string())
+                    .is_some(),
                 "Invalid validator id in appchain: {}",
                 id_in_appchain
             );
             unprofitable_validator_ids_in_near.push(
-                self.validator_account_id_mapping
-                    .get(&account_id_in_appchain.to_string())
-                    .unwrap(),
+                validator_profiles
+                    .get_by_id_in_appchain(&account_id_in_appchain.to_string())
+                    .unwrap()
+                    .validator_id,
             );
         }
         validator_set.set_unprofitable_validator_ids(unprofitable_validator_ids_in_near);
