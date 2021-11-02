@@ -128,7 +128,7 @@ impl NearFungibleTokenManager for AppchainAnchor {
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             !near_fungible_tokens.contains(&symbol),
-            "Token {} is already registered.",
+            "Token '{}' is already registered.",
             &symbol
         );
         near_fungible_tokens.insert(&NearFungibleToken {
@@ -160,7 +160,7 @@ impl NearFungibleTokenManager for AppchainAnchor {
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             near_fungible_tokens.contains(&symbol),
-            "Token {} is not registered.",
+            "Token '{}' is not registered.",
             &symbol
         );
         let mut near_fungible_token = near_fungible_tokens.get(&symbol).unwrap();
@@ -181,7 +181,7 @@ impl NearFungibleTokenManager for AppchainAnchor {
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             near_fungible_tokens.contains(&symbol),
-            "Token {} is not registered.",
+            "Token '{}' is not registered.",
             &symbol
         );
         let mut near_fungible_token = near_fungible_tokens.get(&symbol).unwrap();
@@ -194,7 +194,7 @@ impl NearFungibleTokenManager for AppchainAnchor {
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             near_fungible_tokens.contains(&symbol),
-            "Token {} is not registered.",
+            "Token '{}' is not registered.",
             &symbol
         );
         let mut near_fungible_token = near_fungible_tokens.get(&symbol).unwrap();
@@ -207,7 +207,7 @@ impl NearFungibleTokenManager for AppchainAnchor {
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             near_fungible_tokens.contains(&symbol),
-            "Token {} is not registered.",
+            "Token '{}' is not registered.",
             &symbol
         );
         let mut near_fungible_token = near_fungible_tokens.get(&symbol).unwrap();
@@ -360,7 +360,7 @@ impl FungibleTokenContractResolver for AppchainAnchor {
                     amount,
                     appchain_message_nonce,
                     reason: format!(
-                        "Maybe the receiver account {} is not registered in '{}' token contract.",
+                        "Maybe the receiver account '{}' is not registered in '{}' token contract.",
                         &receiver_id_in_near, &symbol
                     ),
                 });

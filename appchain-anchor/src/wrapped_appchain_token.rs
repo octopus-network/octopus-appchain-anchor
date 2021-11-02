@@ -217,7 +217,7 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     sender_id_in_near: sender_id_in_near.clone(),
                     receiver_id_in_appchain,
                     amount: U128::from(amount),
-                    reason: format!("Maybe the balance of {} is not enough.", &sender_id_in_near),
+                    reason: format!("Maybe the balance of '{}' is not enough.", &sender_id_in_near),
                 });
             }
         }

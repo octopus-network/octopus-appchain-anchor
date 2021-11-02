@@ -39,7 +39,7 @@ impl AccountIdInAppchain {
     pub fn assert_valid(&self) {
         assert!(
             self.is_valid(),
-            "Invalid validator id in appchain: {}",
+            "Invalid validator id in appchain: '{}'",
             &self.origin_to_string()
         );
     }

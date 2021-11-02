@@ -524,7 +524,7 @@ impl AppchainAnchor {
                 validator_profiles
                     .get_by_id_in_appchain(&account_id_in_appchain.to_string())
                     .is_some(),
-                "Invalid validator id in appchain: {}",
+                "Invalid validator id in appchain: '{}'",
                 id_in_appchain
             );
             unprofitable_validator_ids_in_near.push(

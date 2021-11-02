@@ -257,7 +257,7 @@ impl AppchainAnchor {
         assert!(
             validator_set.validator_id_set.contains(validator_id)
                 || validator_set.validators.contains_key(validator_id),
-            "Validator id {} is not valid.",
+            "Validator id '{}' is not valid.",
             validator_id
         );
     }
@@ -273,7 +273,7 @@ impl AppchainAnchor {
             validator_set
                 .validator_id_to_delegator_id_set
                 .contains_key(validator_id),
-            "Delegator id {} of validator {} is not valid.",
+            "Delegator id '{}' of validator '{}' is not valid.",
             delegator_id,
             validator_id
         );
@@ -286,7 +286,7 @@ impl AppchainAnchor {
                 || validator_set
                     .delegators
                     .contains_key(&(delegator_id.clone(), validator_id.clone())),
-            "Delegator id {} of validator {} is not valid.",
+            "Delegator id '{}' of validator '{}' is not valid.",
             delegator_id,
             validator_id
         );
@@ -335,7 +335,7 @@ impl AppchainAnchor {
         msg: String,
     ) -> PromiseOrValue<U128> {
         log!(
-            "Deposit {} from @{} received. msg: {}",
+            "Deposit {} from '@{}' received. msg: '{}'",
             amount.0,
             &sender_id,
             msg
