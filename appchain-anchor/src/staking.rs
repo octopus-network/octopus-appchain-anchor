@@ -59,6 +59,24 @@ impl StakingHistories {
         self.end_index = index;
         self.histories.get(&index).unwrap()
     }
+    ///
+    pub fn remove_before(&mut self, index: &u64) {
+        if self.start_index >= *index {
+            return;
+        }
+        for index in self.start_index..*index {
+            self.histories.remove(&index);
+        }
+        self.start_index = *index;
+    }
+    ///
+    pub fn reset(&mut self) {
+        for index in self.start_index..self.end_index + 1 {
+            self.histories.remove(&index);
+        }
+        self.start_index = 0;
+        self.end_index = 0;
+    }
 }
 
 pub trait StakingManager {

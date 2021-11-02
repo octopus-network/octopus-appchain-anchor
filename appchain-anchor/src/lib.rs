@@ -3,6 +3,7 @@ mod anchor_viewer;
 mod appchain_lifecycle;
 mod message_decoder;
 mod near_fungible_tokens;
+mod owner_actions;
 mod permissionless_actions;
 mod settings_manager;
 mod staking;

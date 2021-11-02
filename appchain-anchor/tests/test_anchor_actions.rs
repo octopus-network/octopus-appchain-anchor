@@ -18,6 +18,7 @@ use near_sdk_sim::{ContractAccount, UserAccount};
 mod anchor_viewer;
 mod common;
 mod lifecycle_actions;
+mod owner_actions;
 mod permissionless_actions;
 mod settings_actions;
 mod staking_actions;
@@ -575,6 +576,21 @@ fn test_staking_actions() {
     withdraw_stake_of(&anchor, &users[2], &oct_token);
     withdraw_stake_of(&anchor, &users[3], &oct_token);
     withdraw_stake_of(&anchor, &users[4], &oct_token);
+    //
+    // Reset history data
+    //
+    let result = sudo_actions::reset_validator_set_histories(&root, &anchor);
+    result.assert_success();
+    let result = sudo_actions::reset_staking_histories(&root, &anchor);
+    result.assert_success();
+    let result = sudo_actions::reset_anchor_event_histories(&root, &anchor);
+    result.assert_success();
+    common::print_validator_list_of(&anchor, Some(0));
+    common::print_validator_list_of(&anchor, Some(1));
+    common::print_validator_list_of(&anchor, Some(2));
+    common::print_validator_list_of(&anchor, Some(3));
+    common::print_staking_histories(&anchor);
+    common::print_anchor_events(&anchor);
 }
 
 fn distribute_reward_of(

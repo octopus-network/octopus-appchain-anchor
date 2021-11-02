@@ -107,8 +107,8 @@ impl ValidatorSetHistories {
         self.histories.contains_key(era_number)
     }
     ///
-    pub fn get(&self, index: &u64) -> Option<ValidatorSetOfEra> {
-        self.histories.get(index)
+    pub fn get(&self, era_number: &u64) -> Option<ValidatorSetOfEra> {
+        self.histories.get(era_number)
     }
     ///
     pub fn insert(&mut self, era_number: &u64, validator_set: &ValidatorSetOfEra) {
@@ -116,6 +116,31 @@ impl ValidatorSetHistories {
         if *era_number > self.end_index {
             self.end_index = *era_number;
         }
+    }
+    ///
+    pub fn remove(&mut self, era_number: &u64) {
+        if let Some(mut validator_set_of_era) = self.histories.get(era_number) {
+            validator_set_of_era.clear_storage();
+            self.histories.remove(era_number);
+        }
+    }
+    ///
+    pub fn remove_before(&mut self, era_number: &u64) {
+        if self.start_index >= *era_number {
+            return;
+        }
+        for index in self.start_index..*era_number {
+            self.remove(&index);
+        }
+        self.start_index = *era_number;
+    }
+    ///
+    pub fn reset(&mut self) {
+        for index in self.start_index..self.end_index + 1 {
+            self.remove(&index);
+        }
+        self.start_index = 0;
+        self.end_index = 0;
     }
 }
 
@@ -166,6 +191,31 @@ impl ValidatorSet {
                 };
             })
             .collect()
+    }
+    ///
+    pub fn clear_storage(&mut self) {
+        let validator_ids = self.validator_id_set.to_vec();
+        for validator_id in validator_ids {
+            if let Some(mut delegator_id_set) =
+                self.validator_id_to_delegator_id_set.get(&validator_id)
+            {
+                let delegator_ids = delegator_id_set.to_vec();
+                for delegator_id in delegator_ids {
+                    self.delegators
+                        .remove(&(delegator_id.clone(), validator_id.clone()));
+                    if let Some(mut validator_id_set_of_delegator) =
+                        self.delegator_id_to_validator_id_set.get(&delegator_id)
+                    {
+                        validator_id_set_of_delegator.clear();
+                        self.delegator_id_to_validator_id_set.remove(&delegator_id);
+                    }
+                }
+                delegator_id_set.clear();
+                self.validator_id_to_delegator_id_set.remove(&validator_id);
+                self.validators.remove(&validator_id);
+            }
+        }
+        self.validator_id_set.clear();
     }
 }
 
@@ -443,6 +493,29 @@ impl ValidatorSetOfEra {
             valid_total_stake: U128::from(self.valid_total_stake),
             processing_status: self.processing_status.clone(),
         }
+    }
+    ///
+    pub fn clear_storage(&mut self) {
+        let validator_ids = self.validator_set.validator_id_set.to_vec();
+        for validator_id in validator_ids {
+            if self.unprofitable_validator_id_set.contains(&validator_id) {
+                continue;
+            }
+            if let Some(delegator_id_set) = self
+                .validator_set
+                .validator_id_to_delegator_id_set
+                .get(&validator_id)
+            {
+                let delegator_ids = delegator_id_set.to_vec();
+                for delegator_id in delegator_ids {
+                    self.delegator_rewards
+                        .remove(&(delegator_id.clone(), validator_id.clone()));
+                }
+                self.validator_rewards.remove(&validator_id);
+            }
+        }
+        self.unprofitable_validator_id_set.clear();
+        self.validator_set.clear_storage();
     }
 }
 
