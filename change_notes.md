@@ -19,3 +19,38 @@ decrease_stake |  |  | allowed |  |
 decrease_delegation |  |  | allowed |  |
 unbond_stake |  |  | allowed |  | allowed
 unbond_delegation |  |  | allowed |  | allowed
+
+## 20211102
+
+* Change `StakingDepositMessage::RegisterValidator` as the following:
+
+```rust
+    RegisterValidator {
+        validator_id_in_appchain: Option<String>,
+        can_be_delegated_to: bool,
+        profile: HashMap<String, String>,
+    },
+```
+
+* Add trait `ValidatorActions` and implement it for `AppchainAnchor`:
+
+```rust
+pub trait ValidatorActions {
+    ///
+    fn set_validator_id_in_appchain(&mut self, account_id_in_appchain: String);
+    ///
+    fn set_validator_profile(&mut self, profile: HashMap<String, String>);
+}
+```
+
+* Add the following view functions:
+
+```rust
+    /// Get profile of a certain validator.
+    fn get_validator_profile(&self, validator_id: AccountId) -> Option<ValidatorProfile>;
+    /// Get validator profile by his/her account id in appchain.
+    fn get_validator_profile_by_id_in_appchain(
+        &self,
+        validator_id_in_appchain: String,
+    ) -> Option<ValidatorProfile>;
+```
