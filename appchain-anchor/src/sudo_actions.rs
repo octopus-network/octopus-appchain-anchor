@@ -17,8 +17,6 @@ pub trait SudoActions {
     ///
     fn remove_validator_set_of(&mut self, era_number: U64);
     ///
-    fn remove_validator_set_before(&mut self, era_number: U64);
-    ///
     fn reset_validator_set_histories(&mut self);
     ///
     fn reset_staking_histories(&mut self);
@@ -56,12 +54,6 @@ impl SudoActions for AppchainAnchor {
     fn remove_validator_set_of(&mut self, era_number: U64) {
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         validator_set_histories.remove(&era_number.0);
-        self.validator_set_histories.set(&validator_set_histories);
-    }
-    //
-    fn remove_validator_set_before(&mut self, era_number: U64) {
-        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        validator_set_histories.remove_before(&era_number.0);
         self.validator_set_histories.set(&validator_set_histories);
     }
     //
