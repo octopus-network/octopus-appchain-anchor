@@ -26,10 +26,12 @@ impl ValidatorProfiles {
             .insert(&validator_profile.validator_id);
         self.profiles
             .insert(&validator_profile.validator_id, &validator_profile);
-        self.map_by_id_in_appchain.insert(
-            &validator_profile.validator_id_in_appchain,
-            &validator_profile.validator_id,
-        );
+        if !validator_profile.validator_id_in_appchain.is_empty() {
+            self.map_by_id_in_appchain.insert(
+                &validator_profile.validator_id_in_appchain,
+                &validator_profile.validator_id,
+            );
+        }
     }
     ///
     pub fn get(&self, validator_id: &AccountId) -> Option<ValidatorProfile> {

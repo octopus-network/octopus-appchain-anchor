@@ -540,12 +540,8 @@ impl AnchorViewer for AppchainAnchor {
         &self,
         validator_id_in_appchain: String,
     ) -> Option<ValidatorProfile> {
-        let formatted_id = AccountIdInAppchain::new(validator_id_in_appchain.clone());
-        assert!(
-            formatted_id.is_valid(),
-            "Invalid validator id in appchain: '{}'",
-            validator_id_in_appchain
-        );
+        let formatted_id = AccountIdInAppchain::new(Some(validator_id_in_appchain.clone()));
+        formatted_id.assert_valid();
         self.validator_profiles
             .get()
             .unwrap()

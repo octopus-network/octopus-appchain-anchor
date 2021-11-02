@@ -250,11 +250,7 @@ impl AppchainAnchor {
                 NearFungibleTokenDepositMessage::BridgeToAppchain {
                     receiver_id_in_appchain,
                 } => {
-                    assert!(
-                        AccountIdInAppchain::new(receiver_id_in_appchain.clone()).is_valid(),
-                        "Invalid receiver id in appchain: '{}'. Return deposit.",
-                        &receiver_id_in_appchain
-                    );
+                    AccountIdInAppchain::new(Some(receiver_id_in_appchain.clone())).assert_valid();
                     let protocol_settings = self.protocol_settings.get().unwrap();
                     assert!(
                         near_fungible_tokens.total_market_value()

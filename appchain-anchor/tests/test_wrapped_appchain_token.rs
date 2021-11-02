@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::{collections::HashMap, convert::TryInto};
 
 use appchain_anchor::{
     types::{
@@ -103,9 +103,10 @@ fn test_wrapped_appchain_token_bridging() {
         &users[0],
         &oct_token,
         &anchor,
-        &user0_id_in_appchain,
+        &Some(user0_id_in_appchain.clone()),
         amount0,
         true,
+        HashMap::new(),
     );
     result.assert_success();
     assert_eq!(
@@ -124,9 +125,10 @@ fn test_wrapped_appchain_token_bridging() {
         &users[1],
         &oct_token,
         &anchor,
-        &user1_id_in_appchain,
+        &Some(user1_id_in_appchain.clone()),
         amount1,
         false,
+        HashMap::new(),
     );
     result.assert_success();
     assert_eq!(

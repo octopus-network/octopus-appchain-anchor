@@ -8,22 +8,47 @@ use crate::*;
 pub type AppchainId = String;
 
 pub struct AccountIdInAppchain {
+    origin: Option<String>,
     raw_string: String,
 }
 
 impl AccountIdInAppchain {
     ///
-    pub fn new(id_in_appchain: String) -> Self {
+    pub fn new(id_in_appchain: Option<String>) -> Self {
         let mut value = String::new();
-        if !id_in_appchain.starts_with("0x") {
-            value.push_str("0x");
+        if let Some(id_in_appchain) = id_in_appchain.clone() {
+            if !id_in_appchain.starts_with("0x") {
+                value.push_str("0x");
+            }
+            value.push_str(&id_in_appchain);
         }
-        value.push_str(&id_in_appchain);
-        Self { raw_string: value }
+        Self {
+            origin: id_in_appchain,
+            raw_string: value,
+        }
     }
     ///
-    pub fn is_valid(&self) -> bool {
-        hex::decode(&self.raw_string.as_str()[2..self.raw_string.len()]).is_ok()
+    fn is_valid(&self) -> bool {
+        if self.raw_string.len() > 2 {
+            hex::decode(&self.raw_string.as_str()[2..self.raw_string.len()]).is_ok()
+        } else {
+            false
+        }
+    }
+    ///
+    pub fn assert_valid(&self) {
+        assert!(
+            self.is_valid(),
+            "Invalid validator id in appchain: {}",
+            &self.origin_to_string()
+        );
+    }
+    ///
+    pub fn origin_to_string(&self) -> String {
+        match &self.origin {
+            Some(id) => id.clone(),
+            None => String::new(),
+        }
     }
     ///
     pub fn to_string(&self) -> String {

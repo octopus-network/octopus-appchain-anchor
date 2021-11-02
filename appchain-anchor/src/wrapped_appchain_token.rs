@@ -126,12 +126,8 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
     //
     fn burn_wrapped_appchain_token(&self, receiver_id: String, amount: U128) {
         let sender_id = env::predecessor_account_id();
-        let account_id_in_appchain = AccountIdInAppchain::new(receiver_id.clone());
-        assert!(
-            account_id_in_appchain.is_valid(),
-            "Invalid receiver id in appchain: {}",
-            &receiver_id
-        );
+        let account_id_in_appchain = AccountIdInAppchain::new(Some(receiver_id.clone()));
+        account_id_in_appchain.assert_valid();
         ext_fungible_token::burn(
             sender_id.clone(),
             amount,

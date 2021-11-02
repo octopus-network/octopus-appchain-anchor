@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use appchain_anchor::AppchainAnchorContract;
 use mock_oct_token::MockOctTokenContract;
 use near_sdk::serde_json::json;
@@ -9,9 +11,10 @@ pub fn register_validator(
     signer: &UserAccount,
     oct_token: &ContractAccount<MockOctTokenContract>,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    account_id_in_appchain: &String,
+    account_id_in_appchain: &Option<String>,
     amount: u128,
     can_be_delegated_to: bool,
+    profile: HashMap<String, String>,
 ) -> ExecutionResult {
     common::ft_transfer_call_oct_token(
         signer,
@@ -20,7 +23,8 @@ pub fn register_validator(
         json!({
             "RegisterValidator": {
                 "validator_id_in_appchain": account_id_in_appchain,
-                "can_be_delegated_to": can_be_delegated_to
+                "can_be_delegated_to": can_be_delegated_to,
+                "profile": profile
             }
         })
         .to_string(),

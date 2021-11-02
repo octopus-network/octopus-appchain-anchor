@@ -298,11 +298,13 @@ pub fn print_validator_profile(
     );
     let validator_profile =
         anchor_viewer::get_validator_profile_by_id_in_appchain(&anchor, &account_id_in_appchain);
-    println!(
-        "Profile of '{}': {}",
-        &account_id_in_appchain,
-        serde_json::to_string::<ValidatorProfile>(&validator_profile.unwrap()).unwrap()
-    );
+    if validator_profile.is_some() {
+        println!(
+            "Profile of '{}': {}",
+            &account_id_in_appchain,
+            serde_json::to_string::<ValidatorProfile>(&validator_profile.unwrap()).unwrap()
+        );
+    }
 }
 
 pub fn print_anchor_events(anchor: &ContractAccount<AppchainAnchorContract>) {

@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::{collections::HashMap, convert::TryInto};
 
 use appchain_anchor::{
     types::{
@@ -23,6 +23,7 @@ mod settings_actions;
 mod staking_actions;
 mod sudo_actions;
 mod token_viewer;
+mod validator_actions;
 mod wrapped_appchain_token_manager;
 
 const TOTAL_SUPPLY: u128 = 100_000_000;
@@ -37,6 +38,12 @@ fn test_staking_actions() {
         "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da270".to_string();
     let user4_id_in_appchain =
         "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da273".to_string();
+    let mut user0_profile = HashMap::<String, String>::new();
+    user0_profile.insert("key0".to_string(), "value0".to_string());
+    let mut user1_profile = HashMap::<String, String>::new();
+    user1_profile.insert("key1".to_string(), "value1".to_string());
+    let mut user4_profile = HashMap::<String, String>::new();
+    user4_profile.insert("key4".to_string(), "value4".to_string());
     //
     // Check initial status
     //
@@ -106,9 +113,10 @@ fn test_staking_actions() {
         &users[0],
         &oct_token,
         &anchor,
-        &user0_id_in_appchain,
+        &None,
         amount0,
         true,
+        HashMap::new(),
     );
     result.assert_success();
     assert_eq!(
@@ -127,9 +135,10 @@ fn test_staking_actions() {
         &users[0],
         &oct_token,
         &anchor,
-        &user0_id_in_appchain,
+        &None,
         amount0,
         true,
+        HashMap::new(),
     );
     result.assert_success();
     assert_eq!(
@@ -149,9 +158,10 @@ fn test_staking_actions() {
         &users[1],
         &oct_token,
         &anchor,
-        &user1_id_in_appchain,
+        &None,
         amount1,
         false,
+        HashMap::new(),
     );
     result.assert_success();
     assert_eq!(
@@ -363,6 +373,21 @@ fn test_staking_actions() {
         AppchainState::Active
     );
     //
+    // Change id in appchain and profile of user0, user1
+    //
+    let result =
+        validator_actions::set_validator_id_in_appchain(&users[0], &anchor, &user0_id_in_appchain);
+    result.assert_success();
+    let result = validator_actions::set_validator_profile(&users[0], &anchor, &user0_profile);
+    result.assert_success();
+    common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
+    let result =
+        validator_actions::set_validator_id_in_appchain(&users[1], &anchor, &user1_id_in_appchain);
+    result.assert_success();
+    let result = validator_actions::set_validator_profile(&users[1], &anchor, &user1_profile);
+    result.assert_success();
+    common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
+    //
     // user4 register validator
     //
     let user4_balance = token_viewer::get_oct_balance_of(&users[4], &oct_token);
@@ -371,9 +396,10 @@ fn test_staking_actions() {
         &users[4],
         &oct_token,
         &anchor,
-        &user4_id_in_appchain,
+        &Some(user4_id_in_appchain.clone()),
         amount4,
         true,
+        user4_profile,
     );
     result.assert_success();
     assert_eq!(

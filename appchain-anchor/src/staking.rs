@@ -95,8 +95,9 @@ pub trait StakingManager {
 #[serde(crate = "near_sdk::serde")]
 enum StakingDepositMessage {
     RegisterValidator {
-        validator_id_in_appchain: String,
+        validator_id_in_appchain: Option<String>,
         can_be_delegated_to: bool,
+        profile: HashMap<String, String>,
     },
     IncreaseStake,
     RegisterDelegator {
@@ -129,11 +130,12 @@ impl AppchainAnchor {
             StakingDepositMessage::RegisterValidator {
                 validator_id_in_appchain,
                 can_be_delegated_to,
+                profile,
             } => {
                 self.register_validator(
                     sender_id,
                     validator_id_in_appchain,
-                    HashMap::new(),
+                    profile,
                     amount,
                     can_be_delegated_to,
                 );
@@ -157,7 +159,7 @@ impl AppchainAnchor {
     fn register_validator(
         &mut self,
         validator_id: AccountId,
-        validator_id_in_appchain: String,
+        validator_id_in_appchain: Option<String>,
         profile: HashMap<String, String>,
         deposit_amount: U128,
         can_be_delegated_to: bool,
@@ -180,21 +182,19 @@ impl AppchainAnchor {
             "The account {} is holding unbonded stake(s) which need to be withdrawn first.",
             &validator_id
         );
+        let mut validator_profiles = self.validator_profiles.get().unwrap();
         let formatted_validator_id_in_appchain =
             AccountIdInAppchain::new(validator_id_in_appchain.clone());
-        assert!(
-            formatted_validator_id_in_appchain.is_valid(),
-            "Invalid validator id in appchain: {}",
-            &validator_id_in_appchain
-        );
-        let mut validator_profiles = self.validator_profiles.get().unwrap();
-        assert!(
-            validator_profiles
-                .get_by_id_in_appchain(&formatted_validator_id_in_appchain.to_string())
-                .is_none(),
-            "The account {} in appchain has already been registered.",
-            &validator_id_in_appchain
-        );
+        if validator_id_in_appchain.is_some() {
+            formatted_validator_id_in_appchain.assert_valid();
+            assert!(
+                validator_profiles
+                    .get_by_id_in_appchain(&formatted_validator_id_in_appchain.to_string())
+                    .is_none(),
+                "The account {} in appchain has already been registered.",
+                &formatted_validator_id_in_appchain.origin_to_string()
+            );
+        }
         let protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             deposit_amount.0 >= protocol_settings.minimum_validator_deposit.0,

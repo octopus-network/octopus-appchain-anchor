@@ -10,6 +10,7 @@ mod storage_key;
 mod storage_migration;
 mod sudo_actions;
 pub mod types;
+mod validator_actions;
 mod validator_profiles;
 mod validator_set;
 mod wrapped_appchain_token;
@@ -251,10 +252,10 @@ impl AppchainAnchor {
         );
     }
     // Assert that the contract called by a registered validator.
-    fn assert_validator_id(&self, validator_id: &AccountId, next_validator_set: &ValidatorSet) {
+    fn assert_validator_id(&self, validator_id: &AccountId, validator_set: &ValidatorSet) {
         assert!(
-            next_validator_set.validator_id_set.contains(validator_id)
-                || next_validator_set.validators.contains_key(validator_id),
+            validator_set.validator_id_set.contains(validator_id)
+                || validator_set.validators.contains_key(validator_id),
             "Validator id {} is not valid.",
             validator_id
         );
@@ -264,24 +265,24 @@ impl AppchainAnchor {
         &self,
         delegator_id: &AccountId,
         validator_id: &AccountId,
-        next_validator_set: &ValidatorSet,
+        validator_set: &ValidatorSet,
     ) {
-        self.assert_validator_id(validator_id, next_validator_set);
+        self.assert_validator_id(validator_id, validator_set);
         assert!(
-            next_validator_set
+            validator_set
                 .validator_id_to_delegator_id_set
                 .contains_key(validator_id),
             "Delegator id {} of validator {} is not valid.",
             delegator_id,
             validator_id
         );
-        let delegator_id_set = next_validator_set
+        let delegator_id_set = validator_set
             .validator_id_to_delegator_id_set
             .get(validator_id)
             .unwrap();
         assert!(
             delegator_id_set.contains(delegator_id)
-                || next_validator_set
+                || validator_set
                     .delegators
                     .contains_key(&(delegator_id.clone(), validator_id.clone())),
             "Delegator id {} of validator {} is not valid.",

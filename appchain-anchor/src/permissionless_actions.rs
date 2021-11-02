@@ -143,12 +143,8 @@ impl AppchainAnchor {
             } => {
                 let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
                 let protocol_settings = self.protocol_settings.get().unwrap();
-                let owner_id = AccountIdInAppchain::new(owner_id_in_appchain.clone());
-                assert!(
-                    owner_id.is_valid(),
-                    "Invalid owner id in appchain: '{}'",
-                    owner_id_in_appchain
-                );
+                let owner_id = AccountIdInAppchain::new(Some(owner_id_in_appchain.clone()));
+                owner_id.assert_valid();
                 if wrapped_appchain_token.total_market_value()
                     + wrapped_appchain_token.get_market_value_of(amount.0)
                     > self.get_market_value_of_staked_oct_token().0
@@ -522,12 +518,8 @@ impl AppchainAnchor {
         let mut unprofitable_validator_ids_in_near = Vec::<AccountId>::new();
         let validator_profiles = self.validator_profiles.get().unwrap();
         for id_in_appchain in unprofitable_validator_ids {
-            let account_id_in_appchain = AccountIdInAppchain::new(id_in_appchain.clone());
-            assert!(
-                account_id_in_appchain.is_valid(),
-                "Invalid validator id in appchain: {}",
-                id_in_appchain
-            );
+            let account_id_in_appchain = AccountIdInAppchain::new(Some(id_in_appchain.clone()));
+            account_id_in_appchain.assert_valid();
             assert!(
                 validator_profiles
                     .get_by_id_in_appchain(&account_id_in_appchain.to_string())
