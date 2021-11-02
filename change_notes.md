@@ -1,25 +1,5 @@
 # Change notes
 
-## 20211025
-
-* Add view function `get_delegations_of` for querying all delegations of a certain delegator in a certain era.
-* Add field `validator_id_in_appchain` to `types::AppchainValidator`.
-* Add field `validator_id` to `types::AppchainDelegator`.
-* Move function `set_metadata_of_wrapped_appchain_token` and `set_premined_balance_of_wrapped_appchain_token` to module `sudo_actions`.
-* Add function `sync_basedata_of_wrapped_appchain_token` for the contract of wrapped appchain token to sync basedata back to this contract. Refer to [Initial deployment](https://github.com/octopus-network/octopus-appchain-anchor#initial-deployment).
-* Add restriction to staking actions as follow:
-
-Staking action | AppchainState: Staging | AppchainState: Booting | AppchainState: Active | AppchainState: Frozen | AppchainState: Broken
----|---|---|---|---|---
-register_validator | allowed |  | allowed |  |
-increase_stake | allowed |  | allowed |  |
-register_delegator | allowed |  | allowed |  |
-increase_delegation | allowed |  | allowed |  |
-decrease_stake |  |  | allowed |  |
-decrease_delegation |  |  | allowed |  |
-unbond_stake |  |  | allowed |  | allowed
-unbond_delegation |  |  | allowed |  | allowed
-
 ## 20211102
 
 * Change `StakingDepositMessage::RegisterValidator` as the following:
@@ -54,3 +34,49 @@ pub trait ValidatorActions {
         validator_id_in_appchain: String,
     ) -> Option<ValidatorProfile>;
 ```
+
+* Add trait `OwnerActions` and implement it for `AppchainAnchor`:
+
+```rust
+pub trait OwnerActions {
+    ///
+    fn remove_validator_set_before(&mut self, era_number: U64);
+    ///
+    fn remove_staking_history_before(&mut self, index: U64);
+    ///
+    fn remove_anchor_event_history_before(&mut self, index: U64);
+}
+```
+
+* Add functions to trait `SudoActions`:
+
+```rust
+    ///
+    fn remove_validator_set_of(&mut self, era_number: U64);
+    ///
+    fn reset_validator_set_histories(&mut self);
+    ///
+    fn reset_staking_histories(&mut self);
+    ///
+    fn reset_anchor_event_histories(&mut self);
+```
+
+## 20211025
+
+* Add view function `get_delegations_of` for querying all delegations of a certain delegator in a certain era.
+* Add field `validator_id_in_appchain` to `types::AppchainValidator`.
+* Add field `validator_id` to `types::AppchainDelegator`.
+* Move function `set_metadata_of_wrapped_appchain_token` and `set_premined_balance_of_wrapped_appchain_token` to module `sudo_actions`.
+* Add function `sync_basedata_of_wrapped_appchain_token` for the contract of wrapped appchain token to sync basedata back to this contract. Refer to [Initial deployment](https://github.com/octopus-network/octopus-appchain-anchor#initial-deployment).
+* Add restriction to staking actions as follow:
+
+Staking action | AppchainState: Staging | AppchainState: Booting | AppchainState: Active | AppchainState: Frozen | AppchainState: Broken
+---|---|---|---|---|---
+register_validator | allowed |  | allowed |  |
+increase_stake | allowed |  | allowed |  |
+register_delegator | allowed |  | allowed |  |
+increase_delegation | allowed |  | allowed |  |
+decrease_stake |  |  | allowed |  |
+decrease_delegation |  |  | allowed |  |
+unbond_stake |  |  | allowed |  | allowed
+unbond_delegation |  |  | allowed |  | allowed
