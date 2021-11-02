@@ -35,6 +35,7 @@ pub use near_fungible_tokens::NearFungibleTokenManager;
 pub use permissionless_actions::*;
 pub use settings_manager::*;
 pub use staking::StakingManager;
+pub use validator_actions::ValidatorActions;
 pub use wrapped_appchain_token::WrappedAppchainTokenManager;
 
 use near_fungible_tokens::NearFungibleTokens;
