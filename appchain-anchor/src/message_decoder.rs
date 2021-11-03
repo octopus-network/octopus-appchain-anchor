@@ -37,7 +37,6 @@ pub struct PlanNewEraPayload {
 #[serde(crate = "near_sdk::serde")]
 pub struct EraPayoutPayload {
     pub era: u32,
-    pub payout: u128,
     pub exclude: Vec<String>,
 }
 
