@@ -274,10 +274,18 @@ impl AppchainAnchor {
                     near_fungible_tokens.insert(&near_fungible_token);
                     self.internal_append_anchor_event(AnchorEvent::NearFungibleTokenLocked {
                         symbol: near_fungible_token.metadata.symbol.clone(),
-                        sender_id_in_near: sender_id,
-                        receiver_id_in_appchain,
+                        sender_id_in_near: sender_id.clone(),
+                        receiver_id_in_appchain: receiver_id_in_appchain.clone(),
                         amount,
                     });
+                    self.internal_append_appchain_notification(
+                        AppchainNotification::NearFungibleTokenLocked {
+                            symbol: near_fungible_token.metadata.symbol.clone(),
+                            sender_id_in_near: sender_id.clone(),
+                            receiver_id_in_appchain: receiver_id_in_appchain.clone(),
+                            amount,
+                        },
+                    );
                     return PromiseOrValue::Value(0.into());
                 }
             }

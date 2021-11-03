@@ -591,6 +591,7 @@ fn test_staking_actions() {
     common::print_validator_list_of(&anchor, Some(3));
     common::print_staking_histories(&anchor);
     common::print_anchor_events(&anchor);
+    common::print_appchain_notifications(&anchor);
 }
 
 fn distribute_reward_of(
@@ -650,6 +651,7 @@ fn distribute_reward_of(
         serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
     );
     common::print_anchor_events(&anchor);
+    common::print_appchain_notifications(&anchor);
 }
 
 fn withdraw_validator_rewards_of(

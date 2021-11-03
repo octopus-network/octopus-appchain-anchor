@@ -1,5 +1,71 @@
 # Change notes
 
+## 20211103
+
+* Add data type for appchain notification:
+
+```rust
+pub enum AppchainNotification {
+    /// A certain amount of a NEAR fungible token has been locked in appchain anchor.
+    NearFungibleTokenLocked {
+        symbol: String,
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
+        amount: U128,
+    },
+    /// A certain amount of wrapped appchain token is burnt in its contract
+    /// in NEAR protocol.
+    WrappedAppchainTokenBurnt {
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
+        amount: U128,
+    },
+}
+
+pub struct AppchainNotificationHistory {
+    pub appchain_notification: AppchainNotification,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub index: U64,
+}
+```
+
+* Add a function to `OwnerActions`:
+
+```rust
+    ///
+    fn remove_appchain_notification_history_before(&mut self, index: U64);
+```
+
+* Add a function to `SudoActions`:
+
+```rust
+    ///
+    fn reset_appchain_notification_histories(&mut self);
+```
+
+* Add the following view functions:
+
+```rust
+    /// Get the index range of appchain notification histories stored in anchor.
+    fn get_index_range_of_appchain_notification_history(&self) -> IndexRange;
+    /// Get appchain notification by index.
+    /// If the param `index `is omitted, the latest notification will be returned.
+    /// If the paran `index` is smaller than the start index, or bigger than the end index
+    /// stored in anchor, or there is no event in anchor yet, `Option::None` will be returned.
+    fn get_appchain_notification_history(
+        &self,
+        index: Option<U64>,
+    ) -> Option<AppchainNotificationHistory>;
+    /// Get appchain notification history by start index and quantity.
+    /// If the param `quantity` is omitted, up to 50 events will be returned.
+    fn get_appchain_notification_histories(
+        &self,
+        start_index: U64,
+        quantity: Option<U64>,
+    ) -> Vec<AppchainNotificationHistory>;
+```
+
 ## 20211102
 
 * Change `StakingDepositMessage::RegisterValidator` as the following:

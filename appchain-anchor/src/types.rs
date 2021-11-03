@@ -444,3 +444,31 @@ pub struct ValidatorProfile {
     ///
     pub profile: HashMap<String, String>,
 }
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum AppchainNotification {
+    /// A certain amount of a NEAR fungible token has been locked in appchain anchor.
+    NearFungibleTokenLocked {
+        symbol: String,
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
+        amount: U128,
+    },
+    /// A certain amount of wrapped appchain token is burnt in its contract
+    /// in NEAR protocol.
+    WrappedAppchainTokenBurnt {
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
+        amount: U128,
+    },
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AppchainNotificationHistory {
+    pub appchain_notification: AppchainNotification,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub index: U64,
+}

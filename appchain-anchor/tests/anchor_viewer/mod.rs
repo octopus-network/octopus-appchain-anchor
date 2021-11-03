@@ -1,8 +1,8 @@
 use appchain_anchor::types::{
-    AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainDelegator, AppchainSettings,
-    AppchainState, AppchainValidator, IndexRange, ProtocolSettings, RewardHistory, StakingHistory,
-    UnbondedStake, ValidatorProfile, ValidatorSetInfo, ValidatorSetProcessingStatus,
-    WrappedAppchainToken,
+    AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainDelegator,
+    AppchainNotificationHistory, AppchainSettings, AppchainState, AppchainValidator, IndexRange,
+    ProtocolSettings, RewardHistory, StakingHistory, UnbondedStake, ValidatorProfile,
+    ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
 };
 use appchain_anchor::AppchainAnchorContract;
 
@@ -124,6 +124,43 @@ pub fn get_anchor_event_histories(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Vec<AnchorEventHistory>>()
+}
+
+pub fn get_index_range_of_appchain_notification_history(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> IndexRange {
+    let view_result = view!(anchor.get_index_range_of_appchain_notification_history());
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<IndexRange>()
+}
+
+pub fn get_appchain_notification_history(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    index: u64,
+) -> Option<AppchainNotificationHistory> {
+    let view_result = view!(anchor.get_appchain_notification_history(Some(U64::from(index))));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Option<AppchainNotificationHistory>>()
+}
+
+pub fn get_appchain_notification_histories(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_index: u64,
+    quantity: Option<U64>,
+) -> Vec<AppchainNotificationHistory> {
+    let view_result =
+        view!(anchor.get_appchain_notification_histories(U64::from(start_index), quantity));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<AppchainNotificationHistory>>()
 }
 
 pub fn get_index_range_of_staking_history(

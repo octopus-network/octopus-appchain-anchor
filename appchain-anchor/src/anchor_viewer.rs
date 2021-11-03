@@ -35,13 +35,30 @@ pub trait AnchorViewer {
     /// If the paran `index` is smaller than the start index, or bigger than the end index
     /// stored in anchor, or there is no event in anchor yet, `Option::None` will be returned.
     fn get_anchor_event_history(&self, index: Option<U64>) -> Option<AnchorEventHistory>;
-    /// Get anchor event by start index and max count.
-    /// If the param `quantity `is omitted, up to 50 events will be returned.
+    /// Get anchor event by start index and quantity.
+    /// If the param `quantity` is omitted, up to 50 events will be returned.
     fn get_anchor_event_histories(
         &self,
         start_index: U64,
         quantity: Option<U64>,
     ) -> Vec<AnchorEventHistory>;
+    /// Get the index range of appchain notification histories stored in anchor.
+    fn get_index_range_of_appchain_notification_history(&self) -> IndexRange;
+    /// Get appchain notification by index.
+    /// If the param `index `is omitted, the latest notification will be returned.
+    /// If the paran `index` is smaller than the start index, or bigger than the end index
+    /// stored in anchor, or there is no event in anchor yet, `Option::None` will be returned.
+    fn get_appchain_notification_history(
+        &self,
+        index: Option<U64>,
+    ) -> Option<AppchainNotificationHistory>;
+    /// Get appchain notification history by start index and quantity.
+    /// If the param `quantity` is omitted, up to 50 events will be returned.
+    fn get_appchain_notification_histories(
+        &self,
+        start_index: U64,
+        quantity: Option<U64>,
+    ) -> Vec<AppchainNotificationHistory>;
     /// Get the validator list of a certain era.
     fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator>;
     /// Get the delegators of a validator of a certain era.
@@ -227,6 +244,65 @@ impl AnchorViewer for AppchainAnchor {
         };
         for index in start_index..end_index + 1 {
             if let Some(record) = anchor_event_histories.get(&index) {
+                result.push(record);
+            }
+        }
+        result
+    }
+    //
+    fn get_index_range_of_appchain_notification_history(&self) -> IndexRange {
+        self.appchain_notification_histories
+            .get()
+            .unwrap()
+            .index_range()
+    }
+    //
+    fn get_appchain_notification_history(
+        &self,
+        index: Option<U64>,
+    ) -> Option<AppchainNotificationHistory> {
+        let index = match index {
+            Some(index) => index,
+            None => {
+                self.appchain_notification_histories
+                    .get()
+                    .unwrap()
+                    .index_range()
+                    .end_index
+            }
+        };
+        self.appchain_notification_histories
+            .get()
+            .unwrap()
+            .get(&index.0)
+    }
+    //
+    fn get_appchain_notification_histories(
+        &self,
+        start_index: U64,
+        quantity: Option<U64>,
+    ) -> Vec<AppchainNotificationHistory> {
+        let appchain_notification_histories = self.appchain_notification_histories.get().unwrap();
+        let index_range = appchain_notification_histories.index_range();
+        let mut result = Vec::<AppchainNotificationHistory>::new();
+        let start_index = match index_range.start_index.0 > start_index.0 {
+            true => index_range.start_index.0,
+            false => start_index.0,
+        };
+        let mut end_index = index_range.start_index.0
+            + match quantity {
+                Some(quantity) => match quantity.0 > 50 {
+                    true => 49,
+                    false => quantity.0 - 1,
+                },
+                None => 49,
+            };
+        end_index = match end_index < index_range.end_index.0 {
+            true => end_index,
+            false => index_range.end_index.0,
+        };
+        for index in start_index..end_index + 1 {
+            if let Some(record) = appchain_notification_histories.get(&index) {
                 result.push(record);
             }
         }

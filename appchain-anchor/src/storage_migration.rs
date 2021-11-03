@@ -1,6 +1,6 @@
 use crate::*;
 
-use near_sdk::borsh::{self, maybestd::collections::HashMap, BorshDeserialize, BorshSerialize};
+use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
@@ -29,9 +29,8 @@ pub struct OldAppchainAnchor {
     pub unwithdrawn_delegator_rewards: LookupMap<(u64, AccountId, AccountId), Balance>,
     /// The map of unbonded stakes in eras.
     pub unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
-    /// The mapping for validators' accounts, from account id in the appchain to
-    /// account id in NEAR protocol.
-    pub validator_account_id_mapping: LookupMap<String, AccountId>,
+    /// The validators' profiles data.
+    pub validator_profiles: LazyOption<ValidatorProfiles>,
     /// The custom settings for appchain.
     pub appchain_settings: LazyOption<AppchainSettings>,
     /// The anchor settings for appchain.
@@ -63,7 +62,7 @@ impl AppchainAnchor {
         );
 
         // Create the new contract using the data from the old contract.
-        let mut new_contract = AppchainAnchor {
+        let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
@@ -75,30 +74,19 @@ impl AppchainAnchor {
             unwithdrawn_validator_rewards: old_contract.unwithdrawn_validator_rewards,
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
             unbonded_stakes: old_contract.unbonded_stakes,
-            validator_profiles: LazyOption::new(
-                StorageKey::ValidatorProfiles.into_bytes(),
-                Some(&ValidatorProfiles::new()),
-            ),
+            validator_profiles: old_contract.validator_profiles,
             appchain_settings: old_contract.appchain_settings,
             anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
             staking_histories: old_contract.staking_histories,
             anchor_event_histories: old_contract.anchor_event_histories,
+            appchain_notification_histories: LazyOption::new(
+                StorageKey::AppchainNotificationHistories.into_bytes(),
+                Some(&AppchainNotificationHistories::new()),
+            ),
             permissionless_actions_status: old_contract.permissionless_actions_status,
         };
-
-        let next_validator_set = new_contract.next_validator_set.get().unwrap();
-        let validators = next_validator_set.get_validator_list();
-        let mut validator_profiles = new_contract.validator_profiles.get().unwrap();
-        validators.iter().for_each(|validator| {
-            validator_profiles.insert(ValidatorProfile {
-                validator_id: validator.validator_id.clone(),
-                validator_id_in_appchain: validator.validator_id_in_appchain.clone(),
-                profile: HashMap::new(),
-            });
-        });
-        new_contract.validator_profiles.set(&validator_profiles);
 
         new_contract
     }

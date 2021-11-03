@@ -314,6 +314,7 @@ fn test_wrapped_appchain_token_bridging() {
     );
     result.assert_success();
     common::print_anchor_events(&anchor);
+    common::print_appchain_notifications(&anchor);
     assert_eq!(
         token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token).0,
         user1_wat_balance.0
@@ -329,6 +330,7 @@ fn test_wrapped_appchain_token_bridging() {
     );
     result.assert_success();
     common::print_anchor_events(&anchor);
+    common::print_appchain_notifications(&anchor);
     common::print_wrapped_appchain_token_info(&anchor);
     //
     // Mint wrapped appchain token for user1
@@ -350,6 +352,7 @@ fn test_wrapped_appchain_token_bridging() {
     );
     result.assert_success();
     common::print_anchor_events(&anchor);
+    common::print_appchain_notifications(&anchor);
     common::print_wrapped_appchain_token_info(&anchor);
     assert_eq!(
         token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token).0,

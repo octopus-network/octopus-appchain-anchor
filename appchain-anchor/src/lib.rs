@@ -1,6 +1,7 @@
 mod anchor_event_histories;
 mod anchor_viewer;
 mod appchain_lifecycle;
+mod appchain_notification_histories;
 mod message_decoder;
 mod near_fungible_tokens;
 mod owner_actions;
@@ -18,6 +19,7 @@ mod wrapped_appchain_token;
 
 use std::convert::TryInto;
 
+use appchain_notification_histories::AppchainNotificationHistories;
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
@@ -148,9 +150,11 @@ pub struct AppchainAnchor {
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
     staking_histories: LazyOption<StakingHistories>,
-    /// The anchor events data.
+    /// The anchor event history data.
     anchor_event_histories: LazyOption<AnchorEventHistories>,
-    /// The status of permissionless actions
+    /// The appchain notification history data.
+    appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
+    /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
 }
 
@@ -235,6 +239,10 @@ impl AppchainAnchor {
             anchor_event_histories: LazyOption::new(
                 StorageKey::AnchorEventHistories.into_bytes(),
                 Some(&AnchorEventHistories::new()),
+            ),
+            appchain_notification_histories: LazyOption::new(
+                StorageKey::AppchainNotificationHistories.into_bytes(),
+                Some(&AppchainNotificationHistories::new()),
             ),
             permissionless_actions_status: LazyOption::new(
                 StorageKey::PermissionlessActionsStatus.into_bytes(),
@@ -357,9 +365,20 @@ impl AppchainAnchor {
 impl AppchainAnchor {
     ///
     pub fn internal_append_anchor_event(&mut self, anchor_event: AnchorEvent) {
-        let mut anchor_events = self.anchor_event_histories.get().unwrap();
-        anchor_events.append(anchor_event);
-        self.anchor_event_histories.set(&anchor_events);
+        let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
+        anchor_event_histories.append(anchor_event);
+        self.anchor_event_histories.set(&anchor_event_histories);
+    }
+    ///
+    pub fn internal_append_appchain_notification(
+        &mut self,
+        appchain_notification: AppchainNotification,
+    ) {
+        let mut appchain_notification_histories =
+            self.appchain_notification_histories.get().unwrap();
+        appchain_notification_histories.append(appchain_notification);
+        self.appchain_notification_histories
+            .set(&appchain_notification_histories);
     }
     ///
     pub fn sync_state_to_registry(&self) {

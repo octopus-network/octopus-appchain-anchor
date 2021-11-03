@@ -194,16 +194,23 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     )
                     .as_bytes(),
                 );
-                self.internal_append_anchor_event(AnchorEvent::WrappedAppchainTokenBurnt {
-                    sender_id_in_near,
-                    receiver_id_in_appchain,
-                    amount: U128::from(amount),
-                });
                 let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
                 wrapped_appchain_token.changed_balance = I128::from(
                     wrapped_appchain_token.changed_balance.0 - i128::try_from(amount.0).unwrap(),
                 );
                 self.wrapped_appchain_token.set(&wrapped_appchain_token);
+                self.internal_append_anchor_event(AnchorEvent::WrappedAppchainTokenBurnt {
+                    sender_id_in_near: sender_id_in_near.clone(),
+                    receiver_id_in_appchain: receiver_id_in_appchain.clone(),
+                    amount: U128::from(amount),
+                });
+                self.internal_append_appchain_notification(
+                    AppchainNotification::WrappedAppchainTokenBurnt {
+                        sender_id_in_near: sender_id_in_near.clone(),
+                        receiver_id_in_appchain: receiver_id_in_appchain.clone(),
+                        amount: U128::from(amount),
+                    },
+                );
             }
             PromiseResult::Failed => {
                 env::log(

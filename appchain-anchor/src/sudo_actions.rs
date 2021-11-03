@@ -22,6 +22,8 @@ pub trait SudoActions {
     fn reset_staking_histories(&mut self);
     ///
     fn reset_anchor_event_histories(&mut self);
+    ///
+    fn reset_appchain_notification_histories(&mut self);
 }
 
 #[near_bindgen]
@@ -73,5 +75,13 @@ impl SudoActions for AppchainAnchor {
         let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
         anchor_event_histories.reset();
         self.anchor_event_histories.set(&anchor_event_histories);
+    }
+    //
+    fn reset_appchain_notification_histories(&mut self) {
+        let mut appchain_notification_histories =
+            self.appchain_notification_histories.get().unwrap();
+        appchain_notification_histories.reset();
+        self.appchain_notification_histories
+            .set(&appchain_notification_histories);
     }
 }
