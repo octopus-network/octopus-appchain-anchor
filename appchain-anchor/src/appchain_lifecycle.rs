@@ -1,16 +1,5 @@
 use crate::*;
 
-impl AppchainSettings {
-    ///
-    pub fn all_fields_are_set(&self) -> bool {
-        !(self.chain_spec.is_empty()
-            || self.raw_chain_spec.is_empty()
-            || self.boot_nodes.is_empty()
-            || self.rpc_endpoint.is_empty()
-            || self.era_reward.0 == 0)
-    }
-}
-
 pub trait AppchainLifecycleManager {
     /// Verify and change the state of corresponding appchain to `booting`.
     fn go_booting(&mut self);
@@ -40,11 +29,6 @@ impl AppchainLifecycleManager for AppchainAnchor {
                 >= protocol_settings.minimum_total_stake_price_for_booting.0,
             "Not enough stake deposited in anchor."
         );
-        let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-        assert!(
-            wrapped_appchain_token.is_valid(),
-            "Missing settings of wrapped appchain token."
-        );
         self.appchain_state = AppchainState::Booting;
         self.internal_start_switching_era(0);
         self.sync_state_to_registry();
@@ -57,9 +41,23 @@ impl AppchainLifecycleManager for AppchainAnchor {
             AppchainState::Booting,
             "Appchain state is not 'booting'."
         );
+        let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+        assert!(
+            !(wrapped_appchain_token.contract_account.trim().is_empty()
+                || wrapped_appchain_token
+                    .premined_beneficiary
+                    .trim()
+                    .is_empty()
+                || wrapped_appchain_token.metadata.symbol.is_empty()
+                || wrapped_appchain_token.metadata.name.is_empty()
+                || wrapped_appchain_token.metadata.decimals == 0),
+            "Missing settings of wrapped appchain token."
+        );
         let appchain_settings = self.appchain_settings.get().unwrap();
         assert!(
-            appchain_settings.all_fields_are_set(),
+            !(appchain_settings.boot_nodes.trim().is_empty()
+                || appchain_settings.rpc_endpoint.trim().is_empty()
+                || appchain_settings.era_reward.0 == 0),
             "Missing appchain settings."
         );
         self.appchain_state = AppchainState::Active;

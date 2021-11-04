@@ -45,15 +45,6 @@ impl Default for WrappedAppchainToken {
 
 impl WrappedAppchainToken {
     ///
-    pub fn is_valid(&self) -> bool {
-        !(self.contract_account.trim().is_empty()
-            || self.premined_beneficiary.trim().is_empty()
-            || self.price_in_usd.0 == 0
-            || self.metadata.symbol.is_empty()
-            || self.metadata.name.is_empty()
-            || self.metadata.decimals == 0)
-    }
-    ///
     pub fn total_market_value(&self) -> Balance {
         let total_balance: i128 =
             i128::try_from(self.premined_balance.0).unwrap() + self.changed_balance.0;
