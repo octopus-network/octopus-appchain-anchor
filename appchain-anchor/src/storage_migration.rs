@@ -4,6 +4,17 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OldAppchainSettings {
+    pub chain_spec: String,
+    pub raw_chain_spec: String,
+    pub boot_nodes: String,
+    pub rpc_endpoint: String,
+    /// The total reward of an era in the appchain
+    pub era_reward: U128,
+}
+
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
@@ -32,7 +43,7 @@ pub struct OldAppchainAnchor {
     /// The validators' profiles data.
     pub validator_profiles: LazyOption<ValidatorProfiles>,
     /// The custom settings for appchain.
-    pub appchain_settings: LazyOption<AppchainSettings>,
+    pub appchain_settings: LazyOption<OldAppchainSettings>,
     /// The anchor settings for appchain.
     pub anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
@@ -43,6 +54,8 @@ pub struct OldAppchainAnchor {
     pub staking_histories: LazyOption<StakingHistories>,
     /// The anchor events data.
     pub anchor_event_histories: LazyOption<AnchorEventHistories>,
+    /// The appchain notification history data.
+    pub appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
     /// The status of permissionless actions
     pub permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
 }
@@ -60,7 +73,7 @@ impl AppchainAnchor {
             &old_contract.owner,
             "Can only be called by the owner"
         );
-
+        let old_appchain_settings = old_contract.appchain_settings.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -75,19 +88,24 @@ impl AppchainAnchor {
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
             unbonded_stakes: old_contract.unbonded_stakes,
             validator_profiles: old_contract.validator_profiles,
-            appchain_settings: old_contract.appchain_settings,
+            appchain_settings: LazyOption::new(
+                StorageKey::AppchainSettings.into_bytes(),
+                Some(&AppchainSettings {
+                    boot_nodes: old_appchain_settings.boot_nodes,
+                    rpc_endpoint: old_appchain_settings.rpc_endpoint,
+                    subql_endpoint: String::new(),
+                    era_reward: old_appchain_settings.era_reward,
+                }),
+            ),
             anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
             staking_histories: old_contract.staking_histories,
             anchor_event_histories: old_contract.anchor_event_histories,
-            appchain_notification_histories: LazyOption::new(
-                StorageKey::AppchainNotificationHistories.into_bytes(),
-                Some(&AppchainNotificationHistories::new()),
-            ),
+            appchain_notification_histories: old_contract.appchain_notification_histories,
             permissionless_actions_status: old_contract.permissionless_actions_status,
         };
-
+        //
         new_contract
     }
 }

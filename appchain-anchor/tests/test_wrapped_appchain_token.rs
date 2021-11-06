@@ -238,13 +238,11 @@ fn test_wrapped_appchain_token_bridging() {
     //
     // Set appchain settings and try go_booting
     //
-    let result = settings_actions::set_chain_spec(&root, &anchor, "chain_spec".to_string());
-    result.assert_success();
-    let result = settings_actions::set_raw_chain_spec(&root, &anchor, "raw_chain_spec".to_string());
-    result.assert_success();
     let result = settings_actions::set_boot_nodes(&root, &anchor, "boot_nodes".to_string());
     result.assert_success();
     let result = settings_actions::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string());
+    result.assert_success();
+    let result = settings_actions::set_subql_endpoint(&root, &anchor, "subql_endpoint".to_string());
     result.assert_success();
     let result = settings_actions::set_era_reward(&root, &anchor, common::to_oct_amount(10));
     result.assert_success();
@@ -300,18 +298,16 @@ fn test_wrapped_appchain_token_bridging() {
     let user1_wat_balance =
         token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token);
     let era_number = 0;
-    let result = sudo_actions::apply_appchain_message(
-        &root,
-        &anchor,
-        AppchainMessage {
-            appchain_event: AppchainEvent::NativeTokenLocked {
-                owner_id_in_appchain: user4_id_in_appchain.clone(),
-                receiver_id_in_near: users[1].account_id(),
-                amount: U128::from(total_supply / 10),
-            },
-            nonce: (era_number + 1).try_into().unwrap(),
+    let mut appchain_messages = Vec::<AppchainMessage>::new();
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(total_supply / 10),
         },
-    );
+        nonce: (era_number + 1).try_into().unwrap(),
+    });
+    let result = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
     result.assert_success();
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
@@ -338,18 +334,16 @@ fn test_wrapped_appchain_token_bridging() {
     let user1_wat_balance =
         token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token);
     let era_number = 0;
-    let result = sudo_actions::apply_appchain_message(
-        &root,
-        &anchor,
-        AppchainMessage {
-            appchain_event: AppchainEvent::NativeTokenLocked {
-                owner_id_in_appchain: user4_id_in_appchain.clone(),
-                receiver_id_in_near: users[1].account_id(),
-                amount: U128::from(common::to_oct_amount(200)),
-            },
-            nonce: (era_number + 2).try_into().unwrap(),
+    let mut appchain_messages = Vec::<AppchainMessage>::new();
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(200)),
         },
-    );
+        nonce: (era_number + 2).try_into().unwrap(),
+    });
+    let result = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
     result.assert_success();
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);

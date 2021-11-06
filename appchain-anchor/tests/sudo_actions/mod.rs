@@ -1,16 +1,22 @@
 use appchain_anchor::{AppchainAnchorContract, AppchainMessage};
-use near_sdk::json_types::U64;
+use near_sdk::{json_types::U64, serde_json};
 use near_sdk_sim::{call, ContractAccount, ExecutionResult, UserAccount};
 
 use crate::common;
 
-pub fn apply_appchain_message(
+pub fn apply_appchain_messages(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    message: AppchainMessage,
+    messages: Vec<AppchainMessage>,
 ) -> ExecutionResult {
-    let result = call!(signer, anchor.apply_appchain_message(message));
-    common::print_execution_result("apply_appchain_message", &result);
+    messages.iter().for_each(|message| {
+        println!(
+            "Appchain message: {}",
+            serde_json::to_string::<AppchainMessage>(&message).unwrap()
+        );
+    });
+    let result = call!(signer, anchor.apply_appchain_messages(messages));
+    common::print_execution_result("apply_appchain_messages", &result);
     result
 }
 

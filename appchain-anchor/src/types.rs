@@ -88,11 +88,9 @@ pub enum AppchainState {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainSettings {
-    pub chain_spec: String,
-    pub raw_chain_spec: String,
     pub boot_nodes: String,
     pub rpc_endpoint: String,
-    /// The total reward of an era in the appchain
+    pub subql_endpoint: String,
     pub era_reward: U128,
 }
 
@@ -471,4 +469,11 @@ pub struct AppchainNotificationHistory {
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub index: U64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum AppchainMessageProcessingResult {
+    Ok { nonce: u32, message: Option<String> },
+    Error { nonce: u32, message: String },
 }

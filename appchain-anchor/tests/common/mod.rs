@@ -475,16 +475,14 @@ pub fn switch_era(
     era_number: u64,
 ) {
     if era_number > 0 {
-        let result = sudo_actions::apply_appchain_message(
-            root,
-            anchor,
-            AppchainMessage {
-                appchain_event: AppchainEvent::EraSwitchPlaned {
-                    era_number: U64::from(era_number),
-                },
-                nonce: (era_number + 1).try_into().unwrap(),
+        let mut appchain_messages = Vec::<AppchainMessage>::new();
+        appchain_messages.push(AppchainMessage {
+            appchain_event: AppchainEvent::EraSwitchPlaned {
+                era_number: U64::from(era_number),
             },
-        );
+            nonce: (era_number + 1).try_into().unwrap(),
+        });
+        let result = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
         result.assert_success();
         let processing_status = anchor_viewer::get_processing_status_of(anchor, era_number);
         println!(

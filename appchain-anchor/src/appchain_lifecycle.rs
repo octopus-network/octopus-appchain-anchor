@@ -30,7 +30,7 @@ impl AppchainLifecycleManager for AppchainAnchor {
             "Not enough stake deposited in anchor."
         );
         self.appchain_state = AppchainState::Booting;
-        self.internal_start_switching_era(0);
+        self.internal_start_switching_era(0, 0);
         self.sync_state_to_registry();
     }
     //
