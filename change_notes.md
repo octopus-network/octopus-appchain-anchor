@@ -6,6 +6,7 @@
 * Remove function `set_boot_nodes`, `set_chain_spec`, `set_raw_chain_spec`.
 * Add `subql_endpoint` to `AppchainSettings`.
 * Add function `set_subql_endpoint`.
+* Add field `should_distribute_rewards` to `AppchainEvent::EraRewardConcluded`.
 * Add data type `AppchainMessageProcessingResult`:
 
 ```rust
