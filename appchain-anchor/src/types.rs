@@ -88,7 +88,6 @@ pub enum AppchainState {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainSettings {
-    pub boot_nodes: String,
     pub rpc_endpoint: String,
     pub subql_endpoint: String,
     pub era_reward: U128,

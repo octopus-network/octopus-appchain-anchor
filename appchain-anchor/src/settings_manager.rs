@@ -52,8 +52,6 @@ pub trait ProtocolSettingsManager {
 
 pub trait AppchainSettingsManager {
     ///
-    fn set_boot_nodes(&mut self, boot_nodes: String);
-    ///
     fn set_rpc_endpoint(&mut self, rpc_endpoint: String);
     ///
     fn set_subql_endpoint(&mut self, subql_endpoint: String);
@@ -163,13 +161,6 @@ impl ProtocolSettingsManager for AppchainAnchor {
 
 #[near_bindgen]
 impl AppchainSettingsManager for AppchainAnchor {
-    //
-    fn set_boot_nodes(&mut self, boot_nodes: String) {
-        self.assert_owner();
-        let mut appchain_settings = self.appchain_settings.get().unwrap();
-        appchain_settings.boot_nodes = boot_nodes;
-        self.appchain_settings.set(&appchain_settings);
-    }
     //
     fn set_rpc_endpoint(&mut self, rpc_endpoint: String) {
         self.assert_owner();

@@ -1,9 +1,9 @@
 # Change notes
 
-## 20211106
+## 20211107
 
-* Remove `chain_spec`, `raw_chain_spec` from `AppchainSettings`.
-* Remove function `set_chain_spec`, `set_raw_chain_spec`.
+* Remove `boot_nodes`, `chain_spec`, `raw_chain_spec` from `AppchainSettings`.
+* Remove function `set_boot_nodes`, `set_chain_spec`, `set_raw_chain_spec`.
 * Add `subql_endpoint` to `AppchainSettings`.
 * Add function `set_subql_endpoint`.
 * Add data type `AppchainMessageProcessingResult`:

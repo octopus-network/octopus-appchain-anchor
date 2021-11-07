@@ -55,8 +55,8 @@ impl AppchainLifecycleManager for AppchainAnchor {
         );
         let appchain_settings = self.appchain_settings.get().unwrap();
         assert!(
-            !(appchain_settings.boot_nodes.trim().is_empty()
-                || appchain_settings.rpc_endpoint.trim().is_empty()
+            !(appchain_settings.rpc_endpoint.trim().is_empty()
+                || appchain_settings.subql_endpoint.trim().is_empty()
                 || appchain_settings.era_reward.0 == 0),
             "Missing appchain settings."
         );

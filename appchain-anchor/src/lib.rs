@@ -215,7 +215,6 @@ impl AppchainAnchor {
             appchain_settings: LazyOption::new(
                 StorageKey::AppchainSettings.into_bytes(),
                 Some(&AppchainSettings {
-                    boot_nodes: String::new(),
                     rpc_endpoint: String::new(),
                     subql_endpoint: String::new(),
                     era_reward: U128::from(0),
