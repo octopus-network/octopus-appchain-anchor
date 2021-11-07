@@ -17,16 +17,6 @@ pub fn change_minimum_validator_count(
     result
 }
 
-pub fn set_boot_nodes(
-    signer: &UserAccount,
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    value: String,
-) -> ExecutionResult {
-    let result = call!(signer, anchor.set_boot_nodes(value));
-    common::print_execution_result("set_boot_nodes", &result);
-    result
-}
-
 pub fn set_rpc_endpoint(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,

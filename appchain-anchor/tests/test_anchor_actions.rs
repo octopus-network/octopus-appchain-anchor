@@ -317,8 +317,6 @@ fn test_staking_actions() {
     //
     // Set appchain settings and try go_booting
     //
-    let result = settings_actions::set_boot_nodes(&root, &anchor, "boot_nodes".to_string());
-    result.assert_success();
     let result = settings_actions::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string());
     result.assert_success();
     let result = settings_actions::set_subql_endpoint(&root, &anchor, "subql_endpoint".to_string());
