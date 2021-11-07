@@ -2,7 +2,8 @@ use std::{collections::HashMap, convert::TryInto};
 
 use appchain_anchor::{
     types::{
-        AnchorSettings, AppchainSettings, AppchainState, ProtocolSettings, WrappedAppchainToken,
+        AnchorSettings, AppchainMessageProcessingResult, AppchainSettings, AppchainState,
+        ProtocolSettings, WrappedAppchainToken,
     },
     AppchainEvent, AppchainMessage,
 };
@@ -307,8 +308,13 @@ fn test_wrapped_appchain_token_bridging() {
         },
         nonce: (era_number + 1).try_into().unwrap(),
     });
-    let result = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
-    result.assert_success();
+    let results = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
+    for result in results {
+        println!(
+            "Appchain message processing result: {}",
+            serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
+        )
+    }
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     assert_eq!(
@@ -339,17 +345,62 @@ fn test_wrapped_appchain_token_bridging() {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].account_id(),
-            amount: U128::from(common::to_oct_amount(200)),
+            amount: U128::from(common::to_oct_amount(60)),
         },
         nonce: (era_number + 2).try_into().unwrap(),
     });
-    let result = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
-    result.assert_success();
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(40)),
+        },
+        nonce: (era_number + 3).try_into().unwrap(),
+    });
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(70)),
+        },
+        nonce: (era_number + 4).try_into().unwrap(),
+    });
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(30)),
+        },
+        nonce: (era_number + 5).try_into().unwrap(),
+    });
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(45)),
+        },
+        nonce: (era_number + 6).try_into().unwrap(),
+    });
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(55)),
+        },
+        nonce: (era_number + 7).try_into().unwrap(),
+    });
+    let results = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
+    for result in results {
+        println!(
+            "Appchain message processing result: {}",
+            serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
+        )
+    }
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     common::print_wrapped_appchain_token_info(&anchor);
     assert_eq!(
         token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token).0,
-        user1_wat_balance.0 + common::to_oct_amount(200)
+        user1_wat_balance.0 + common::to_oct_amount(300)
     );
 }

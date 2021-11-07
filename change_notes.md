@@ -1,5 +1,22 @@
 # Change notes
 
+## 20211106
+
+* Remove `chain_spec`, `raw_chain_spec` from `AppchainSettings`.
+* Remove function `set_chain_spec`, `set_raw_chain_spec`.
+* Add `subql_endpoint` to `AppchainSettings`.
+* Add function `set_subql_endpoint`.
+* Add data type `AppchainMessageProcessingResult`:
+
+```rust
+pub enum AppchainMessageProcessingResult {
+    Ok { nonce: u32, message: Option<String> },
+    Error { nonce: u32, message: String },
+}
+```
+
+* Add return value `Vec<AppchainMessageProcessingResult>` to function `verify_and_apply_appchain_messages`. As this function need to process multiple appchain messages, the process of single `AppchainMessage` will return a `AppchainMessageProcessingResult` now rather than making the whole function call fail.
+
 ## 20211103
 
 * Add data type for appchain notification:

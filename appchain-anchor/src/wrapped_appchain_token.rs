@@ -132,7 +132,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
             amount,
             &env::current_account_id(),
             0,
-            env::prepaid_gas() / 4,
+            GAS_FOR_RESOLVER_FUNCTION,
         ));
     }
 }
@@ -161,7 +161,7 @@ impl AppchainAnchor {
             appchain_message_nonce,
             &env::current_account_id(),
             0,
-            env::prepaid_gas() / 4,
+            GAS_FOR_RESOLVER_FUNCTION,
         ));
         AppchainMessageProcessingResult::Ok {
             nonce: appchain_message_nonce,

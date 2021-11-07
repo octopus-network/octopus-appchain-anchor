@@ -2,8 +2,8 @@ use std::convert::TryInto;
 
 use appchain_anchor::{
     types::{
-        AnchorStatus, ValidatorProfile, ValidatorSetInfo, ValidatorSetProcessingStatus,
-        WrappedAppchainToken,
+        AnchorStatus, AppchainMessageProcessingResult, ValidatorProfile, ValidatorSetInfo,
+        ValidatorSetProcessingStatus, WrappedAppchainToken,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -482,8 +482,13 @@ pub fn switch_era(
             },
             nonce: (era_number + 1).try_into().unwrap(),
         });
-        let result = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
-        result.assert_success();
+        let results = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
+        for result in results {
+            println!(
+                "Appchain message processing result: {}",
+                serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
+            )
+        }
         let processing_status = anchor_viewer::get_processing_status_of(anchor, era_number);
         println!(
             "Processing status of era {}: {}",

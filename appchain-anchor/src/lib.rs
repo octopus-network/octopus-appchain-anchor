@@ -50,9 +50,10 @@ use validator_set::{ValidatorSet, ValidatorSetHistories};
 
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
-const GAS_FOR_FT_TRANSFER_CALL: u64 = 60 * T_GAS;
-const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 80 * T_GAS;
-const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 80 * T_GAS;
+const GAS_FOR_FT_TRANSFER_CALL: u64 = 10 * T_GAS;
+const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 5 * T_GAS;
+const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 5 * T_GAS;
+const GAS_FOR_RESOLVER_FUNCTION: u64 = 5 * T_GAS;
 const GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 40 * T_GAS;
 const GAS_CAP_FOR_COMPLETE_SWITCHING_ERA: Gas = 180 * T_GAS;
 /// The value of decimals value of USD.

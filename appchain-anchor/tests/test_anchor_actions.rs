@@ -2,8 +2,8 @@ use std::{collections::HashMap, convert::TryInto};
 
 use appchain_anchor::{
     types::{
-        AnchorSettings, AnchorStatus, AppchainSettings, AppchainState, ProtocolSettings,
-        ValidatorSetInfo, ValidatorSetProcessingStatus,
+        AnchorSettings, AnchorStatus, AppchainMessageProcessingResult, AppchainSettings,
+        AppchainState, ProtocolSettings, ValidatorSetInfo, ValidatorSetProcessingStatus,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -610,8 +610,13 @@ fn distribute_reward_of(
         },
         nonce: (era_number + 1).try_into().unwrap(),
     });
-    let result = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
-    result.assert_success();
+    let results = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
+    for result in results {
+        println!(
+            "Appchain message processing result: {}",
+            serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
+        )
+    }
     let anchor_status = anchor_viewer::get_anchor_status(anchor);
     println!(
         "Anchor status: {}",

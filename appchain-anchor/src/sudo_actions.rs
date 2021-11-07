@@ -5,7 +5,10 @@ use crate::*;
 
 pub trait SudoActions {
     /// Apply a certain `AppchainMessage`
-    fn apply_appchain_messages(&mut self, appchain_messages: Vec<AppchainMessage>);
+    fn apply_appchain_messages(
+        &mut self,
+        appchain_messages: Vec<AppchainMessage>,
+    ) -> Vec<AppchainMessageProcessingResult>;
     ///
     fn set_metadata_of_wrapped_appchain_token(&mut self, metadata: FungibleTokenMetadata);
     ///
@@ -29,11 +32,15 @@ pub trait SudoActions {
 #[near_bindgen]
 impl SudoActions for AppchainAnchor {
     //
-    fn apply_appchain_messages(&mut self, appchain_messages: Vec<AppchainMessage>) {
+    fn apply_appchain_messages(
+        &mut self,
+        appchain_messages: Vec<AppchainMessage>,
+    ) -> Vec<AppchainMessageProcessingResult> {
         self.assert_owner();
-        for appchain_message in appchain_messages {
-            self.internal_apply_appchain_message(appchain_message);
-        }
+        appchain_messages
+            .iter()
+            .map(|m| self.internal_apply_appchain_message(m.clone()))
+            .collect::<Vec<AppchainMessageProcessingResult>>()
     }
     //
     fn set_metadata_of_wrapped_appchain_token(&mut self, metadata: FungibleTokenMetadata) {
