@@ -17,36 +17,6 @@ pub fn change_minimum_validator_count(
     result
 }
 
-pub fn set_chain_spec(
-    signer: &UserAccount,
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    value: String,
-) -> ExecutionResult {
-    let result = call!(signer, anchor.set_chain_spec(value));
-    common::print_execution_result("set_chain_spec", &result);
-    result
-}
-
-pub fn set_raw_chain_spec(
-    signer: &UserAccount,
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    value: String,
-) -> ExecutionResult {
-    let result = call!(signer, anchor.set_raw_chain_spec(value));
-    common::print_execution_result("set_raw_chain_spec", &result);
-    result
-}
-
-pub fn set_boot_nodes(
-    signer: &UserAccount,
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    value: String,
-) -> ExecutionResult {
-    let result = call!(signer, anchor.set_boot_nodes(value));
-    common::print_execution_result("set_boot_nodes", &result);
-    result
-}
-
 pub fn set_rpc_endpoint(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
@@ -54,6 +24,16 @@ pub fn set_rpc_endpoint(
 ) -> ExecutionResult {
     let result = call!(signer, anchor.set_rpc_endpoint(value));
     common::print_execution_result("set_rpc_endpoint", &result);
+    result
+}
+
+pub fn set_subql_endpoint(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    value: String,
+) -> ExecutionResult {
+    let result = call!(signer, anchor.set_subql_endpoint(value));
+    common::print_execution_result("set_subql_endpoint", &result);
     result
 }
 

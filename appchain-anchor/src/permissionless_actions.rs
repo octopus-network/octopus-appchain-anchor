@@ -28,6 +28,7 @@ pub enum AppchainEvent {
     EraRewardConcluded {
         era_number: U64,
         unprofitable_validator_ids: Vec<String>,
+        should_distribute_rewards: bool,
     },
     /// The era reward is changed in the appchain
     EraRewardChanged {
@@ -44,7 +45,7 @@ pub trait PermissionlessActions {
         header_partial: Vec<u8>,
         leaf_proof: Vec<u8>,
         mmr_root: Vec<u8>,
-    );
+    ) -> Vec<AppchainMessageProcessingResult>;
     ///
     fn try_complete_switching_era(&mut self) -> bool;
     ///
@@ -66,11 +67,12 @@ impl PermissionlessActions for AppchainAnchor {
         header_partial: Vec<u8>,
         leaf_proof: Vec<u8>,
         mmr_root: Vec<u8>,
-    ) {
+    ) -> Vec<AppchainMessageProcessingResult> {
         let messages = self.decode(encoded_messages);
-        messages.iter().for_each(|m| {
-            self.internal_apply_appchain_message(m.clone());
-        })
+        messages
+            .iter()
+            .map(|m| self.internal_apply_appchain_message(m.clone()))
+            .collect::<Vec<AppchainMessageProcessingResult>>()
     }
     //
     fn try_complete_switching_era(&mut self) -> bool {
@@ -120,22 +122,23 @@ impl PermissionlessActions for AppchainAnchor {
 
 impl AppchainAnchor {
     /// Apply a certain `AppchainMessage`
-    pub fn internal_apply_appchain_message(&mut self, appchain_message: AppchainMessage) {
+    pub fn internal_apply_appchain_message(
+        &mut self,
+        appchain_message: AppchainMessage,
+    ) -> AppchainMessageProcessingResult {
         match appchain_message.appchain_event {
             permissionless_actions::AppchainEvent::NearFungibleTokenBurnt {
                 symbol,
                 owner_id_in_appchain,
                 receiver_id_in_near,
                 amount,
-            } => {
-                self.internal_unlock_near_fungible_token(
-                    owner_id_in_appchain,
-                    symbol,
-                    receiver_id_in_near,
-                    amount,
-                    appchain_message.nonce,
-                );
-            }
+            } => self.internal_unlock_near_fungible_token(
+                owner_id_in_appchain,
+                symbol,
+                receiver_id_in_near,
+                amount,
+                appchain_message.nonce,
+            ),
             permissionless_actions::AppchainEvent::NativeTokenLocked {
                 owner_id_in_appchain,
                 receiver_id_in_near,
@@ -154,37 +157,42 @@ impl AppchainAnchor {
                         )
                         / 100
                 {
+                    let message = format!("Too much wrapped appchain token to mint.");
                     self.internal_append_anchor_event(
                         AnchorEvent::FailedToMintWrappedAppchainToken {
                             sender_id_in_appchain: Some(owner_id.to_string()),
                             receiver_id_in_near,
                             amount,
                             appchain_message_nonce: appchain_message.nonce,
-                            reason: format!("Too much wrapped appchain token to mint."),
+                            reason: message.clone(),
                         },
                     );
+                    AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message,
+                    }
                 } else {
                     self.internal_mint_wrapped_appchain_token(
                         Some(owner_id.to_string()),
                         receiver_id_in_near,
                         amount,
                         appchain_message.nonce,
-                    );
+                    )
                 }
             }
             permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
-                self.internal_start_switching_era(era_number.0);
+                self.internal_start_switching_era(era_number.0, appchain_message.nonce)
             }
             permissionless_actions::AppchainEvent::EraRewardConcluded {
                 era_number,
                 unprofitable_validator_ids,
-            } => {
-                self.internal_start_distributing_reward_of_era(
-                    appchain_message.nonce,
-                    era_number.0,
-                    unprofitable_validator_ids,
-                );
-            }
+                should_distribute_rewards,
+            } => self.internal_start_distributing_reward_of_era(
+                appchain_message.nonce,
+                era_number.0,
+                unprofitable_validator_ids,
+                should_distribute_rewards,
+            ),
             permissionless_actions::AppchainEvent::EraRewardChanged {
                 era_number,
                 era_reward,
@@ -195,16 +203,24 @@ impl AppchainAnchor {
 
 impl AppchainAnchor {
     //
-    pub fn internal_start_switching_era(&mut self, era_number: u64) {
+    pub fn internal_start_switching_era(
+        &mut self,
+        era_number: u64,
+        appchain_message_nonce: u32,
+    ) -> AppchainMessageProcessingResult {
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
-        assert!(
-            permissionless_actions_status.switching_era_number.is_none(),
-            "Contract is still switching to era {}.",
-            permissionless_actions_status
-                .switching_era_number
-                .unwrap()
-                .0
-        );
+        if permissionless_actions_status.switching_era_number.is_some() {
+            return AppchainMessageProcessingResult::Error {
+                nonce: appchain_message_nonce,
+                message: format!(
+                    "Contract is still switching to era {}.",
+                    permissionless_actions_status
+                        .switching_era_number
+                        .unwrap()
+                        .0
+                ),
+            };
+        }
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         if !validator_set_histories.contains(&era_number) {
             validator_set_histories.insert(
@@ -222,9 +238,12 @@ impl AppchainAnchor {
             self.validator_set_histories.set(&validator_set_histories);
         }
         permissionless_actions_status.switching_era_number = Some(U64::from(era_number));
-        self.complete_switching_era(era_number);
         self.permissionless_actions_status
             .set(&permissionless_actions_status);
+        AppchainMessageProcessingResult::Ok {
+            nonce: appchain_message_nonce,
+            message: None,
+        }
     }
     //
     fn complete_switching_era(&mut self, era_number: u64) -> bool {
@@ -491,42 +510,55 @@ impl AppchainAnchor {
         appchain_message_nonce: u32,
         era_number: u64,
         unprofitable_validator_ids: Vec<String>,
-    ) {
+        should_distribute_rewards: bool,
+    ) -> AppchainMessageProcessingResult {
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
-        assert!(
-            permissionless_actions_status
-                .distributing_reward_era_number
-                .is_none(),
-            "Contract is still distributing reward for era {}.",
-            permissionless_actions_status
-                .distributing_reward_era_number
-                .unwrap()
-                .0
-        );
+        if permissionless_actions_status
+            .distributing_reward_era_number
+            .is_some()
+        {
+            return AppchainMessageProcessingResult::Error {
+                nonce: appchain_message_nonce,
+                message: format!(
+                    "Contract is still distributing reward for era {}.",
+                    permissionless_actions_status
+                        .distributing_reward_era_number
+                        .unwrap()
+                        .0
+                ),
+            };
+        }
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        assert!(
-            validator_set_histories.contains(&era_number),
-            "Validator set is not existed."
-        );
+        if !validator_set_histories.contains(&era_number) {
+            return AppchainMessageProcessingResult::Error {
+                nonce: appchain_message_nonce,
+                message: format!("Validator set is not existed."),
+            };
+        }
         let mut validator_set = validator_set_histories.get(&era_number).unwrap();
-        assert!(
-            validator_set
-                .processing_status
-                .eq(&ValidatorSetProcessingStatus::ReadyForDistributingReward),
-            "Validator set is not ready for distributing reward."
-        );
+        if validator_set
+            .processing_status
+            .ne(&ValidatorSetProcessingStatus::ReadyForDistributingReward)
+        {
+            return AppchainMessageProcessingResult::Error {
+                nonce: appchain_message_nonce,
+                message: format!("Validator set is not ready for distributing reward."),
+            };
+        }
         let mut unprofitable_validator_ids_in_near = Vec::<AccountId>::new();
         let validator_profiles = self.validator_profiles.get().unwrap();
         for id_in_appchain in unprofitable_validator_ids {
             let account_id_in_appchain = AccountIdInAppchain::new(Some(id_in_appchain.clone()));
             account_id_in_appchain.assert_valid();
-            assert!(
-                validator_profiles
-                    .get_by_id_in_appchain(&account_id_in_appchain.to_string())
-                    .is_some(),
-                "Invalid validator id in appchain: '{}'",
-                id_in_appchain
-            );
+            if validator_profiles
+                .get_by_id_in_appchain(&account_id_in_appchain.to_string())
+                .is_none()
+            {
+                return AppchainMessageProcessingResult::Error {
+                    nonce: appchain_message_nonce,
+                    message: format!("Invalid validator id in appchain: '{}'", id_in_appchain),
+                };
+            }
             unprofitable_validator_ids_in_near.push(
                 validator_profiles
                     .get_by_id_in_appchain(&account_id_in_appchain.to_string())
@@ -535,25 +567,33 @@ impl AppchainAnchor {
             );
         }
         validator_set.set_unprofitable_validator_ids(unprofitable_validator_ids_in_near);
-        validator_set.calculate_valid_total_stake();
-        validator_set.processing_status = ValidatorSetProcessingStatus::DistributingReward {
-            distributing_validator_index: U64::from(0),
-            distributing_delegator_index: U64::from(0),
-        };
-        validator_set_histories.insert(&era_number, &validator_set);
-        permissionless_actions_status.distributing_reward_era_number = Some(U64::from(era_number));
-        self.permissionless_actions_status
-            .set(&permissionless_actions_status);
-        // Start distributing reward of this era
-        self.complete_distributing_reward_of_era(era_number);
-        // Mint `total_reward` in the contract of wrapped appchain token.
-        let appchain_settings = self.appchain_settings.get().unwrap();
-        self.internal_mint_wrapped_appchain_token(
-            None,
-            env::current_account_id(),
-            appchain_settings.era_reward,
-            appchain_message_nonce,
-        );
+        if should_distribute_rewards {
+            validator_set.calculate_valid_total_stake();
+            validator_set.processing_status = ValidatorSetProcessingStatus::DistributingReward {
+                distributing_validator_index: U64::from(0),
+                distributing_delegator_index: U64::from(0),
+            };
+            validator_set_histories.insert(&era_number, &validator_set);
+            permissionless_actions_status.distributing_reward_era_number =
+                Some(U64::from(era_number));
+            self.permissionless_actions_status
+                .set(&permissionless_actions_status);
+            // Mint `total_reward` in the contract of wrapped appchain token.
+            let appchain_settings = self.appchain_settings.get().unwrap();
+            self.internal_mint_wrapped_appchain_token(
+                None,
+                env::current_account_id(),
+                appchain_settings.era_reward,
+                appchain_message_nonce,
+            );
+        } else {
+            validator_set.processing_status = ValidatorSetProcessingStatus::Completed;
+            validator_set_histories.insert(&era_number, &validator_set);
+        }
+        AppchainMessageProcessingResult::Ok {
+            nonce: appchain_message_nonce,
+            message: None,
+        }
     }
     //
     fn complete_distributing_reward_of_era(&mut self, era_number: u64) -> bool {

@@ -303,7 +303,7 @@ impl AppchainAnchor {
         receiver_id_in_near: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
-    ) {
+    ) -> AppchainMessageProcessingResult {
         let near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         if let Some(near_fungible_token) = near_fungible_tokens.get(&symbol) {
             ext_fungible_token::ft_transfer(
@@ -322,8 +322,20 @@ impl AppchainAnchor {
                 appchain_message_nonce,
                 &env::current_account_id(),
                 0,
-                env::prepaid_gas() / 4,
+                GAS_FOR_RESOLVER_FUNCTION,
             ));
+            AppchainMessageProcessingResult::Ok {
+                nonce: appchain_message_nonce,
+                message: Some(format!(
+                    "Need to confirm result of 'ft_transfer' on account '{}'.",
+                    &near_fungible_token.contract_account
+                )),
+            }
+        } else {
+            AppchainMessageProcessingResult::Error {
+                nonce: appchain_message_nonce,
+                message: format!("Invalid symbol of NEAR fungible token: {}", symbol),
+            }
         }
     }
 }

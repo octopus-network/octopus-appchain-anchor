@@ -2,8 +2,8 @@ use std::convert::TryInto;
 
 use appchain_anchor::{
     types::{
-        AnchorStatus, ValidatorProfile, ValidatorSetInfo, ValidatorSetProcessingStatus,
-        WrappedAppchainToken,
+        AnchorStatus, AppchainMessageProcessingResult, ValidatorProfile, ValidatorSetInfo,
+        ValidatorSetProcessingStatus, WrappedAppchainToken,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -475,17 +475,20 @@ pub fn switch_era(
     era_number: u64,
 ) {
     if era_number > 0 {
-        let result = sudo_actions::apply_appchain_message(
-            root,
-            anchor,
-            AppchainMessage {
-                appchain_event: AppchainEvent::EraSwitchPlaned {
-                    era_number: U64::from(era_number),
-                },
-                nonce: (era_number + 1).try_into().unwrap(),
+        let mut appchain_messages = Vec::<AppchainMessage>::new();
+        appchain_messages.push(AppchainMessage {
+            appchain_event: AppchainEvent::EraSwitchPlaned {
+                era_number: U64::from(era_number),
             },
-        );
-        result.assert_success();
+            nonce: (era_number + 1).try_into().unwrap(),
+        });
+        let results = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
+        for result in results {
+            println!(
+                "Appchain message processing result: {}",
+                serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
+            )
+        }
         let processing_status = anchor_viewer::get_processing_status_of(anchor, era_number);
         println!(
             "Processing status of era {}: {}",

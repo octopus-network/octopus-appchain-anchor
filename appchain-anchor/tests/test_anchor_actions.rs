@@ -2,8 +2,8 @@ use std::{collections::HashMap, convert::TryInto};
 
 use appchain_anchor::{
     types::{
-        AnchorSettings, AnchorStatus, AppchainSettings, AppchainState, ProtocolSettings,
-        ValidatorSetInfo, ValidatorSetProcessingStatus,
+        AnchorSettings, AnchorStatus, AppchainMessageProcessingResult, AppchainSettings,
+        AppchainState, ProtocolSettings, ValidatorSetInfo, ValidatorSetProcessingStatus,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -317,13 +317,9 @@ fn test_staking_actions() {
     //
     // Set appchain settings and try go_booting
     //
-    let result = settings_actions::set_chain_spec(&root, &anchor, "chain_spec".to_string());
-    result.assert_success();
-    let result = settings_actions::set_raw_chain_spec(&root, &anchor, "raw_chain_spec".to_string());
-    result.assert_success();
-    let result = settings_actions::set_boot_nodes(&root, &anchor, "boot_nodes".to_string());
-    result.assert_success();
     let result = settings_actions::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string());
+    result.assert_success();
+    let result = settings_actions::set_subql_endpoint(&root, &anchor, "subql_endpoint".to_string());
     result.assert_success();
     let result = settings_actions::set_era_reward(&root, &anchor, common::to_oct_amount(10));
     result.assert_success();
@@ -427,7 +423,7 @@ fn test_staking_actions() {
     //
     // Distribut reward of era0
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 0);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 0, false);
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 0);
     common::print_validator_reward_histories(&anchor, &users[1], 0);
@@ -468,7 +464,7 @@ fn test_staking_actions() {
     //
     // Distribute reward of era1
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 1);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 1, true);
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 1);
     common::print_validator_reward_histories(&anchor, &users[1], 1);
@@ -512,7 +508,7 @@ fn test_staking_actions() {
     //
     // Distribute reward of era2
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 2);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 2, true);
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 2);
     common::print_validator_reward_histories(&anchor, &users[1], 2);
@@ -545,7 +541,7 @@ fn test_staking_actions() {
     //
     // Distribute reward of era3
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 3);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 3, true);
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 3);
     common::print_validator_reward_histories(&anchor, &users[1], 3);
@@ -599,21 +595,26 @@ fn distribute_reward_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
     wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
     era_number: u64,
+    should_distribute_rewards: bool,
 ) {
     let anchor_balance_of_wat =
         token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token);
-    let result = sudo_actions::apply_appchain_message(
-        root,
-        anchor,
-        AppchainMessage {
-            appchain_event: AppchainEvent::EraRewardConcluded {
-                era_number: U64::from(era_number),
-                unprofitable_validator_ids: Vec::new(),
-            },
-            nonce: (era_number + 1).try_into().unwrap(),
+    let mut appchain_messages = Vec::<AppchainMessage>::new();
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraRewardConcluded {
+            era_number: U64::from(era_number),
+            unprofitable_validator_ids: Vec::new(),
+            should_distribute_rewards,
         },
-    );
-    result.assert_success();
+        nonce: (era_number + 1).try_into().unwrap(),
+    });
+    let results = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
+    for result in results {
+        println!(
+            "Appchain message processing result: {}",
+            serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
+        )
+    }
     let anchor_status = anchor_viewer::get_anchor_status(anchor);
     println!(
         "Anchor status: {}",
@@ -635,10 +636,17 @@ fn distribute_reward_of(
             break;
         }
     }
-    assert_eq!(
-        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
-        anchor_balance_of_wat.0 + common::to_oct_amount(10)
-    );
+    if should_distribute_rewards {
+        assert_eq!(
+            token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
+            anchor_balance_of_wat.0 + common::to_oct_amount(10)
+        );
+    } else {
+        assert_eq!(
+            token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
+            anchor_balance_of_wat.0
+        );
+    }
     let anchor_status = anchor_viewer::get_anchor_status(anchor);
     println!(
         "Anchor status: {}",

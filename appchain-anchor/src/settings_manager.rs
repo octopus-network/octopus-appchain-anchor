@@ -52,13 +52,9 @@ pub trait ProtocolSettingsManager {
 
 pub trait AppchainSettingsManager {
     ///
-    fn set_chain_spec(&mut self, chain_spec: String);
-    ///
-    fn set_raw_chain_spec(&mut self, raw_chain_spec: String);
-    ///
-    fn set_boot_nodes(&mut self, boot_nodes: String);
-    ///
     fn set_rpc_endpoint(&mut self, rpc_endpoint: String);
+    ///
+    fn set_subql_endpoint(&mut self, subql_endpoint: String);
     ///
     fn set_era_reward(&mut self, era_reward: U128);
 }
@@ -166,31 +162,17 @@ impl ProtocolSettingsManager for AppchainAnchor {
 #[near_bindgen]
 impl AppchainSettingsManager for AppchainAnchor {
     //
-    fn set_chain_spec(&mut self, chain_spec: String) {
-        self.assert_owner();
-        let mut appchain_settings = self.appchain_settings.get().unwrap();
-        appchain_settings.chain_spec = chain_spec;
-        self.appchain_settings.set(&appchain_settings);
-    }
-    //
-    fn set_raw_chain_spec(&mut self, raw_chain_spec: String) {
-        self.assert_owner();
-        let mut appchain_settings = self.appchain_settings.get().unwrap();
-        appchain_settings.raw_chain_spec = raw_chain_spec;
-        self.appchain_settings.set(&appchain_settings);
-    }
-    //
-    fn set_boot_nodes(&mut self, boot_nodes: String) {
-        self.assert_owner();
-        let mut appchain_settings = self.appchain_settings.get().unwrap();
-        appchain_settings.boot_nodes = boot_nodes;
-        self.appchain_settings.set(&appchain_settings);
-    }
-    //
     fn set_rpc_endpoint(&mut self, rpc_endpoint: String) {
         self.assert_owner();
         let mut appchain_settings = self.appchain_settings.get().unwrap();
         appchain_settings.rpc_endpoint = rpc_endpoint;
+        self.appchain_settings.set(&appchain_settings);
+    }
+    //
+    fn set_subql_endpoint(&mut self, subql_endpoint: String) {
+        self.assert_owner();
+        let mut appchain_settings = self.appchain_settings.get().unwrap();
+        appchain_settings.subql_endpoint = subql_endpoint;
         self.appchain_settings.set(&appchain_settings);
     }
     //

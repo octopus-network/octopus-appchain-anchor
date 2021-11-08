@@ -123,6 +123,7 @@ impl ProofDecoder for AppchainAnchor {
                         appchain_event: AppchainEvent::EraRewardConcluded {
                             era_number: U64::from(payload.era as u64),
                             unprofitable_validator_ids: payload.exclude,
+                            should_distribute_rewards: true,
                         },
                     }
                 }
