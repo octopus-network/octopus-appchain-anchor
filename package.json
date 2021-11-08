@@ -5,10 +5,10 @@
   "repository": "git@github.com:octopus-network/octopus-appchain-anchor.git",
   "author": "Octopus Network",
   "scripts": {
-    "test": "./build.sh test && ANCHOR_NAME=anchor_contract REGISTRY_NAME=registry_contract OCT_NAME=oct_contract jest test --runInBand",
-    "e2e": "./build.sh && ANCHOR_NAME=anchor_contract REGISTRY_NAME=registry_contract OCT_NAME=oct_contract jest test --runInBand",
-    "e2e:testnet": "./build.sh && NODE_ENV=testnet ANCHOR_NAME=anchor_contract REGISTRY_NAME=registry_contract OCT_NAME=oct_contract jest test --runInBand",
-    "e2e:local": "./build.sh && NODE_ENV=local ANCHOR_NAME=anchor_contract REGISTRY_NAME=registry_contract OCT_NAME=oct_contract jest test --runInBand"
+    "test": "./build.sh test && ANCHOR_NAME=anchor_contract REGISTRY_NAME=registry_contract OCT_NAME=oct_contract WRAPPED_APPCHAIN_TOKEN=wrapped_appchain_token jest test --runInBand",
+    "e2e": "./build.sh && ANCHOR_NAME=anchor_contract REGISTRY_NAME=registry_contract OCT_NAME=oct_contract WRAPPED_APPCHAIN_TOKEN=wrapped_appchain_token jest test --runInBand",
+    "e2e:testnet": "./build.sh && NODE_ENV=testnet ANCHOR_NAME=anchor_contract REGISTRY_NAME=registry_contract OCT_NAME=oct_contract WRAPPED_APPCHAIN_TOKEN=wrapped_appchain_token jest test --runInBand",
+    "e2e:local": "./build.sh && NODE_ENV=local ANCHOR_NAME=anchor_contract REGISTRY_NAME=registry_contract OCT_NAME=oct_contract WRAPPED_APPCHAIN_TOKEN=wrapped_appchain_token jest test --runInBand"
   },
   "devDependencies": {
     "env-cmd": "~10.1.0",

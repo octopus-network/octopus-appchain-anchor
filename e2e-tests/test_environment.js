@@ -6,7 +6,7 @@ const readFile = util.promisify(fs.readFile);
 let near, masterAccount;
 const PROJECT_KEY_DIR = './e2e-tests/nearkeys';
 
-const INITIAL_BALANCE = '8000000000000000000000000';
+const INITIAL_BALANCE = '10000000000000000000000000';
 const keyStore = new nearAPI.keyStores.UnencryptedFileSystemKeyStore(
   PROJECT_KEY_DIR
 );
@@ -42,6 +42,7 @@ class LocalTestEnvironment extends NodeEnvironment {
       'mock_appchain_registry.wasm'
     );
     await this.deployContract('octName', config, 'mock_oct_token.wasm');
+    await this.deployContract('wrappedAppchainToken', config, 'mock_wrapped_appchain_token.wasm');
 
     await super.setup();
 
@@ -51,7 +52,7 @@ class LocalTestEnvironment extends NodeEnvironment {
         Math.random() * (9999999 - 1000000) + 1000000
       );
       const randomKey = await nearAPI.KeyPair.fromRandom('ed25519');
-      const newAccountId = accountId + '-' + now + '-' + randomNumber;
+      const newAccountId = accountId + '-' + now + '-' + randomNumber + '.' + config.masterAccount;
       await masterAccount.createAccount(
         newAccountId,
         randomKey.getPublicKey(),
@@ -62,7 +63,7 @@ class LocalTestEnvironment extends NodeEnvironment {
     };
 
     this.global.generateUser = async (near, index) => {
-      const account = await this.global.createUser(`alice-${index}`);
+      const account = await this.global.createUser(`${index}`);
       const accountId = account.accountId;
       const user = {
         accountId,
@@ -72,6 +73,10 @@ class LocalTestEnvironment extends NodeEnvironment {
         }),
         anchor: await near.loadContract(config.anchorName, {
           ...this.global.anchorMethods,
+          sender: accountId,
+        }),
+        appchianToken: await near.loadContract(config.wrappedAppchainToken, {
+          ...this.global.octMethods,
           sender: accountId,
         }),
       };
@@ -91,7 +96,7 @@ class LocalTestEnvironment extends NodeEnvironment {
     });
     const randomKey = await nearAPI.KeyPair.fromRandom('ed25519');
     const data = [
-      ...fs.readFileSync(`./target/wasm32-unknown-unknown/release/${fileName}`),
+      ...fs.readFileSync(`./res/${fileName}`),
     ];
     await config.deps.keyStore.setKey(
       config.networkId,

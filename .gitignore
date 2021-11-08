@@ -26,5 +26,7 @@ e2e-tests/nearkeys/testnet/*
 
 e2e-tests/nearkeys/local/*
 
+e2e-tests/nearkeys/sandbox/*
+
 # e2e-tests/nearkeys/shared-test-staging/*
 # !/e2e-tests/nearkeys/hared-test-staging/test.near.json
