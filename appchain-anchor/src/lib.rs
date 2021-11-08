@@ -68,25 +68,25 @@ const NANO_SECONDS_MULTIPLE: u64 = 1_000_000_000;
 const STORAGE_DEPOSIT_FOR_NEP141_TOEKN: Balance = 12_500_000_000_000_000_000_000;
 
 #[ext_contract(ext_fungible_token)]
-trait FungibleToken {
+trait FungibleTokenInterface {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
     fn mint(&mut self, account_id: AccountId, amount: U128);
     fn burn(&mut self, account_id: AccountId, amount: U128);
 }
 
 #[ext_contract(ext_appchain_registry)]
-trait AppchainRegistry {
+trait AppchainRegistryInterface {
     fn sync_state_of(
         &mut self,
         appchain_id: AppchainId,
         appchain_state: AppchainState,
         validator_count: u32,
-        total_stake: Balance,
+        total_stake: U128,
     );
 }
 
 #[ext_contract(ext_self)]
-trait FungibleTokenContractResolver {
+trait ResolverForSelfCallback {
     /// Resolver for burning wrapped appchain token
     fn resolve_wrapped_appchain_token_burning(
         &mut self,
@@ -390,7 +390,7 @@ impl AppchainAnchor {
                 .len()
                 .try_into()
                 .unwrap(),
-            next_validator_set.total_stake,
+            U128::from(next_validator_set.total_stake),
             &self.appchain_registry,
             0,
             GAS_FOR_SYNC_STATE_TO_REGISTRY,
