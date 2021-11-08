@@ -13,31 +13,35 @@ pub enum PayloadType {
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct BurnAssetPayload {
-    symbol: String,
-    owner_id_in_appchain: String,
-    receiver_id_in_near: AccountId,
-    amount: U128,
+    token_id: String,
+    sender: String,
+    receiver_id: AccountId,
+    amount: u128,
+    era: u32,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct LockPayload {
-    owner_id_in_appchain: String,
-    receiver_id_in_near: AccountId,
-    amount: U128,
+    sender: String,
+    receiver_id: AccountId,
+    amount: u128,
+    era: u32,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PlanNewEraPayload {
-    pub new_planned_era: u32,
+    pub next_set_id: u32,
+    pub era: u32,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct EraPayoutPayload {
+    pub current_set_id: u32,
+    pub excluded_validators: Vec<String>,
     pub era: u32,
-    pub exclude: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -83,10 +87,10 @@ impl ProofDecoder for AppchainAnchor {
                     AppchainMessage {
                         nonce: m.nonce as u32,
                         appchain_event: AppchainEvent::NearFungibleTokenBurnt {
-                            symbol: payload.symbol,
-                            owner_id_in_appchain: payload.owner_id_in_appchain,
-                            receiver_id_in_near: payload.receiver_id_in_near,
-                            amount: payload.amount,
+                            symbol: payload.token_id,
+                            owner_id_in_appchain: payload.sender,
+                            receiver_id_in_near: payload.receiver_id,
+                            amount: payload.amount.into(),
                         },
                     }
                 }
@@ -97,9 +101,9 @@ impl ProofDecoder for AppchainAnchor {
                     AppchainMessage {
                         nonce: m.nonce as u32,
                         appchain_event: AppchainEvent::NativeTokenLocked {
-                            owner_id_in_appchain: payload.owner_id_in_appchain,
-                            receiver_id_in_near: payload.receiver_id_in_near,
-                            amount: payload.amount,
+                            owner_id_in_appchain: payload.sender,
+                            receiver_id_in_near: payload.receiver_id,
+                            amount: payload.amount.into(),
                         },
                     }
                 }
@@ -110,7 +114,8 @@ impl ProofDecoder for AppchainAnchor {
                     AppchainMessage {
                         nonce: m.nonce as u32,
                         appchain_event: AppchainEvent::EraSwitchPlaned {
-                            era_number: U64::from(payload.new_planned_era as u64),
+                            era_number: U64::from(payload.era as u64),
+                            next_set_id: payload.next_set_id,
                         },
                     }
                 }
@@ -122,8 +127,8 @@ impl ProofDecoder for AppchainAnchor {
                         nonce: m.nonce as u32,
                         appchain_event: AppchainEvent::EraRewardConcluded {
                             era_number: U64::from(payload.era as u64),
-                            unprofitable_validator_ids: payload.exclude,
-                            should_distribute_rewards: true,
+                            unprofitable_validator_ids: payload.excluded_validators,
+                            current_set_id: payload.current_set_id,
                         },
                     }
                 }

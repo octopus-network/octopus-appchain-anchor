@@ -22,13 +22,13 @@ pub enum AppchainEvent {
         amount: U128,
     },
     /// The fact that the era switch is planed in the appchain.
-    EraSwitchPlaned { era_number: U64 },
+    EraSwitchPlaned { next_set_id: u32, era_number: U64 },
     /// The fact that the total reward and unprofitable validator list
     /// is concluded in the appchain.
     EraRewardConcluded {
         era_number: U64,
         unprofitable_validator_ids: Vec<String>,
-        should_distribute_rewards: bool,
+        current_set_id: u32,
     },
     /// The era reward is changed in the appchain
     EraRewardChanged {
@@ -180,18 +180,19 @@ impl AppchainAnchor {
                     )
                 }
             }
-            permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
-                self.internal_start_switching_era(era_number.0, appchain_message.nonce)
-            }
+            permissionless_actions::AppchainEvent::EraSwitchPlaned {
+                era_number,
+                next_set_id,
+            } => self.internal_start_switching_era(era_number.0, appchain_message.nonce),
             permissionless_actions::AppchainEvent::EraRewardConcluded {
                 era_number,
                 unprofitable_validator_ids,
-                should_distribute_rewards,
+                current_set_id,
             } => self.internal_start_distributing_reward_of_era(
                 appchain_message.nonce,
                 era_number.0,
                 unprofitable_validator_ids,
-                should_distribute_rewards,
+                current_set_id,
             ),
             permissionless_actions::AppchainEvent::EraRewardChanged {
                 era_number,
@@ -510,7 +511,7 @@ impl AppchainAnchor {
         appchain_message_nonce: u32,
         era_number: u64,
         unprofitable_validator_ids: Vec<String>,
-        should_distribute_rewards: bool,
+        current_set_id: u32,
     ) -> AppchainMessageProcessingResult {
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
         if permissionless_actions_status
@@ -567,29 +568,23 @@ impl AppchainAnchor {
             );
         }
         validator_set.set_unprofitable_validator_ids(unprofitable_validator_ids_in_near);
-        if should_distribute_rewards {
-            validator_set.calculate_valid_total_stake();
-            validator_set.processing_status = ValidatorSetProcessingStatus::DistributingReward {
-                distributing_validator_index: U64::from(0),
-                distributing_delegator_index: U64::from(0),
-            };
-            validator_set_histories.insert(&era_number, &validator_set);
-            permissionless_actions_status.distributing_reward_era_number =
-                Some(U64::from(era_number));
-            self.permissionless_actions_status
-                .set(&permissionless_actions_status);
-            // Mint `total_reward` in the contract of wrapped appchain token.
-            let appchain_settings = self.appchain_settings.get().unwrap();
-            self.internal_mint_wrapped_appchain_token(
-                None,
-                env::current_account_id(),
-                appchain_settings.era_reward,
-                appchain_message_nonce,
-            );
-        } else {
-            validator_set.processing_status = ValidatorSetProcessingStatus::Completed;
-            validator_set_histories.insert(&era_number, &validator_set);
-        }
+        validator_set.calculate_valid_total_stake();
+        validator_set.processing_status = ValidatorSetProcessingStatus::DistributingReward {
+            distributing_validator_index: U64::from(0),
+            distributing_delegator_index: U64::from(0),
+        };
+        validator_set_histories.insert(&era_number, &validator_set);
+        permissionless_actions_status.distributing_reward_era_number = Some(U64::from(era_number));
+        self.permissionless_actions_status
+            .set(&permissionless_actions_status);
+        // Mint `total_reward` in the contract of wrapped appchain token.
+        let appchain_settings = self.appchain_settings.get().unwrap();
+        self.internal_mint_wrapped_appchain_token(
+            None,
+            env::current_account_id(),
+            appchain_settings.era_reward,
+            appchain_message_nonce,
+        );
         AppchainMessageProcessingResult::Ok {
             nonce: appchain_message_nonce,
             message: None,
