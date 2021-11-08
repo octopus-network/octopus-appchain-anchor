@@ -17,10 +17,8 @@ module.exports = {
     'change_maximum_era_count_of_valid_appchain_message',
     'change_validator_commission_percent',
     // appchain settings
-    'set_chain_spec',
-    'set_raw_chain_spec',
-    'set_boot_nodes',
     'set_rpc_endpoint',
+    'set_subql_endpoint',
     'set_era_reward',
     // anchor settings
     'set_token_price_maintainer_account',

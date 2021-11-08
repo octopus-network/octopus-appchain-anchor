@@ -196,24 +196,17 @@ test('test protocol_settings', async () => {
 
 test('test appchain_settings', async () => {
   const wantedAppchainSetting = {
-    chain_spec: 'chain_spec_url_for_test',
-    raw_chain_spec: 'raw_chain_spec_url_for_test',
-    boot_nodes: `["/ip4/3.113.45.140/tcp/30333/p2p/12D3KooWAxYKgdmTczLioD1jkzMyaDuV2Q5VHBsJxPr5zEmHr8nY",   "/ip4/18.179.183.182/tcp/30333/p2p/12D3KooWSmLVShww4w9PVW17cCAS5C1JnXBU4NbY7FcGGjMyUGiq",   "/ip4/54.168.14.201/tcp/30333/p2p/12D3KooWT2umkS7F8GzUTLrfUzVBJPKn6YwCcuv6LBFQ27UPoo2Y",   "/ip4/35.74.18.116/tcp/30333/p2p/12D3KooWHNf9JxUZKHoF7rrsmorv86gonXSb2ZU44CbMsnBNFSAJ", ]`,
     rpc_endpoint: 'wss://test.rpc.testnet.oct.network:9944',
+    subql_endpoint: "test_url",
     era_reward: toOctValue('1.2'),
   };
   await Promise.all[
-    (await anchor.set_chain_spec({
-      chain_spec: wantedAppchainSetting.chain_spec,
-    }),
-      await anchor.set_raw_chain_spec({
-        raw_chain_spec: wantedAppchainSetting.raw_chain_spec,
-      }),
-      await anchor.set_boot_nodes({
-        boot_nodes: wantedAppchainSetting.boot_nodes,
-      }),
+    (
       await anchor.set_rpc_endpoint({
         rpc_endpoint: wantedAppchainSetting.rpc_endpoint,
+      }),
+      await anchor.set_subql_endpoint({
+        subql_endpoint: wantedAppchainSetting.subql_endpoint,
       }),
       await anchor.set_era_reward({
         era_reward: wantedAppchainSetting.era_reward,
@@ -400,42 +393,42 @@ test('test decrease delegation', async () => {
   });
 });
 
-// test('test unbond validator', async () => {
-//   await vlds[0].anchor.unbond_stake();
-//   const anchorStatus = await anchor.get_anchor_status();
-//   const unbondedStakes = await anchor.get_unbonded_stakes_of({
-//     account_id: masterAccount.accountId,
-//   });
-//   const stakingHistory = await latestStakingHistory();
-//   console.log('unbondedStakes', unbondedStakes);
-//   expect(anchorStatus.total_stake_in_next_era).toEqual(toOctValue('7000'));
-//   expect(stakingHistory.staking_fact).toEqual({
-//     ValidatorUnbonded: {
-//       validator_id: vlds[0].accountId,
-//       amount: toOctValue('5000'),
-//     },
-//   });
-// });
+test('test unbond validator', async () => {
+  await vlds[0].anchor.unbond_stake({}, CALL_GAS, 0);
+  const anchorStatus = await anchor.get_anchor_status();
+  const unbondedStakes = await anchor.get_unbonded_stakes_of({
+    account_id: masterAccount.accountId,
+  });
+  const stakingHistory = await latestStakingHistory();
+  console.log('unbondedStakes', unbondedStakes);
+  expect(anchorStatus.total_stake_in_next_era).toEqual(toOctValue('7000'));
+  expect(stakingHistory.staking_fact).toEqual({
+    ValidatorUnbonded: {
+      validator_id: vlds[0].accountId,
+      amount: toOctValue('5000'),
+    },
+  });
+});
 
-// test('test unbond delegator', async () => {
-//   await dlgs[0].anchor.unbond_delegation({
-//     validator_id: vlds[1].accountId,
-//   });
-//   const anchorStatus = await anchor.get_anchor_status();
-//   const unbondedStakes = await anchor.get_unbonded_stakes_of({
-//     account_id: masterAccount.accountId,
-//   });
-//   const stakingHistory = await latestStakingHistory();
-//   console.log('unbondedStakes', unbondedStakes);
-//   expect(anchorStatus.total_stake_in_next_era).toEqual(toOctValue('5000'));
-//   expect(stakingHistory.staking_fact).toEqual({
-//     DelegatorUnbonded: {
-//       delegator_id: dlgs[0].accountId,
-//       validator_id: vlds[1].accountId,
-//       amount: toOctValue('2000'),
-//     },
-//   });
-// });
+test('test unbond delegator', async () => {
+  await dlgs[0].anchor.unbond_delegation({
+    validator_id: vlds[1].accountId,
+  }, CALL_GAS, 0);
+  const anchorStatus = await anchor.get_anchor_status();
+  const unbondedStakes = await anchor.get_unbonded_stakes_of({
+    account_id: masterAccount.accountId,
+  });
+  const stakingHistory = await latestStakingHistory();
+  console.log('unbondedStakes', unbondedStakes);
+  expect(anchorStatus.total_stake_in_next_era).toEqual(toOctValue('5000'));
+  expect(stakingHistory.staking_fact).toEqual({
+    DelegatorUnbonded: {
+      delegator_id: dlgs[0].accountId,
+      validator_id: vlds[1].accountId,
+      amount: toOctValue('2000'),
+    },
+  });
+});
 
 // test('test withdraw stake for validator', async () => {
 //   const balanceBefore = await vlds[0].oct.ft_balance_of({
