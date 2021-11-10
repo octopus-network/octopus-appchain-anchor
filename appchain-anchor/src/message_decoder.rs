@@ -1,5 +1,5 @@
 use crate::*;
-use codec::{Decode, Encode, Input};
+use codec::{Decode, Encode};
 
 #[derive(Encode, Decode, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -17,7 +17,6 @@ pub struct BurnAssetPayload {
     sender: String,
     receiver_id: AccountId,
     amount: u128,
-    era: u32,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
@@ -26,22 +25,19 @@ pub struct LockPayload {
     sender: String,
     receiver_id: AccountId,
     amount: u128,
-    era: u32,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PlanNewEraPayload {
-    pub next_set_id: u32,
-    pub era: u32,
+    pub new_era: u32,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct EraPayoutPayload {
-    pub current_set_id: u32,
+    pub end_era: u32,
     pub excluded_validators: Vec<String>,
-    pub era: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -114,8 +110,7 @@ impl ProofDecoder for AppchainAnchor {
                     AppchainMessage {
                         nonce: m.nonce as u32,
                         appchain_event: AppchainEvent::EraSwitchPlaned {
-                            era_number: U64::from(payload.era as u64),
-                            next_set_id: payload.next_set_id,
+                            era_number: payload.new_era,
                         },
                     }
                 }
@@ -126,9 +121,8 @@ impl ProofDecoder for AppchainAnchor {
                     AppchainMessage {
                         nonce: m.nonce as u32,
                         appchain_event: AppchainEvent::EraRewardConcluded {
-                            era_number: U64::from(payload.era as u64),
+                            era_number: payload.end_era,
                             unprofitable_validator_ids: payload.excluded_validators,
-                            current_set_id: payload.current_set_id,
                         },
                     }
                 }

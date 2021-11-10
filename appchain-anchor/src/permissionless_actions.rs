@@ -22,18 +22,12 @@ pub enum AppchainEvent {
         amount: U128,
     },
     /// The fact that the era switch is planed in the appchain.
-    EraSwitchPlaned { next_set_id: u32, era_number: U64 },
+    EraSwitchPlaned { era_number: u32 },
     /// The fact that the total reward and unprofitable validator list
     /// is concluded in the appchain.
     EraRewardConcluded {
-        era_number: U64,
+        era_number: u32,
         unprofitable_validator_ids: Vec<String>,
-        current_set_id: u32,
-    },
-    /// The era reward is changed in the appchain
-    EraRewardChanged {
-        era_number: U64,
-        era_reward: Balance,
     },
 }
 
@@ -180,24 +174,17 @@ impl AppchainAnchor {
                     )
                 }
             }
-            permissionless_actions::AppchainEvent::EraSwitchPlaned {
-                era_number,
-                next_set_id,
-            } => self.internal_start_switching_era(era_number.0, appchain_message.nonce),
+            permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
+                self.internal_start_switching_era(u64::from(era_number), appchain_message.nonce)
+            }
             permissionless_actions::AppchainEvent::EraRewardConcluded {
                 era_number,
                 unprofitable_validator_ids,
-                current_set_id,
             } => self.internal_start_distributing_reward_of_era(
                 appchain_message.nonce,
-                era_number.0,
+                u64::from(era_number),
                 unprofitable_validator_ids,
-                current_set_id,
             ),
-            permissionless_actions::AppchainEvent::EraRewardChanged {
-                era_number,
-                era_reward,
-            } => todo!(),
         }
     }
 }
@@ -511,7 +498,6 @@ impl AppchainAnchor {
         appchain_message_nonce: u32,
         era_number: u64,
         unprofitable_validator_ids: Vec<String>,
-        current_set_id: u32,
     ) -> AppchainMessageProcessingResult {
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
         if permissionless_actions_status

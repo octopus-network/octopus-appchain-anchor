@@ -472,14 +472,12 @@ pub fn print_unbonded_stakes_of(
 pub fn switch_era(
     root: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    era_number: u64,
+    era_number: u32,
 ) {
     if era_number > 0 {
         let mut appchain_messages = Vec::<AppchainMessage>::new();
         appchain_messages.push(AppchainMessage {
-            appchain_event: AppchainEvent::EraSwitchPlaned {
-                era_number: U64::from(era_number),
-            },
+            appchain_event: AppchainEvent::EraSwitchPlaned { era_number },
             nonce: (era_number + 1).try_into().unwrap(),
         });
         let results = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
@@ -489,7 +487,8 @@ pub fn switch_era(
                 serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
             )
         }
-        let processing_status = anchor_viewer::get_processing_status_of(anchor, era_number);
+        let processing_status =
+            anchor_viewer::get_processing_status_of(anchor, u64::from(era_number));
         println!(
             "Processing status of era {}: {}",
             era_number,
@@ -502,7 +501,8 @@ pub fn switch_era(
             "Try complete switching era: {}",
             result.unwrap_json_value().as_bool().unwrap()
         );
-        let processing_status = anchor_viewer::get_processing_status_of(anchor, era_number);
+        let processing_status =
+            anchor_viewer::get_processing_status_of(anchor, u64::from(era_number));
         println!(
             "Processing status of era {}: {}",
             era_number,
@@ -517,7 +517,8 @@ pub fn switch_era(
         "Anchor status: {}",
         serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
     );
-    let validator_set_info = anchor_viewer::get_validator_set_info_of(anchor, era_number);
+    let validator_set_info =
+        anchor_viewer::get_validator_set_info_of(anchor, u64::from(era_number));
     println!(
         "Validator set info of era {}: {}",
         era_number,

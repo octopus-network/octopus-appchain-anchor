@@ -9,10 +9,7 @@ use appchain_anchor::{
 };
 use mock_oct_token::MockOctTokenContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
-use near_sdk::{
-    json_types::{U128, U64},
-    serde_json,
-};
+use near_sdk::{json_types::U128, serde_json};
 use near_sdk_sim::{ContractAccount, UserAccount};
 
 mod anchor_viewer;
@@ -423,7 +420,7 @@ fn test_staking_actions() {
     //
     // Distribut reward of era0
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 0, false);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 0);
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 0);
     common::print_validator_reward_histories(&anchor, &users[1], 0);
@@ -464,7 +461,7 @@ fn test_staking_actions() {
     //
     // Distribute reward of era1
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 1, true);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 1);
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 1);
     common::print_validator_reward_histories(&anchor, &users[1], 1);
@@ -508,7 +505,7 @@ fn test_staking_actions() {
     //
     // Distribute reward of era2
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 2, true);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 2);
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 2);
     common::print_validator_reward_histories(&anchor, &users[1], 2);
@@ -541,7 +538,7 @@ fn test_staking_actions() {
     //
     // Distribute reward of era3
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 3, true);
+    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 3);
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 3);
     common::print_validator_reward_histories(&anchor, &users[1], 3);
@@ -594,17 +591,15 @@ fn distribute_reward_of(
     root: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
     wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
-    era_number: u64,
-    should_distribute_rewards: bool,
+    era_number: u32,
 ) {
     let anchor_balance_of_wat =
         token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token);
     let mut appchain_messages = Vec::<AppchainMessage>::new();
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::EraRewardConcluded {
-            era_number: U64::from(era_number),
+            era_number,
             unprofitable_validator_ids: Vec::new(),
-            should_distribute_rewards,
         },
         nonce: (era_number + 1).try_into().unwrap(),
     });
@@ -626,7 +621,8 @@ fn distribute_reward_of(
             "Try complete switching era: {}",
             result.unwrap_json_value().as_bool().unwrap()
         );
-        let processing_status = anchor_viewer::get_processing_status_of(anchor, era_number);
+        let processing_status =
+            anchor_viewer::get_processing_status_of(anchor, u64::from(era_number));
         println!(
             "Processing status of era {}: {}",
             era_number,
@@ -636,23 +632,17 @@ fn distribute_reward_of(
             break;
         }
     }
-    if should_distribute_rewards {
-        assert_eq!(
-            token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
-            anchor_balance_of_wat.0 + common::to_oct_amount(10)
-        );
-    } else {
-        assert_eq!(
-            token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
-            anchor_balance_of_wat.0
-        );
-    }
+    assert_eq!(
+        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
+        anchor_balance_of_wat.0 + common::to_oct_amount(10)
+    );
     let anchor_status = anchor_viewer::get_anchor_status(anchor);
     println!(
         "Anchor status: {}",
         serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
     );
-    let validator_set_info = anchor_viewer::get_validator_set_info_of(anchor, era_number);
+    let validator_set_info =
+        anchor_viewer::get_validator_set_info_of(anchor, u64::from(era_number));
     println!(
         "Validator set info of era {}: {}",
         era_number,
