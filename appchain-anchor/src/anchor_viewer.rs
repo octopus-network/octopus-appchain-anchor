@@ -289,7 +289,7 @@ impl AnchorViewer for AppchainAnchor {
             true => index_range.start_index.0,
             false => start_index.0,
         };
-        let mut end_index = index_range.start_index.0
+        let mut end_index = start_index
             + match quantity {
                 Some(quantity) => match quantity.0 > 50 {
                     true => 49,
