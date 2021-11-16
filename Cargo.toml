@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "appchain-anchor",
+    "beefy-light-client",
     "mock-appchain-registry",
     "mock-oct-token",
     "mock-wrapped-appchain-token"

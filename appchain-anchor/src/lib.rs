@@ -20,6 +20,7 @@ mod wrapped_appchain_token;
 use std::convert::TryInto;
 
 use appchain_notification_histories::AppchainNotificationHistories;
+use beefy_light_client::LightClient;
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
@@ -157,6 +158,8 @@ pub struct AppchainAnchor {
     appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
+    /// The state of beefy light client
+    beefy_light_client_state: LazyOption<LightClient>,
 }
 
 impl Default for AppchainAnchor {
@@ -249,6 +252,10 @@ impl AppchainAnchor {
                     switching_era_number: Option::None,
                     distributing_reward_era_number: Option::None,
                 }),
+            ),
+            beefy_light_client_state: LazyOption::new(
+                StorageKey::BeefyLightClientState.into_bytes(),
+                None,
             ),
         }
     }
