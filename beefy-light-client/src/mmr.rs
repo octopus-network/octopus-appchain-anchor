@@ -1,11 +1,11 @@
 use crate::BeefyNextAuthoritySet;
 use beefy_merkle_tree::{verify_proof, Hash, Keccak256, Leaf, MerkleProof};
-use codec::Encode;
+use codec::{Decode, Encode};
 
 #[cfg(not(feature = "std"))]
 use core::convert::Into;
 
-#[derive(Debug, Default, Encode)]
+#[derive(Clone, Debug, Default, Encode, Decode)]
 pub struct MmrLeafVersion(u8);
 impl MmrLeafVersion {
     /// Create new version object from `major` and `minor` components.
@@ -27,7 +27,7 @@ impl MmrLeafVersion {
     }
 }
 
-#[derive(Debug, Default, Encode)]
+#[derive(Clone, Debug, Default, Encode, Decode)]
 pub struct MmrLeaf {
     /// Version of the leaf format.
     ///
@@ -38,6 +38,8 @@ pub struct MmrLeaf {
     pub parent_number_and_hash: (u32, Hash),
     /// A merkle root of the next BEEFY authority set.
     pub beefy_next_authority_set: BeefyNextAuthoritySet,
+    /// A merkle root of all registered parachain heads.
+    pub parachain_heads: Hash,
 }
 
 impl MmrLeaf {
@@ -53,7 +55,7 @@ impl<'a> From<MmrLeaf> for Leaf<'a> {
 }
 
 /// A MMR proof data for one of the leaves.
-#[derive(Debug, Default, Encode)]
+#[derive(Debug, Default, Encode, Decode)]
 pub struct MmrLeafProof {
     /// The index of the leaf the proof is for.
     pub leaf_index: u64,

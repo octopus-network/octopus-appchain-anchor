@@ -3,8 +3,12 @@
 #[cfg(not(feature = "std"))]
 use core::result;
 
+#[cfg(feature = "std")]
+use std::convert::TryInto;
+
 use beefy_merkle_tree::{merkle_root, verify_proof, Hash, Keccak256, MerkleProof};
 use borsh::{BorshDeserialize, BorshSerialize};
+use codec::Decode;
 use commitment::{Commitment, SignedCommitment};
 use header::Header;
 use mmr::MmrLeaf;
@@ -47,6 +51,8 @@ pub enum Error {
     ///
     InvalidMessage,
     ///
+    InvalidPayload,
+    ///
     InvalidRecoveryId,
     ///
     WrongSignature,
@@ -58,6 +64,38 @@ pub enum Error {
     DigestNotMatch,
     ///
     HeaderHashNotMatch,
+    ///
+    CantDecodeHeader,
+    ///
+    CantDecodeMmrLeaf,
+    ///
+    CantDecodeMmrProof,
+}
+
+#[derive(Debug, Decode)]
+pub struct MerkleProofPayload {
+    /// Root hash of generated merkle tree.
+    pub root: Hash,
+    /// Proof items (does not contain the leaf hash, nor the root obviously).
+    ///
+    /// This vec contains all inner node hashes necessary to reconstruct the root hash given the
+    /// leaf hash.
+    pub proof: Vec<Hash>,
+    /// Number of leaves in the original tree.
+    ///
+    /// This is needed to detect a case where we have an odd number of leaves that "get promoted"
+    /// to upper layers.
+    pub number_of_leaves: u32,
+    /// Index of the leaf the proof is for (0-based).
+    pub leaf_index: u32,
+    /// Leaf content.
+    pub leaf: Public,
+}
+
+#[derive(Debug, Decode)]
+pub struct StatePayload {
+    signed_commitment: SignedCommitment,
+    validator_proof: Vec<MerkleProofPayload>,
 }
 
 #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
@@ -67,7 +105,13 @@ pub struct LightClient {
 }
 
 // Initialize light client using the BeefyId of the initial validator set.
-pub fn new(initial_public_keys: Vec<Public>) -> LightClient {
+pub fn new(initial_public_keys: Vec<String>) -> LightClient {
+    let initial_public_keys: Vec<Public> = initial_public_keys
+        .into_iter()
+        .map(|hex_str| {
+            hex::decode(&hex_str[2..]).map_or([0; 33], |s| s.try_into().unwrap_or([0; 33]))
+        })
+        .collect();
     LightClient {
         mmr_root: Hash::default(),
         validator_set: BeefyNextAuthoritySet {
@@ -82,11 +126,30 @@ impl LightClient {
     // Import a signed commitment and update the state of light client.
     pub fn update_state(
         &mut self,
-        signed_commitment: SignedCommitment,
-        validator_proof: Vec<MerkleProof<&Public>>,
-        mmr_leaf: MmrLeaf,
-        mmr_proof: simplified_mmr::MerkleProof,
+        payload: &[u8],
+        mmr_leaf: &[u8],
+        mmr_proof: &[u8],
     ) -> Result<(), Error> {
+        let payload = StatePayload::decode(&mut &payload[..]).map_err(|_| Error::InvalidPayload)?;
+        let StatePayload {
+            signed_commitment,
+            validator_proof,
+        } = payload;
+
+        let mmr_leaf = MmrLeaf::decode(&mut &mmr_leaf[..]).map_err(|_| Error::CantDecodeMmrLeaf)?;
+        let mmr_proof = mmr::MmrLeafProof::decode(&mut &mmr_proof[..])
+            .map_err(|_| Error::CantDecodeMmrProof)?;
+        let validator_proof: Vec<MerkleProof<_>> = validator_proof
+            .into_iter()
+            .map(|p| MerkleProof {
+                root: p.root,
+                proof: p.proof,
+                number_of_leaves: p.number_of_leaves as usize,
+                leaf_index: p.leaf_index as usize,
+                leaf: p.leaf,
+            })
+            .collect();
+
         // TODO: check length
         for proof in validator_proof {
             if !verify_proof::<Keccak256, _, _>(
@@ -94,13 +157,13 @@ impl LightClient {
                 proof.proof,
                 proof.number_of_leaves,
                 proof.leaf_index,
-                proof.leaf,
+                &proof.leaf,
             ) {
                 return Err(Error::InvalidValidatorProof);
             }
         }
         let commitment = self.verify_commitment(signed_commitment)?;
-        self.verify_mmr_leaf(commitment.payload, &mmr_leaf, mmr_proof)?;
+        self.verify_mmr_leaf(commitment.payload, mmr_leaf.clone(), mmr_proof)?;
 
         // update mmr_root
         self.mmr_root = commitment.payload;
@@ -115,23 +178,28 @@ impl LightClient {
     pub fn verify_solochain_messages(
         &self,
         messages: &[u8],
-        header: Header,
-        leaf: &MmrLeaf,
-        proof: simplified_mmr::MerkleProof,
+        header: &[u8],
+        mmr_leaf: &[u8],
+        mmr_proof: &[u8],
     ) -> Result<(), Error> {
+        let header = Header::decode(&mut &header[..]).map_err(|_| Error::CantDecodeHeader)?;
+        let mmr_leaf = MmrLeaf::decode(&mut &mmr_leaf[..]).map_err(|_| Error::CantDecodeMmrLeaf)?;
+        let mmr_proof = mmr::MmrLeafProof::decode(&mut &mmr_proof[..])
+            .map_err(|_| Error::CantDecodeMmrProof)?;
+
         let header_digest = header.get_other().ok_or(Error::DigestNotFound)?;
 
         let messages_hash = Keccak256::hash(messages);
         if messages_hash != &header_digest[..] {
-            return Err(Error::DigestNotFound);
+            return Err(Error::DigestNotMatch);
         }
 
         let header_hash = header.hash();
-        if header_hash != leaf.parent_number_and_hash.1 {
+        if header_hash != mmr_leaf.parent_number_and_hash.1 {
             return Err(Error::HeaderHashNotMatch);
         }
 
-        self.verify_mmr_leaf(self.mmr_root, leaf, proof)?;
+        self.verify_mmr_leaf(self.mmr_root, mmr_leaf, mmr_proof)?;
         Ok(())
     }
 
@@ -164,15 +232,17 @@ impl LightClient {
     fn verify_mmr_leaf(
         &self,
         root: Hash,
-        leaf: &MmrLeaf,
-        proof: simplified_mmr::MerkleProof,
-    ) -> Result<(), Error> {
-        let leaf_hash = leaf.hash();
-        let result = simplified_mmr::verify_proof(root, leaf_hash, proof);
-        if !result {
-            return Err(Error::InvalidMmrProof);
-        }
-        Ok(())
+        leaf: MmrLeaf,
+        // proof: simplified_mmr::MerkleProof,
+        proof: mmr::MmrLeafProof,
+    ) -> Result<bool, Error> {
+        // let leaf_hash = leaf.hash();
+        // let result = simplified_mmr::verify_proof(root, leaf_hash, proof);
+        mmr::verify_leaf_proof(root, leaf, proof)
+        // if !result {
+        //     return Err(Error::InvalidMmrProof);
+        // }
+        // Ok(())
     }
 }
 
@@ -185,7 +255,7 @@ mod tests {
     #[test]
     fn it_works() {
         let public_keys =
-            vec![hex!("020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1").into()];
+            vec!["020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1".to_string()];
         let lc = new(public_keys);
         println!("{:?}", lc);
 

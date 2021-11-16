@@ -1,5 +1,4 @@
 use crate::message_decoder::AppchainMessage;
-use crate::message_decoder::ProofDecoder;
 use crate::*;
 use core::convert::{TryFrom, TryInto};
 use staking::UnbondedStakeReference;
@@ -33,12 +32,19 @@ pub enum AppchainEvent {
 
 pub trait PermissionlessActions {
     ///
+    fn update_state_of_beefy_light_client(
+        &mut self,
+        payload: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    );
+    ///
     fn verify_and_apply_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
-        header_partial: Vec<u8>,
-        leaf_proof: Vec<u8>,
-        mmr_root: Vec<u8>,
+        header: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
     ) -> Vec<AppchainMessageProcessingResult>;
     ///
     fn try_complete_switching_era(&mut self) -> bool;
@@ -54,15 +60,46 @@ enum ResultOfLoopingValidatorSet {
 
 #[near_bindgen]
 impl PermissionlessActions for AppchainAnchor {
+    ///
+    fn update_state_of_beefy_light_client(
+        &mut self,
+        payload: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    ) {
+        assert!(
+            self.beefy_light_client_state.is_some(),
+            "Beefy light client is not initialized."
+        );
+        let mut light_client = self.beefy_light_client_state.get().unwrap();
+        assert!(
+            light_client
+                .update_state(&payload, &mmr_leaf, &mmr_proof)
+                .is_ok(),
+            "Invalid state data for beefy light client."
+        );
+        self.beefy_light_client_state.set(&light_client);
+    }
     //
     fn verify_and_apply_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
-        header_partial: Vec<u8>,
-        leaf_proof: Vec<u8>,
-        mmr_root: Vec<u8>,
+        header: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
     ) -> Vec<AppchainMessageProcessingResult> {
-        let messages = self.decode(encoded_messages);
+        assert!(
+            self.beefy_light_client_state.is_some(),
+            "Beefy light client is not initialized."
+        );
+        let light_client = self.beefy_light_client_state.get().unwrap();
+        assert!(
+            light_client
+                .verify_solochain_messages(&encoded_messages, &header, &mmr_leaf, &mmr_proof)
+                .is_ok(),
+            "Invalid appchain messages."
+        );
+        let messages = message_decoder::decode(encoded_messages);
         messages
             .iter()
             .map(|m| self.internal_apply_appchain_message(m.clone()))

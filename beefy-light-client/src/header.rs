@@ -1,7 +1,7 @@
 use beefy_merkle_tree::{Hash, Keccak256};
-use codec::Encode;
+use codec::{Decode, Encode};
 
-#[derive(Debug, Default, Encode)]
+#[derive(Debug, Default, Encode, Decode)]
 pub struct Header {
     /// The parent hash.
     pub parent_hash: Hash,
@@ -28,7 +28,7 @@ impl Header {
     }
 }
 
-#[derive(Debug, Default, Encode)]
+#[derive(Debug, Default, Encode, Decode)]
 pub struct Digest {
     /// A list of logs in the digest.
     pub logs: Vec<DigestItem>,
@@ -37,7 +37,7 @@ pub struct Digest {
 /// Consensus engine unique ID.
 pub type ConsensusEngineId = [u8; 4];
 
-#[derive(Debug, Encode)]
+#[derive(Debug, Encode, Decode)]
 pub enum DigestItem {
     /// System digest item that contains the root of changes trie at given
     /// block. It is created for every block iff runtime supports changes
@@ -83,7 +83,7 @@ pub enum DigestItem {
     RuntimeEnvironmentUpdated,
 }
 
-#[derive(Debug, Encode)]
+#[derive(Debug, Encode, Decode)]
 pub enum ChangesTrieSignal {
     /// New changes trie configuration is enacted, starting from **next block**.
     ///
@@ -98,7 +98,7 @@ pub enum ChangesTrieSignal {
     NewConfiguration(Option<ChangesTrieConfiguration>),
 }
 
-#[derive(Debug, Default, Encode)]
+#[derive(Debug, Default, Encode, Decode)]
 pub struct ChangesTrieConfiguration {
     /// Interval (in blocks) at which level1-digests are created. Digests are not
     /// created when this is less or equal to 1.
@@ -111,4 +111,30 @@ pub struct ChangesTrieConfiguration {
     /// && maximal digests interval will be truncated to the last interval that fits
     /// `u32` limits.
     pub digest_levels: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hex_literal::hex;
+
+    #[test]
+    fn decode_header_works_1() {
+        let encoded_header = hex!("08c155c0053d38c11e5c73da25f718ce1babf788a5de3350d1d6119930723f47f1050cbf12f48249c92c903354e58a656649ab472b2cf0bd7bcbb598eeb0e198e6697dafe7aa4aa6e9184ceb07b5e7711308657e9bd1285473216523a73a2105561f0c06424142453402000000006877862000000000044245454684039d0139d49a88465111c314804cd5af0b43d3323885ce26788844f43b9b060227054241424501011eaff7a42f1f64674e1d81f61c0dd4b770e92cc9b0cac86508915aa7ce500d0bc04a14dea8fee8f291c444b28a6efcf9fac8f9b1aab686b7243294bcb1e0de87");
+
+        let header = Header::decode(&mut &encoded_header[..]);
+        println!("header: {:?}", header);
+
+        assert_eq!(header.is_ok(), true);
+    }
+
+    #[test]
+    fn decode_header_works_2() {
+        let encoded_header = hex!("adde90798445cf0edcf36869cc414306a3c49922b982537496b626ea11a013b08902b1b39333299244ba0ba961cfd36976e4c16b2cb76295dd7649454ab128a2e2a3bbee729f4a811a2a35f85c382f72d060a168ffca20a21d08541f01f32ca54a3c0c06424142453402000000008e76862000000000044245454684032f6d4a19f8f0341a0a66f325780fac42b8ad1c0a51a58273380b2d66371464e005424142450101820a4c8425220ce42867228a206269db31beca93e9aece18558ca8f8e55bf473ae2e3950a9aad9b40d7899f94e3df8722bc2bc4b42816cc77ed5c290b805f38f");
+
+        let header = Header::decode(&mut &encoded_header[..]);
+        println!("header: {:?}", header);
+
+        assert_eq!(header.is_ok(), true);
+    }
 }
