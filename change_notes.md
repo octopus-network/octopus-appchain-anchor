@@ -1,5 +1,37 @@
 # Change notes
 
+## 20211116
+
+* Integrated implementation of beefy light client (by a crate in workspace).
+* Add function `initialize_beefy_light_client`. It can only be called by owner account while the appchain is in `booting` state.
+
+```rust
+    fn initialize_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
+```
+
+* Add permissionless function `update_state_of_beefy_light_client`.
+
+```rust
+    fn update_state_of_beefy_light_client(
+        &mut self,
+        payload: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    );
+```
+
+* Change param names of function `verify_and_apply_appchain_messages`.
+
+```rust
+    fn verify_and_apply_appchain_messages(
+        &mut self,
+        encoded_messages: Vec<u8>,
+        header: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    ) -> Vec<AppchainMessageProcessingResult>;
+```
+
 ## 20211107
 
 * Remove `boot_nodes`, `chain_spec`, `raw_chain_spec` from `AppchainSettings`.
