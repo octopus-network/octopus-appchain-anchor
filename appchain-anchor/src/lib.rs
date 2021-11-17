@@ -21,6 +21,7 @@ use std::convert::TryInto;
 
 use appchain_notification_histories::AppchainNotificationHistories;
 use beefy_light_client::LightClient;
+use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
@@ -48,6 +49,8 @@ use storage_key::StorageKey;
 use types::*;
 use validator_profiles::ValidatorProfiles;
 use validator_set::{ValidatorSet, ValidatorSetHistories};
+
+register_custom_getrandom!(get_random_in_near);
 
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
@@ -403,4 +406,10 @@ impl AppchainAnchor {
             GAS_FOR_SYNC_STATE_TO_REGISTRY,
         );
     }
+}
+
+pub fn get_random_in_near(buf: &mut [u8]) -> Result<(), Error> {
+    let random = env::random_seed();
+    buf.copy_from_slice(&random);
+    Ok(())
 }
