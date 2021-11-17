@@ -12,5 +12,5 @@ cp target/wasm32-unknown-unknown/release/*.wasm ./res/
 cp target/wasm32-unknown-unknown/release/appchain_anchor.wasm ./out/main.wasm
 
 if [ "$1" == "test" ]; then
-    RUST_BACKTRACE=full cargo test --test test_* -- --nocapture
+    RUST_BACKTRACE=full cargo test --test $2 -- --nocapture
 fi
