@@ -34,7 +34,8 @@ pub trait PermissionlessActions {
     ///
     fn update_state_of_beefy_light_client(
         &mut self,
-        payload: Vec<u8>,
+        signed_commitment: Vec<u8>,
+        validator_proofs: Vec<ValidatorMerkleProof>,
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
     );
@@ -58,12 +59,25 @@ enum ResultOfLoopingValidatorSet {
     NeedToContinue,
 }
 
+impl ValidatorMerkleProof {
+    pub fn to_merkle_proof(self) -> MerkleProof<Vec<u8>> {
+        MerkleProof {
+            root: self.root,
+            proof: self.proof,
+            number_of_leaves: self.number_of_leaves,
+            leaf_index: self.leaf_index,
+            leaf: self.leaf,
+        }
+    }
+}
+
 #[near_bindgen]
 impl PermissionlessActions for AppchainAnchor {
     ///
     fn update_state_of_beefy_light_client(
         &mut self,
-        payload: Vec<u8>,
+        signed_commitment: Vec<u8>,
+        validator_proofs: Vec<ValidatorMerkleProof>,
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
     ) {
@@ -72,9 +86,13 @@ impl PermissionlessActions for AppchainAnchor {
             "Beefy light client is not initialized."
         );
         let mut light_client = self.beefy_light_client_state.get().unwrap();
+        let mut proofs = Vec::new();
+        for validator_proof in validator_proofs {
+            proofs.push(validator_proof.to_merkle_proof());
+        }
         assert!(
             light_client
-                .update_state(&payload, &mmr_leaf, &mmr_proof)
+                .update_state(&signed_commitment, proofs, &mmr_leaf, &mmr_proof)
                 .is_ok(),
             "Invalid state data for beefy light client."
         );

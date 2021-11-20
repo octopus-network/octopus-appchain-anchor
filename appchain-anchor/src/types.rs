@@ -476,3 +476,24 @@ pub enum AppchainMessageProcessingResult {
     Ok { nonce: u32, message: Option<String> },
     Error { nonce: u32, message: String },
 }
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ValidatorMerkleProof {
+    /// Root hash of generated merkle tree.
+    pub root: Hash,
+    /// Proof items (does not contain the leaf hash, nor the root obviously).
+    ///
+    /// This vec contains all inner node hashes necessary to reconstruct the root hash given the
+    /// leaf hash.
+    pub proof: Vec<Hash>,
+    /// Number of leaves in the original tree.
+    ///
+    /// This is needed to detect a case where we have an odd number of leaves that "get promoted"
+    /// to upper layers.
+    pub number_of_leaves: usize,
+    /// Index of the leaf the proof is for (0-based).
+    pub leaf_index: usize,
+    /// Leaf content.
+    pub leaf: Vec<u8>,
+}

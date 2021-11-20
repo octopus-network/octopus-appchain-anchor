@@ -43,6 +43,7 @@ pub use staking::StakingManager;
 pub use validator_actions::ValidatorActions;
 pub use wrapped_appchain_token::WrappedAppchainTokenManager;
 
+use beefy_light_client::{Hash, MerkleProof};
 use near_fungible_tokens::NearFungibleTokens;
 use staking::{StakingHistories, UnbondedStakeReference};
 use storage_key::StorageKey;
