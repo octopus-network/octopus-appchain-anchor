@@ -477,7 +477,7 @@ pub enum AppchainMessageProcessingResult {
     Error { nonce: u32, message: String },
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum MultiTxsOperationProcessingResult {
     NeedMoreGas,

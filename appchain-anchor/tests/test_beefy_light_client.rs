@@ -8,14 +8,20 @@ use appchain_anchor::{
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
-use beefy_light_client::mmr::{MmrLeaf, MmrLeafProof};
-use beefy_light_client::{beefy_ecdsa_to_ethereum, commitment::SignedCommitment};
-use codec::Decode;
+use codec::{Decode, Encode};
 use hex_literal::hex;
 use mock_oct_token::MockOctTokenContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 use near_sdk::{json_types::U128, serde_json};
 use near_sdk_sim::{ContractAccount, UserAccount};
+use secp256k1_test::{rand::thread_rng, Message as SecpMessage, Secp256k1};
+
+use beefy_light_client::{beefy_ecdsa_to_ethereum, commitment::SignedCommitment};
+use beefy_light_client::{
+    commitment::{Commitment, Signature},
+    mmr::{MmrLeaf, MmrLeafProof},
+};
+use beefy_merkle_tree::{merkle_proof, Keccak256};
 
 mod anchor_viewer;
 mod common;
@@ -523,6 +529,10 @@ fn test_beefy_light_client() {
     common::print_staking_histories(&anchor);
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
+    //
+    // Test maximum validator proofs
+    //
+    update_state_of_beefy_light_client_max(&anchor, &users[3]);
 }
 
 fn distribute_reward_of(
@@ -867,4 +877,80 @@ fn update_state_of_beefy_light_client_2(
         "Result of 'try_complete_updating_state_of_beefy_light_client': {}",
         serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
     )
+}
+
+fn update_state_of_beefy_light_client_max(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    user: &UserAccount,
+) {
+    const MAX_VALIDATORS: i32 = 85;
+
+    let secp = Secp256k1::new();
+
+    let mut initial_public_keys = Vec::new();
+    let commitment = Commitment {
+        payload: hex!("f45927644a0b5bc6f1ce667330071fbaea498403c084eb0d4cb747114887345d"),
+        block_number: 28,
+        validator_set_id: 0,
+    };
+    let commitment_hash = commitment.hash();
+    let msg = SecpMessage::from_slice(&commitment_hash[..]).unwrap();
+    let mut signed_commitment = SignedCommitment {
+        commitment,
+        signatures: vec![],
+    };
+
+    for _ in 0..MAX_VALIDATORS {
+        let (privkey, pubkey) = secp.generate_keypair(&mut thread_rng());
+        // println!("pubkey: {:?}", pubkey);
+        // println!("prikey: {:?}", privkey);
+        let validator_address = beefy_ecdsa_to_ethereum(&pubkey.serialize());
+        // println!("validator_address: {:?}", validator_address);
+        initial_public_keys.push(validator_address);
+        let (recover_id, signature) = secp.sign_recoverable(&msg, &privkey).serialize_compact();
+
+        let mut buf = [0_u8; 65];
+        buf[0..64].copy_from_slice(&signature[..]);
+        buf[64] = recover_id.to_i32() as u8;
+
+        signed_commitment.signatures.push(Some(Signature(buf)));
+    }
+    let encoded_signed_commitment = signed_commitment.encode();
+
+    let mut validator_proofs = Vec::new();
+    for i in 0..initial_public_keys.len() {
+        let proof = merkle_proof::<Keccak256, _, _>(initial_public_keys.clone(), i);
+        validator_proofs.push(ValidatorMerkleProof {
+            root: proof.root,
+            proof: proof.proof,
+            number_of_leaves: proof.number_of_leaves.try_into().unwrap(),
+            leaf_index: proof.leaf_index.try_into().unwrap(),
+            leaf: proof.leaf,
+        });
+    }
+
+    let encoded_mmr_leaf = hex!("c501000800000079f0451c096266bee167393545bafc7b27b7d14810084a843955624588ba29c1010000000000000005000000304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a20000000000000000000000000000000000000000000000000000000000000000");
+    let encoded_mmr_proof =  hex!("0800000000000000090000000000000004c2d6348aef1ef52e779c59bcc1d87fa0175b59b4fa2ea8fc322e4ceb2bdd1ea2");
+    //
+    let result = permissionless_actions::start_updating_state_of_beefy_light_client(
+        &user,
+        &anchor,
+        encoded_signed_commitment.to_vec(),
+        validator_proofs,
+        encoded_mmr_leaf.to_vec(),
+        encoded_mmr_proof.to_vec(),
+    );
+    result.assert_success();
+    loop {
+        let result = permissionless_actions::try_complete_updating_state_of_beefy_light_client(
+            &user, &anchor,
+        );
+        println!(
+            "Result of 'try_complete_updating_state_of_beefy_light_client': {}",
+            serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
+        );
+        if !result.eq(&MultiTxsOperationProcessingResult::NeedMoreGas) {
+            break;
+        }
+    }
 }

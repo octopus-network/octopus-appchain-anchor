@@ -115,6 +115,7 @@ impl BeefyLightClientState {
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
     ) {
+        env::log(format!("Gas used before start updating state: {}", env::used_gas()).as_bytes());
         self.assert_initialized();
         if self.processing_state_commitment.is_some() {
             let mut processing_state_commitment = self.processing_state_commitment.get().unwrap();

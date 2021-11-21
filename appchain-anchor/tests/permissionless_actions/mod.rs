@@ -41,7 +41,7 @@ pub fn start_updating_state_of_beefy_light_client(
             mmr_proof
         )
     );
-    common::print_execution_result("strat_updating_state_of_beefy_light_client", &result);
+    common::print_execution_result("start_updating_state_of_beefy_light_client", &result);
     result
 }
 

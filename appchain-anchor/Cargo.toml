@@ -20,6 +20,8 @@ hex-literal = "0.3.1"
 near-sdk = "3.1.0"
 near-sdk-sim = "3.1.0"
 num-format = "0.4.0"
+secp256k1-test = { package = "secp256k1", version = "0.20.3", features = ["rand-std", "recovery"] }
+beefy-merkle-tree = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.12", features = ["keccak"], default-features = false }
 # remember to include related mock contracts
 mock-appchain-registry = { path = "../mock-appchain-registry" }
 mock-oct-token = { path = "../mock-oct-token" }
