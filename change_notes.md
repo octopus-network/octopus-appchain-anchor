@@ -1,5 +1,66 @@
 # Change notes
 
+## 20211121
+
+* Add the following interface data structs in module `types`:
+
+```rust
+pub enum MultiTxsOperationProcessingResult {
+    NeedMoreGas,
+    Ok,
+    Error(String),
+}
+
+pub struct ValidatorMerkleProof {
+    /// Root hash of generated merkle tree.
+    pub root: Hash,
+    /// Proof items (does not contain the leaf hash, nor the root obviously).
+    ///
+    /// This vec contains all inner node hashes necessary to reconstruct the root hash given the
+    /// leaf hash.
+    pub proof: Vec<Hash>,
+    /// Number of leaves in the original tree.
+    ///
+    /// This is needed to detect a case where we have an odd number of leaves that "get promoted"
+    /// to upper layers.
+    pub number_of_leaves: u32,
+    /// Index of the leaf the proof is for (0-based).
+    pub leaf_index: u32,
+    /// Leaf content.
+    pub leaf: Vec<u8>,
+}
+
+pub struct AppchainCommitment {
+    pub payload: Hash,
+    pub block_number: U64,
+    pub validator_set_id: u32,
+}
+```
+
+* Change permissionless function `update_state_of_beefy_light_client` to the following permissionless functions:
+
+```rust
+    ///
+    fn start_updating_state_of_beefy_light_client(
+        &mut self,
+        signed_commitment: Vec<u8>,
+        validator_proofs: Vec<ValidatorMerkleProof>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    );
+    ///
+    fn try_complete_updating_state_of_beefy_light_client(
+        &mut self,
+    ) -> MultiTxsOperationProcessingResult;
+```
+
+* Add view function `get_latest_commitment_of_appchain`:
+
+```rust
+    /// Get the latest commitment data of appchain state
+    fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment>;
+```
+
 ## 20211116
 
 * Integrated implementation of beefy light client (by a crate in workspace).
