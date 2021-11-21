@@ -61,6 +61,15 @@ pub struct AppchainCommitment {
     fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment>;
 ```
 
+* Change data type of return value of function `try_complete_switching_era` and `try_complete_distributing_reward`:
+
+```rust
+    ///
+    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult;
+    ///
+    fn try_complete_distributing_reward(&mut self) -> MultiTxsOperationProcessingResult;
+```
+
 ## 20211116
 
 * Integrated implementation of beefy light client (by a crate in workspace).

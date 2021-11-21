@@ -52,9 +52,9 @@ pub trait PermissionlessActions {
         mmr_proof: Vec<u8>,
     ) -> Vec<AppchainMessageProcessingResult>;
     ///
-    fn try_complete_switching_era(&mut self) -> bool;
+    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult;
     ///
-    fn try_complete_distributing_reward(&mut self) -> bool;
+    fn try_complete_distributing_reward(&mut self) -> MultiTxsOperationProcessingResult;
 }
 
 enum ResultOfLoopingValidatorSet {
@@ -151,7 +151,7 @@ impl PermissionlessActions for AppchainAnchor {
             .collect::<Vec<AppchainMessageProcessingResult>>()
     }
     //
-    fn try_complete_switching_era(&mut self) -> bool {
+    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult {
         match self
             .permissionless_actions_status
             .get()
@@ -166,14 +166,16 @@ impl PermissionlessActions for AppchainAnchor {
                     permissionless_actions_status.switching_era_number = None;
                     self.permissionless_actions_status
                         .set(&permissionless_actions_status);
+                    MultiTxsOperationProcessingResult::Ok
+                } else {
+                    MultiTxsOperationProcessingResult::NeedMoreGas
                 }
-                completed
             }
-            None => true,
+            None => MultiTxsOperationProcessingResult::Ok,
         }
     }
     //
-    fn try_complete_distributing_reward(&mut self) -> bool {
+    fn try_complete_distributing_reward(&mut self) -> MultiTxsOperationProcessingResult {
         match self
             .permissionless_actions_status
             .get()
@@ -188,10 +190,12 @@ impl PermissionlessActions for AppchainAnchor {
                     permissionless_actions_status.distributing_reward_era_number = None;
                     self.permissionless_actions_status
                         .set(&permissionless_actions_status);
+                    MultiTxsOperationProcessingResult::Ok
+                } else {
+                    MultiTxsOperationProcessingResult::NeedMoreGas
                 }
-                completed
             }
-            None => true,
+            None => MultiTxsOperationProcessingResult::Ok,
         }
     }
 }
