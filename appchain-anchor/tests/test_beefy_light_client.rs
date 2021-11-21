@@ -3,8 +3,8 @@ use std::{collections::HashMap, convert::TryInto};
 use appchain_anchor::{
     types::{
         AnchorSettings, AnchorStatus, AppchainMessageProcessingResult, AppchainSettings,
-        AppchainState, ProtocolSettings, ValidatorMerkleProof, ValidatorSetInfo,
-        ValidatorSetProcessingStatus,
+        AppchainState, MultiTxsOperationProcessingResult, ProtocolSettings, ValidatorMerkleProof,
+        ValidatorSetInfo, ValidatorSetProcessingStatus,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -298,6 +298,7 @@ fn test_beefy_light_client() {
     ];
     let result = lifecycle_actions::initialize_beefy_light_client(&root, &anchor, public_keys);
     result.assert_success();
+    common::print_latest_appchain_commitment(&anchor);
     //
     // Go live
     //
@@ -345,6 +346,9 @@ fn test_beefy_light_client() {
     // Update state of beefy light client
     //
     update_state_of_beefy_light_client_1(&anchor, &users[4]);
+    common::print_latest_appchain_commitment(&anchor);
+    update_state_of_beefy_light_client_2(&anchor, &users[1]);
+    common::print_latest_appchain_commitment(&anchor);
     //
     // Try start and complete switching era1
     //
@@ -741,7 +745,7 @@ fn update_state_of_beefy_light_client_1(
     let mmr_proof_1 = MmrLeafProof::decode(&mut &encoded_mmr_proof_1[..]);
     println!("mmr_proof_1: {:?}", mmr_proof_1);
     //
-    let result = permissionless_actions::update_state_of_beefy_light_client(
+    let result = permissionless_actions::start_updating_state_of_beefy_light_client(
         &user,
         &anchor,
         encoded_signed_commitment_1.to_vec(),
@@ -750,4 +754,117 @@ fn update_state_of_beefy_light_client_1(
         encoded_mmr_proof_1.to_vec(),
     );
     result.assert_success();
+    let result =
+        permissionless_actions::try_complete_updating_state_of_beefy_light_client(&user, &anchor);
+    println!(
+        "Result of 'try_complete_updating_state_of_beefy_light_client': {}",
+        serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
+    )
+}
+
+fn update_state_of_beefy_light_client_2(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    user: &UserAccount,
+) {
+    let alice_pk = beefy_ecdsa_to_ethereum(
+        &hex!("020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1")[..],
+    );
+    let bob_pk = beefy_ecdsa_to_ethereum(
+        &hex!("0390084fdbf27d2b79d26a4f13f0ccd982cb755a661969143c37cbc49ef5b91f27")[..],
+    );
+    let charlie_pk = beefy_ecdsa_to_ethereum(
+        &hex!("0389411795514af1627765eceffcbd002719f031604fadd7d188e2dc585b4e1afb")[..],
+    );
+    let dave_pk = beefy_ecdsa_to_ethereum(
+        &hex!("03bc9d0ca094bd5b8b3225d7651eac5d18c1c04bf8ae8f8b263eebca4e1410ed0c")[..],
+    );
+    let eve_pk = beefy_ecdsa_to_ethereum(
+        &hex!("031d10105e323c4afce225208f71a6441ee327a65b9e646e772500c74d31f669aa")[..],
+    );
+
+    let encoded_signed_commitment_2 = hex!("8d3cb96dca5110aff60423046bbf4a76db0e71158aa5586ffa3423fbaf9ef1da1100000000000000000000001401864ce4553324cc92db4ac622b9dbb031a6a4bd26ee1ab66e0272f567928865ec46847b55f98fa7e1dbafb0256f0a23e2f0a375e4547f5d1819d9b8694f17f6a80101c9ae8aad1b81e2249736324716c09c122889317e4f3e47066c501a839c15312e5c823dd37436d8e3bac8041329c5d0ed5dd94c45b5c1eed13d9111924f0a13c1000159fe06519c672d183de7776b6902a13c098d917721b5600a2296dca3a74a81bc01031a671fdb5e5050ff1f432d72e7a2c144ab38f8401ffd368e693257162a4600014290c6aa5028ceb3a3a773c80beee2821f3a7f5b43f592f7a82b0cbbbfab5ba41363daae5a7006fea2f89a30b4900f85fa82283587df789fd7b5b773ad7e8c410100");
+    let signed_commitment_2 = SignedCommitment::decode(&mut &encoded_signed_commitment_2[..]);
+    println!("signed_commitment_2: {:?}", signed_commitment_2);
+
+    let validator_proofs_2 = vec![
+        ValidatorMerkleProof {
+            root: hex!("304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a2").into(),
+            proof: vec![
+                hex!("f68aec7304bf37f340dae2ea20fb5271ee28a3128812b84a615da4789e458bde").into(),
+                hex!("93c6c7e160154c8467b700c291a1d4da94ae9aaf1c5010003a6aa3e9b18657ab").into(),
+                hex!("55ca68207e72b7a7cd012364e03ac9ee560eb1b26de63f0ee42a649d74f3bf58").into(),
+            ],
+            number_of_leaves: 5,
+            leaf_index: 0,
+            leaf: alice_pk,
+        },
+        ValidatorMerkleProof {
+            root: hex!("304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a2").into(),
+            proof: vec![
+                hex!("aeb47a269393297f4b0a3c9c9cfd00c7a4195255274cf39d83dabc2fcc9ff3d7").into(),
+                hex!("93c6c7e160154c8467b700c291a1d4da94ae9aaf1c5010003a6aa3e9b18657ab").into(),
+                hex!("55ca68207e72b7a7cd012364e03ac9ee560eb1b26de63f0ee42a649d74f3bf58").into(),
+            ],
+            number_of_leaves: 5,
+            leaf_index: 1,
+            leaf: bob_pk,
+        },
+        ValidatorMerkleProof {
+            root: hex!("304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a2").into(),
+            proof: vec![
+                hex!("50bdd3ac4f54a04702a055c33303025b2038446c7334ed3b3341f310f052116f").into(),
+                hex!("697ea2a8fe5b03468548a7a413424a6292ab44a82a6f5cc594c3fa7dda7ce402").into(),
+                hex!("55ca68207e72b7a7cd012364e03ac9ee560eb1b26de63f0ee42a649d74f3bf58").into(),
+            ],
+            number_of_leaves: 5,
+            leaf_index: 2,
+            leaf: charlie_pk,
+        },
+        ValidatorMerkleProof {
+            root: hex!("304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a2").into(),
+            proof: vec![
+                hex!("3eb799651607280e854bd2e42c1df1c8e4a6167772dfb3c64a813e40f6e87136").into(),
+                hex!("697ea2a8fe5b03468548a7a413424a6292ab44a82a6f5cc594c3fa7dda7ce402").into(),
+                hex!("55ca68207e72b7a7cd012364e03ac9ee560eb1b26de63f0ee42a649d74f3bf58").into(),
+            ],
+            number_of_leaves: 5,
+            leaf_index: 3,
+            leaf: dave_pk,
+        },
+        ValidatorMerkleProof {
+            root: hex!("304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a2").into(),
+            proof: vec![
+                hex!("2145814fb41496b2881ca364a06e320fd1bf2fa7b94e1e37325cefbe29056519").into(),
+            ],
+            number_of_leaves: 5,
+            leaf_index: 4,
+            leaf: eve_pk,
+        },
+    ];
+
+    let encoded_mmr_leaf_2 = hex!("c5010010000000d0a3a930e5f3b0f997c3794023c86f8ba28c6ba2cacf230d08d46be0fdf29435010000000000000005000000304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a20000000000000000000000000000000000000000000000000000000000000000");
+
+    let leaf: Vec<u8> = Decode::decode(&mut &encoded_mmr_leaf_2[..]).unwrap();
+    let mmr_leaf_2: MmrLeaf = Decode::decode(&mut &*leaf).unwrap();
+    println!("mmr_leaf_2: {:?}", mmr_leaf_2);
+
+    let encoded_mmr_proof_2 =  hex!("10000000000000001100000000000000048a766e1ab001e2ff796517dcfbff957a751c994aff4c3ba9447a46d88ec2ef15");
+    let mmr_proof_2 = MmrLeafProof::decode(&mut &encoded_mmr_proof_2[..]);
+    println!("mmr_proof_2: {:?}", mmr_proof_2);
+    //
+    let result = permissionless_actions::start_updating_state_of_beefy_light_client(
+        &user,
+        &anchor,
+        encoded_signed_commitment_2.to_vec(),
+        validator_proofs_2,
+        encoded_mmr_leaf_2.to_vec(),
+        encoded_mmr_proof_2.to_vec(),
+    );
+    result.assert_success();
+    let result =
+        permissionless_actions::try_complete_updating_state_of_beefy_light_client(&user, &anchor);
+    println!(
+        "Result of 'try_complete_updating_state_of_beefy_light_client': {}",
+        serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
+    )
 }

@@ -2,6 +2,7 @@ mod anchor_event_histories;
 mod anchor_viewer;
 mod appchain_lifecycle;
 mod appchain_notification_histories;
+mod beefy_light_client_state;
 mod message_decoder;
 mod near_fungible_tokens;
 mod owner_actions;
@@ -21,6 +22,7 @@ use std::convert::TryInto;
 
 use appchain_notification_histories::AppchainNotificationHistories;
 use beefy_light_client::LightClient;
+use beefy_light_client_state::BeefyLightClientState;
 use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -60,7 +62,7 @@ const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 5 * T_GAS;
 const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 5 * T_GAS;
 const GAS_FOR_RESOLVER_FUNCTION: u64 = 5 * T_GAS;
 const GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 40 * T_GAS;
-const GAS_CAP_FOR_COMPLETE_SWITCHING_ERA: Gas = 180 * T_GAS;
+const GAS_CAP_FOR_MULTI_TXS_PROCESSING: Gas = 180 * T_GAS;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.
@@ -163,7 +165,7 @@ pub struct AppchainAnchor {
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
-    beefy_light_client_state: LazyOption<LightClient>,
+    beefy_light_client_state: BeefyLightClientState,
 }
 
 impl Default for AppchainAnchor {
@@ -257,10 +259,7 @@ impl AppchainAnchor {
                     distributing_reward_era_number: Option::None,
                 }),
             ),
-            beefy_light_client_state: LazyOption::new(
-                StorageKey::BeefyLightClientState.into_bytes(),
-                None,
-            ),
+            beefy_light_client_state: BeefyLightClientState::new(),
         }
     }
     // Assert that the contract called by the owner.

@@ -32,13 +32,17 @@ pub enum AppchainEvent {
 
 pub trait PermissionlessActions {
     ///
-    fn update_state_of_beefy_light_client(
+    fn start_updating_state_of_beefy_light_client(
         &mut self,
         signed_commitment: Vec<u8>,
         validator_proofs: Vec<ValidatorMerkleProof>,
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
     );
+    ///
+    fn try_complete_updating_state_of_beefy_light_client(
+        &mut self,
+    ) -> MultiTxsOperationProcessingResult;
     ///
     fn verify_and_apply_appchain_messages(
         &mut self,
@@ -64,8 +68,8 @@ impl ValidatorMerkleProof {
         MerkleProof {
             root: self.root,
             proof: self.proof,
-            number_of_leaves: self.number_of_leaves,
-            leaf_index: self.leaf_index,
+            number_of_leaves: usize::try_from(self.number_of_leaves).unwrap(),
+            leaf_index: usize::try_from(self.leaf_index).unwrap(),
             leaf: self.leaf,
         }
     }
@@ -74,29 +78,25 @@ impl ValidatorMerkleProof {
 #[near_bindgen]
 impl PermissionlessActions for AppchainAnchor {
     ///
-    fn update_state_of_beefy_light_client(
+    fn start_updating_state_of_beefy_light_client(
         &mut self,
         signed_commitment: Vec<u8>,
         validator_proofs: Vec<ValidatorMerkleProof>,
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
     ) {
-        assert!(
-            self.beefy_light_client_state.is_some(),
-            "Beefy light client is not initialized."
+        self.beefy_light_client_state.start_updating_state(
+            signed_commitment,
+            validator_proofs,
+            mmr_leaf,
+            mmr_proof,
         );
-        let mut light_client = self.beefy_light_client_state.get().unwrap();
-        let mut proofs = Vec::new();
-        for validator_proof in validator_proofs {
-            proofs.push(validator_proof.to_merkle_proof());
-        }
-        assert!(
-            light_client
-                .update_state(&signed_commitment, proofs, &mmr_leaf, &mmr_proof)
-                .is_ok(),
-            "Invalid state data for beefy light client."
-        );
-        self.beefy_light_client_state.set(&light_client);
+    }
+    //
+    fn try_complete_updating_state_of_beefy_light_client(
+        &mut self,
+    ) -> MultiTxsOperationProcessingResult {
+        self.beefy_light_client_state.try_complete_updating_state()
     }
     //
     fn verify_and_apply_appchain_messages(
@@ -106,16 +106,11 @@ impl PermissionlessActions for AppchainAnchor {
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
     ) -> Vec<AppchainMessageProcessingResult> {
-        assert!(
-            self.beefy_light_client_state.is_some(),
-            "Beefy light client is not initialized."
-        );
-        let light_client = self.beefy_light_client_state.get().unwrap();
-        assert!(
-            light_client
-                .verify_solochain_messages(&encoded_messages, &header, &mmr_leaf, &mmr_proof)
-                .is_ok(),
-            "Invalid appchain messages."
+        self.beefy_light_client_state.verify_solochain_messages(
+            &encoded_messages,
+            &header,
+            &mmr_leaf,
+            &mmr_proof,
         );
         let messages = message_decoder::decode(encoded_messages);
         messages
@@ -306,7 +301,7 @@ impl AppchainAnchor {
                         validator_set_histories.get(&(era_number - 1)).unwrap();
                     let mut validator_index = copying_validator_index.0;
                     let mut delegator_index = copying_delegator_index.0;
-                    while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA {
+                    while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                         match self.copy_delegator_to_validator_set(
                             &last_validator_set,
                             &mut validator_set,
@@ -347,7 +342,7 @@ impl AppchainAnchor {
                 false
             }
             ValidatorSetProcessingStatus::ApplyingStakingHistory { mut applying_index } => {
-                while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA
+                while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING
                     && applying_index.0 <= validator_set.staking_history_index
                 {
                     let staking_history = self
@@ -655,7 +650,7 @@ impl AppchainAnchor {
                 let mut validator_index = distributing_validator_index.0;
                 let mut delegator_index = distributing_delegator_index.0;
                 let era_reward = self.appchain_settings.get().unwrap().era_reward;
-                while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA {
+                while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                     match self.distribute_reward_in_validator_set(
                         &mut validator_set,
                         validator_index,

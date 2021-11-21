@@ -479,6 +479,14 @@ pub enum AppchainMessageProcessingResult {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub enum MultiTxsOperationProcessingResult {
+    NeedMoreGas,
+    Ok,
+    Error(String),
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct ValidatorMerkleProof {
     /// Root hash of generated merkle tree.
     pub root: Hash,
@@ -491,9 +499,17 @@ pub struct ValidatorMerkleProof {
     ///
     /// This is needed to detect a case where we have an odd number of leaves that "get promoted"
     /// to upper layers.
-    pub number_of_leaves: usize,
+    pub number_of_leaves: u32,
     /// Index of the leaf the proof is for (0-based).
-    pub leaf_index: usize,
+    pub leaf_index: u32,
     /// Leaf content.
     pub leaf: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AppchainCommitment {
+    pub payload: Hash,
+    pub block_number: u64,
+    pub validator_set_id: u32,
 }

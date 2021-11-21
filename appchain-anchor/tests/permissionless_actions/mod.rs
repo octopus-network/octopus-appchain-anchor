@@ -1,4 +1,7 @@
-use appchain_anchor::{types::ValidatorMerkleProof, AppchainAnchorContract};
+use appchain_anchor::{
+    types::{MultiTxsOperationProcessingResult, ValidatorMerkleProof},
+    AppchainAnchorContract,
+};
 use near_sdk_sim::{call, ContractAccount, ExecutionResult, UserAccount};
 
 use crate::common;
@@ -21,7 +24,7 @@ pub fn try_complete_distributing_reward(
     result
 }
 
-pub fn update_state_of_beefy_light_client(
+pub fn start_updating_state_of_beefy_light_client(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
     signed_commitment: Vec<u8>,
@@ -31,15 +34,31 @@ pub fn update_state_of_beefy_light_client(
 ) -> ExecutionResult {
     let result = call!(
         signer,
-        anchor.update_state_of_beefy_light_client(
+        anchor.start_updating_state_of_beefy_light_client(
             signed_commitment,
             validator_proofs,
             mmr_leaf,
             mmr_proof
         )
     );
-    common::print_execution_result("update_state_of_beefy_light_client", &result);
+    common::print_execution_result("strat_updating_state_of_beefy_light_client", &result);
     result
+}
+
+pub fn try_complete_updating_state_of_beefy_light_client(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> MultiTxsOperationProcessingResult {
+    let result = call!(
+        signer,
+        anchor.try_complete_updating_state_of_beefy_light_client()
+    );
+    common::print_execution_result("try_complete_updating_state_of_beefy_light_client", &result);
+    if !result.is_ok() {
+        println!("{:#?}", result);
+    }
+    assert!(result.is_ok());
+    result.unwrap_json::<MultiTxsOperationProcessingResult>()
 }
 
 pub fn verify_and_apply_appchain_messages(
