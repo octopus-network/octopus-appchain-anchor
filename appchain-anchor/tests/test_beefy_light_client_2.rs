@@ -296,6 +296,7 @@ fn test_beefy_light_client_2() {
     // Initialize beefy light client
     //
     update_state_of_beefy_light_client_max(&anchor, &root);
+    common::print_latest_appchain_commitment(&anchor);
     //
     // Go live
     //

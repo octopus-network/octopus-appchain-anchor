@@ -627,12 +627,14 @@ impl AnchorViewer for AppchainAnchor {
     }
     //
     fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment> {
-        if let Some(commitment) = self.beefy_light_client_state.get_latest_commitment() {
-            return Some(AppchainCommitment {
-                payload: commitment.payload,
-                block_number: commitment.block_number,
-                validator_set_id: commitment.validator_set_id,
-            });
+        if let Some(light_client) = self.beefy_light_client_state.get() {
+            if let Some(commitment) = light_client.get_latest_commitment() {
+                return Some(AppchainCommitment {
+                    payload: commitment.payload,
+                    block_number: commitment.block_number,
+                    validator_set_id: commitment.validator_set_id,
+                });
+            }
         }
         None
     }

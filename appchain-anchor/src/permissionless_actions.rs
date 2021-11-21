@@ -63,18 +63,6 @@ enum ResultOfLoopingValidatorSet {
     NeedToContinue,
 }
 
-impl ValidatorMerkleProof {
-    pub fn to_merkle_proof(self) -> MerkleProof<Vec<u8>> {
-        MerkleProof {
-            root: self.root,
-            proof: self.proof,
-            number_of_leaves: usize::try_from(self.number_of_leaves).unwrap(),
-            leaf_index: usize::try_from(self.leaf_index).unwrap(),
-            leaf: self.leaf,
-        }
-    }
-}
-
 #[near_bindgen]
 impl PermissionlessActions for AppchainAnchor {
     ///
@@ -85,18 +73,58 @@ impl PermissionlessActions for AppchainAnchor {
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
     ) {
-        self.beefy_light_client_state.start_updating_state(
-            signed_commitment,
-            validator_proofs,
-            mmr_leaf,
-            mmr_proof,
-        );
+        self.assert_light_client_is_ready();
+        let mut light_client = self.beefy_light_client_state.get().unwrap();
+        if let Err(err) = light_client.start_updating_state(
+            &signed_commitment,
+            &validator_proofs
+                .iter()
+                .map(|proof| beefy_light_client::ValidatorMerkleProof {
+                    proof: proof.proof.clone(),
+                    number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
+                    leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
+                    leaf: proof.leaf.clone(),
+                })
+                .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
+            &mmr_leaf,
+            &mmr_proof,
+        ) {
+            panic!(
+                "Failed to start updating state of beefy light client: {:?}",
+                err
+            );
+        }
+        self.beefy_light_client_state.set(&light_client);
     }
     //
     fn try_complete_updating_state_of_beefy_light_client(
         &mut self,
     ) -> MultiTxsOperationProcessingResult {
-        self.beefy_light_client_state.try_complete_updating_state()
+        self.assert_light_client_initialized();
+        let mut light_client = self.beefy_light_client_state.get().unwrap();
+        if !light_client.is_updating_state() {
+            return MultiTxsOperationProcessingResult::Ok;
+        }
+        loop {
+            match light_client.complete_updating_state(1) {
+                Ok(flag) => match flag {
+                    true => {
+                        self.beefy_light_client_state.set(&light_client);
+                        return MultiTxsOperationProcessingResult::Ok;
+                    }
+                    false => (),
+                },
+                Err(err) => {
+                    self.beefy_light_client_state.set(&light_client);
+                    return MultiTxsOperationProcessingResult::Error(format!("{:?}", err));
+                }
+            }
+            if env::used_gas() > GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+                break;
+            }
+        }
+        self.beefy_light_client_state.set(&light_client);
+        MultiTxsOperationProcessingResult::NeedMoreGas
     }
     //
     fn verify_and_apply_appchain_messages(
@@ -106,12 +134,16 @@ impl PermissionlessActions for AppchainAnchor {
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
     ) -> Vec<AppchainMessageProcessingResult> {
-        self.beefy_light_client_state.verify_solochain_messages(
+        self.assert_light_client_is_ready();
+        let light_client = self.beefy_light_client_state.get().unwrap();
+        if let Err(err) = light_client.verify_solochain_messages(
             &encoded_messages,
             &header,
             &mmr_leaf,
             &mmr_proof,
-        );
+        ) {
+            panic!("Failed in verifying appchain messages: {:?}", err);
+        }
         let messages = message_decoder::decode(encoded_messages);
         messages
             .iter()

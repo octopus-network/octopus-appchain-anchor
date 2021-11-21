@@ -2,7 +2,6 @@ mod anchor_event_histories;
 mod anchor_viewer;
 mod appchain_lifecycle;
 mod appchain_notification_histories;
-mod beefy_light_client_state;
 mod message_decoder;
 mod near_fungible_tokens;
 mod owner_actions;
@@ -22,7 +21,6 @@ use std::convert::TryInto;
 
 use appchain_notification_histories::AppchainNotificationHistories;
 use beefy_light_client::LightClient;
-use beefy_light_client_state::BeefyLightClientState;
 use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -45,7 +43,7 @@ pub use staking::StakingManager;
 pub use validator_actions::ValidatorActions;
 pub use wrapped_appchain_token::WrappedAppchainTokenManager;
 
-use beefy_light_client::{Hash, MerkleProof};
+use beefy_light_client::Hash;
 use near_fungible_tokens::NearFungibleTokens;
 use staking::{StakingHistories, UnbondedStakeReference};
 use storage_key::StorageKey;
@@ -165,7 +163,7 @@ pub struct AppchainAnchor {
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
-    beefy_light_client_state: BeefyLightClientState,
+    beefy_light_client_state: LazyOption<LightClient>,
 }
 
 impl Default for AppchainAnchor {
@@ -259,7 +257,10 @@ impl AppchainAnchor {
                     distributing_reward_era_number: Option::None,
                 }),
             ),
-            beefy_light_client_state: BeefyLightClientState::new(),
+            beefy_light_client_state: LazyOption::new(
+                StorageKey::BeefyLightClientState.into_bytes(),
+                None,
+            ),
         }
     }
     // Assert that the contract called by the owner.
@@ -309,6 +310,26 @@ impl AppchainAnchor {
             validator_id
         );
     }
+    ///
+    fn assert_light_client_initialized(&self) {
+        assert!(
+            self.beefy_light_client_state.is_some(),
+            "Beefy light client is not initialized."
+        );
+    }
+    ///
+    fn assert_light_client_is_ready(&self) {
+        self.assert_light_client_initialized();
+        assert!(
+            !self
+                .beefy_light_client_state
+                .get()
+                .unwrap()
+                .is_updating_state(),
+            "Beefy light client is updating state."
+        );
+    }
+
     /// Set the price (in USD) of OCT token
     pub fn set_price_of_oct_token(&mut self, price: U128) {
         let anchor_settings = self.anchor_settings.get().unwrap();
