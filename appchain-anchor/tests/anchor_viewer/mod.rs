@@ -1,5 +1,5 @@
 use appchain_anchor::types::{
-    AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainDelegator,
+    AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
     AppchainNotificationHistory, AppchainSettings, AppchainState, AppchainValidator, IndexRange,
     ProtocolSettings, RewardHistory, StakingHistory, UnbondedStake, ValidatorProfile,
     ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
@@ -291,4 +291,15 @@ pub fn get_delegator_rewards_of(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Vec<RewardHistory>>()
+}
+
+pub fn get_latest_commitment_of_appchain(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> Option<AppchainCommitment> {
+    let view_result = view!(anchor.get_latest_commitment_of_appchain());
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Option<AppchainCommitment>>()
 }

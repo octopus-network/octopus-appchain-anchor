@@ -1,5 +1,4 @@
 use crate::message_decoder::AppchainMessage;
-use crate::message_decoder::ProofDecoder;
 use crate::*;
 use core::convert::{TryFrom, TryInto};
 use staking::UnbondedStakeReference;
@@ -33,12 +32,24 @@ pub enum AppchainEvent {
 
 pub trait PermissionlessActions {
     ///
+    fn start_updating_state_of_beefy_light_client(
+        &mut self,
+        signed_commitment: Vec<u8>,
+        validator_proofs: Vec<ValidatorMerkleProof>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    );
+    ///
+    fn try_complete_updating_state_of_beefy_light_client(
+        &mut self,
+    ) -> MultiTxsOperationProcessingResult;
+    ///
     fn verify_and_apply_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
-        header_partial: Vec<u8>,
-        leaf_proof: Vec<u8>,
-        mmr_root: Vec<u8>,
+        header: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
     ) -> Vec<AppchainMessageProcessingResult>;
     ///
     fn try_complete_switching_era(&mut self) -> bool;
@@ -54,15 +65,86 @@ enum ResultOfLoopingValidatorSet {
 
 #[near_bindgen]
 impl PermissionlessActions for AppchainAnchor {
+    ///
+    fn start_updating_state_of_beefy_light_client(
+        &mut self,
+        signed_commitment: Vec<u8>,
+        validator_proofs: Vec<ValidatorMerkleProof>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    ) {
+        self.assert_light_client_is_ready();
+        let mut light_client = self.beefy_light_client_state.get().unwrap();
+        if let Err(err) = light_client.start_updating_state(
+            &signed_commitment,
+            &validator_proofs
+                .iter()
+                .map(|proof| beefy_light_client::ValidatorMerkleProof {
+                    proof: proof.proof.clone(),
+                    number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
+                    leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
+                    leaf: proof.leaf.clone(),
+                })
+                .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
+            &mmr_leaf,
+            &mmr_proof,
+        ) {
+            panic!(
+                "Failed to start updating state of beefy light client: {:?}",
+                err
+            );
+        }
+        self.beefy_light_client_state.set(&light_client);
+    }
+    //
+    fn try_complete_updating_state_of_beefy_light_client(
+        &mut self,
+    ) -> MultiTxsOperationProcessingResult {
+        self.assert_light_client_initialized();
+        let mut light_client = self.beefy_light_client_state.get().unwrap();
+        if !light_client.is_updating_state() {
+            return MultiTxsOperationProcessingResult::Ok;
+        }
+        loop {
+            match light_client.complete_updating_state(1) {
+                Ok(flag) => match flag {
+                    true => {
+                        self.beefy_light_client_state.set(&light_client);
+                        return MultiTxsOperationProcessingResult::Ok;
+                    }
+                    false => (),
+                },
+                Err(err) => {
+                    self.beefy_light_client_state.set(&light_client);
+                    return MultiTxsOperationProcessingResult::Error(format!("{:?}", err));
+                }
+            }
+            if env::used_gas() > GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+                break;
+            }
+        }
+        self.beefy_light_client_state.set(&light_client);
+        MultiTxsOperationProcessingResult::NeedMoreGas
+    }
     //
     fn verify_and_apply_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
-        header_partial: Vec<u8>,
-        leaf_proof: Vec<u8>,
-        mmr_root: Vec<u8>,
+        header: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
     ) -> Vec<AppchainMessageProcessingResult> {
-        let messages = self.decode(encoded_messages);
+        self.assert_light_client_is_ready();
+        let light_client = self.beefy_light_client_state.get().unwrap();
+        if let Err(err) = light_client.verify_solochain_messages(
+            &encoded_messages,
+            &header,
+            &mmr_leaf,
+            &mmr_proof,
+        ) {
+            panic!("Failed in verifying appchain messages: {:?}", err);
+        }
+        let messages = message_decoder::decode(encoded_messages);
         messages
             .iter()
             .map(|m| self.internal_apply_appchain_message(m.clone()))
@@ -251,7 +333,7 @@ impl AppchainAnchor {
                         validator_set_histories.get(&(era_number - 1)).unwrap();
                     let mut validator_index = copying_validator_index.0;
                     let mut delegator_index = copying_delegator_index.0;
-                    while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA {
+                    while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                         match self.copy_delegator_to_validator_set(
                             &last_validator_set,
                             &mut validator_set,
@@ -292,7 +374,7 @@ impl AppchainAnchor {
                 false
             }
             ValidatorSetProcessingStatus::ApplyingStakingHistory { mut applying_index } => {
-                while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA
+                while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING
                     && applying_index.0 <= validator_set.staking_history_index
                 {
                     let staking_history = self
@@ -600,7 +682,7 @@ impl AppchainAnchor {
                 let mut validator_index = distributing_validator_index.0;
                 let mut delegator_index = distributing_delegator_index.0;
                 let era_reward = self.appchain_settings.get().unwrap().era_reward;
-                while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA {
+                while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                     match self.distribute_reward_in_validator_set(
                         &mut validator_set,
                         validator_index,

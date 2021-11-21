@@ -2,8 +2,8 @@ use std::convert::TryInto;
 
 use appchain_anchor::{
     types::{
-        AnchorStatus, AppchainMessageProcessingResult, ValidatorProfile, ValidatorSetInfo,
-        ValidatorSetProcessingStatus, WrappedAppchainToken,
+        AnchorStatus, AppchainCommitment, AppchainMessageProcessingResult, ValidatorProfile,
+        ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -467,6 +467,14 @@ pub fn print_unbonded_stakes_of(
         );
         index += 1;
     }
+}
+
+pub fn print_latest_appchain_commitment(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let appchain_commitment = anchor_viewer::get_latest_commitment_of_appchain(&anchor);
+    println!(
+        "Latest appchain commitment: {}",
+        serde_json::to_string::<Option<AppchainCommitment>>(&appchain_commitment).unwrap()
+    );
 }
 
 pub fn switch_era(

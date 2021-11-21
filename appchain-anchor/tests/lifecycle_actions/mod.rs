@@ -20,3 +20,16 @@ pub fn go_live(
     common::print_execution_result("go_live", &result);
     result
 }
+
+pub fn initialize_beefy_light_client(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    initial_public_keys: Vec<String>,
+) -> ExecutionResult {
+    let result = call!(
+        signer,
+        anchor.initialize_beefy_light_client(initial_public_keys)
+    );
+    common::print_execution_result("initialize_beefy_light_client", &result);
+    result
+}
