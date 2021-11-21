@@ -283,6 +283,12 @@ fn test_wrapped_appchain_token_bridging() {
     common::print_validator_list_of(&anchor, Some(0));
     common::print_delegator_list_of(&anchor, 0, &users[0]);
     //
+    // Initialize beefy light client
+    //
+    let result =
+        lifecycle_actions::initialize_beefy_light_client(&root, &anchor, vec!["0x00".to_string()]);
+    result.assert_success();
+    //
     // Go live
     //
     let result = lifecycle_actions::go_live(&root, &anchor);

@@ -9,19 +9,27 @@ use crate::common;
 pub fn try_complete_switching_era(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-) -> ExecutionResult {
+) -> MultiTxsOperationProcessingResult {
     let result = call!(signer, anchor.try_complete_switching_era());
     common::print_execution_result("try_complete_switching_era", &result);
-    result
+    if !result.is_ok() {
+        println!("{:#?}", result);
+    }
+    assert!(result.is_ok());
+    result.unwrap_json::<MultiTxsOperationProcessingResult>()
 }
 
 pub fn try_complete_distributing_reward(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-) -> ExecutionResult {
+) -> MultiTxsOperationProcessingResult {
     let result = call!(signer, anchor.try_complete_distributing_reward());
     common::print_execution_result("try_complete_distributing_reward", &result);
-    result
+    if !result.is_ok() {
+        println!("{:#?}", result);
+    }
+    assert!(result.is_ok());
+    result.unwrap_json::<MultiTxsOperationProcessingResult>()
 }
 
 pub fn start_updating_state_of_beefy_light_client(

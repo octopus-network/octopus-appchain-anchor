@@ -3,7 +3,8 @@ use std::{collections::HashMap, convert::TryInto};
 use appchain_anchor::{
     types::{
         AnchorSettings, AnchorStatus, AppchainMessageProcessingResult, AppchainSettings,
-        AppchainState, ProtocolSettings, ValidatorSetInfo, ValidatorSetProcessingStatus,
+        AppchainState, MultiTxsOperationProcessingResult, ProtocolSettings, ValidatorSetInfo,
+        ValidatorSetProcessingStatus,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -358,6 +359,12 @@ fn test_staking_actions() {
     common::print_validator_list_of(&anchor, Some(0));
     common::print_delegator_list_of(&anchor, 0, &users[0]);
     //
+    // Initialize beefy light client
+    //
+    let result =
+        lifecycle_actions::initialize_beefy_light_client(&root, &anchor, vec!["0x00".to_string()]);
+    result.assert_success();
+    //
     // Go live
     //
     let result = lifecycle_actions::go_live(&root, &anchor);
@@ -619,7 +626,7 @@ fn distribute_reward_of(
         let result = permissionless_actions::try_complete_distributing_reward(root, anchor);
         println!(
             "Try complete switching era: {}",
-            result.unwrap_json_value().as_bool().unwrap()
+            serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
         );
         let processing_status =
             anchor_viewer::get_processing_status_of(anchor, u64::from(era_number));
@@ -628,7 +635,7 @@ fn distribute_reward_of(
             era_number,
             serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
         );
-        if result.unwrap_json_value().as_bool().unwrap() {
+        if result.eq(&MultiTxsOperationProcessingResult::Ok) {
             break;
         }
     }

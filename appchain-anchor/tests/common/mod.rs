@@ -2,8 +2,9 @@ use std::convert::TryInto;
 
 use appchain_anchor::{
     types::{
-        AnchorStatus, AppchainCommitment, AppchainMessageProcessingResult, ValidatorProfile,
-        ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
+        AnchorStatus, AppchainCommitment, AppchainMessageProcessingResult,
+        MultiTxsOperationProcessingResult, ValidatorProfile, ValidatorSetInfo,
+        ValidatorSetProcessingStatus, WrappedAppchainToken,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -507,7 +508,7 @@ pub fn switch_era(
         let result = permissionless_actions::try_complete_switching_era(root, &anchor);
         println!(
             "Try complete switching era: {}",
-            result.unwrap_json_value().as_bool().unwrap()
+            serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
         );
         let processing_status =
             anchor_viewer::get_processing_status_of(anchor, u64::from(era_number));
@@ -516,7 +517,7 @@ pub fn switch_era(
             era_number,
             serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
         );
-        if result.unwrap_json_value().as_bool().unwrap() {
+        if result.eq(&MultiTxsOperationProcessingResult::Ok) {
             break;
         }
     }
