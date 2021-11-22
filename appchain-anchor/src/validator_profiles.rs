@@ -22,6 +22,12 @@ impl ValidatorProfiles {
     }
     ///
     pub fn insert(&mut self, validator_profile: ValidatorProfile) {
+        if let Some(old_profile) = self.profiles.get(&validator_profile.validator_id) {
+            if !old_profile.validator_id_in_appchain.is_empty() {
+                self.map_by_id_in_appchain
+                    .remove(&old_profile.validator_id_in_appchain);
+            }
+        }
         self.validator_id_set
             .insert(&validator_profile.validator_id);
         self.profiles
