@@ -1,5 +1,24 @@
 # Change notes
 
+## 20211123
+
+* Add interface enum in module `types`:
+
+```rust
+pub enum BeefyLightClientStatus {
+    Uninitialized,
+    UpdatingState,
+    Ready,
+}
+```
+
+* Add view function `get_beefy_light_client_status`:
+
+```rust
+    ///
+    fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus;
+```
+
 ## 20211121
 
 * Add the following interface data structs in module `types`:

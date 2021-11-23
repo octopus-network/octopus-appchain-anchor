@@ -111,6 +111,8 @@ pub trait AnchorViewer {
     ) -> Option<ValidatorProfile>;
     /// Get the latest commitment data of appchain state
     fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment>;
+    ///
+    fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus;
 }
 
 #[near_bindgen]
@@ -637,5 +639,17 @@ impl AnchorViewer for AppchainAnchor {
             }
         }
         None
+    }
+    //
+    fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus {
+        if let Some(light_client) = self.beefy_light_client_state.get() {
+            if light_client.is_updating_state() {
+                BeefyLightClientStatus::UpdatingState
+            } else {
+                BeefyLightClientStatus::Ready
+            }
+        } else {
+            BeefyLightClientStatus::Uninitialized
+        }
     }
 }

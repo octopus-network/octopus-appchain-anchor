@@ -508,6 +508,14 @@ pub struct ValidatorMerkleProof {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub enum BeefyLightClientStatus {
+    Uninitialized,
+    UpdatingState,
+    Ready,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct AppchainCommitment {
     pub payload: Hash,
     pub block_number: U64,
