@@ -1,6 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, log, near_bindgen, AccountId, Balance, PanicOnDefault};
+use near_sdk::{env, json_types::U128, log, near_bindgen, AccountId, PanicOnDefault};
 
 near_sdk::setup_alloc!();
 
@@ -58,14 +58,14 @@ impl MockAppchainRegistry {
         appchain_id: AppchainId,
         appchain_state: AppchainState,
         validator_count: u32,
-        total_stake: Balance,
+        total_stake: U128,
     ) {
         log!(
             "Appchain state sync received from anchor of appchain '{}': {:#?}, {}, {}",
             &appchain_id,
             &appchain_state,
             &validator_count,
-            &total_stake,
+            &total_stake.0,
         );
     }
 }

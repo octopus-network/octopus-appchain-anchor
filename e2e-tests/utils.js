@@ -7,10 +7,6 @@ const utils = {
       .toString(),
   toPrice: (origin) =>
     new BigNumber(origin).times(new BigNumber('1000000')).toString(),
-  toOctValuePrice: (origin) =>
-    new BigNumber(origin)
-      .times(new BigNumber('1000000000000000000000000'))
-      .toString(),
   toYocto: (origin) =>
     new BigNumber(origin)
       .times(new BigNumber('1000000000000000000000000'))

@@ -1,5 +1,4 @@
 use crate::message_decoder::AppchainMessage;
-use crate::message_decoder::ProofDecoder;
 use crate::*;
 use core::convert::{TryFrom, TryInto};
 use staking::UnbondedStakeReference;
@@ -22,33 +21,40 @@ pub enum AppchainEvent {
         amount: U128,
     },
     /// The fact that the era switch is planed in the appchain.
-    EraSwitchPlaned { era_number: U64 },
+    EraSwitchPlaned { era_number: u32 },
     /// The fact that the total reward and unprofitable validator list
     /// is concluded in the appchain.
     EraRewardConcluded {
-        era_number: U64,
+        era_number: u32,
         unprofitable_validator_ids: Vec<String>,
-    },
-    /// The era reward is changed in the appchain
-    EraRewardChanged {
-        era_number: U64,
-        era_reward: Balance,
     },
 }
 
 pub trait PermissionlessActions {
     ///
+    fn start_updating_state_of_beefy_light_client(
+        &mut self,
+        signed_commitment: Vec<u8>,
+        validator_proofs: Vec<ValidatorMerkleProof>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    );
+    ///
+    fn try_complete_updating_state_of_beefy_light_client(
+        &mut self,
+    ) -> MultiTxsOperationProcessingResult;
+    ///
     fn verify_and_apply_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
-        header_partial: Vec<u8>,
-        leaf_proof: Vec<u8>,
-        mmr_root: Vec<u8>,
-    );
+        header: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    ) -> Vec<AppchainMessageProcessingResult>;
     ///
-    fn try_complete_switching_era(&mut self) -> bool;
+    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult;
     ///
-    fn try_complete_distributing_reward(&mut self) -> bool;
+    fn try_complete_distributing_reward(&mut self) -> MultiTxsOperationProcessingResult;
 }
 
 enum ResultOfLoopingValidatorSet {
@@ -59,21 +65,93 @@ enum ResultOfLoopingValidatorSet {
 
 #[near_bindgen]
 impl PermissionlessActions for AppchainAnchor {
+    ///
+    fn start_updating_state_of_beefy_light_client(
+        &mut self,
+        signed_commitment: Vec<u8>,
+        validator_proofs: Vec<ValidatorMerkleProof>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    ) {
+        self.assert_light_client_is_ready();
+        let mut light_client = self.beefy_light_client_state.get().unwrap();
+        if let Err(err) = light_client.start_updating_state(
+            &signed_commitment,
+            &validator_proofs
+                .iter()
+                .map(|proof| beefy_light_client::ValidatorMerkleProof {
+                    proof: proof.proof.clone(),
+                    number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
+                    leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
+                    leaf: proof.leaf.clone(),
+                })
+                .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
+            &mmr_leaf,
+            &mmr_proof,
+        ) {
+            panic!(
+                "Failed to start updating state of beefy light client: {:?}",
+                err
+            );
+        }
+        self.beefy_light_client_state.set(&light_client);
+    }
+    //
+    fn try_complete_updating_state_of_beefy_light_client(
+        &mut self,
+    ) -> MultiTxsOperationProcessingResult {
+        self.assert_light_client_initialized();
+        let mut light_client = self.beefy_light_client_state.get().unwrap();
+        if !light_client.is_updating_state() {
+            return MultiTxsOperationProcessingResult::Ok;
+        }
+        loop {
+            match light_client.complete_updating_state(1) {
+                Ok(flag) => match flag {
+                    true => {
+                        self.beefy_light_client_state.set(&light_client);
+                        return MultiTxsOperationProcessingResult::Ok;
+                    }
+                    false => (),
+                },
+                Err(err) => {
+                    self.beefy_light_client_state.set(&light_client);
+                    return MultiTxsOperationProcessingResult::Error(format!("{:?}", err));
+                }
+            }
+            if env::used_gas() > GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+                break;
+            }
+        }
+        self.beefy_light_client_state.set(&light_client);
+        MultiTxsOperationProcessingResult::NeedMoreGas
+    }
     //
     fn verify_and_apply_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
-        header_partial: Vec<u8>,
-        leaf_proof: Vec<u8>,
-        mmr_root: Vec<u8>,
-    ) {
-        let messages = self.decode(encoded_messages);
-        messages.iter().for_each(|m| {
-            self.internal_apply_appchain_message(m.clone());
-        })
+        header: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    ) -> Vec<AppchainMessageProcessingResult> {
+        self.assert_light_client_is_ready();
+        let light_client = self.beefy_light_client_state.get().unwrap();
+        if let Err(err) = light_client.verify_solochain_messages(
+            &encoded_messages,
+            &header,
+            &mmr_leaf,
+            &mmr_proof,
+        ) {
+            panic!("Failed in verifying appchain messages: {:?}", err);
+        }
+        let messages = message_decoder::decode(encoded_messages);
+        messages
+            .iter()
+            .map(|m| self.internal_apply_appchain_message(m.clone()))
+            .collect::<Vec<AppchainMessageProcessingResult>>()
     }
     //
-    fn try_complete_switching_era(&mut self) -> bool {
+    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult {
         match self
             .permissionless_actions_status
             .get()
@@ -88,14 +166,16 @@ impl PermissionlessActions for AppchainAnchor {
                     permissionless_actions_status.switching_era_number = None;
                     self.permissionless_actions_status
                         .set(&permissionless_actions_status);
+                    MultiTxsOperationProcessingResult::Ok
+                } else {
+                    MultiTxsOperationProcessingResult::NeedMoreGas
                 }
-                completed
             }
-            None => true,
+            None => MultiTxsOperationProcessingResult::Ok,
         }
     }
     //
-    fn try_complete_distributing_reward(&mut self) -> bool {
+    fn try_complete_distributing_reward(&mut self) -> MultiTxsOperationProcessingResult {
         match self
             .permissionless_actions_status
             .get()
@@ -110,32 +190,35 @@ impl PermissionlessActions for AppchainAnchor {
                     permissionless_actions_status.distributing_reward_era_number = None;
                     self.permissionless_actions_status
                         .set(&permissionless_actions_status);
+                    MultiTxsOperationProcessingResult::Ok
+                } else {
+                    MultiTxsOperationProcessingResult::NeedMoreGas
                 }
-                completed
             }
-            None => true,
+            None => MultiTxsOperationProcessingResult::Ok,
         }
     }
 }
 
 impl AppchainAnchor {
     /// Apply a certain `AppchainMessage`
-    pub fn internal_apply_appchain_message(&mut self, appchain_message: AppchainMessage) {
+    pub fn internal_apply_appchain_message(
+        &mut self,
+        appchain_message: AppchainMessage,
+    ) -> AppchainMessageProcessingResult {
         match appchain_message.appchain_event {
             permissionless_actions::AppchainEvent::NearFungibleTokenBurnt {
                 symbol,
                 owner_id_in_appchain,
                 receiver_id_in_near,
                 amount,
-            } => {
-                self.internal_unlock_near_fungible_token(
-                    owner_id_in_appchain,
-                    symbol,
-                    receiver_id_in_near,
-                    amount,
-                    appchain_message.nonce,
-                );
-            }
+            } => self.internal_unlock_near_fungible_token(
+                owner_id_in_appchain,
+                symbol,
+                receiver_id_in_near,
+                amount,
+                appchain_message.nonce,
+            ),
             permissionless_actions::AppchainEvent::NativeTokenLocked {
                 owner_id_in_appchain,
                 receiver_id_in_near,
@@ -154,57 +237,64 @@ impl AppchainAnchor {
                         )
                         / 100
                 {
+                    let message = format!("Too much wrapped appchain token to mint.");
                     self.internal_append_anchor_event(
                         AnchorEvent::FailedToMintWrappedAppchainToken {
                             sender_id_in_appchain: Some(owner_id.to_string()),
                             receiver_id_in_near,
                             amount,
                             appchain_message_nonce: appchain_message.nonce,
-                            reason: format!("Too much wrapped appchain token to mint."),
+                            reason: message.clone(),
                         },
                     );
+                    AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message,
+                    }
                 } else {
                     self.internal_mint_wrapped_appchain_token(
                         Some(owner_id.to_string()),
                         receiver_id_in_near,
                         amount,
                         appchain_message.nonce,
-                    );
+                    )
                 }
             }
             permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
-                self.internal_start_switching_era(era_number.0);
+                self.internal_start_switching_era(u64::from(era_number), appchain_message.nonce)
             }
             permissionless_actions::AppchainEvent::EraRewardConcluded {
                 era_number,
                 unprofitable_validator_ids,
-            } => {
-                self.internal_start_distributing_reward_of_era(
-                    appchain_message.nonce,
-                    era_number.0,
-                    unprofitable_validator_ids,
-                );
-            }
-            permissionless_actions::AppchainEvent::EraRewardChanged {
-                era_number,
-                era_reward,
-            } => todo!(),
+            } => self.internal_start_distributing_reward_of_era(
+                appchain_message.nonce,
+                u64::from(era_number),
+                unprofitable_validator_ids,
+            ),
         }
     }
 }
 
 impl AppchainAnchor {
     //
-    pub fn internal_start_switching_era(&mut self, era_number: u64) {
+    pub fn internal_start_switching_era(
+        &mut self,
+        era_number: u64,
+        appchain_message_nonce: u32,
+    ) -> AppchainMessageProcessingResult {
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
-        assert!(
-            permissionless_actions_status.switching_era_number.is_none(),
-            "Contract is still switching to era {}.",
-            permissionless_actions_status
-                .switching_era_number
-                .unwrap()
-                .0
-        );
+        if permissionless_actions_status.switching_era_number.is_some() {
+            return AppchainMessageProcessingResult::Error {
+                nonce: appchain_message_nonce,
+                message: format!(
+                    "Contract is still switching to era {}.",
+                    permissionless_actions_status
+                        .switching_era_number
+                        .unwrap()
+                        .0
+                ),
+            };
+        }
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         if !validator_set_histories.contains(&era_number) {
             validator_set_histories.insert(
@@ -222,9 +312,12 @@ impl AppchainAnchor {
             self.validator_set_histories.set(&validator_set_histories);
         }
         permissionless_actions_status.switching_era_number = Some(U64::from(era_number));
-        self.complete_switching_era(era_number);
         self.permissionless_actions_status
             .set(&permissionless_actions_status);
+        AppchainMessageProcessingResult::Ok {
+            nonce: appchain_message_nonce,
+            message: None,
+        }
     }
     //
     fn complete_switching_era(&mut self, era_number: u64) -> bool {
@@ -244,7 +337,7 @@ impl AppchainAnchor {
                         validator_set_histories.get(&(era_number - 1)).unwrap();
                     let mut validator_index = copying_validator_index.0;
                     let mut delegator_index = copying_delegator_index.0;
-                    while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA {
+                    while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                         match self.copy_delegator_to_validator_set(
                             &last_validator_set,
                             &mut validator_set,
@@ -285,7 +378,7 @@ impl AppchainAnchor {
                 false
             }
             ValidatorSetProcessingStatus::ApplyingStakingHistory { mut applying_index } => {
-                while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA
+                while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING
                     && applying_index.0 <= validator_set.staking_history_index
                 {
                     let staking_history = self
@@ -491,42 +584,54 @@ impl AppchainAnchor {
         appchain_message_nonce: u32,
         era_number: u64,
         unprofitable_validator_ids: Vec<String>,
-    ) {
+    ) -> AppchainMessageProcessingResult {
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
-        assert!(
-            permissionless_actions_status
-                .distributing_reward_era_number
-                .is_none(),
-            "Contract is still distributing reward for era {}.",
-            permissionless_actions_status
-                .distributing_reward_era_number
-                .unwrap()
-                .0
-        );
+        if permissionless_actions_status
+            .distributing_reward_era_number
+            .is_some()
+        {
+            return AppchainMessageProcessingResult::Error {
+                nonce: appchain_message_nonce,
+                message: format!(
+                    "Contract is still distributing reward for era {}.",
+                    permissionless_actions_status
+                        .distributing_reward_era_number
+                        .unwrap()
+                        .0
+                ),
+            };
+        }
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        assert!(
-            validator_set_histories.contains(&era_number),
-            "Validator set is not existed."
-        );
+        if !validator_set_histories.contains(&era_number) {
+            return AppchainMessageProcessingResult::Error {
+                nonce: appchain_message_nonce,
+                message: format!("Validator set is not existed."),
+            };
+        }
         let mut validator_set = validator_set_histories.get(&era_number).unwrap();
-        assert!(
-            validator_set
-                .processing_status
-                .eq(&ValidatorSetProcessingStatus::ReadyForDistributingReward),
-            "Validator set is not ready for distributing reward."
-        );
+        if validator_set
+            .processing_status
+            .ne(&ValidatorSetProcessingStatus::ReadyForDistributingReward)
+        {
+            return AppchainMessageProcessingResult::Error {
+                nonce: appchain_message_nonce,
+                message: format!("Validator set is not ready for distributing reward."),
+            };
+        }
         let mut unprofitable_validator_ids_in_near = Vec::<AccountId>::new();
         let validator_profiles = self.validator_profiles.get().unwrap();
         for id_in_appchain in unprofitable_validator_ids {
             let account_id_in_appchain = AccountIdInAppchain::new(Some(id_in_appchain.clone()));
             account_id_in_appchain.assert_valid();
-            assert!(
-                validator_profiles
-                    .get_by_id_in_appchain(&account_id_in_appchain.to_string())
-                    .is_some(),
-                "Invalid validator id in appchain: '{}'",
-                id_in_appchain
-            );
+            if validator_profiles
+                .get_by_id_in_appchain(&account_id_in_appchain.to_string())
+                .is_none()
+            {
+                return AppchainMessageProcessingResult::Error {
+                    nonce: appchain_message_nonce,
+                    message: format!("Invalid validator id in appchain: '{}'", id_in_appchain),
+                };
+            }
             unprofitable_validator_ids_in_near.push(
                 validator_profiles
                     .get_by_id_in_appchain(&account_id_in_appchain.to_string())
@@ -544,8 +649,6 @@ impl AppchainAnchor {
         permissionless_actions_status.distributing_reward_era_number = Some(U64::from(era_number));
         self.permissionless_actions_status
             .set(&permissionless_actions_status);
-        // Start distributing reward of this era
-        self.complete_distributing_reward_of_era(era_number);
         // Mint `total_reward` in the contract of wrapped appchain token.
         let appchain_settings = self.appchain_settings.get().unwrap();
         self.internal_mint_wrapped_appchain_token(
@@ -554,6 +657,10 @@ impl AppchainAnchor {
             appchain_settings.era_reward,
             appchain_message_nonce,
         );
+        AppchainMessageProcessingResult::Ok {
+            nonce: appchain_message_nonce,
+            message: None,
+        }
     }
     //
     fn complete_distributing_reward_of_era(&mut self, era_number: u64) -> bool {
@@ -579,7 +686,7 @@ impl AppchainAnchor {
                 let mut validator_index = distributing_validator_index.0;
                 let mut delegator_index = distributing_delegator_index.0;
                 let era_reward = self.appchain_settings.get().unwrap().era_reward;
-                while env::used_gas() < GAS_CAP_FOR_COMPLETE_SWITCHING_ERA {
+                while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                     match self.distribute_reward_in_validator_set(
                         &mut validator_set,
                         validator_index,

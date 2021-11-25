@@ -1,8 +1,16 @@
 use crate::*;
 
+use beefy_light_client::commitment::Commitment;
+use beefy_light_client::validator_set::BeefyNextAuthoritySet;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct OldLightClient {
+    latest_commitment: Option<Commitment>,
+    validator_set: BeefyNextAuthoritySet,
+}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
@@ -43,8 +51,12 @@ pub struct OldAppchainAnchor {
     pub staking_histories: LazyOption<StakingHistories>,
     /// The anchor events data.
     pub anchor_event_histories: LazyOption<AnchorEventHistories>,
+    /// The appchain notification history data.
+    pub appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
     /// The status of permissionless actions
     pub permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
+    /// The state of beefy light client
+    pub beefy_light_client_state: LazyOption<OldLightClient>,
 }
 
 #[near_bindgen]
@@ -60,7 +72,6 @@ impl AppchainAnchor {
             &old_contract.owner,
             "Can only be called by the owner"
         );
-
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -81,13 +92,14 @@ impl AppchainAnchor {
             appchain_state: old_contract.appchain_state,
             staking_histories: old_contract.staking_histories,
             anchor_event_histories: old_contract.anchor_event_histories,
-            appchain_notification_histories: LazyOption::new(
-                StorageKey::AppchainNotificationHistories.into_bytes(),
-                Some(&AppchainNotificationHistories::new()),
-            ),
+            appchain_notification_histories: old_contract.appchain_notification_histories,
             permissionless_actions_status: old_contract.permissionless_actions_status,
+            beefy_light_client_state: LazyOption::new(
+                StorageKey::BeefyLightClientState.into_bytes(),
+                None,
+            ),
         };
-
+        //
         new_contract
     }
 }

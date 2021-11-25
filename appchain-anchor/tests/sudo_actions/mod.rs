@@ -1,17 +1,28 @@
-use appchain_anchor::{AppchainAnchorContract, AppchainMessage};
-use near_sdk::json_types::U64;
+use appchain_anchor::{
+    types::AppchainMessageProcessingResult, AppchainAnchorContract, AppchainMessage,
+};
+use near_sdk::{json_types::U64, serde_json};
 use near_sdk_sim::{call, ContractAccount, ExecutionResult, UserAccount};
 
 use crate::common;
 
-pub fn apply_appchain_message(
+pub fn apply_appchain_messages(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    message: AppchainMessage,
-) -> ExecutionResult {
-    let result = call!(signer, anchor.apply_appchain_message(message));
-    common::print_execution_result("apply_appchain_message", &result);
-    result
+    messages: Vec<AppchainMessage>,
+) -> Vec<AppchainMessageProcessingResult> {
+    messages.iter().for_each(|message| {
+        println!(
+            "Appchain message: {}",
+            serde_json::to_string::<AppchainMessage>(&message).unwrap()
+        );
+    });
+    let result = call!(signer, anchor.apply_appchain_messages(messages));
+    if !result.is_ok() {
+        println!("{:#?}", result);
+    }
+    assert!(result.is_ok());
+    result.unwrap_json::<Vec<AppchainMessageProcessingResult>>()
 }
 
 pub fn remove_validator_set_before(

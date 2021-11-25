@@ -109,6 +109,10 @@ pub trait AnchorViewer {
         &self,
         validator_id_in_appchain: String,
     ) -> Option<ValidatorProfile>;
+    /// Get the latest commitment data of appchain state
+    fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment>;
+    ///
+    fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus;
 }
 
 #[near_bindgen]
@@ -289,7 +293,7 @@ impl AnchorViewer for AppchainAnchor {
             true => index_range.start_index.0,
             false => start_index.0,
         };
-        let mut end_index = index_range.start_index.0
+        let mut end_index = start_index
             + match quantity {
                 Some(quantity) => match quantity.0 > 50 {
                     true => 49,
@@ -622,5 +626,30 @@ impl AnchorViewer for AppchainAnchor {
             .get()
             .unwrap()
             .get_by_id_in_appchain(&formatted_id.to_string())
+    }
+    //
+    fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment> {
+        if let Some(light_client) = self.beefy_light_client_state.get() {
+            if let Some(commitment) = light_client.get_latest_commitment() {
+                return Some(AppchainCommitment {
+                    payload: commitment.payload,
+                    block_number: U64::from(commitment.block_number),
+                    validator_set_id: commitment.validator_set_id,
+                });
+            }
+        }
+        None
+    }
+    //
+    fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus {
+        if let Some(light_client) = self.beefy_light_client_state.get() {
+            if light_client.is_updating_state() {
+                BeefyLightClientStatus::UpdatingState
+            } else {
+                BeefyLightClientStatus::Ready
+            }
+        } else {
+            BeefyLightClientStatus::Uninitialized
+        }
     }
 }

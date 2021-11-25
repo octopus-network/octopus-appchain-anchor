@@ -132,7 +132,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
             amount,
             &env::current_account_id(),
             0,
-            env::prepaid_gas() / 4,
+            GAS_FOR_RESOLVER_FUNCTION,
         ));
     }
 }
@@ -145,11 +145,12 @@ impl AppchainAnchor {
         receiver_id: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
-    ) {
+    ) -> AppchainMessageProcessingResult {
+        let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         ext_fungible_token::mint(
             receiver_id.clone(),
             amount,
-            &self.wrapped_appchain_token.get().unwrap().contract_account,
+            &wrapped_appchain_token.contract_account,
             STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
             GAS_FOR_MINT_FUNGIBLE_TOKEN,
         )
@@ -160,8 +161,15 @@ impl AppchainAnchor {
             appchain_message_nonce,
             &env::current_account_id(),
             0,
-            env::prepaid_gas() / 4,
+            GAS_FOR_RESOLVER_FUNCTION,
         ));
+        AppchainMessageProcessingResult::Ok {
+            nonce: appchain_message_nonce,
+            message: Some(format!(
+                "Need to confirm result of 'mint' on account '{}'.",
+                wrapped_appchain_token.contract_account
+            )),
+        }
     }
 }
 

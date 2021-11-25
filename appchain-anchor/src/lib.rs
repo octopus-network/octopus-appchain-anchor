@@ -20,6 +20,8 @@ mod wrapped_appchain_token;
 use std::convert::TryInto;
 
 use appchain_notification_histories::AppchainNotificationHistories;
+use beefy_light_client::LightClient;
+use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
@@ -41,6 +43,7 @@ pub use staking::StakingManager;
 pub use validator_actions::ValidatorActions;
 pub use wrapped_appchain_token::WrappedAppchainTokenManager;
 
+use beefy_light_client::Hash;
 use near_fungible_tokens::NearFungibleTokens;
 use staking::{StakingHistories, UnbondedStakeReference};
 use storage_key::StorageKey;
@@ -48,13 +51,16 @@ use types::*;
 use validator_profiles::ValidatorProfiles;
 use validator_set::{ValidatorSet, ValidatorSetHistories};
 
+register_custom_getrandom!(get_random_in_near);
+
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
-const GAS_FOR_FT_TRANSFER_CALL: u64 = 60 * T_GAS;
-const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 80 * T_GAS;
-const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 80 * T_GAS;
+const GAS_FOR_FT_TRANSFER_CALL: u64 = 15 * T_GAS;
+const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10 * T_GAS;
+const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 10 * T_GAS;
+const GAS_FOR_RESOLVER_FUNCTION: u64 = 5 * T_GAS;
 const GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 40 * T_GAS;
-const GAS_CAP_FOR_COMPLETE_SWITCHING_ERA: Gas = 180 * T_GAS;
+const GAS_CAP_FOR_MULTI_TXS_PROCESSING: Gas = 180 * T_GAS;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.
@@ -67,25 +73,25 @@ const NANO_SECONDS_MULTIPLE: u64 = 1_000_000_000;
 const STORAGE_DEPOSIT_FOR_NEP141_TOEKN: Balance = 12_500_000_000_000_000_000_000;
 
 #[ext_contract(ext_fungible_token)]
-trait FungibleToken {
+trait FungibleTokenInterface {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
     fn mint(&mut self, account_id: AccountId, amount: U128);
     fn burn(&mut self, account_id: AccountId, amount: U128);
 }
 
 #[ext_contract(ext_appchain_registry)]
-trait AppchainRegistry {
+trait AppchainRegistryInterface {
     fn sync_state_of(
         &mut self,
         appchain_id: AppchainId,
         appchain_state: AppchainState,
         validator_count: u32,
-        total_stake: Balance,
+        total_stake: U128,
     );
 }
 
 #[ext_contract(ext_self)]
-trait FungibleTokenContractResolver {
+trait ResolverForSelfCallback {
     /// Resolver for burning wrapped appchain token
     fn resolve_wrapped_appchain_token_burning(
         &mut self,
@@ -156,6 +162,8 @@ pub struct AppchainAnchor {
     appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
+    /// The state of beefy light client
+    beefy_light_client_state: LazyOption<LightClient>,
 }
 
 impl Default for AppchainAnchor {
@@ -214,10 +222,8 @@ impl AppchainAnchor {
             appchain_settings: LazyOption::new(
                 StorageKey::AppchainSettings.into_bytes(),
                 Some(&AppchainSettings {
-                    chain_spec: String::new(),
-                    raw_chain_spec: String::new(),
-                    boot_nodes: String::new(),
                     rpc_endpoint: String::new(),
+                    subql_endpoint: String::new(),
                     era_reward: U128::from(0),
                 }),
             ),
@@ -250,6 +256,10 @@ impl AppchainAnchor {
                     switching_era_number: Option::None,
                     distributing_reward_era_number: Option::None,
                 }),
+            ),
+            beefy_light_client_state: LazyOption::new(
+                StorageKey::BeefyLightClientState.into_bytes(),
+                None,
             ),
         }
     }
@@ -300,6 +310,26 @@ impl AppchainAnchor {
             validator_id
         );
     }
+    ///
+    fn assert_light_client_initialized(&self) {
+        assert!(
+            self.beefy_light_client_state.is_some(),
+            "Beefy light client is not initialized."
+        );
+    }
+    ///
+    fn assert_light_client_is_ready(&self) {
+        self.assert_light_client_initialized();
+        assert!(
+            !self
+                .beefy_light_client_state
+                .get()
+                .unwrap()
+                .is_updating_state(),
+            "Beefy light client is updating state."
+        );
+    }
+
     /// Set the price (in USD) of OCT token
     pub fn set_price_of_oct_token(&mut self, price: U128) {
         let anchor_settings = self.anchor_settings.get().unwrap();
@@ -391,10 +421,16 @@ impl AppchainAnchor {
                 .len()
                 .try_into()
                 .unwrap(),
-            next_validator_set.total_stake,
+            U128::from(next_validator_set.total_stake),
             &self.appchain_registry,
             0,
             GAS_FOR_SYNC_STATE_TO_REGISTRY,
         );
     }
+}
+
+pub fn get_random_in_near(buf: &mut [u8]) -> Result<(), Error> {
+    let random = env::random_seed();
+    buf.copy_from_slice(&random);
+    Ok(())
 }

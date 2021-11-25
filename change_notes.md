@@ -1,5 +1,144 @@
 # Change notes
 
+## 20211123
+
+* Add interface enum in module `types`:
+
+```rust
+pub enum BeefyLightClientStatus {
+    Uninitialized,
+    UpdatingState,
+    Ready,
+}
+```
+
+* Add view function `get_beefy_light_client_status`:
+
+```rust
+    ///
+    fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus;
+```
+
+## 20211121
+
+* Add the following interface data structs in module `types`:
+
+```rust
+pub enum MultiTxsOperationProcessingResult {
+    NeedMoreGas,
+    Ok,
+    Error(String),
+}
+
+pub struct ValidatorMerkleProof {
+    /// Root hash of generated merkle tree.
+    pub root: Hash,
+    /// Proof items (does not contain the leaf hash, nor the root obviously).
+    ///
+    /// This vec contains all inner node hashes necessary to reconstruct the root hash given the
+    /// leaf hash.
+    pub proof: Vec<Hash>,
+    /// Number of leaves in the original tree.
+    ///
+    /// This is needed to detect a case where we have an odd number of leaves that "get promoted"
+    /// to upper layers.
+    pub number_of_leaves: u32,
+    /// Index of the leaf the proof is for (0-based).
+    pub leaf_index: u32,
+    /// Leaf content.
+    pub leaf: Vec<u8>,
+}
+
+pub struct AppchainCommitment {
+    pub payload: Hash,
+    pub block_number: U64,
+    pub validator_set_id: u32,
+}
+```
+
+* Change permissionless function `update_state_of_beefy_light_client` to the following permissionless functions:
+
+```rust
+    ///
+    fn start_updating_state_of_beefy_light_client(
+        &mut self,
+        signed_commitment: Vec<u8>,
+        validator_proofs: Vec<ValidatorMerkleProof>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    );
+    ///
+    fn try_complete_updating_state_of_beefy_light_client(
+        &mut self,
+    ) -> MultiTxsOperationProcessingResult;
+```
+
+* Add view function `get_latest_commitment_of_appchain`:
+
+```rust
+    /// Get the latest commitment data of appchain state
+    fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment>;
+```
+
+* Change data type of return value of function `try_complete_switching_era` and `try_complete_distributing_reward`:
+
+```rust
+    ///
+    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult;
+    ///
+    fn try_complete_distributing_reward(&mut self) -> MultiTxsOperationProcessingResult;
+```
+
+## 20211116
+
+* Integrated implementation of beefy light client (by a crate in workspace).
+* Add function `initialize_beefy_light_client`. It can only be called by owner account while the appchain is in `booting` state.
+
+```rust
+    fn initialize_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
+```
+
+* Add permissionless function `update_state_of_beefy_light_client`.
+
+```rust
+    fn update_state_of_beefy_light_client(
+        &mut self,
+        payload: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    );
+```
+
+* Change param names of function `verify_and_apply_appchain_messages`.
+
+```rust
+    fn verify_and_apply_appchain_messages(
+        &mut self,
+        encoded_messages: Vec<u8>,
+        header: Vec<u8>,
+        mmr_leaf: Vec<u8>,
+        mmr_proof: Vec<u8>,
+    ) -> Vec<AppchainMessageProcessingResult>;
+```
+
+## 20211107
+
+* Remove `boot_nodes`, `chain_spec`, `raw_chain_spec` from `AppchainSettings`.
+* Remove function `set_boot_nodes`, `set_chain_spec`, `set_raw_chain_spec`.
+* Add `subql_endpoint` to `AppchainSettings`.
+* Add function `set_subql_endpoint`.
+* Add field `should_distribute_rewards` to `AppchainEvent::EraRewardConcluded`.
+* Add data type `AppchainMessageProcessingResult`:
+
+```rust
+pub enum AppchainMessageProcessingResult {
+    Ok { nonce: u32, message: Option<String> },
+    Error { nonce: u32, message: String },
+}
+```
+
+* Add return value `Vec<AppchainMessageProcessingResult>` to function `verify_and_apply_appchain_messages`. As this function need to process multiple appchain messages, the process of single `AppchainMessage` will return a `AppchainMessageProcessingResult` now rather than making the whole function call fail.
+
 ## 20211103
 
 * Add data type for appchain notification:

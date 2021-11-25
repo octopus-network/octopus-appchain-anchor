@@ -5,6 +5,8 @@ pub trait AppchainLifecycleManager {
     fn go_booting(&mut self);
     /// Verify and change the state of corresponding appchain to `active`.
     fn go_live(&mut self);
+    /// Initialize the beefy light client
+    fn initialize_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
 }
 
 #[near_bindgen]
@@ -15,7 +17,7 @@ impl AppchainLifecycleManager for AppchainAnchor {
         assert_eq!(
             self.appchain_state,
             AppchainState::Staging,
-            "Appchain state is not 'staging'."
+            "Appchain state must be 'staging'."
         );
         let protocol_settings = self.protocol_settings.get().unwrap();
         let validator_set = self.next_validator_set.get().unwrap();
@@ -30,7 +32,7 @@ impl AppchainLifecycleManager for AppchainAnchor {
             "Not enough stake deposited in anchor."
         );
         self.appchain_state = AppchainState::Booting;
-        self.internal_start_switching_era(0);
+        self.internal_start_switching_era(0, 0);
         self.sync_state_to_registry();
     }
     //
@@ -39,7 +41,7 @@ impl AppchainLifecycleManager for AppchainAnchor {
         assert_eq!(
             self.appchain_state,
             AppchainState::Booting,
-            "Appchain state is not 'booting'."
+            "Appchain state must be 'booting'."
         );
         let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         assert!(
@@ -55,12 +57,27 @@ impl AppchainLifecycleManager for AppchainAnchor {
         );
         let appchain_settings = self.appchain_settings.get().unwrap();
         assert!(
-            !(appchain_settings.boot_nodes.trim().is_empty()
-                || appchain_settings.rpc_endpoint.trim().is_empty()
+            !(appchain_settings.rpc_endpoint.trim().is_empty()
                 || appchain_settings.era_reward.0 == 0),
             "Missing appchain settings."
         );
+        self.assert_light_client_initialized();
         self.appchain_state = AppchainState::Active;
         self.sync_state_to_registry();
+    }
+    //
+    fn initialize_beefy_light_client(&mut self, initial_public_keys: Vec<String>) {
+        self.assert_owner();
+        assert_eq!(
+            self.appchain_state,
+            AppchainState::Booting,
+            "Appchain state must be 'booting'."
+        );
+        assert!(
+            self.beefy_light_client_state.is_none(),
+            "Beefy light client has already been initialized."
+        );
+        self.beefy_light_client_state
+            .set(&beefy_light_client::new(initial_public_keys));
     }
 }

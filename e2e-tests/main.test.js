@@ -2,10 +2,19 @@ const { toOctValue, toPrice, toOctValuePrice, toYocto } = utils;
 const CALL_GAS = '300000000000000';
 const USD_DECIMALS_VALUE = 1_000_000;
 
-let anchor, registry, oct;
-let anchorName, registryName, octName;
+let anchor, registry, oct, appchainToken;
+let anchorName, registryName, octName, wrappedAppchainToken;
 const vlds = [];
 const dlgs = [];
+const watMetadata = {
+  spec: 'ft-1.0.0',
+  name: 'WRAPPED_APPCHAIN_TOKEN',
+  symbol: 'WAT',
+  icon: null,
+  reference: null,
+  reference_hash: null,
+  decimals: 18
+}
 
 async function latestStakingHistory() {
   const indexRange = await anchor.get_index_range_of_staking_history();
@@ -15,7 +24,7 @@ async function latestStakingHistory() {
 }
 
 async function stake(caller, amount) {
-  const testValidatorIdInAppchain = new Array(64)
+  const testValidatorIdInAppchain = '0x' + new Array(64)
     .fill(1)
     .map(() => Math.floor(Math.random() * 16).toString(16))
     .join('');
@@ -27,6 +36,7 @@ async function stake(caller, amount) {
         RegisterValidator: {
           validator_id_in_appchain: testValidatorIdInAppchain,
           can_be_delegated_to: true,
+          profile: {},
         },
       }),
     },
@@ -42,6 +52,7 @@ beforeAll(async function () {
   anchorName = nearConfig.anchorName;
   registryName = nearConfig.registryName;
   octName = nearConfig.octName;
+  wrappedAppchainToken = nearConfig.wrappedAppchainToken;
 
   anchor = window.anchor = await near.loadContract(anchorName, {
     ...anchorMethods,
@@ -54,6 +65,11 @@ beforeAll(async function () {
   });
   oct = window.oct = await near.loadContract(octName, {
     ...octMethods,
+    sender: masterAccount.accountId,
+  });
+  appchainToken = window.appchainToken = await near.loadContract(wrappedAppchainToken, {
+    viewMethods: [],
+    changeMethods: ['new'],
     sender: masterAccount.accountId,
   });
 
@@ -78,11 +94,11 @@ beforeAll(async function () {
   });
 
   await Promise.all(
-    new Array(2).fill(2).map(async (a) => {
-      vlds.push(await generateUser(near, 0));
+    new Array(2).fill(2).map(async (item, index) => {
+      vlds.push(await generateUser(near, `vld-${index}`));
     })
   );
-  dlgs.push(await generateUser(near, 0));
+  dlgs.push(await generateUser(near, `dlg-${0}`));
 
   await oct.storage_deposit({ account_id: anchorName }, CALL_GAS, toYocto('1'));
   await Promise.all(
@@ -116,59 +132,63 @@ test('test protocol_settings', async () => {
   const wantedProtocolSettings = {
     minimum_validator_deposit: toOctValue('1250'),
     minimum_delegator_deposit: toOctValue('25'),
-    minimum_total_stake_price_for_booting: toOctValuePrice('3000'),
+    minimum_total_stake_price_for_booting: toPrice('3000'),
     maximum_market_value_percent_of_near_fungible_tokens: 40,
     maximum_market_value_percent_of_wrapped_appchain_token: 45,
     minimum_validator_count: '1',
+    maximum_validator_count: '33',
     maximum_validators_per_delegator: '2',
     unlock_period_of_validator_deposit: '10',
     unlock_period_of_delegator_deposit: '8',
     maximum_era_count_of_unwithdrawn_reward: '70',
     maximum_era_count_of_valid_appchain_message: '5',
-    delegation_fee_percent: 10,
+    validator_commission_percent: 10,
   };
   await Promise.all[
     (await anchor.change_minimum_validator_deposit({
       value: wantedProtocolSettings.minimum_validator_deposit,
     }),
-    await anchor.change_minimum_validator_deposit({
-      value: wantedProtocolSettings.minimum_validator_deposit,
-    }),
-    await anchor.change_minimum_delegator_deposit({
-      value: wantedProtocolSettings.minimum_delegator_deposit,
-    }),
-    await anchor.change_minimum_total_stake_price_for_booting({
-      value: wantedProtocolSettings.minimum_total_stake_price_for_booting,
-    }),
-    await anchor.change_maximum_market_value_percent_of_near_fungible_tokens({
-      value:
-        wantedProtocolSettings.maximum_market_value_percent_of_near_fungible_tokens,
-    }),
-    await anchor.change_maximum_market_value_percent_of_wrapped_appchain_token({
-      value:
-        wantedProtocolSettings.maximum_market_value_percent_of_wrapped_appchain_token,
-    }),
-    await anchor.change_minimum_validator_count({
-      value: wantedProtocolSettings.minimum_validator_count,
-    }),
-    await anchor.change_maximum_validators_per_delegator({
-      value: wantedProtocolSettings.maximum_validators_per_delegator,
-    }),
-    await anchor.change_unlock_period_of_validator_deposit({
-      value: wantedProtocolSettings.unlock_period_of_validator_deposit,
-    }),
-    await anchor.change_unlock_period_of_delegator_deposit({
-      value: wantedProtocolSettings.unlock_period_of_delegator_deposit,
-    }),
-    await anchor.change_maximum_era_count_of_unwithdrawn_reward({
-      value: wantedProtocolSettings.maximum_era_count_of_unwithdrawn_reward,
-    }),
-    await anchor.change_maximum_era_count_of_valid_appchain_message({
-      value: wantedProtocolSettings.maximum_era_count_of_valid_appchain_message,
-    }),
-    await anchor.change_delegation_fee_percent({
-      value: wantedProtocolSettings.delegation_fee_percent,
-    }))
+      await anchor.change_minimum_validator_deposit({
+        value: wantedProtocolSettings.minimum_validator_deposit,
+      }),
+      await anchor.change_minimum_delegator_deposit({
+        value: wantedProtocolSettings.minimum_delegator_deposit,
+      }),
+      await anchor.change_minimum_total_stake_price_for_booting({
+        value: wantedProtocolSettings.minimum_total_stake_price_for_booting,
+      }),
+      await anchor.change_maximum_market_value_percent_of_near_fungible_tokens({
+        value:
+          wantedProtocolSettings.maximum_market_value_percent_of_near_fungible_tokens,
+      }),
+      await anchor.change_maximum_market_value_percent_of_wrapped_appchain_token({
+        value:
+          wantedProtocolSettings.maximum_market_value_percent_of_wrapped_appchain_token,
+      }),
+      await anchor.change_minimum_validator_count({
+        value: wantedProtocolSettings.minimum_validator_count,
+      }),
+      await anchor.change_maximum_validator_count({
+        value: wantedProtocolSettings.maximum_validator_count,
+      }),
+      await anchor.change_maximum_validators_per_delegator({
+        value: wantedProtocolSettings.maximum_validators_per_delegator,
+      }),
+      await anchor.change_unlock_period_of_validator_deposit({
+        value: wantedProtocolSettings.unlock_period_of_validator_deposit,
+      }),
+      await anchor.change_unlock_period_of_delegator_deposit({
+        value: wantedProtocolSettings.unlock_period_of_delegator_deposit,
+      }),
+      await anchor.change_maximum_era_count_of_unwithdrawn_reward({
+        value: wantedProtocolSettings.maximum_era_count_of_unwithdrawn_reward,
+      }),
+      await anchor.change_maximum_era_count_of_valid_appchain_message({
+        value: wantedProtocolSettings.maximum_era_count_of_valid_appchain_message,
+      }),
+      await anchor.change_validator_commission_percent({
+        value: wantedProtocolSettings.validator_commission_percent,
+      }))
   ];
   const newProtocolSettings = await anchor.get_protocol_settings();
   expect(newProtocolSettings).toEqual(wantedProtocolSettings);
@@ -176,28 +196,21 @@ test('test protocol_settings', async () => {
 
 test('test appchain_settings', async () => {
   const wantedAppchainSetting = {
-    chain_spec: 'chain_spec_url_for_test',
-    raw_chain_spec: 'raw_chain_spec_url_for_test',
-    boot_nodes: `["/ip4/3.113.45.140/tcp/30333/p2p/12D3KooWAxYKgdmTczLioD1jkzMyaDuV2Q5VHBsJxPr5zEmHr8nY",   "/ip4/18.179.183.182/tcp/30333/p2p/12D3KooWSmLVShww4w9PVW17cCAS5C1JnXBU4NbY7FcGGjMyUGiq",   "/ip4/54.168.14.201/tcp/30333/p2p/12D3KooWT2umkS7F8GzUTLrfUzVBJPKn6YwCcuv6LBFQ27UPoo2Y",   "/ip4/35.74.18.116/tcp/30333/p2p/12D3KooWHNf9JxUZKHoF7rrsmorv86gonXSb2ZU44CbMsnBNFSAJ", ]`,
     rpc_endpoint: 'wss://test.rpc.testnet.oct.network:9944',
+    subql_endpoint: "test_url",
     era_reward: toOctValue('1.2'),
   };
   await Promise.all[
-    (await anchor.set_chain_spec({
-      chain_spec: wantedAppchainSetting.chain_spec,
-    }),
-    await anchor.set_raw_chain_spec({
-      raw_chain_spec: wantedAppchainSetting.raw_chain_spec,
-    }),
-    await anchor.set_boot_nodes({
-      boot_nodes: wantedAppchainSetting.boot_nodes,
-    }),
-    await anchor.set_rpc_endpoint({
-      rpc_endpoint: wantedAppchainSetting.rpc_endpoint,
-    }),
-    await anchor.set_era_reward({
-      era_reward: wantedAppchainSetting.era_reward,
-    }))
+    (
+      await anchor.set_rpc_endpoint({
+        rpc_endpoint: wantedAppchainSetting.rpc_endpoint,
+      }),
+      await anchor.set_subql_endpoint({
+        subql_endpoint: wantedAppchainSetting.subql_endpoint,
+      }),
+      await anchor.set_era_reward({
+        era_reward: wantedAppchainSetting.era_reward,
+      }))
   ];
   const newAnchorSettings = await anchor.get_appchain_settings();
   expect(newAnchorSettings).toEqual(wantedAppchainSetting);
@@ -259,13 +272,38 @@ test('test increase stake', async () => {
 });
 
 test('test go booting', async () => {
-  await anchor.go_booting();
+  await anchor.go_booting({}, CALL_GAS, 0);
   const appchainState = await anchor.get_appchain_state();
   expect(appchainState).toEqual('Booting');
 });
 
+test('test set wrapped_appchain_token', async () => {
+  await anchor.set_account_of_wrapped_appchain_token({
+    contract_account: wrappedAppchainToken
+  });
+  await anchor.set_metadata_of_wrapped_appchain_token({ metadata: watMetadata });
+  const appchainTokenResult = await anchor.get_wrapped_appchain_token();
+  console.log("appchainTokenResult", appchainTokenResult);
+  await anchor.set_premined_balance_of_wrapped_appchain_token({
+    premined_beneficiary: masterAccount.accountId,
+    premined_balance: toOctValue('5000'),
+  }
+  );
+  await appchainToken.new({
+    owner_id: anchorName,
+    premined_beneficiary: masterAccount.accountId,
+    premined_balance: toOctValue(100_000_000),
+    metadata: watMetadata,
+  },
+    CALL_GAS,
+    0
+  );
+  expect(appchainTokenResult.contract_account).toEqual(wrappedAppchainToken);
+  expect(appchainTokenResult.metadata).toEqual(watMetadata);
+});
+
 test('test go live', async () => {
-  await anchor.go_live();
+  await anchor.go_live({}, CALL_GAS, 0);
   const appchainState = await anchor.get_appchain_state();
   expect(appchainState).toEqual('Active');
 });
@@ -273,7 +311,7 @@ test('test go live', async () => {
 test('test decrease stake', async () => {
   await vlds[0].anchor.decrease_stake({
     amount: toOctValue('50'),
-  });
+  }, CALL_GAS, 0);
   const anchorStatus = await anchor.get_anchor_status();
   const stakingHistory = await latestStakingHistory();
   expect(anchorStatus.total_stake_in_next_era).toEqual(toOctValue('10000'));
@@ -342,7 +380,7 @@ test('test decrease delegation', async () => {
   await dlgs[0].anchor.decrease_delegation({
     validator_id: vlds[1].accountId,
     amount: toOctValue('300'),
-  });
+  }, CALL_GAS, 0);
   const anchorStatus = await anchor.get_anchor_status();
   const stakingHistory = await latestStakingHistory();
   expect(anchorStatus.total_stake_in_next_era).toEqual(toOctValue('12000'));
@@ -356,7 +394,7 @@ test('test decrease delegation', async () => {
 });
 
 test('test unbond validator', async () => {
-  await vlds[0].anchor.unbond_stake();
+  await vlds[0].anchor.unbond_stake({}, CALL_GAS, 0);
   const anchorStatus = await anchor.get_anchor_status();
   const unbondedStakes = await anchor.get_unbonded_stakes_of({
     account_id: masterAccount.accountId,
@@ -375,7 +413,7 @@ test('test unbond validator', async () => {
 test('test unbond delegator', async () => {
   await dlgs[0].anchor.unbond_delegation({
     validator_id: vlds[1].accountId,
-  });
+  }, CALL_GAS, 0);
   const anchorStatus = await anchor.get_anchor_status();
   const unbondedStakes = await anchor.get_unbonded_stakes_of({
     account_id: masterAccount.accountId,

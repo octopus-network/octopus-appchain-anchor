@@ -2,27 +2,43 @@ use std::{collections::HashMap, convert::TryInto};
 
 use appchain_anchor::{
     types::{
-        AnchorSettings, AppchainMessageProcessingResult, AppchainSettings, AppchainState,
-        ProtocolSettings, WrappedAppchainToken,
+        AnchorSettings, AnchorStatus, AppchainMessageProcessingResult, AppchainSettings,
+        AppchainState, MultiTxsOperationProcessingResult, ProtocolSettings, ValidatorMerkleProof,
+        ValidatorSetInfo, ValidatorSetProcessingStatus,
     },
-    AppchainEvent, AppchainMessage,
+    AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
+use codec::{Decode, Encode};
+use hex_literal::hex;
+use mock_oct_token::MockOctTokenContract;
+use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 use near_sdk::{json_types::U128, serde_json};
+use near_sdk_sim::{ContractAccount, UserAccount};
+use secp256k1_test::{rand::thread_rng, Message as SecpMessage, Secp256k1};
+
+use beefy_light_client::{beefy_ecdsa_to_ethereum, commitment::SignedCommitment};
+use beefy_light_client::{
+    commitment::{Commitment, Signature},
+    mmr::{MmrLeaf, MmrLeafProof},
+};
+use beefy_merkle_tree::{merkle_proof, Keccak256};
 
 mod anchor_viewer;
 mod common;
 mod lifecycle_actions;
+mod owner_actions;
 mod permissionless_actions;
 mod settings_actions;
 mod staking_actions;
 mod sudo_actions;
 mod token_viewer;
+mod validator_actions;
 mod wrapped_appchain_token_manager;
 
 const TOTAL_SUPPLY: u128 = 100_000_000;
 
 #[test]
-fn test_wrapped_appchain_token_bridging() {
+fn test_beefy_light_client_2() {
     let total_supply = common::to_oct_amount(TOTAL_SUPPLY);
     let (root, oct_token, _registry, anchor, users) = common::init(total_supply);
     let user0_id_in_appchain =
@@ -31,6 +47,12 @@ fn test_wrapped_appchain_token_bridging() {
         "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da270".to_string();
     let user4_id_in_appchain =
         "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da273".to_string();
+    let mut user0_profile = HashMap::<String, String>::new();
+    user0_profile.insert("key0".to_string(), "value0".to_string());
+    let mut user1_profile = HashMap::<String, String>::new();
+    user1_profile.insert("key1".to_string(), "value1".to_string());
+    let mut user4_profile = HashMap::<String, String>::new();
+    user4_profile.insert("key4".to_string(), "value4".to_string());
     //
     // Check initial status
     //
@@ -90,11 +112,7 @@ fn test_wrapped_appchain_token_bridging() {
         U128::from(total_supply / 2),
         &users,
     );
-    let wrapped_appchain_token_info = anchor_viewer::get_wrapped_appchain_token(&anchor);
-    println!(
-        "Wrapped appchain token: {}",
-        serde_json::to_string::<WrappedAppchainToken>(&wrapped_appchain_token_info).unwrap()
-    );
+    common::print_wrapped_appchain_token_info(&anchor);
     //
     // user0 register validator
     //
@@ -104,7 +122,7 @@ fn test_wrapped_appchain_token_bridging() {
         &users[0],
         &oct_token,
         &anchor,
-        &Some(user0_id_in_appchain.clone()),
+        &None,
         amount0,
         true,
         HashMap::new(),
@@ -117,6 +135,7 @@ fn test_wrapped_appchain_token_bridging() {
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
     assert_eq!(anchor_status.total_stake_in_next_era.0, amount0);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 1);
+    common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
     //
     // user1 register validator
     //
@@ -126,7 +145,7 @@ fn test_wrapped_appchain_token_bridging() {
         &users[1],
         &oct_token,
         &anchor,
-        &Some(user1_id_in_appchain.clone()),
+        &None,
         amount1,
         false,
         HashMap::new(),
@@ -139,6 +158,7 @@ fn test_wrapped_appchain_token_bridging() {
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
     assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
     //
     // user2 register delegator to user0
     //
@@ -229,22 +249,12 @@ fn test_wrapped_appchain_token_bridging() {
     // Print anchor status and staking histories
     //
     common::print_anchor_status(&anchor);
+    common::print_wrapped_appchain_token_info(&anchor);
     common::print_staking_histories(&anchor);
     common::print_validator_list_of(&anchor, None);
     //
     // Try go_booting
     //
-    let result = lifecycle_actions::go_booting(&root, &anchor);
-    assert!(!result.is_ok());
-    //
-    // Set appchain settings and try go_booting
-    //
-    let result = settings_actions::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string());
-    result.assert_success();
-    let result = settings_actions::set_subql_endpoint(&root, &anchor, "subql_endpoint".to_string());
-    result.assert_success();
-    let result = settings_actions::set_era_reward(&root, &anchor, common::to_oct_amount(10));
-    result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     assert!(!result.is_ok());
     //
@@ -285,126 +295,107 @@ fn test_wrapped_appchain_token_bridging() {
     //
     // Initialize beefy light client
     //
-    let result =
-        lifecycle_actions::initialize_beefy_light_client(&root, &anchor, vec!["0x00".to_string()]);
-    result.assert_success();
+    update_state_of_beefy_light_client_max(&anchor, &root);
+    common::print_latest_appchain_commitment(&anchor);
     //
     // Go live
     //
+    let result = settings_actions::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string());
+    result.assert_success();
+    let result = settings_actions::set_era_reward(&root, &anchor, common::to_oct_amount(10));
+    result.assert_success();
     let result = lifecycle_actions::go_live(&root, &anchor);
     result.assert_success();
     assert_eq!(
         anchor_viewer::get_appchain_state(&anchor),
         AppchainState::Active
     );
-    //
-    // Mint wrapped appchain token for user1 (error)
-    //
-    let user1_wat_balance =
-        token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token);
-    let era_number = 0;
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].account_id(),
-            amount: U128::from(total_supply / 10),
-        },
-        nonce: (era_number + 1).try_into().unwrap(),
-    });
-    let results = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
-    for result in results {
-        println!(
-            "Appchain message processing result: {}",
-            serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
-        )
+}
+
+fn update_state_of_beefy_light_client_max(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    user: &UserAccount,
+) {
+    const MAX_VALIDATORS: i32 = 85;
+
+    let secp = Secp256k1::new();
+
+    let mut initial_public_keys = Vec::new();
+    let mut origin_initial_public_keys = Vec::new();
+    let commitment = Commitment {
+        payload: hex!("f45927644a0b5bc6f1ce667330071fbaea498403c084eb0d4cb747114887345d"),
+        block_number: 9,
+        validator_set_id: 0,
+    };
+    let commitment_hash = commitment.hash();
+    let msg = SecpMessage::from_slice(&commitment_hash[..]).unwrap();
+    let mut signed_commitment = SignedCommitment {
+        commitment,
+        signatures: vec![],
+    };
+
+    for _ in 0..MAX_VALIDATORS {
+        let (privkey, pubkey) = secp.generate_keypair(&mut thread_rng());
+        origin_initial_public_keys.push(pubkey.serialize().to_vec());
+        // println!("pubkey: {:?}", pubkey);
+        // println!("prikey: {:?}", privkey);
+        let validator_address = beefy_ecdsa_to_ethereum(&pubkey.serialize());
+        // println!("validator_address: {:?}", validator_address);
+        initial_public_keys.push(validator_address);
+        let (recover_id, signature) = secp.sign_recoverable(&msg, &privkey).serialize_compact();
+
+        let mut buf = [0_u8; 65];
+        buf[0..64].copy_from_slice(&signature[..]);
+        buf[64] = recover_id.to_i32() as u8;
+
+        signed_commitment.signatures.push(Some(Signature(buf)));
     }
-    common::print_anchor_events(&anchor);
-    common::print_appchain_notifications(&anchor);
-    assert_eq!(
-        token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token).0,
-        user1_wat_balance.0
-    );
+    let encoded_signed_commitment = signed_commitment.encode();
+
+    let mut validator_proofs = Vec::new();
+    for i in 0..initial_public_keys.len() {
+        let proof = merkle_proof::<Keccak256, _, _>(initial_public_keys.clone(), i);
+        validator_proofs.push(ValidatorMerkleProof {
+            root: proof.root,
+            proof: proof.proof,
+            number_of_leaves: proof.number_of_leaves.try_into().unwrap(),
+            leaf_index: proof.leaf_index.try_into().unwrap(),
+            leaf: proof.leaf,
+        });
+    }
+
+    let encoded_mmr_leaf = hex!("c501000800000079f0451c096266bee167393545bafc7b27b7d14810084a843955624588ba29c1010000000000000005000000304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a20000000000000000000000000000000000000000000000000000000000000000");
+    let encoded_mmr_proof =  hex!("0800000000000000090000000000000004c2d6348aef1ef52e779c59bcc1d87fa0175b59b4fa2ea8fc322e4ceb2bdd1ea2");
     //
-    // Burn wrapped appchain token from user0
-    //
-    let result = wrapped_appchain_token_manager::burn_wrapped_appchain_token(
-        &users[0],
+    let result = lifecycle_actions::initialize_beefy_light_client(
+        &user,
         &anchor,
-        user0_id_in_appchain,
-        total_supply / 2 - common::to_oct_amount(50000),
+        origin_initial_public_keys
+            .iter()
+            .map(|pk_bytes| format!("0x{}", hex::encode(pk_bytes)))
+            .collect(),
     );
     result.assert_success();
-    common::print_anchor_events(&anchor);
-    common::print_appchain_notifications(&anchor);
-    common::print_wrapped_appchain_token_info(&anchor);
     //
-    // Mint wrapped appchain token for user1
-    //
-    let user1_wat_balance =
-        token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token);
-    let era_number = 0;
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].account_id(),
-            amount: U128::from(common::to_oct_amount(60)),
-        },
-        nonce: (era_number + 2).try_into().unwrap(),
-    });
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].account_id(),
-            amount: U128::from(common::to_oct_amount(40)),
-        },
-        nonce: (era_number + 3).try_into().unwrap(),
-    });
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].account_id(),
-            amount: U128::from(common::to_oct_amount(70)),
-        },
-        nonce: (era_number + 4).try_into().unwrap(),
-    });
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].account_id(),
-            amount: U128::from(common::to_oct_amount(30)),
-        },
-        nonce: (era_number + 5).try_into().unwrap(),
-    });
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].account_id(),
-            amount: U128::from(common::to_oct_amount(45)),
-        },
-        nonce: (era_number + 6).try_into().unwrap(),
-    });
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].account_id(),
-            amount: U128::from(common::to_oct_amount(55)),
-        },
-        nonce: (era_number + 7).try_into().unwrap(),
-    });
-    let results = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
-    for result in results {
-        println!(
-            "Appchain message processing result: {}",
-            serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
-        )
-    }
-    common::print_anchor_events(&anchor);
-    common::print_appchain_notifications(&anchor);
-    common::print_wrapped_appchain_token_info(&anchor);
-    assert_eq!(
-        token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token).0,
-        user1_wat_balance.0 + common::to_oct_amount(300)
+    let result = permissionless_actions::start_updating_state_of_beefy_light_client(
+        &user,
+        &anchor,
+        encoded_signed_commitment.to_vec(),
+        validator_proofs,
+        encoded_mmr_leaf.to_vec(),
+        encoded_mmr_proof.to_vec(),
     );
+    result.assert_success();
+    loop {
+        let result = permissionless_actions::try_complete_updating_state_of_beefy_light_client(
+            &user, &anchor,
+        );
+        println!(
+            "Result of 'try_complete_updating_state_of_beefy_light_client': {}",
+            serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
+        );
+        if !result.eq(&MultiTxsOperationProcessingResult::NeedMoreGas) {
+            break;
+        }
+    }
 }
