@@ -1,16 +1,8 @@
 use crate::*;
 
-use beefy_light_client::commitment::Commitment;
-use beefy_light_client::validator_set::BeefyNextAuthoritySet;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct OldLightClient {
-    latest_commitment: Option<Commitment>,
-    validator_set: BeefyNextAuthoritySet,
-}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
@@ -55,8 +47,6 @@ pub struct OldAppchainAnchor {
     pub appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
     /// The status of permissionless actions
     pub permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
-    /// The state of beefy light client
-    pub beefy_light_client_state: LazyOption<OldLightClient>,
 }
 
 #[near_bindgen]

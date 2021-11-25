@@ -27,6 +27,8 @@ pub trait SudoActions {
     fn reset_anchor_event_histories(&mut self);
     ///
     fn reset_appchain_notification_histories(&mut self);
+    ///
+    fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
 }
 
 #[near_bindgen]
@@ -63,34 +65,45 @@ impl SudoActions for AppchainAnchor {
     }
     //
     fn remove_validator_set_of(&mut self, era_number: U64) {
+        self.assert_owner();
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         validator_set_histories.remove(&era_number.0);
         self.validator_set_histories.set(&validator_set_histories);
     }
     //
     fn reset_validator_set_histories(&mut self) {
+        self.assert_owner();
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         validator_set_histories.reset();
         self.validator_set_histories.set(&validator_set_histories);
     }
     //
     fn reset_staking_histories(&mut self) {
+        self.assert_owner();
         let mut staking_histories = self.staking_histories.get().unwrap();
         staking_histories.reset();
         self.staking_histories.set(&staking_histories);
     }
     //
     fn reset_anchor_event_histories(&mut self) {
+        self.assert_owner();
         let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
         anchor_event_histories.reset();
         self.anchor_event_histories.set(&anchor_event_histories);
     }
     //
     fn reset_appchain_notification_histories(&mut self) {
+        self.assert_owner();
         let mut appchain_notification_histories =
             self.appchain_notification_histories.get().unwrap();
         appchain_notification_histories.reset();
         self.appchain_notification_histories
             .set(&appchain_notification_histories);
+    }
+    //
+    fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>) {
+        self.assert_owner();
+        self.beefy_light_client_state
+            .set(&beefy_light_client::new(initial_public_keys));
     }
 }

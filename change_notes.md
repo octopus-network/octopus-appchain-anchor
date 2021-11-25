@@ -1,5 +1,14 @@
 # Change notes
 
+## 20211125
+
+* Add sudo function `reset_beefy_light_client`:
+
+```rust
+    ///
+    fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
+```
+
 ## 20211123
 
 * Add interface enum in module `types`:
