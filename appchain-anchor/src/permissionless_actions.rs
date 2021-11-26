@@ -73,6 +73,11 @@ impl PermissionlessActions for AppchainAnchor {
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
     ) {
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        assert!(
+            !anchor_settings.beefy_light_client_witness_mode,
+            "Beefy light client is in witness mode."
+        );
         self.assert_light_client_is_ready();
         let mut light_client = self.beefy_light_client_state.get().unwrap();
         if let Err(err) = light_client.start_updating_state(
@@ -100,6 +105,11 @@ impl PermissionlessActions for AppchainAnchor {
     fn try_complete_updating_state_of_beefy_light_client(
         &mut self,
     ) -> MultiTxsOperationProcessingResult {
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        assert!(
+            !anchor_settings.beefy_light_client_witness_mode,
+            "Beefy light client is in witness mode."
+        );
         self.assert_light_client_initialized();
         let mut light_client = self.beefy_light_client_state.get().unwrap();
         if !light_client.is_updating_state() {
@@ -134,15 +144,23 @@ impl PermissionlessActions for AppchainAnchor {
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
     ) -> Vec<AppchainMessageProcessingResult> {
-        self.assert_light_client_is_ready();
-        let light_client = self.beefy_light_client_state.get().unwrap();
-        if let Err(err) = light_client.verify_solochain_messages(
-            &encoded_messages,
-            &header,
-            &mmr_leaf,
-            &mmr_proof,
-        ) {
-            panic!("Failed in verifying appchain messages: {:?}", err);
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        if anchor_settings.beefy_light_client_witness_mode {
+            assert!(
+                env::predecessor_account_id().eq(&anchor_settings.relayer_account),
+                "Only relayer account can perform this action while beefy light client is in witness mode."
+            );
+        } else {
+            self.assert_light_client_is_ready();
+            let light_client = self.beefy_light_client_state.get().unwrap();
+            if let Err(err) = light_client.verify_solochain_messages(
+                &encoded_messages,
+                &header,
+                &mmr_leaf,
+                &mmr_proof,
+            ) {
+                panic!("Failed in verifying appchain messages: {:?}", err);
+            }
         }
         let messages = message_decoder::decode(encoded_messages);
         messages

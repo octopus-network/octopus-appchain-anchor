@@ -21,6 +21,26 @@ impl Default for ProtocolSettings {
     }
 }
 
+impl Default for AnchorSettings {
+    fn default() -> Self {
+        Self {
+            token_price_maintainer_account: AccountId::new(),
+            relayer_account: AccountId::new(),
+            beefy_light_client_witness_mode: false,
+        }
+    }
+}
+
+impl Default for AppchainSettings {
+    fn default() -> Self {
+        Self {
+            rpc_endpoint: String::new(),
+            subql_endpoint: String::new(),
+            era_reward: U128::from(0),
+        }
+    }
+}
+
 pub trait ProtocolSettingsManager {
     ///
     fn change_minimum_validator_deposit(&mut self, value: U128);
@@ -62,6 +82,12 @@ pub trait AppchainSettingsManager {
 pub trait AnchorSettingsManager {
     ///
     fn set_token_price_maintainer_account(&mut self, account_id: AccountId);
+    ///
+    fn set_relayer_account(&mut self, account_id: AccountId);
+    ///
+    fn turn_on_beefy_light_client_witness_mode(&mut self);
+    ///
+    fn turn_off_beefy_light_client_witness_mode(&mut self);
 }
 
 #[near_bindgen]
@@ -191,6 +217,35 @@ impl AnchorSettingsManager for AppchainAnchor {
         self.assert_owner();
         let mut anchor_settings = self.anchor_settings.get().unwrap();
         anchor_settings.token_price_maintainer_account = account_id;
+        self.anchor_settings.set(&anchor_settings);
+    }
+    //
+    fn set_relayer_account(&mut self, account_id: AccountId) {
+        self.assert_owner();
+        let mut anchor_settings = self.anchor_settings.get().unwrap();
+        anchor_settings.relayer_account = account_id;
+        self.anchor_settings.set(&anchor_settings);
+    }
+    //
+    fn turn_on_beefy_light_client_witness_mode(&mut self) {
+        self.assert_owner();
+        let mut anchor_settings = self.anchor_settings.get().unwrap();
+        assert!(
+            !anchor_settings.beefy_light_client_witness_mode,
+            "Witness mode is already turned on."
+        );
+        anchor_settings.beefy_light_client_witness_mode = true;
+        self.anchor_settings.set(&anchor_settings);
+    }
+    //
+    fn turn_off_beefy_light_client_witness_mode(&mut self) {
+        self.assert_owner();
+        let mut anchor_settings = self.anchor_settings.get().unwrap();
+        assert!(
+            anchor_settings.beefy_light_client_witness_mode,
+            "Witness mode is already turned off."
+        );
+        anchor_settings.beefy_light_client_witness_mode = false;
         self.anchor_settings.set(&anchor_settings);
     }
 }

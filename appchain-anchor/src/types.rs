@@ -97,6 +97,8 @@ pub struct AppchainSettings {
 #[serde(crate = "near_sdk::serde")]
 pub struct AnchorSettings {
     pub token_price_maintainer_account: AccountId,
+    pub relayer_account: AccountId,
+    pub beefy_light_client_witness_mode: bool,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

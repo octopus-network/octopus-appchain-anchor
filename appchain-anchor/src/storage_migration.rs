@@ -14,6 +14,11 @@ pub struct OldAppchainSettings {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
+pub struct OldAnchorSettings {
+    pub token_price_maintainer_account: AccountId,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
     pub appchain_id: AppchainId,
@@ -43,7 +48,7 @@ pub struct OldAppchainAnchor {
     /// The custom settings for appchain.
     pub appchain_settings: LazyOption<OldAppchainSettings>,
     /// The anchor settings for appchain.
-    pub anchor_settings: LazyOption<AnchorSettings>,
+    pub anchor_settings: LazyOption<OldAnchorSettings>,
     /// The protocol settings for appchain anchor.
     pub protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain.
@@ -72,6 +77,7 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         let old_appchain_settings = old_contract.appchain_settings.get().unwrap();
+        let old_anchor_settings = old_contract.anchor_settings.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -94,7 +100,15 @@ impl AppchainAnchor {
                     era_reward: old_appchain_settings.era_reward,
                 }),
             ),
-            anchor_settings: old_contract.anchor_settings,
+            anchor_settings: LazyOption::new(
+                StorageKey::AnchorSettings.into_bytes(),
+                Some(&AnchorSettings {
+                    token_price_maintainer_account: old_anchor_settings
+                        .token_price_maintainer_account,
+                    relayer_account: AccountId::new(),
+                    beefy_light_client_witness_mode: false,
+                }),
+            ),
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
             staking_histories: old_contract.staking_histories,

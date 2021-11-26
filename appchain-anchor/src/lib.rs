@@ -28,8 +28,8 @@ use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Gas, PromiseOrValue,
-    PromiseResult, Timestamp,
+    assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
+    PromiseOrValue, PromiseResult, Timestamp,
 };
 
 pub use anchor_event_histories::AnchorEventHistories;
@@ -119,7 +119,7 @@ trait ResolverForSelfCallback {
 }
 
 #[near_bindgen]
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct AppchainAnchor {
     /// The id of corresponding appchain.
     appchain_id: AppchainId,
@@ -164,12 +164,6 @@ pub struct AppchainAnchor {
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
     beefy_light_client_state: LazyOption<LightClient>,
-}
-
-impl Default for AppchainAnchor {
-    fn default() -> Self {
-        env::panic(b"The contract needs be initialized before use.")
-    }
 }
 
 #[near_bindgen]
@@ -221,17 +215,11 @@ impl AppchainAnchor {
             ),
             appchain_settings: LazyOption::new(
                 StorageKey::AppchainSettings.into_bytes(),
-                Some(&AppchainSettings {
-                    rpc_endpoint: String::new(),
-                    subql_endpoint: String::new(),
-                    era_reward: U128::from(0),
-                }),
+                Some(&AppchainSettings::default()),
             ),
             anchor_settings: LazyOption::new(
                 StorageKey::AnchorSettings.into_bytes(),
-                Some(&AnchorSettings {
-                    token_price_maintainer_account: AccountId::new(),
-                }),
+                Some(&AnchorSettings::default()),
             ),
             protocol_settings: LazyOption::new(
                 StorageKey::ProtocolSettings.into_bytes(),
