@@ -1,5 +1,35 @@
 # Change notes
 
+## 20211126
+
+* Add data fields to `AnchorSettings`:
+
+```rust
+pub struct AnchorSettings {
+    pub token_price_maintainer_account: AccountId,
+    pub relayer_account: AccountId,
+    pub beefy_light_client_witness_mode: bool,
+}
+```
+
+* Add the following functions to trait `AnchorSettingsManager`:
+
+```rust
+    ///
+    fn set_relayer_account(&mut self, account_id: AccountId);
+    ///
+    fn turn_on_beefy_light_client_witness_mode(&mut self);
+    ///
+    fn turn_off_beefy_light_client_witness_mode(&mut self);
+```
+
+* Change the mechanism of permissionless functions `start_updating_state_of_beefy_light_client`, `try_complete_updating_state_of_beefy_light_client` and `verify_and_apply_appchain_messages`:
+  * If the `beefy_light_client_witness_mode` of `AnchorSettings` is set to `true`:
+    * The function `start_updating_state_of_beefy_light_client` and `try_complete_updating_state_of_beefy_light_client` will fail directly.
+    * The function `verify_and_apply_appchain_messages` will only assert that the function caller is exactly the account of `relayer_account` of `AnchorSettings`, and apply the appchain messages without verifying the proof passed by the parameters of the function.
+  * If the `beefy_light_client_witness_mode` of `AnchorSettings` is set to `false`:
+    * The proofs passed by the parameters of these functions will be verified before applying state changes to contract.
+
 ## 20211125
 
 * Add sudo function `reset_beefy_light_client`:
