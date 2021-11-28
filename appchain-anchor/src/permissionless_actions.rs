@@ -279,16 +279,40 @@ impl AppchainAnchor {
                 }
             }
             permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
+                self.assert_era_number_is_valid(u64::from(era_number));
                 self.internal_start_switching_era(u64::from(era_number), appchain_message.nonce)
             }
             permissionless_actions::AppchainEvent::EraRewardConcluded {
                 era_number,
                 unprofitable_validator_ids,
-            } => self.internal_start_distributing_reward_of_era(
-                appchain_message.nonce,
-                u64::from(era_number),
-                unprofitable_validator_ids,
-            ),
+            } => {
+                self.assert_era_number_is_valid(u64::from(era_number));
+                self.internal_start_distributing_reward_of_era(
+                    appchain_message.nonce,
+                    u64::from(era_number),
+                    unprofitable_validator_ids,
+                )
+            }
+        }
+    }
+    //
+    fn assert_era_number_is_valid(&self, era_number: u64) {
+        let protocol_settings = self.protocol_settings.get().unwrap();
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        let latest_era_number = validator_set_histories.index_range().end_index.0;
+        if latest_era_number
+            > protocol_settings
+                .maximum_era_count_of_valid_appchain_message
+                .0
+        {
+            assert!(
+                era_number
+                    >= latest_era_number
+                        - protocol_settings
+                            .maximum_era_count_of_valid_appchain_message
+                            .0,
+                "Message is too old."
+            );
         }
     }
 }
