@@ -9,4 +9,4 @@ near call oct.beta_oct_relay.testnet storage_deposit '{"account_id":"easydeal.re
 near call easydeal.registry.test_oct.testnet migrate_state '' --accountId registry.test_oct.testnet --gas 200000000000000
 #
 near deploy --accountId debionetwork.registry.test_oct.testnet --wasmFile res/appchain_anchor.wasm
-near call debionetwork.registry.test_oct.testnet migrate_state '' --accountId registry.test_oct.testnet --gas 200000000000000
+near call debionetwork.registry.test_oct.testnet migrate_state '' --accountId debionetwork.registry.test_oct.testnet --gas 200000000000000
