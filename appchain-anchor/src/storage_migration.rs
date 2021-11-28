@@ -87,8 +87,9 @@ impl AppchainAnchor {
             appchain_notification_histories: old_contract.appchain_notification_histories,
             permissionless_actions_status: old_contract.permissionless_actions_status,
             beefy_light_client_state: old_contract.beefy_light_client_state,
-            reward_distribution_records: UnorderedSet::new(
+            reward_distribution_records: LazyOption::new(
                 StorageKey::RewardDistributionRecords.into_bytes(),
+                Some(&RewardDistributionRecords::new()),
             ),
         };
         //

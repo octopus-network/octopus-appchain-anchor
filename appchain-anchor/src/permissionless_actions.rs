@@ -780,23 +780,26 @@ impl AppchainAnchor {
             / (validator_set.valid_total_stake / OCT_DECIMALS_VALUE);
         let validator_commission_reward =
             total_reward_of_validator * validator_commission_percent / 100;
-        if !self.reward_distribution_records.contains(&(
+        let mut reward_distribution_records = self.reward_distribution_records.get().unwrap();
+        if !reward_distribution_records.contains_record(
             appchain_message_nonce,
             validator_set.validator_set.era_number,
-            String::new(),
-            validator_id.clone(),
-        )) {
+            &String::new(),
+            validator_id,
+        ) {
             let validator_reward = validator_commission_reward
                 + (total_reward_of_validator - validator_commission_reward)
                     * (validator.deposit_amount / OCT_DECIMALS_VALUE)
                     / (validator.total_stake / OCT_DECIMALS_VALUE);
             self.add_reward_for_validator(validator_set, validator_id, validator_reward);
-            self.reward_distribution_records.insert(&(
+            reward_distribution_records.insert(
                 appchain_message_nonce,
                 validator_set.validator_set.era_number,
-                String::new(),
-                validator_id.clone(),
-            ));
+                &String::new(),
+                validator_id,
+            );
+            self.reward_distribution_records
+                .set(&reward_distribution_records);
         }
         if let Some(delegator_id_set) = validator_set
             .validator_set
@@ -810,12 +813,12 @@ impl AppchainAnchor {
             let delegator_id = delegater_ids
                 .get(usize::try_from(delegator_index).unwrap())
                 .unwrap();
-            if !self.reward_distribution_records.contains(&(
+            if !reward_distribution_records.contains_record(
                 appchain_message_nonce,
                 validator_set.validator_set.era_number,
-                delegator_id.clone(),
-                validator_id.clone(),
-            )) {
+                delegator_id,
+                validator_id,
+            ) {
                 let delegator = validator_set
                     .validator_set
                     .delegators
@@ -830,12 +833,14 @@ impl AppchainAnchor {
                     validator_id,
                     delegator_reward,
                 );
-                self.reward_distribution_records.insert(&(
+                reward_distribution_records.insert(
                     appchain_message_nonce,
                     validator_set.validator_set.era_number,
-                    delegator_id.clone(),
-                    validator_id.clone(),
-                ));
+                    delegator_id,
+                    validator_id,
+                );
+                self.reward_distribution_records
+                    .set(&reward_distribution_records);
             }
             return ResultOfLoopingValidatorSet::NeedToContinue;
         } else {

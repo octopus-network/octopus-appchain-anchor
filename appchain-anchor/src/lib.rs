@@ -6,6 +6,7 @@ mod message_decoder;
 mod near_fungible_tokens;
 mod owner_actions;
 mod permissionless_actions;
+mod reward_distribution_records;
 mod settings_manager;
 mod staking;
 mod storage_key;
@@ -45,6 +46,7 @@ pub use wrapped_appchain_token::WrappedAppchainTokenManager;
 
 use beefy_light_client::Hash;
 use near_fungible_tokens::NearFungibleTokens;
+use reward_distribution_records::RewardDistributionRecords;
 use staking::{StakingHistories, UnbondedStakeReference};
 use storage_key::StorageKey;
 use types::*;
@@ -166,9 +168,8 @@ pub struct AppchainAnchor {
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
     beefy_light_client_state: LazyOption<LightClient>,
-    /// The record set for reward distribution
-    /// The element in set is `(appchain_message_nonce, era_number, account_id_of_delegator, account_id_of_validator)`
-    reward_distribution_records: UnorderedSet<(u32, u64, AccountId, AccountId)>,
+    /// The reward distribution records data
+    reward_distribution_records: LazyOption<RewardDistributionRecords>,
 }
 
 #[near_bindgen]
@@ -254,8 +255,9 @@ impl AppchainAnchor {
                 StorageKey::BeefyLightClientState.into_bytes(),
                 None,
             ),
-            reward_distribution_records: UnorderedSet::new(
+            reward_distribution_records: LazyOption::new(
                 StorageKey::RewardDistributionRecords.into_bytes(),
+                Some(&RewardDistributionRecords::new()),
             ),
         }
     }
