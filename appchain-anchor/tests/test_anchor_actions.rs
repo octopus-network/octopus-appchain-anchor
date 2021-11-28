@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryInto};
+use std::collections::HashMap;
 
 use appchain_anchor::{
     types::{
@@ -355,6 +355,7 @@ fn test_staking_actions() {
     //
     // Try complete switching era0
     //
+    let appchain_message_nonce: u32 = 1;
     common::switch_era(&root, &anchor, 0);
     common::print_validator_list_of(&anchor, Some(0));
     common::print_delegator_list_of(&anchor, 0, &users[0]);
@@ -427,7 +428,13 @@ fn test_staking_actions() {
     //
     // Distribut reward of era0
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 0);
+    distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce,
+        0,
+    );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 0);
     common::print_validator_reward_histories(&anchor, &users[1], 0);
@@ -468,7 +475,13 @@ fn test_staking_actions() {
     //
     // Distribute reward of era1
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 1);
+    distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce + 2,
+        1,
+    );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 1);
     common::print_validator_reward_histories(&anchor, &users[1], 1);
@@ -512,7 +525,13 @@ fn test_staking_actions() {
     //
     // Distribute reward of era2
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 2);
+    distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce + 4,
+        2,
+    );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 2);
     common::print_validator_reward_histories(&anchor, &users[1], 2);
@@ -545,7 +564,31 @@ fn test_staking_actions() {
     //
     // Distribute reward of era3
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 3);
+    distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce + 6,
+        3,
+    );
+    common::print_wrapped_appchain_token_info(&anchor);
+    common::print_validator_reward_histories(&anchor, &users[0], 3);
+    common::print_validator_reward_histories(&anchor, &users[1], 3);
+    common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 3);
+    common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 3);
+    common::print_validator_reward_histories(&anchor, &users[4], 3);
+    common::print_unbonded_stakes_of(&anchor, &users[0]);
+    common::print_unbonded_stakes_of(&anchor, &users[1]);
+    common::print_unbonded_stakes_of(&anchor, &users[2]);
+    common::print_unbonded_stakes_of(&anchor, &users[3]);
+    common::print_unbonded_stakes_of(&anchor, &users[4]);
+    distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce + 8,
+        3,
+    );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 3);
     common::print_validator_reward_histories(&anchor, &users[1], 3);
@@ -598,6 +641,7 @@ fn distribute_reward_of(
     root: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
     wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    nonce: u32,
     era_number: u32,
 ) {
     let anchor_balance_of_wat =
@@ -608,7 +652,7 @@ fn distribute_reward_of(
             era_number,
             unprofitable_validator_ids: Vec::new(),
         },
-        nonce: (era_number + 1).try_into().unwrap(),
+        nonce,
     });
     let results = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
     for result in results {
@@ -665,6 +709,7 @@ fn withdraw_validator_rewards_of(
     wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
     end_era: u64,
 ) {
+    common::print_wat_balance_of_anchor(anchor, wrapped_appchain_token);
     let wat_balance_before_withdraw =
         token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token);
     let result = staking_actions::withdraw_validator_rewards(
@@ -689,6 +734,7 @@ fn withdraw_delegator_rewards_of(
     wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
     end_era: u64,
 ) {
+    common::print_wat_balance_of_anchor(anchor, wrapped_appchain_token);
     let wat_balance_before_withdraw =
         token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token);
     let result = staking_actions::withdraw_delegator_rewards(

@@ -370,6 +370,7 @@ pub enum ValidatorSetProcessingStatus {
     },
     ReadyForDistributingReward,
     DistributingReward {
+        appchain_message_nonce: u32,
         distributing_validator_index: U64,
         distributing_delegator_index: U64,
     },

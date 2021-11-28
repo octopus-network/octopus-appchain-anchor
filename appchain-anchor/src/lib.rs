@@ -139,8 +139,10 @@ pub struct AppchainAnchor {
     /// This validator set is only for checking staking rules.
     next_validator_set: LazyOption<ValidatorSet>,
     /// The map of unwithdrawn validator rewards in eras, in unit of wrapped appchain token.
+    /// The key in map is `(era_number, account_id_of_validator)`
     unwithdrawn_validator_rewards: LookupMap<(u64, AccountId), Balance>,
     /// The map of unwithdrawn delegator rewards in eras, in unit of wrapped appchain token.
+    /// The key in map is `(era_number, account_id_of_delegator, account_id_of_validator)`
     unwithdrawn_delegator_rewards: LookupMap<(u64, AccountId, AccountId), Balance>,
     /// The map of unbonded stakes in eras.
     unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
@@ -164,6 +166,9 @@ pub struct AppchainAnchor {
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
     beefy_light_client_state: LazyOption<LightClient>,
+    /// The record set for reward distribution
+    /// The element in set is `(appchain_message_nonce, era_number, account_id_of_delegator, account_id_of_validator)`
+    reward_distribution_records: UnorderedSet<(u32, u64, AccountId, AccountId)>,
 }
 
 #[near_bindgen]
@@ -248,6 +253,9 @@ impl AppchainAnchor {
             beefy_light_client_state: LazyOption::new(
                 StorageKey::BeefyLightClientState.into_bytes(),
                 None,
+            ),
+            reward_distribution_records: UnorderedSet::new(
+                StorageKey::RewardDistributionRecords.into_bytes(),
             ),
         }
     }

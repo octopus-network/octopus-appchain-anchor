@@ -5,11 +5,6 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct OldAnchorSettings {
-    pub token_price_maintainer_account: AccountId,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
     pub appchain_id: AppchainId,
@@ -39,7 +34,7 @@ pub struct OldAppchainAnchor {
     /// The custom settings for appchain.
     pub appchain_settings: LazyOption<AppchainSettings>,
     /// The anchor settings for appchain.
-    pub anchor_settings: LazyOption<OldAnchorSettings>,
+    pub anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
     pub protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain.
@@ -69,7 +64,6 @@ impl AppchainAnchor {
             &old_contract.owner,
             "Can only be called by the owner"
         );
-        let old_anchor_settings = old_contract.anchor_settings.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -85,15 +79,7 @@ impl AppchainAnchor {
             unbonded_stakes: old_contract.unbonded_stakes,
             validator_profiles: old_contract.validator_profiles,
             appchain_settings: old_contract.appchain_settings,
-            anchor_settings: LazyOption::new(
-                StorageKey::AnchorSettings.into_bytes(),
-                Some(&AnchorSettings {
-                    token_price_maintainer_account: old_anchor_settings
-                        .token_price_maintainer_account,
-                    relayer_account: AccountId::new(),
-                    beefy_light_client_witness_mode: false,
-                }),
-            ),
+            anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
             staking_histories: old_contract.staking_histories,
@@ -101,6 +87,9 @@ impl AppchainAnchor {
             appchain_notification_histories: old_contract.appchain_notification_histories,
             permissionless_actions_status: old_contract.permissionless_actions_status,
             beefy_light_client_state: old_contract.beefy_light_client_state,
+            reward_distribution_records: UnorderedSet::new(
+                StorageKey::RewardDistributionRecords.into_bytes(),
+            ),
         };
         //
         new_contract
