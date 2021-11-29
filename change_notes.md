@@ -1,5 +1,30 @@
 # Change notes
 
+## 20211128
+
+* Add field `appchain_message_nonce` to `ValidatorSetProcessingStatus::DistributingReward`:
+
+```rust
+pub enum ValidatorSetProcessingStatus {
+    CopyingFromLastEra {
+        copying_validator_index: U64,
+        copying_delegator_index: U64,
+    },
+    ApplyingStakingHistory {
+        applying_index: U64,
+    },
+    ReadyForDistributingReward,
+    DistributingReward {
+        appchain_message_nonce: u32,
+        distributing_validator_index: U64,
+        distributing_delegator_index: U64,
+    },
+    Completed,
+}
+```
+
+* Change the mechanism of processing the appchain message `EraRewardConcluded`. Now, if the `ValidatorSetProcessingStatus` of target validator set is `ReadyForDistributingReward` or `Completed`, this appchain message can be applied normally.
+
 ## 20211126
 
 * Add data fields to `AnchorSettings`:

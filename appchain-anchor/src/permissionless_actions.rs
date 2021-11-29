@@ -279,16 +279,40 @@ impl AppchainAnchor {
                 }
             }
             permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
+                self.assert_era_number_is_valid(u64::from(era_number));
                 self.internal_start_switching_era(u64::from(era_number), appchain_message.nonce)
             }
             permissionless_actions::AppchainEvent::EraRewardConcluded {
                 era_number,
                 unprofitable_validator_ids,
-            } => self.internal_start_distributing_reward_of_era(
-                appchain_message.nonce,
-                u64::from(era_number),
-                unprofitable_validator_ids,
-            ),
+            } => {
+                self.assert_era_number_is_valid(u64::from(era_number));
+                self.internal_start_distributing_reward_of_era(
+                    appchain_message.nonce,
+                    u64::from(era_number),
+                    unprofitable_validator_ids,
+                )
+            }
+        }
+    }
+    //
+    fn assert_era_number_is_valid(&self, era_number: u64) {
+        let protocol_settings = self.protocol_settings.get().unwrap();
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        let latest_era_number = validator_set_histories.index_range().end_index.0;
+        if latest_era_number
+            > protocol_settings
+                .maximum_era_count_of_valid_appchain_message
+                .0
+        {
+            assert!(
+                era_number
+                    >= latest_era_number
+                        - protocol_settings
+                            .maximum_era_count_of_valid_appchain_message
+                            .0,
+                "Message is too old."
+            );
         }
     }
 }
@@ -595,6 +619,17 @@ impl AppchainAnchor {
     }
 }
 
+impl ValidatorSetProcessingStatus {
+    ///
+    pub fn can_distribute_reward(&self) -> bool {
+        match self {
+            ValidatorSetProcessingStatus::ReadyForDistributingReward
+            | ValidatorSetProcessingStatus::Completed => true,
+            _ => false,
+        }
+    }
+}
+
 impl AppchainAnchor {
     //
     pub fn internal_start_distributing_reward_of_era(
@@ -627,10 +662,7 @@ impl AppchainAnchor {
             };
         }
         let mut validator_set = validator_set_histories.get(&era_number).unwrap();
-        if validator_set
-            .processing_status
-            .ne(&ValidatorSetProcessingStatus::ReadyForDistributingReward)
-        {
+        if !validator_set.processing_status.can_distribute_reward() {
             return AppchainMessageProcessingResult::Error {
                 nonce: appchain_message_nonce,
                 message: format!("Validator set is not ready for distributing reward."),
@@ -660,6 +692,7 @@ impl AppchainAnchor {
         validator_set.set_unprofitable_validator_ids(unprofitable_validator_ids_in_near);
         validator_set.calculate_valid_total_stake();
         validator_set.processing_status = ValidatorSetProcessingStatus::DistributingReward {
+            appchain_message_nonce,
             distributing_validator_index: U64::from(0),
             distributing_delegator_index: U64::from(0),
         };
@@ -692,6 +725,7 @@ impl AppchainAnchor {
             ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index: _ } => false,
             ValidatorSetProcessingStatus::ReadyForDistributingReward => false,
             ValidatorSetProcessingStatus::DistributingReward {
+                appchain_message_nonce,
                 distributing_validator_index,
                 distributing_delegator_index,
             } => {
@@ -706,6 +740,7 @@ impl AppchainAnchor {
                 let era_reward = self.appchain_settings.get().unwrap().era_reward;
                 while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                     match self.distribute_reward_in_validator_set(
+                        appchain_message_nonce,
                         &mut validator_set,
                         validator_index,
                         delegator_index,
@@ -727,6 +762,7 @@ impl AppchainAnchor {
                 }
                 validator_set.processing_status =
                     ValidatorSetProcessingStatus::DistributingReward {
+                        appchain_message_nonce,
                         distributing_validator_index: U64::from(validator_index),
                         distributing_delegator_index: U64::from(delegator_index),
                     };
@@ -739,6 +775,7 @@ impl AppchainAnchor {
     //
     fn distribute_reward_in_validator_set(
         &mut self,
+        appchain_message_nonce: u32,
         validator_set: &mut ValidatorSetOfEra,
         validator_index: u64,
         delegator_index: u64,
@@ -765,22 +802,28 @@ impl AppchainAnchor {
             .unwrap();
         let total_reward_of_validator = era_reward * (validator.total_stake / OCT_DECIMALS_VALUE)
             / (validator_set.valid_total_stake / OCT_DECIMALS_VALUE);
-        if !self
-            .unwithdrawn_validator_rewards
-            .contains_key(&(validator_set.validator_set.era_number, validator_id.clone()))
-        {
-            let validator_reward = total_reward_of_validator * validator_commission_percent / 100
-                + total_reward_of_validator
-                    * (100 - validator_commission_percent)
+        let validator_commission_reward =
+            total_reward_of_validator * validator_commission_percent / 100;
+        let mut reward_distribution_records = self.reward_distribution_records.get().unwrap();
+        if !reward_distribution_records.contains_record(
+            appchain_message_nonce,
+            validator_set.validator_set.era_number,
+            &String::new(),
+            validator_id,
+        ) {
+            let validator_reward = validator_commission_reward
+                + (total_reward_of_validator - validator_commission_reward)
                     * (validator.deposit_amount / OCT_DECIMALS_VALUE)
-                    / (validator.total_stake * 100 / OCT_DECIMALS_VALUE);
-            validator_set
-                .validator_rewards
-                .insert(&validator_id, &validator_reward);
-            self.unwithdrawn_validator_rewards.insert(
-                &(validator_set.validator_set.era_number, validator_id.clone()),
-                &total_reward_of_validator,
+                    / (validator.total_stake / OCT_DECIMALS_VALUE);
+            self.add_reward_for_validator(validator_set, validator_id, validator_reward);
+            reward_distribution_records.insert(
+                appchain_message_nonce,
+                validator_set.validator_set.era_number,
+                &String::new(),
+                validator_id,
             );
+            self.reward_distribution_records
+                .set(&reward_distribution_records);
         }
         if let Some(delegator_id_set) = validator_set
             .validator_set
@@ -794,29 +837,100 @@ impl AppchainAnchor {
             let delegator_id = delegater_ids
                 .get(usize::try_from(delegator_index).unwrap())
                 .unwrap();
-            let delegator = validator_set
-                .validator_set
-                .delegators
-                .get(&(delegator_id.clone(), validator_id.clone()))
-                .unwrap();
-            let delegator_reward = total_reward_of_validator
-                * (delegator.deposit_amount / OCT_DECIMALS_VALUE)
-                / (validator.total_stake / OCT_DECIMALS_VALUE);
-            validator_set.delegator_rewards.insert(
-                &(delegator_id.clone(), validator_id.clone()),
-                &delegator_reward,
-            );
-            self.unwithdrawn_delegator_rewards.insert(
-                &(
+            if !reward_distribution_records.contains_record(
+                appchain_message_nonce,
+                validator_set.validator_set.era_number,
+                delegator_id,
+                validator_id,
+            ) {
+                let delegator = validator_set
+                    .validator_set
+                    .delegators
+                    .get(&(delegator_id.clone(), validator_id.clone()))
+                    .unwrap();
+                let delegator_reward = (total_reward_of_validator - validator_commission_reward)
+                    * (delegator.deposit_amount / OCT_DECIMALS_VALUE)
+                    / (validator.total_stake / OCT_DECIMALS_VALUE);
+                self.add_reward_for_delegator(
+                    validator_set,
+                    delegator_id,
+                    validator_id,
+                    delegator_reward,
+                );
+                reward_distribution_records.insert(
+                    appchain_message_nonce,
                     validator_set.validator_set.era_number,
-                    delegator_id.clone(),
-                    validator_id.clone(),
-                ),
-                &delegator_reward,
-            );
+                    delegator_id,
+                    validator_id,
+                );
+                self.reward_distribution_records
+                    .set(&reward_distribution_records);
+            }
             return ResultOfLoopingValidatorSet::NeedToContinue;
         } else {
             return ResultOfLoopingValidatorSet::NoMoreDelegator;
         }
+    }
+    //
+    fn add_reward_for_validator(
+        &mut self,
+        validator_set: &mut ValidatorSetOfEra,
+        validator_id: &String,
+        amount: u128,
+    ) {
+        let validator_reward = match validator_set.validator_rewards.get(validator_id) {
+            Some(reward) => reward + amount,
+            None => amount,
+        };
+        validator_set
+            .validator_rewards
+            .insert(validator_id, &validator_reward);
+        let unwithdrawn_validator_reward = match self
+            .unwithdrawn_validator_rewards
+            .get(&(validator_set.validator_set.era_number, validator_id.clone()))
+        {
+            Some(reward) => reward + amount,
+            None => amount,
+        };
+        self.unwithdrawn_validator_rewards.insert(
+            &(validator_set.validator_set.era_number, validator_id.clone()),
+            &unwithdrawn_validator_reward,
+        );
+    }
+    //
+    fn add_reward_for_delegator(
+        &mut self,
+        validator_set: &mut ValidatorSetOfEra,
+        delegator_id: &String,
+        validator_id: &String,
+        amount: u128,
+    ) {
+        let delegator_reward = match validator_set
+            .delegator_rewards
+            .get(&(delegator_id.clone(), validator_id.clone()))
+        {
+            Some(reward) => reward + amount,
+            None => amount,
+        };
+        validator_set.delegator_rewards.insert(
+            &(delegator_id.clone(), validator_id.clone()),
+            &delegator_reward,
+        );
+        let unwithdrawn_delegator_reward = match self.unwithdrawn_delegator_rewards.get(&(
+            validator_set.validator_set.era_number,
+            delegator_id.clone(),
+            validator_id.clone(),
+        )) {
+            Some(reward) => reward + amount,
+            None => amount,
+        };
+        self.unwithdrawn_delegator_rewards.insert(
+            &(
+                validator_set.validator_set.era_number,
+                delegator_id.clone(),
+                validator_id.clone(),
+            ),
+            &unwithdrawn_delegator_reward,
+        );
     }
 }

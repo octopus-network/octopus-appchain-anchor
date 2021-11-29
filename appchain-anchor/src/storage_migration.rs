@@ -119,6 +119,10 @@ impl AppchainAnchor {
                 StorageKey::BeefyLightClientState.into_bytes(),
                 None,
             ),
+            reward_distribution_records: LazyOption::new(
+                StorageKey::RewardDistributionRecords.into_bytes(),
+                Some(&RewardDistributionRecords::new()),
+            ),
         };
         //
         new_contract

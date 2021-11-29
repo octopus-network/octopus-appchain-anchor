@@ -24,9 +24,9 @@ use near_sdk_sim::{
 
 use num_format::{Locale, ToFormattedString};
 
-use crate::anchor_viewer;
 use crate::permissionless_actions;
 use crate::sudo_actions;
+use crate::{anchor_viewer, token_viewer};
 
 const INIT_DEPOSIT_FOR_CONTRACT: Balance = 30_000_000_000_000_000_000_000_000;
 
@@ -475,6 +475,18 @@ pub fn print_latest_appchain_commitment(anchor: &ContractAccount<AppchainAnchorC
     println!(
         "Latest appchain commitment: {}",
         serde_json::to_string::<Option<AppchainCommitment>>(&appchain_commitment).unwrap()
+    );
+}
+
+pub fn print_wat_balance_of_anchor(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+) {
+    let wat_balance_of_anchor =
+        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), wrapped_appchain_token);
+    println!(
+        "Wrapped appchain token balance of anchor contract: {}",
+        wat_balance_of_anchor.0
     );
 }
 
