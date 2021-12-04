@@ -468,12 +468,17 @@ impl AnchorViewer for AppchainAnchor {
         for era_number in start_era.0..end_era.0 + 1 {
             if let Some(validator_set) = validator_set_histories.get(&era_number) {
                 if let Some(reward) = validator_set.validator_rewards.get(&validator_id) {
+                    let unwithdrawn_reward = match self
+                        .unwithdrawn_validator_rewards
+                        .get(&(era_number, validator_id.clone()))
+                    {
+                        Some(reward) => reward,
+                        None => 0,
+                    };
                     reward_histories.push(RewardHistory {
                         era_number: U64::from(era_number),
-                        reward: U128::from(reward),
-                        is_withdrawn: !self
-                            .unwithdrawn_validator_rewards
-                            .contains_key(&(era_number, validator_id.clone())),
+                        total_reward: U128::from(reward),
+                        unwithdrawn_reward: U128::from(unwithdrawn_reward),
                     });
                 }
             }
@@ -496,14 +501,18 @@ impl AnchorViewer for AppchainAnchor {
                     .delegator_rewards
                     .get(&(delegator_id.clone(), validator_id.clone()))
                 {
+                    let unwithdrawn_reward = match self.unwithdrawn_delegator_rewards.get(&(
+                        era_number,
+                        delegator_id.clone(),
+                        validator_id.clone(),
+                    )) {
+                        Some(reward) => reward,
+                        None => 0,
+                    };
                     reward_histories.push(RewardHistory {
                         era_number: U64::from(era_number),
-                        reward: U128::from(reward),
-                        is_withdrawn: !self.unwithdrawn_delegator_rewards.contains_key(&(
-                            era_number,
-                            delegator_id.clone(),
-                            validator_id.clone(),
-                        )),
+                        total_reward: U128::from(reward),
+                        unwithdrawn_reward: U128::from(unwithdrawn_reward),
                     });
                 }
             }

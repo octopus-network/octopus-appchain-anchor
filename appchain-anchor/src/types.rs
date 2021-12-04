@@ -397,8 +397,8 @@ pub struct IndexRange {
 #[serde(crate = "near_sdk::serde")]
 pub struct RewardHistory {
     pub era_number: U64,
-    pub reward: U128,
-    pub is_withdrawn: bool,
+    pub total_reward: U128,
+    pub unwithdrawn_reward: U128,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
