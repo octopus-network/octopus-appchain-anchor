@@ -120,7 +120,7 @@ impl ValidatorSetHistories {
     ///
     pub fn remove(&mut self, era_number: &u64) {
         if let Some(mut validator_set_of_era) = self.histories.get(era_number) {
-            validator_set_of_era.clear_storage();
+            validator_set_of_era.clear();
             self.histories.remove(era_number);
         }
     }
@@ -135,12 +135,15 @@ impl ValidatorSetHistories {
         self.start_index = *era_number;
     }
     ///
-    pub fn reset(&mut self) {
-        for index in self.start_index..self.end_index + 1 {
+    pub fn reset_to(&mut self, era_number: &u64) {
+        assert!(
+            *era_number >= self.start_index && *era_number <= self.end_index,
+            "Invalid target era number."
+        );
+        for index in (*era_number + 1)..self.end_index + 1 {
             self.remove(&index);
         }
-        self.start_index = 0;
-        self.end_index = 0;
+        self.end_index = *era_number;
     }
 }
 
@@ -193,7 +196,7 @@ impl ValidatorSet {
             .collect()
     }
     ///
-    pub fn clear_storage(&mut self) {
+    pub fn clear(&mut self) {
         let validator_ids = self.validator_id_set.to_vec();
         for validator_id in validator_ids {
             if let Some(mut delegator_id_set) =
@@ -216,6 +219,7 @@ impl ValidatorSet {
             }
         }
         self.validator_id_set.clear();
+        self.total_stake = 0;
     }
 }
 
@@ -495,7 +499,7 @@ impl ValidatorSetOfEra {
         }
     }
     ///
-    pub fn clear_storage(&mut self) {
+    pub fn clear(&mut self) {
         let validator_ids = self.validator_set.validator_id_set.to_vec();
         for validator_id in validator_ids {
             if self.unprofitable_validator_id_set.contains(&validator_id) {
@@ -515,7 +519,7 @@ impl ValidatorSetOfEra {
             }
         }
         self.unprofitable_validator_id_set.clear();
-        self.validator_set.clear_storage();
+        self.validator_set.clear();
     }
 }
 
