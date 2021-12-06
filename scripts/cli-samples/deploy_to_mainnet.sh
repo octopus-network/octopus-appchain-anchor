@@ -18,3 +18,7 @@ near call $ANCHOR_ACCOUNT_ID initialize_beefy_light_client '{"initial_public_key
 near call $ANCHOR_ACCOUNT_ID set_relayer_account '{"account_id": "octopus-counter.near"}' --accountId $REGISTRY_ACCOUNT_ID
 near call $ANCHOR_ACCOUNT_ID turn_on_beefy_light_client_witness_mode --accountId $REGISTRY_ACCOUNT_ID
 near call $ANCHOR_ACCOUNT_ID set_rpc_endpoint '{"rpc_endpoint": "wss://gateway.mainnet.octopus.network/debionetwork/ae48005a0c7ecb4053394559a7f4069e"}' --accountId $REGISTRY_ACCOUNT_ID
+#
+near call $ANCHOR_ACCOUNT_ID set_price_of_wrapped_appchain_token '{"price": "88451"}' --accountId $REGISTRY_ACCOUNT_ID
+#
+near call $ANCHOR_ACCOUNT_ID go_live --accountId $REGISTRY_ACCOUNT_ID
