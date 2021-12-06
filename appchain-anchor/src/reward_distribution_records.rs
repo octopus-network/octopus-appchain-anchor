@@ -64,9 +64,8 @@ impl RewardDistributionRecords {
         ));
     }
     ///
-    pub fn clear(&mut self, validator_set: &ValidatorSet) {
-        let era_number_array = self.era_number_set.to_vec();
-        era_number_array.iter().for_each(|era_number| {
+    pub fn clear(&mut self, validator_set: &ValidatorSet, era_number: &u64) {
+        if self.era_number_set.contains(era_number) {
             if let Some(nonce_array) = self.era_number_to_nonces_map.get(era_number) {
                 nonce_array.iter().for_each(|nonce| {
                     let validator_id_array = validator_set.validator_id_set.to_vec();
@@ -93,6 +92,6 @@ impl RewardDistributionRecords {
                     })
                 });
             }
-        });
+        }
     }
 }

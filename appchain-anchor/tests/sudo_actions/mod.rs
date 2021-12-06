@@ -35,29 +35,58 @@ pub fn remove_validator_set_before(
     result
 }
 
-pub fn reset_validator_set_histories(
+pub fn reset_validator_set_histories_to(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
+    era_number: U64,
 ) -> ExecutionResult {
-    let result = call!(signer, anchor.reset_validator_set_histories());
-    common::print_execution_result("reset_validator_set_histories", &result);
+    let result = call!(signer, anchor.reset_validator_set_histories_to(era_number));
+    common::print_execution_result("reset_validator_set_histories_to", &result);
     result
 }
 
-pub fn reset_staking_histories(
+pub fn clear_anchor_event_histories(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
 ) -> ExecutionResult {
-    let result = call!(signer, anchor.reset_staking_histories());
-    common::print_execution_result("reset_staking_histories", &result);
+    let result = call!(signer, anchor.clear_anchor_event_histories());
+    common::print_execution_result("clear_anchor_event_histories", &result);
     result
 }
 
-pub fn reset_anchor_event_histories(
+pub fn clear_appchain_notification_histories(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
 ) -> ExecutionResult {
-    let result = call!(signer, anchor.reset_anchor_event_histories());
-    common::print_execution_result("reset_anchor_event_histories", &result);
+    let result = call!(signer, anchor.clear_appchain_notification_histories());
+    common::print_execution_result("clear_appchain_notification_histories", &result);
+    result
+}
+
+pub fn clear_reward_distribution_records(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    era_number: U64,
+) -> ExecutionResult {
+    let result = call!(signer, anchor.clear_reward_distribution_records(era_number));
+    common::print_execution_result("clear_reward_distribution_records", &result);
+    result
+}
+
+pub fn clear_unbonded_stakes(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> ExecutionResult {
+    let result = call!(signer, anchor.clear_unbonded_stakes());
+    common::print_execution_result("clear_unbonded_stakes", &result);
+    result
+}
+
+pub fn clear_unwithdrawn_rewards(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> ExecutionResult {
+    let result = call!(signer, anchor.clear_unwithdrawn_rewards());
+    common::print_execution_result("clear_unwithdrawn_rewards", &result);
     result
 }

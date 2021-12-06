@@ -12,7 +12,10 @@ use codec::{Decode, Encode};
 use hex_literal::hex;
 use mock_oct_token::MockOctTokenContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
-use near_sdk::{json_types::U128, serde_json};
+use near_sdk::{
+    json_types::{U128, U64},
+    serde_json,
+};
 use near_sdk_sim::{ContractAccount, UserAccount};
 use secp256k1_test::{rand::thread_rng, Message as SecpMessage, Secp256k1};
 
@@ -516,11 +519,9 @@ fn test_beefy_light_client() {
     //
     // Reset history data
     //
-    let result = sudo_actions::reset_validator_set_histories(&root, &anchor);
+    let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(0));
     result.assert_success();
-    let result = sudo_actions::reset_staking_histories(&root, &anchor);
-    result.assert_success();
-    let result = sudo_actions::reset_anchor_event_histories(&root, &anchor);
+    let result = sudo_actions::clear_anchor_event_histories(&root, &anchor);
     result.assert_success();
     common::print_validator_list_of(&anchor, Some(0));
     common::print_validator_list_of(&anchor, Some(1));

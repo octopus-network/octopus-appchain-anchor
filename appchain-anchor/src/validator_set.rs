@@ -145,6 +145,14 @@ impl ValidatorSetHistories {
         }
         self.end_index = *era_number;
     }
+    ///
+    pub fn clear(&mut self) {
+        for index in self.start_index..self.end_index + 1 {
+            self.remove(&index);
+        }
+        self.start_index = 0;
+        self.end_index = 0;
+    }
 }
 
 pub trait ValidatorSetActions {

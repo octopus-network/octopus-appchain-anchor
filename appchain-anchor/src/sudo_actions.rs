@@ -18,19 +18,15 @@ pub trait SudoActions {
         value: U128,
     );
     ///
-    fn remove_validator_set_of(&mut self, era_number: U64);
-    ///
     fn reset_validator_set_histories_to(&mut self, era_number: U64);
     ///
-    fn reset_staking_histories(&mut self);
+    fn clear_anchor_event_histories(&mut self);
     ///
-    fn reset_anchor_event_histories(&mut self);
-    ///
-    fn reset_appchain_notification_histories(&mut self);
+    fn clear_appchain_notification_histories(&mut self);
     ///
     fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
     ///
-    fn clear_reward_distribution_records(&mut self);
+    fn clear_reward_distribution_records(&mut self, era_number: U64);
     ///
     fn clear_unbonded_stakes(&mut self);
     ///
@@ -70,13 +66,6 @@ impl SudoActions for AppchainAnchor {
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
-    fn remove_validator_set_of(&mut self, era_number: U64) {
-        self.assert_owner();
-        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        validator_set_histories.remove(&era_number.0);
-        self.validator_set_histories.set(&validator_set_histories);
-    }
-    //
     fn reset_validator_set_histories_to(&mut self, era_number: U64) {
         self.assert_owner();
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
@@ -93,27 +82,23 @@ impl SudoActions for AppchainAnchor {
             next_validator_set.apply_staking_history(&staking_histories.get(&index).unwrap());
         }
         self.next_validator_set.set(&next_validator_set);
-    }
-    //
-    fn reset_staking_histories(&mut self) {
-        self.assert_owner();
         let mut staking_histories = self.staking_histories.get().unwrap();
-        staking_histories.reset();
+        staking_histories.reset_to(&staking_history_index);
         self.staking_histories.set(&staking_histories);
     }
     //
-    fn reset_anchor_event_histories(&mut self) {
+    fn clear_anchor_event_histories(&mut self) {
         self.assert_owner();
         let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        anchor_event_histories.reset();
+        anchor_event_histories.clear();
         self.anchor_event_histories.set(&anchor_event_histories);
     }
     //
-    fn reset_appchain_notification_histories(&mut self) {
+    fn clear_appchain_notification_histories(&mut self) {
         self.assert_owner();
         let mut appchain_notification_histories =
             self.appchain_notification_histories.get().unwrap();
-        appchain_notification_histories.reset();
+        appchain_notification_histories.clear();
         self.appchain_notification_histories
             .set(&appchain_notification_histories);
     }
@@ -124,10 +109,10 @@ impl SudoActions for AppchainAnchor {
             .set(&beefy_light_client::new(initial_public_keys));
     }
     //
-    fn clear_reward_distribution_records(&mut self) {
+    fn clear_reward_distribution_records(&mut self, era_number: U64) {
         let mut reward_distribution_records = self.reward_distribution_records.get().unwrap();
         let next_validator_set = self.next_validator_set.get().unwrap();
-        reward_distribution_records.clear(&next_validator_set);
+        reward_distribution_records.clear(&next_validator_set, &era_number.0);
         self.reward_distribution_records
             .set(&reward_distribution_records);
     }
