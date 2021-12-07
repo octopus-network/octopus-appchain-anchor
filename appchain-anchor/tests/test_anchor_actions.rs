@@ -10,7 +10,10 @@ use appchain_anchor::{
 };
 use mock_oct_token::MockOctTokenContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
-use near_sdk::{json_types::U128, serde_json};
+use near_sdk::{
+    json_types::{U128, U64},
+    serde_json,
+};
 use near_sdk_sim::{ContractAccount, UserAccount};
 
 mod anchor_viewer;
@@ -620,14 +623,31 @@ fn test_staking_actions() {
     withdraw_stake_of(&anchor, &users[3], &oct_token);
     withdraw_stake_of(&anchor, &users[4], &oct_token);
     //
-    // Reset history data
+    // Reset contract status
     //
-    let result = sudo_actions::reset_validator_set_histories(&root, &anchor);
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(0));
     result.assert_success();
-    let result = sudo_actions::reset_staking_histories(&root, &anchor);
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(1));
     result.assert_success();
-    let result = sudo_actions::reset_anchor_event_histories(&root, &anchor);
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(2));
     result.assert_success();
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(3));
+    result.assert_success();
+    let result = sudo_actions::clear_unbonded_stakes(&root, &anchor);
+    result.assert_success();
+    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor);
+    result.assert_success();
+    let result = sudo_actions::clear_anchor_event_histories(&root, &anchor);
+    result.assert_success();
+    let result = sudo_actions::clear_appchain_notification_histories(&root, &anchor);
+    result.assert_success();
+    let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(2));
+    result.assert_success();
+    let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(1));
+    result.assert_success();
+    let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(0));
+    result.assert_success();
+    common::print_anchor_status(&anchor);
     common::print_validator_list_of(&anchor, Some(0));
     common::print_validator_list_of(&anchor, Some(1));
     common::print_validator_list_of(&anchor, Some(2));
