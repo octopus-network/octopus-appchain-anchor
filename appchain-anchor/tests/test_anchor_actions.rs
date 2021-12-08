@@ -33,7 +33,40 @@ const TOTAL_SUPPLY: u128 = 100_000_000;
 
 #[test]
 fn test_anchor_actions() {
-    test_staking_actions(false);
+    let (root, _oct_token, _registryy, anchor, _users) = test_staking_actions(false);
+    //
+    // Reset contract status
+    //
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(0));
+    result.assert_success();
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(1));
+    result.assert_success();
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(2));
+    result.assert_success();
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(3));
+    result.assert_success();
+    let result = sudo_actions::clear_unbonded_stakes(&root, &anchor);
+    result.assert_success();
+    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor);
+    result.assert_success();
+    let result = sudo_actions::clear_anchor_event_histories(&root, &anchor);
+    result.assert_success();
+    let result = sudo_actions::clear_appchain_notification_histories(&root, &anchor);
+    result.assert_success();
+    let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(2));
+    result.assert_success();
+    let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(1));
+    result.assert_success();
+    let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(0));
+    result.assert_success();
+    common::print_anchor_status(&anchor);
+    common::print_validator_list_of(&anchor, Some(0));
+    common::print_validator_list_of(&anchor, Some(1));
+    common::print_validator_list_of(&anchor, Some(2));
+    common::print_validator_list_of(&anchor, Some(3));
+    common::print_staking_histories(&anchor);
+    common::print_anchor_events(&anchor);
+    common::print_appchain_notifications(&anchor);
 }
 
 fn test_staking_actions(
@@ -636,30 +669,8 @@ fn test_staking_actions(
     withdraw_stake_of(&anchor, &users[3], &oct_token);
     withdraw_stake_of(&anchor, &users[4], &oct_token);
     //
-    // Reset contract status
+    // Print whole status
     //
-    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(0));
-    result.assert_success();
-    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(1));
-    result.assert_success();
-    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(2));
-    result.assert_success();
-    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(3));
-    result.assert_success();
-    let result = sudo_actions::clear_unbonded_stakes(&root, &anchor);
-    result.assert_success();
-    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor);
-    result.assert_success();
-    let result = sudo_actions::clear_anchor_event_histories(&root, &anchor);
-    result.assert_success();
-    let result = sudo_actions::clear_appchain_notification_histories(&root, &anchor);
-    result.assert_success();
-    let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(2));
-    result.assert_success();
-    let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(1));
-    result.assert_success();
-    let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(0));
-    result.assert_success();
     common::print_anchor_status(&anchor);
     common::print_validator_list_of(&anchor, Some(0));
     common::print_validator_list_of(&anchor, Some(1));

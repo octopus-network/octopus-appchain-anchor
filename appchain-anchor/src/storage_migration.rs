@@ -15,6 +15,16 @@ pub struct OldAnchorEventHistories {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
+pub struct OldAppchainNotificationHistories {
+    /// The anchor event data map.
+    histories: LookupMap<u64, AppchainNotificationHistory>,
+    /// The start index of valid anchor event.
+    start_index: u64,
+    /// The end index of valid anchor event.
+    end_index: u64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
     appchain_id: AppchainId,
@@ -56,7 +66,7 @@ pub struct OldAppchainAnchor {
     /// The anchor event history data.
     anchor_event_histories: LazyOption<OldAnchorEventHistories>,
     /// The appchain notification history data.
-    appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
+    appchain_notification_histories: LazyOption<OldAppchainNotificationHistories>,
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
@@ -79,6 +89,8 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         let old_anchor_event_histories = old_contract.anchor_event_histories.get().unwrap();
+        let old_appchain_notification_histories =
+            old_contract.appchain_notification_histories.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -106,7 +118,16 @@ impl AppchainAnchor {
                     old_anchor_event_histories.end_index,
                 )),
             ),
-            appchain_notification_histories: old_contract.appchain_notification_histories,
+            appchain_notification_histories: LazyOption::new(
+                StorageKey::AppchainNotificationHistories.into_bytes(),
+                Some(
+                    &IndexedHistories::<AppchainNotificationHistory>::migrate_from(
+                        StorageKey::AppchainNotificationHistoriesMap,
+                        old_appchain_notification_histories.start_index,
+                        old_appchain_notification_histories.end_index,
+                    ),
+                ),
+            ),
             permissionless_actions_status: old_contract.permissionless_actions_status,
             beefy_light_client_state: old_contract.beefy_light_client_state,
             reward_distribution_records: old_contract.reward_distribution_records,

@@ -1,7 +1,5 @@
-mod anchor_event_histories;
 mod anchor_viewer;
 mod appchain_lifecycle;
-mod appchain_notification_histories;
 mod indexed_histories;
 mod message_decoder;
 mod near_fungible_tokens;
@@ -21,7 +19,6 @@ mod wrapped_appchain_token;
 
 use std::convert::TryInto;
 
-use appchain_notification_histories::AppchainNotificationHistories;
 use beefy_light_client::LightClient;
 use getrandom::{register_custom_getrandom, Error};
 use indexed_histories::{IndexedAndClearable, IndexedHistories};
@@ -35,7 +32,6 @@ use near_sdk::{
     PromiseOrValue, PromiseResult, Timestamp,
 };
 
-pub use anchor_event_histories::AnchorEventHistories;
 pub use anchor_viewer::AnchorViewer;
 pub use appchain_lifecycle::AppchainLifecycleManager;
 pub use message_decoder::AppchainMessage;
@@ -165,7 +161,7 @@ pub struct AppchainAnchor {
     /// The anchor event history data.
     anchor_event_histories: LazyOption<IndexedHistories<AnchorEventHistory>>,
     /// The appchain notification history data.
-    appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
+    appchain_notification_histories: LazyOption<IndexedHistories<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
@@ -244,7 +240,9 @@ impl AppchainAnchor {
             ),
             appchain_notification_histories: LazyOption::new(
                 StorageKey::AppchainNotificationHistories.into_bytes(),
-                Some(&AppchainNotificationHistories::new()),
+                Some(&IndexedHistories::new(
+                    StorageKey::AppchainNotificationHistoriesMap,
+                )),
             ),
             permissionless_actions_status: LazyOption::new(
                 StorageKey::PermissionlessActionsStatus.into_bytes(),
@@ -411,7 +409,12 @@ impl AppchainAnchor {
     ) {
         let mut appchain_notification_histories =
             self.appchain_notification_histories.get().unwrap();
-        appchain_notification_histories.append(appchain_notification);
+        appchain_notification_histories.append(&mut AppchainNotificationHistory {
+            appchain_notification,
+            block_height: env::block_index(),
+            timestamp: env::block_timestamp(),
+            index: U64::from(0),
+        });
         self.appchain_notification_histories
             .set(&appchain_notification_histories);
     }
@@ -448,5 +451,16 @@ impl IndexedAndClearable for AnchorEventHistory {
     //
     fn clear_extra_storage(&mut self) {
         ()
+    }
+}
+
+impl IndexedAndClearable for AppchainNotificationHistory {
+    //
+    fn set_index(&mut self, index: &u64) {
+        self.index = U64::from(*index);
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        todo!()
     }
 }
