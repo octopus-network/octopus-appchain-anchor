@@ -1,7 +1,7 @@
-mod anchor_event_histories;
 mod anchor_viewer;
 mod appchain_lifecycle;
-mod appchain_notification_histories;
+mod indexed_histories;
+pub mod interfaces;
 mod message_decoder;
 mod near_fungible_tokens;
 mod owner_actions;
@@ -18,11 +18,10 @@ mod validator_profiles;
 mod validator_set;
 mod wrapped_appchain_token;
 
-use std::convert::TryInto;
-
-use appchain_notification_histories::AppchainNotificationHistories;
 use beefy_light_client::LightClient;
+use core::convert::TryInto;
 use getrandom::{register_custom_getrandom, Error};
+use indexed_histories::{IndexedAndClearable, IndexedHistories};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
@@ -33,25 +32,17 @@ use near_sdk::{
     PromiseOrValue, PromiseResult, Timestamp,
 };
 
-pub use anchor_event_histories::AnchorEventHistories;
-pub use anchor_viewer::AnchorViewer;
-pub use appchain_lifecycle::AppchainLifecycleManager;
 pub use message_decoder::AppchainMessage;
-pub use near_fungible_tokens::NearFungibleTokenManager;
-pub use permissionless_actions::*;
-pub use settings_manager::*;
-pub use staking::StakingManager;
-pub use validator_actions::ValidatorActions;
-pub use wrapped_appchain_token::WrappedAppchainTokenManager;
+pub use permissionless_actions::AppchainEvent;
 
 use beefy_light_client::Hash;
 use near_fungible_tokens::NearFungibleTokens;
 use reward_distribution_records::RewardDistributionRecords;
-use staking::{StakingHistories, UnbondedStakeReference};
+use staking::UnbondedStakeReference;
 use storage_key::StorageKey;
 use types::*;
 use validator_profiles::ValidatorProfiles;
-use validator_set::{ValidatorSet, ValidatorSetHistories};
+use validator_set::{ValidatorSet, ValidatorSetOfEra};
 
 register_custom_getrandom!(get_random_in_near);
 
@@ -136,7 +127,7 @@ pub struct AppchainAnchor {
     /// The NEP-141 tokens data.
     near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
-    validator_set_histories: LazyOption<ValidatorSetHistories>,
+    validator_set_histories: LazyOption<IndexedHistories<ValidatorSetOfEra>>,
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
     next_validator_set: LazyOption<ValidatorSet>,
@@ -159,11 +150,11 @@ pub struct AppchainAnchor {
     /// The state of the corresponding appchain.
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
-    staking_histories: LazyOption<StakingHistories>,
+    staking_histories: LazyOption<IndexedHistories<StakingHistory>>,
     /// The anchor event history data.
-    anchor_event_histories: LazyOption<AnchorEventHistories>,
+    anchor_event_histories: LazyOption<IndexedHistories<AnchorEventHistory>>,
     /// The appchain notification history data.
-    appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
+    appchain_notification_histories: LazyOption<IndexedHistories<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
@@ -202,7 +193,7 @@ impl AppchainAnchor {
             ),
             validator_set_histories: LazyOption::new(
                 StorageKey::ValidatorSetHistories.into_bytes(),
-                Some(&ValidatorSetHistories::new()),
+                Some(&IndexedHistories::new(StorageKey::ValidatorSetHistoriesMap)),
             ),
             next_validator_set: LazyOption::new(
                 StorageKey::NextValidatorSet.into_bytes(),
@@ -234,15 +225,17 @@ impl AppchainAnchor {
             appchain_state: AppchainState::Staging,
             staking_histories: LazyOption::new(
                 StorageKey::StakingHistories.into_bytes(),
-                Some(&StakingHistories::new()),
+                Some(&IndexedHistories::new(StorageKey::StakingHistoriesMap)),
             ),
             anchor_event_histories: LazyOption::new(
                 StorageKey::AnchorEventHistories.into_bytes(),
-                Some(&AnchorEventHistories::new()),
+                Some(&IndexedHistories::new(StorageKey::AnchorEventHistoriesMap)),
             ),
             appchain_notification_histories: LazyOption::new(
                 StorageKey::AppchainNotificationHistories.into_bytes(),
-                Some(&AppchainNotificationHistories::new()),
+                Some(&IndexedHistories::new(
+                    StorageKey::AppchainNotificationHistoriesMap,
+                )),
             ),
             permissionless_actions_status: LazyOption::new(
                 StorageKey::PermissionlessActionsStatus.into_bytes(),
@@ -394,7 +387,12 @@ impl AppchainAnchor {
     ///
     pub fn internal_append_anchor_event(&mut self, anchor_event: AnchorEvent) {
         let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        anchor_event_histories.append(anchor_event);
+        anchor_event_histories.append(&mut AnchorEventHistory {
+            anchor_event,
+            block_height: env::block_index(),
+            timestamp: env::block_timestamp(),
+            index: U64::from(0),
+        });
         self.anchor_event_histories.set(&anchor_event_histories);
     }
     ///
@@ -404,7 +402,12 @@ impl AppchainAnchor {
     ) {
         let mut appchain_notification_histories =
             self.appchain_notification_histories.get().unwrap();
-        appchain_notification_histories.append(appchain_notification);
+        appchain_notification_histories.append(&mut AppchainNotificationHistory {
+            appchain_notification,
+            block_height: env::block_index(),
+            timestamp: env::block_timestamp(),
+            index: U64::from(0),
+        });
         self.appchain_notification_histories
             .set(&appchain_notification_histories);
     }
@@ -431,4 +434,37 @@ pub fn get_random_in_near(buf: &mut [u8]) -> Result<(), Error> {
     let random = env::random_seed();
     buf.copy_from_slice(&random);
     Ok(())
+}
+
+impl IndexedAndClearable for AnchorEventHistory {
+    //
+    fn set_index(&mut self, index: &u64) {
+        self.index = U64::from(*index);
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        ()
+    }
+}
+
+impl IndexedAndClearable for AppchainNotificationHistory {
+    //
+    fn set_index(&mut self, index: &u64) {
+        self.index = U64::from(*index);
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        ()
+    }
+}
+
+impl IndexedAndClearable for StakingHistory {
+    //
+    fn set_index(&mut self, index: &u64) {
+        self.index = U64::from(*index);
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        ()
+    }
 }

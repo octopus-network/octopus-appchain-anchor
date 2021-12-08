@@ -76,85 +76,6 @@ pub struct ValidatorSetOfEra {
     pub processing_status: ValidatorSetProcessingStatus,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct ValidatorSetHistories {
-    /// The history version of validator set, mapped by era number in appchain.
-    histories: LookupMap<u64, ValidatorSetOfEra>,
-    /// The start index of valid validator set.
-    start_index: u64,
-    /// The end index of valid validator set.
-    end_index: u64,
-}
-
-impl ValidatorSetHistories {
-    ///
-    pub fn new() -> Self {
-        Self {
-            histories: LookupMap::new(StorageKey::ValidatorSetHistoriesMap.into_bytes()),
-            start_index: 0,
-            end_index: 0,
-        }
-    }
-    ///
-    pub fn index_range(&self) -> IndexRange {
-        IndexRange {
-            start_index: U64::from(self.start_index),
-            end_index: U64::from(self.end_index),
-        }
-    }
-    ///
-    pub fn contains(&self, era_number: &u64) -> bool {
-        self.histories.contains_key(era_number)
-    }
-    ///
-    pub fn get(&self, era_number: &u64) -> Option<ValidatorSetOfEra> {
-        self.histories.get(era_number)
-    }
-    ///
-    pub fn insert(&mut self, era_number: &u64, validator_set: &ValidatorSetOfEra) {
-        self.histories.insert(era_number, validator_set);
-        if *era_number > self.end_index {
-            self.end_index = *era_number;
-        }
-    }
-    ///
-    pub fn remove(&mut self, era_number: &u64) {
-        if let Some(mut validator_set_of_era) = self.histories.get(era_number) {
-            validator_set_of_era.clear();
-            self.histories.remove(era_number);
-        }
-    }
-    ///
-    pub fn remove_before(&mut self, era_number: &u64) {
-        if self.start_index >= *era_number {
-            return;
-        }
-        for index in self.start_index..*era_number {
-            self.remove(&index);
-        }
-        self.start_index = *era_number;
-    }
-    ///
-    pub fn reset_to(&mut self, era_number: &u64) {
-        assert!(
-            *era_number >= self.start_index && *era_number <= self.end_index,
-            "Invalid target era number."
-        );
-        for index in (*era_number + 1)..self.end_index + 1 {
-            self.remove(&index);
-        }
-        self.end_index = *era_number;
-    }
-    ///
-    pub fn clear(&mut self) {
-        for index in self.start_index..self.end_index + 1 {
-            self.remove(&index);
-        }
-        self.start_index = 0;
-        self.end_index = 0;
-    }
-}
-
 pub trait ValidatorSetActions {
     /// Apply a certain `staking history` to the validator set.
     fn apply_staking_history(&mut self, staking_history: &StakingHistory);
@@ -535,5 +456,16 @@ impl ValidatorSetActions for ValidatorSetOfEra {
     //
     fn apply_staking_history(&mut self, staking_history: &StakingHistory) {
         self.validator_set.apply_staking_history(staking_history);
+    }
+}
+
+impl IndexedAndClearable for ValidatorSetOfEra {
+    //
+    fn set_index(&mut self, _index: &u64) {
+        ()
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        self.clear();
     }
 }

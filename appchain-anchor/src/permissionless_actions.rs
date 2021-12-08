@@ -1,5 +1,5 @@
-use crate::message_decoder::AppchainMessage;
 use crate::*;
+use crate::{interfaces::PermissionlessActions, message_decoder::AppchainMessage};
 use core::convert::{TryFrom, TryInto};
 use staking::UnbondedStakeReference;
 use validator_set::*;
@@ -28,33 +28,6 @@ pub enum AppchainEvent {
         era_number: u32,
         unprofitable_validator_ids: Vec<String>,
     },
-}
-
-pub trait PermissionlessActions {
-    ///
-    fn start_updating_state_of_beefy_light_client(
-        &mut self,
-        signed_commitment: Vec<u8>,
-        validator_proofs: Vec<ValidatorMerkleProof>,
-        mmr_leaf: Vec<u8>,
-        mmr_proof: Vec<u8>,
-    );
-    ///
-    fn try_complete_updating_state_of_beefy_light_client(
-        &mut self,
-    ) -> MultiTxsOperationProcessingResult;
-    ///
-    fn verify_and_apply_appchain_messages(
-        &mut self,
-        encoded_messages: Vec<u8>,
-        header: Vec<u8>,
-        mmr_leaf: Vec<u8>,
-        mmr_proof: Vec<u8>,
-    ) -> Vec<AppchainMessageProcessingResult>;
-    ///
-    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult;
-    ///
-    fn try_complete_distributing_reward(&mut self) -> MultiTxsOperationProcessingResult;
 }
 
 enum ResultOfLoopingValidatorSet {

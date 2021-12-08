@@ -1,37 +1,9 @@
-use crate::{message_decoder::AppchainMessage, validator_set::ValidatorSetActions};
-use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
-
 use crate::*;
+use crate::{
+    interfaces::SudoActions, message_decoder::AppchainMessage, validator_set::ValidatorSetActions,
+};
 
-pub trait SudoActions {
-    /// Apply a certain `AppchainMessage`
-    fn apply_appchain_messages(
-        &mut self,
-        appchain_messages: Vec<AppchainMessage>,
-    ) -> Vec<AppchainMessageProcessingResult>;
-    ///
-    fn set_metadata_of_wrapped_appchain_token(&mut self, metadata: FungibleTokenMetadata);
-    ///
-    fn set_premined_balance_of_wrapped_appchain_token(
-        &mut self,
-        premined_beneficiary: AccountId,
-        value: U128,
-    );
-    ///
-    fn reset_validator_set_histories_to(&mut self, era_number: U64);
-    ///
-    fn clear_anchor_event_histories(&mut self);
-    ///
-    fn clear_appchain_notification_histories(&mut self);
-    ///
-    fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
-    ///
-    fn clear_reward_distribution_records(&mut self, era_number: U64);
-    ///
-    fn clear_unbonded_stakes(&mut self);
-    ///
-    fn clear_unwithdrawn_rewards(&mut self);
-}
+use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 
 #[near_bindgen]
 impl SudoActions for AppchainAnchor {

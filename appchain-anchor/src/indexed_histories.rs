@@ -1,27 +1,56 @@
 use crate::*;
 
+pub trait IndexedAndClearable {
+    ///
+    fn set_index(&mut self, index: &u64);
+    ///
+    fn clear_extra_storage(&mut self);
+}
+
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct AppchainNotificationHistories {
+pub struct IndexedHistories<T: BorshDeserialize + BorshSerialize + IndexedAndClearable> {
     /// The anchor event data map.
-    histories: LookupMap<u64, AppchainNotificationHistory>,
+    histories: LookupMap<u64, T>,
     /// The start index of valid anchor event.
     start_index: u64,
     /// The end index of valid anchor event.
     end_index: u64,
 }
 
-impl AppchainNotificationHistories {
+impl<T> IndexedHistories<T>
+where
+    T: BorshDeserialize + BorshSerialize + IndexedAndClearable,
+{
     ///
-    pub fn new() -> Self {
+    pub fn new(storage_key: StorageKey) -> Self {
         Self {
-            histories: LookupMap::new(StorageKey::AppchainNotificationHistoriesMap.into_bytes()),
+            histories: LookupMap::new(storage_key.into_bytes()),
             start_index: 0,
             end_index: 0,
         }
     }
     ///
-    pub fn get(&self, index: &u64) -> Option<AppchainNotificationHistory> {
+    pub fn migrate_from(storage_key: StorageKey, start_index: u64, end_index: u64) -> Self {
+        Self {
+            histories: LookupMap::new(storage_key.into_bytes()),
+            start_index,
+            end_index,
+        }
+    }
+    ///
+    pub fn get(&self, index: &u64) -> Option<T> {
         self.histories.get(index)
+    }
+    ///
+    pub fn contains(&self, era_number: &u64) -> bool {
+        self.histories.contains_key(era_number)
+    }
+    ///
+    pub fn insert(&mut self, era_number: &u64, record: &T) {
+        self.histories.insert(era_number, record);
+        if *era_number > self.end_index {
+            self.end_index = *era_number;
+        }
     }
     ///
     pub fn index_range(&self) -> IndexRange {
@@ -31,23 +60,13 @@ impl AppchainNotificationHistories {
         }
     }
     ///
-    pub fn append(
-        &mut self,
-        appchain_notification: AppchainNotification,
-    ) -> AppchainNotificationHistory {
+    pub fn append(&mut self, record: &mut T) -> T {
         let index = match self.histories.contains_key(&0) {
             true => self.end_index + 1,
             false => 0,
         };
-        self.histories.insert(
-            &index,
-            &AppchainNotificationHistory {
-                appchain_notification,
-                block_height: env::block_index(),
-                timestamp: env::block_timestamp(),
-                index: U64::from(index),
-            },
-        );
+        record.set_index(&index);
+        self.histories.insert(&index, &record);
         self.end_index = index;
         self.histories.get(&index).unwrap()
     }
@@ -68,16 +87,23 @@ impl AppchainNotificationHistories {
             "Invalid history data index."
         );
         for index in (*index + 1)..self.end_index + 1 {
-            self.histories.remove(&index);
+            self.remove_at(&index);
         }
         self.end_index = *index;
     }
     ///
     pub fn clear(&mut self) {
         for index in self.start_index..self.end_index + 1 {
-            self.histories.remove(&index);
+            self.remove_at(&index);
         }
         self.start_index = 0;
         self.end_index = 0;
+    }
+    ///
+    fn remove_at(&mut self, index: &u64) {
+        if let Some(mut record) = self.histories.get(index) {
+            record.clear_extra_storage();
+            self.histories.remove(index);
+        }
     }
 }

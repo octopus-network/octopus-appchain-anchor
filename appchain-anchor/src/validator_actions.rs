@@ -1,13 +1,6 @@
-use crate::*;
+use crate::{interfaces::ValidatorActions, *};
 
 use borsh::maybestd::collections::HashMap;
-
-pub trait ValidatorActions {
-    ///
-    fn set_validator_id_in_appchain(&mut self, account_id_in_appchain: String);
-    ///
-    fn set_validator_profile(&mut self, profile: HashMap<String, String>);
-}
 
 #[near_bindgen]
 impl ValidatorActions for AppchainAnchor {

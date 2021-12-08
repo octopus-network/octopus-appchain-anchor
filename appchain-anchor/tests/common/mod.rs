@@ -13,10 +13,7 @@ use mock_oct_token::MockOctTokenContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FT_METADATA_SPEC};
-use near_sdk::{
-    json_types::{U128, U64},
-    serde_json, AccountId, Balance,
-};
+use near_sdk::{json_types::U128, serde_json, AccountId, Balance};
 use near_sdk_sim::{
     call, deploy, init_simulator, lazy_static_include, runtime::GenesisConfig, to_yocto, view,
     ContractAccount, ExecutionResult, UserAccount,
@@ -34,7 +31,8 @@ lazy_static_include::lazy_static_include_bytes! {
     TOKEN_WASM_BYTES => "../res/mock_oct_token.wasm",
     REGISTRY_WASM_BYTES => "../res/mock_appchain_registry.wasm",
     ANCHOR_WASM_BYTES => "../res/appchain_anchor.wasm",
-    WAT_WASM_BYTES => "../res/mock_wrapped_appchain_token.wasm"
+    WAT_WASM_BYTES => "../res/mock_wrapped_appchain_token.wasm",
+    OLD_ANCHOR_WASM_BYTES => "../res/appchain_anchor_20211206.wasm",
 }
 
 // Register the given `user` to oct_token
@@ -117,6 +115,7 @@ fn get_genesis_config() -> GenesisConfig {
 
 pub fn init(
     total_supply: u128,
+    with_old_anchor: bool,
 ) -> (
     UserAccount,
     ContractAccount<MockOctTokenContract>,
@@ -150,17 +149,31 @@ pub fn init(
         signer_account: root,
         init_method: new(oct_token.valid_account_id().to_string())
     };
-    let anchor = deploy! {
-        contract: AppchainAnchorContract,
-        contract_id: "anchor",
-        bytes: &ANCHOR_WASM_BYTES,
-        signer_account: root,
-        deposit: INIT_DEPOSIT_FOR_CONTRACT,
-        init_method: new(
-            "test_appchain_id".to_string(),
-            registry.valid_account_id().to_string(),
-            oct_token.valid_account_id().to_string()
-        )
+    let anchor = match with_old_anchor {
+        true => deploy! {
+            contract: AppchainAnchorContract,
+            contract_id: "anchor",
+            bytes: &OLD_ANCHOR_WASM_BYTES,
+            signer_account: root,
+            deposit: INIT_DEPOSIT_FOR_CONTRACT,
+            init_method: new(
+                "test_appchain_id".to_string(),
+                registry.valid_account_id().to_string(),
+                oct_token.valid_account_id().to_string()
+            )
+        },
+        false => deploy! {
+            contract: AppchainAnchorContract,
+            contract_id: "anchor",
+            bytes: &ANCHOR_WASM_BYTES,
+            signer_account: root,
+            deposit: INIT_DEPOSIT_FOR_CONTRACT,
+            init_method: new(
+                "test_appchain_id".to_string(),
+                registry.valid_account_id().to_string(),
+                oct_token.valid_account_id().to_string()
+            )
+        },
     };
     register_user_to_oct_token(&registry.user_account, &oct_token);
     register_user_to_oct_token(&anchor.user_account, &oct_token);
@@ -189,6 +202,14 @@ pub fn init(
     print_anchor_storage_balance(&anchor);
     // Return initialized UserAccounts
     (root, oct_token, registry, anchor, users)
+}
+
+pub fn deploy_new_anchor_contract(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let transaction = anchor.user_account.create_transaction(anchor.account_id());
+    let result = transaction
+        .deploy_contract((&ANCHOR_WASM_BYTES).to_vec())
+        .submit();
+    result.assert_success();
 }
 
 pub fn deploy_wrapped_appchain_token_contract(

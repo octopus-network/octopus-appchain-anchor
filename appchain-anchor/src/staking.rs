@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{interfaces::StakingManager, *};
 use borsh::maybestd::collections::HashMap;
 use near_sdk::serde_json;
 use validator_set::ValidatorSetActions;
@@ -9,115 +9,6 @@ pub struct UnbondedStakeReference {
     pub era_number: u64,
     /// The index of corresponding `staking history`
     pub staking_history_index: u64,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct StakingHistories {
-    /// The staking history data happened in this contract.
-    histories: LookupMap<u64, StakingHistory>,
-    /// The start index of valid staking history.
-    start_index: u64,
-    /// The end index of valid staking history.
-    end_index: u64,
-}
-
-impl StakingHistories {
-    ///
-    pub fn new() -> Self {
-        Self {
-            histories: LookupMap::new(StorageKey::StakingHistoriesMap.into_bytes()),
-            start_index: 0,
-            end_index: 0,
-        }
-    }
-    ///
-    pub fn get(&self, index: &u64) -> Option<StakingHistory> {
-        self.histories.get(index)
-    }
-    ///
-    pub fn index_range(&self) -> IndexRange {
-        IndexRange {
-            start_index: U64::from(self.start_index),
-            end_index: U64::from(self.end_index),
-        }
-    }
-    ///
-    pub fn append(&mut self, staking_fact: StakingFact) -> StakingHistory {
-        let index = match self.histories.contains_key(&0) {
-            true => self.end_index + 1,
-            false => 0,
-        };
-        self.histories.insert(
-            &index,
-            &StakingHistory {
-                staking_fact,
-                block_height: env::block_index(),
-                timestamp: env::block_timestamp(),
-                index: U64::from(index),
-            },
-        );
-        self.end_index = index;
-        self.histories.get(&index).unwrap()
-    }
-    ///
-    pub fn remove_before(&mut self, index: &u64) {
-        if self.start_index >= *index {
-            return;
-        }
-        for index in self.start_index..*index {
-            self.histories.remove(&index);
-        }
-        self.start_index = *index;
-    }
-    ///
-    pub fn reset_to(&mut self, index: &u64) {
-        assert!(
-            *index >= self.start_index && *index <= self.end_index,
-            "Invalid history data index."
-        );
-        for index in (*index + 1)..self.end_index + 1 {
-            self.histories.remove(&index);
-        }
-        self.end_index = *index;
-    }
-    ///
-    pub fn clear(&mut self) {
-        for index in self.start_index..self.end_index + 1 {
-            self.histories.remove(&index);
-        }
-        self.start_index = 0;
-        self.end_index = 0;
-    }
-}
-
-pub trait StakingManager {
-    /// Decrease stake of an account (validator).
-    /// This function can only be called by a validator.
-    fn decrease_stake(&mut self, amount: U128);
-    /// Unbond stake of an account (validator).
-    /// This function can only be called by a validator.
-    fn unbond_stake(&mut self);
-    /// Enable delegation for an account (validator).
-    /// This function can only be called by a validator.
-    fn enable_delegation(&mut self);
-    /// Disable delegation for an account (validator).
-    /// This function can only be called by a validator.
-    fn disable_delegation(&mut self);
-    /// Decrease delegation of an account (delegator) to a validator.
-    /// This function can only be called by a delegator.
-    fn decrease_delegation(&mut self, validator_id: AccountId, amount: U128);
-    /// Unbond delegation of an account (delegator) to a validator.
-    /// This function can only be called by a delegator.
-    fn unbond_delegation(&mut self, validator_id: AccountId);
-    /// Withdraw unbonded stake(s) of a certain account.
-    /// This function can be called by any account.
-    fn withdraw_stake(&mut self, account_id: AccountId);
-    /// Withdraw rewards of a certain validator.
-    /// This function can be called by any account.
-    fn withdraw_validator_rewards(&mut self, validator_id: AccountId);
-    /// Withdraw rewards of a certain delegator to a validator.
-    /// This function can be called by any account.
-    fn withdraw_delegator_rewards(&mut self, delegator_id: AccountId, validator_id: AccountId);
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -337,7 +228,12 @@ impl AppchainAnchor {
         next_validator_set: &mut ValidatorSet,
     ) {
         let mut staking_histories = self.staking_histories.get().unwrap();
-        let staking_history = staking_histories.append(staking_fact);
+        let staking_history = staking_histories.append(&mut StakingHistory {
+            staking_fact,
+            block_height: env::block_index(),
+            timestamp: env::block_timestamp(),
+            index: U64::from(0),
+        });
         self.staking_histories.set(&staking_histories);
         next_validator_set.apply_staking_history(&staking_history);
         self.next_validator_set.set(next_validator_set);

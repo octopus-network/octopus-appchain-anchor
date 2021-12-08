@@ -1,15 +1,4 @@
-use crate::*;
-
-pub trait OwnerActions {
-    ///
-    fn remove_validator_set_before(&mut self, era_number: U64);
-    ///
-    fn remove_staking_history_before(&mut self, index: U64);
-    ///
-    fn remove_anchor_event_history_before(&mut self, index: U64);
-    ///
-    fn remove_appchain_notification_history_before(&mut self, index: U64);
-}
+use crate::{interfaces::OwnerActions, *};
 
 #[near_bindgen]
 impl OwnerActions for AppchainAnchor {
