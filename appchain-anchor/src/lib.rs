@@ -49,7 +49,7 @@ use staking::UnbondedStakeReference;
 use storage_key::StorageKey;
 use types::*;
 use validator_profiles::ValidatorProfiles;
-use validator_set::{ValidatorSet, ValidatorSetHistories};
+use validator_set::{ValidatorSet, ValidatorSetOfEra};
 
 register_custom_getrandom!(get_random_in_near);
 
@@ -134,7 +134,7 @@ pub struct AppchainAnchor {
     /// The NEP-141 tokens data.
     near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
-    validator_set_histories: LazyOption<ValidatorSetHistories>,
+    validator_set_histories: LazyOption<IndexedHistories<ValidatorSetOfEra>>,
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
     next_validator_set: LazyOption<ValidatorSet>,
@@ -200,7 +200,7 @@ impl AppchainAnchor {
             ),
             validator_set_histories: LazyOption::new(
                 StorageKey::ValidatorSetHistories.into_bytes(),
-                Some(&ValidatorSetHistories::new()),
+                Some(&IndexedHistories::new(StorageKey::ValidatorSetHistoriesMap)),
             ),
             next_validator_set: LazyOption::new(
                 StorageKey::NextValidatorSet.into_bytes(),

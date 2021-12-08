@@ -42,6 +42,17 @@ where
         self.histories.get(index)
     }
     ///
+    pub fn contains(&self, era_number: &u64) -> bool {
+        self.histories.contains_key(era_number)
+    }
+    ///
+    pub fn insert(&mut self, era_number: &u64, record: &T) {
+        self.histories.insert(era_number, record);
+        if *era_number > self.end_index {
+            self.end_index = *era_number;
+        }
+    }
+    ///
     pub fn index_range(&self) -> IndexRange {
         IndexRange {
             start_index: U64::from(self.start_index),

@@ -35,6 +35,16 @@ pub struct OldAppchainNotificationHistories {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
+pub struct OldValidatorSetHistories {
+    /// The history version of validator set, mapped by era number in appchain.
+    histories: LookupMap<u64, ValidatorSetOfEra>,
+    /// The start index of valid validator set.
+    start_index: u64,
+    /// The end index of valid validator set.
+    end_index: u64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
     appchain_id: AppchainId,
@@ -49,7 +59,7 @@ pub struct OldAppchainAnchor {
     /// The NEP-141 tokens data.
     near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
-    validator_set_histories: LazyOption<ValidatorSetHistories>,
+    validator_set_histories: LazyOption<OldValidatorSetHistories>,
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
     next_validator_set: LazyOption<ValidatorSet>,
@@ -99,6 +109,7 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
+        let old_validator_set_histories = old_contract.validator_set_histories.get().unwrap();
         let old_staking_histories = old_contract.staking_histories.get().unwrap();
         let old_anchor_event_histories = old_contract.anchor_event_histories.get().unwrap();
         let old_appchain_notification_histories =
@@ -111,7 +122,14 @@ impl AppchainAnchor {
             oct_token: old_contract.oct_token,
             wrapped_appchain_token: old_contract.wrapped_appchain_token,
             near_fungible_tokens: old_contract.near_fungible_tokens,
-            validator_set_histories: old_contract.validator_set_histories,
+            validator_set_histories: LazyOption::new(
+                StorageKey::ValidatorSetHistories.into_bytes(),
+                Some(&IndexedHistories::<ValidatorSetOfEra>::migrate_from(
+                    StorageKey::ValidatorSetHistoriesMap,
+                    old_validator_set_histories.start_index,
+                    old_validator_set_histories.end_index,
+                )),
+            ),
             next_validator_set: old_contract.next_validator_set,
             unwithdrawn_validator_rewards: old_contract.unwithdrawn_validator_rewards,
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
