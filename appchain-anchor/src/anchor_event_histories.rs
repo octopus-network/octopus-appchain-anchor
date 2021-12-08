@@ -59,7 +59,18 @@ impl AnchorEventHistories {
         self.start_index = *index;
     }
     ///
-    pub fn reset(&mut self) {
+    pub fn reset_to(&mut self, index: &u64) {
+        assert!(
+            *index >= self.start_index && *index <= self.end_index,
+            "Invalid history data index."
+        );
+        for index in (*index + 1)..self.end_index + 1 {
+            self.histories.remove(&index);
+        }
+        self.end_index = *index;
+    }
+    ///
+    pub fn clear(&mut self) {
         for index in self.start_index..self.end_index + 1 {
             self.histories.remove(&index);
         }

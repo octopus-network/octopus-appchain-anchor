@@ -53,4 +53,8 @@ impl ValidatorProfiles {
             None => None,
         }
     }
+    ///
+    pub fn get_validator_ids(&self) -> Vec<String> {
+        self.validator_id_set.to_vec()
+    }
 }

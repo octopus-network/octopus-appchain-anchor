@@ -156,6 +156,11 @@ impl AnchorViewer for AppchainAnchor {
                 .validator_id_set
                 .len()
                 .into(),
+            index_range_of_validator_set_history: self
+                .validator_set_histories
+                .get()
+                .unwrap()
+                .index_range(),
             index_range_of_anchor_event_history: self
                 .anchor_event_histories
                 .get()

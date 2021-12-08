@@ -63,4 +63,35 @@ impl RewardDistributionRecords {
             validator_id.clone(),
         ));
     }
+    ///
+    pub fn clear(&mut self, validator_set: &ValidatorSet, era_number: &u64) {
+        if self.era_number_set.contains(era_number) {
+            if let Some(nonce_array) = self.era_number_to_nonces_map.get(era_number) {
+                nonce_array.iter().for_each(|nonce| {
+                    let validator_id_array = validator_set.validator_id_set.to_vec();
+                    validator_id_array.iter().for_each(|validator_id| {
+                        self.record_set.remove(&(
+                            *nonce,
+                            *era_number,
+                            String::new(),
+                            validator_id.clone(),
+                        ));
+                        if let Some(delegator_id_set) = validator_set
+                            .validator_id_to_delegator_id_set
+                            .get(validator_id)
+                        {
+                            delegator_id_set.to_vec().iter().for_each(|delegator_id| {
+                                self.record_set.remove(&(
+                                    *nonce,
+                                    *era_number,
+                                    delegator_id.clone(),
+                                    validator_id.clone(),
+                                ));
+                            });
+                        }
+                    })
+                });
+            }
+        }
+    }
 }
