@@ -1,13 +1,4 @@
-use crate::*;
-
-pub trait AppchainLifecycleManager {
-    /// Verify and change the state of corresponding appchain to `booting`.
-    fn go_booting(&mut self);
-    /// Verify and change the state of corresponding appchain to `active`.
-    fn go_live(&mut self);
-    /// Initialize the beefy light client
-    fn initialize_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
-}
+use crate::{interfaces::AppchainLifecycleManager, *};
 
 #[near_bindgen]
 impl AppchainLifecycleManager for AppchainAnchor {

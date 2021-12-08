@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{interfaces::StakingManager, *};
 use borsh::maybestd::collections::HashMap;
 use near_sdk::serde_json;
 use validator_set::ValidatorSetActions;
@@ -9,36 +9,6 @@ pub struct UnbondedStakeReference {
     pub era_number: u64,
     /// The index of corresponding `staking history`
     pub staking_history_index: u64,
-}
-
-pub trait StakingManager {
-    /// Decrease stake of an account (validator).
-    /// This function can only be called by a validator.
-    fn decrease_stake(&mut self, amount: U128);
-    /// Unbond stake of an account (validator).
-    /// This function can only be called by a validator.
-    fn unbond_stake(&mut self);
-    /// Enable delegation for an account (validator).
-    /// This function can only be called by a validator.
-    fn enable_delegation(&mut self);
-    /// Disable delegation for an account (validator).
-    /// This function can only be called by a validator.
-    fn disable_delegation(&mut self);
-    /// Decrease delegation of an account (delegator) to a validator.
-    /// This function can only be called by a delegator.
-    fn decrease_delegation(&mut self, validator_id: AccountId, amount: U128);
-    /// Unbond delegation of an account (delegator) to a validator.
-    /// This function can only be called by a delegator.
-    fn unbond_delegation(&mut self, validator_id: AccountId);
-    /// Withdraw unbonded stake(s) of a certain account.
-    /// This function can be called by any account.
-    fn withdraw_stake(&mut self, account_id: AccountId);
-    /// Withdraw rewards of a certain validator.
-    /// This function can be called by any account.
-    fn withdraw_validator_rewards(&mut self, validator_id: AccountId);
-    /// Withdraw rewards of a certain delegator to a validator.
-    /// This function can be called by any account.
-    fn withdraw_delegator_rewards(&mut self, delegator_id: AccountId, validator_id: AccountId);
 }
 
 #[derive(Serialize, Deserialize, Clone)]

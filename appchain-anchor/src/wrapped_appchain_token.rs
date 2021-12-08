@@ -2,7 +2,7 @@ use core::convert::TryFrom;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_sdk::json_types::I128;
 
-use crate::*;
+use crate::{interfaces::WrappedAppchainTokenManager, *};
 
 pub trait WrappedAppchainTokenContractResolver {
     /// Resolver for burning wrapped appchain token
@@ -55,22 +55,6 @@ impl WrappedAppchainToken {
     pub fn get_market_value_of(&self, amount: u128) -> Balance {
         amount / u128::pow(10, u32::from(self.metadata.decimals)) * self.price_in_usd.0
     }
-}
-
-pub trait WrappedAppchainTokenManager {
-    ///
-    fn sync_basedata_of_wrapped_appchain_token(
-        &mut self,
-        metadata: FungibleTokenMetadata,
-        premined_beneficiary: AccountId,
-        premined_balance: U128,
-    );
-    ///
-    fn set_account_of_wrapped_appchain_token(&mut self, contract_account: AccountId);
-    ///
-    fn set_price_of_wrapped_appchain_token(&mut self, price: U128);
-    ///
-    fn burn_wrapped_appchain_token(&self, receiver_id: String, amount: U128);
 }
 
 #[near_bindgen]

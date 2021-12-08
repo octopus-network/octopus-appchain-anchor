@@ -1,7 +1,7 @@
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_sdk::serde_json;
 
-use crate::*;
+use crate::{interfaces::NearFungibleTokenManager, *};
 
 pub trait FungibleTokenContractResolver {
     /// Resolver for transfer NEAR fungible token
@@ -85,32 +85,6 @@ impl NearFungibleTokens {
             0
         }
     }
-}
-
-pub trait NearFungibleTokenManager {
-    ///
-    fn register_near_fungible_token(
-        &mut self,
-        symbol: String,
-        name: String,
-        decimals: u8,
-        contract_account: AccountId,
-        price: U128,
-    );
-    ///
-    fn change_near_fungible_token_metadata(
-        &mut self,
-        symbol: String,
-        name: String,
-        decimals: u8,
-        contract_account: AccountId,
-    );
-    ///
-    fn set_price_of_near_fungible_token(&mut self, symbol: String, price: U128);
-    ///
-    fn open_bridging_of_near_fungible_token(&mut self, symbol: String);
-    ///
-    fn close_bridging_of_near_fungible_token(&mut self, symbol: String);
 }
 
 #[near_bindgen]

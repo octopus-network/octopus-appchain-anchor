@@ -1,4 +1,7 @@
-use crate::*;
+use crate::{
+    interfaces::{AnchorSettingsManager, AppchainSettingsManager, ProtocolSettingsManager},
+    *,
+};
 use core::convert::From;
 
 impl Default for ProtocolSettings {
@@ -39,55 +42,6 @@ impl Default for AppchainSettings {
             era_reward: U128::from(0),
         }
     }
-}
-
-pub trait ProtocolSettingsManager {
-    ///
-    fn change_minimum_validator_deposit(&mut self, value: U128);
-    ///
-    fn change_minimum_delegator_deposit(&mut self, value: U128);
-    ///
-    fn change_minimum_total_stake_price_for_booting(&mut self, value: U128);
-    ///
-    fn change_maximum_market_value_percent_of_near_fungible_tokens(&mut self, value: u16);
-    ///
-    fn change_maximum_market_value_percent_of_wrapped_appchain_token(&mut self, value: u16);
-    ///
-    fn change_minimum_validator_count(&mut self, value: U64);
-    ///
-    fn change_maximum_validator_count(&mut self, value: U64);
-    ///
-    fn change_maximum_validators_per_delegator(&mut self, value: U64);
-    ///
-    fn change_unlock_period_of_validator_deposit(&mut self, value: U64);
-    ///
-    fn change_unlock_period_of_delegator_deposit(&mut self, value: U64);
-    ///
-    fn change_maximum_era_count_of_unwithdrawn_reward(&mut self, value: U64);
-    ///
-    fn change_maximum_era_count_of_valid_appchain_message(&mut self, value: U64);
-    ///
-    fn change_validator_commission_percent(&mut self, value: u16);
-}
-
-pub trait AppchainSettingsManager {
-    ///
-    fn set_rpc_endpoint(&mut self, rpc_endpoint: String);
-    ///
-    fn set_subql_endpoint(&mut self, subql_endpoint: String);
-    ///
-    fn set_era_reward(&mut self, era_reward: U128);
-}
-
-pub trait AnchorSettingsManager {
-    ///
-    fn set_token_price_maintainer_account(&mut self, account_id: AccountId);
-    ///
-    fn set_relayer_account(&mut self, account_id: AccountId);
-    ///
-    fn turn_on_beefy_light_client_witness_mode(&mut self);
-    ///
-    fn turn_off_beefy_light_client_witness_mode(&mut self);
 }
 
 #[near_bindgen]
