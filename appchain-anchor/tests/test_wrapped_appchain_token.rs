@@ -24,7 +24,7 @@ const TOTAL_SUPPLY: u128 = 100_000_000;
 #[test]
 fn test_wrapped_appchain_token_bridging() {
     let total_supply = common::to_oct_amount(TOTAL_SUPPLY);
-    let (root, oct_token, _registry, anchor, users) = common::init(total_supply);
+    let (root, oct_token, _registry, anchor, users) = common::init(total_supply, false);
     let user0_id_in_appchain =
         "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
     let user1_id_in_appchain =

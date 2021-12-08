@@ -2,6 +2,7 @@ mod anchor_event_histories;
 mod anchor_viewer;
 mod appchain_lifecycle;
 mod appchain_notification_histories;
+mod indexed_histories;
 mod message_decoder;
 mod near_fungible_tokens;
 mod owner_actions;
@@ -23,6 +24,7 @@ use std::convert::TryInto;
 use appchain_notification_histories::AppchainNotificationHistories;
 use beefy_light_client::LightClient;
 use getrandom::{register_custom_getrandom, Error};
+use indexed_histories::{IndexedAndClearable, IndexedHistories};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
@@ -161,7 +163,7 @@ pub struct AppchainAnchor {
     /// The staking history data happened in this contract.
     staking_histories: LazyOption<StakingHistories>,
     /// The anchor event history data.
-    anchor_event_histories: LazyOption<AnchorEventHistories>,
+    anchor_event_histories: LazyOption<IndexedHistories<AnchorEventHistory>>,
     /// The appchain notification history data.
     appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
     /// The status of permissionless actions.
@@ -238,7 +240,7 @@ impl AppchainAnchor {
             ),
             anchor_event_histories: LazyOption::new(
                 StorageKey::AnchorEventHistories.into_bytes(),
-                Some(&AnchorEventHistories::new()),
+                Some(&IndexedHistories::new(StorageKey::AnchorEventHistoriesMap)),
             ),
             appchain_notification_histories: LazyOption::new(
                 StorageKey::AppchainNotificationHistories.into_bytes(),
@@ -394,7 +396,12 @@ impl AppchainAnchor {
     ///
     pub fn internal_append_anchor_event(&mut self, anchor_event: AnchorEvent) {
         let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        anchor_event_histories.append(anchor_event);
+        anchor_event_histories.append(&mut AnchorEventHistory {
+            anchor_event,
+            block_height: env::block_index(),
+            timestamp: env::block_timestamp(),
+            index: U64::from(0),
+        });
         self.anchor_event_histories.set(&anchor_event_histories);
     }
     ///
@@ -431,4 +438,15 @@ pub fn get_random_in_near(buf: &mut [u8]) -> Result<(), Error> {
     let random = env::random_seed();
     buf.copy_from_slice(&random);
     Ok(())
+}
+
+impl IndexedAndClearable for AnchorEventHistory {
+    //
+    fn set_index(&mut self, index: &u64) {
+        self.index = U64::from(*index);
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        ()
+    }
 }

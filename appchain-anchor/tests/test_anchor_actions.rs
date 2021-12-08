@@ -8,13 +8,14 @@ use appchain_anchor::{
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
+use mock_appchain_registry::MockAppchainRegistryContract;
 use mock_oct_token::MockOctTokenContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 use near_sdk::{
     json_types::{U128, U64},
     serde_json,
 };
-use near_sdk_sim::{ContractAccount, UserAccount};
+use near_sdk_sim::{call, ContractAccount, UserAccount};
 
 mod anchor_viewer;
 mod common;
@@ -31,9 +32,21 @@ mod wrapped_appchain_token_manager;
 const TOTAL_SUPPLY: u128 = 100_000_000;
 
 #[test]
-fn test_staking_actions() {
+fn test_anchor_actions() {
+    test_staking_actions(false);
+}
+
+fn test_staking_actions(
+    with_old_anchor: bool,
+) -> (
+    UserAccount,
+    ContractAccount<MockOctTokenContract>,
+    ContractAccount<MockAppchainRegistryContract>,
+    ContractAccount<AppchainAnchorContract>,
+    Vec<UserAccount>,
+) {
     let total_supply = common::to_oct_amount(TOTAL_SUPPLY);
-    let (root, oct_token, _registry, anchor, users) = common::init(total_supply);
+    let (root, oct_token, registry, anchor, users) = common::init(total_supply, with_old_anchor);
     let user0_id_in_appchain =
         "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
     let user1_id_in_appchain =
@@ -655,6 +668,10 @@ fn test_staking_actions() {
     common::print_staking_histories(&anchor);
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
+    //
+    //
+    //
+    (root, oct_token, registry, anchor, users)
 }
 
 fn distribute_reward_of(
@@ -788,4 +805,23 @@ fn withdraw_stake_of(
         token_viewer::get_oct_balance_of(user, oct_token).0 - oct_balance_before_withdraw.0
     );
     common::print_unbonded_stakes_of(anchor, user);
+}
+
+#[test]
+fn test_migration() {
+    let (root, _oct_token, _registryy, anchor, _users) = test_staking_actions(true);
+    common::deploy_new_anchor_contract(&anchor);
+    let result = call!(root, anchor.migrate_state());
+    common::print_execution_result("migrate_state", &result);
+    //
+    //
+    //
+    common::print_anchor_status(&anchor);
+    common::print_validator_list_of(&anchor, Some(0));
+    common::print_validator_list_of(&anchor, Some(1));
+    common::print_validator_list_of(&anchor, Some(2));
+    common::print_validator_list_of(&anchor, Some(3));
+    common::print_staking_histories(&anchor);
+    common::print_anchor_events(&anchor);
+    common::print_appchain_notifications(&anchor);
 }

@@ -8,7 +8,7 @@ use appchain_anchor::{
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
-use codec::{Decode, Encode};
+use codec::Decode;
 use hex_literal::hex;
 use mock_oct_token::MockOctTokenContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
@@ -17,14 +17,9 @@ use near_sdk::{
     serde_json,
 };
 use near_sdk_sim::{ContractAccount, UserAccount};
-use secp256k1_test::{rand::thread_rng, Message as SecpMessage, Secp256k1};
 
+use beefy_light_client::mmr::{MmrLeaf, MmrLeafProof};
 use beefy_light_client::{beefy_ecdsa_to_ethereum, commitment::SignedCommitment};
-use beefy_light_client::{
-    commitment::{Commitment, Signature},
-    mmr::{MmrLeaf, MmrLeafProof},
-};
-use beefy_merkle_tree::{merkle_proof, Keccak256};
 
 mod anchor_viewer;
 mod common;
@@ -43,7 +38,7 @@ const TOTAL_SUPPLY: u128 = 100_000_000;
 #[test]
 fn test_beefy_light_client() {
     let total_supply = common::to_oct_amount(TOTAL_SUPPLY);
-    let (root, oct_token, _registry, anchor, users) = common::init(total_supply);
+    let (root, oct_token, _registry, anchor, users) = common::init(total_supply, false);
     let user0_id_in_appchain =
         "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
     let user1_id_in_appchain =

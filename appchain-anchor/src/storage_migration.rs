@@ -5,50 +5,64 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize)]
+pub struct OldAnchorEventHistories {
+    /// The anchor event data map.
+    histories: LookupMap<u64, AnchorEventHistory>,
+    /// The start index of valid anchor event.
+    start_index: u64,
+    /// The end index of valid anchor event.
+    end_index: u64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
-    pub appchain_id: AppchainId,
+    appchain_id: AppchainId,
     /// The account id of appchain registry contract.
-    pub appchain_registry: AccountId,
+    appchain_registry: AccountId,
     /// The owner account id.
-    pub owner: AccountId,
+    owner: AccountId,
     /// The info of OCT token.
-    pub oct_token: LazyOption<OctToken>,
+    oct_token: LazyOption<OctToken>,
     /// The info of wrapped appchain token in NEAR protocol.
-    pub wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
+    wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
     /// The NEP-141 tokens data.
-    pub near_fungible_tokens: LazyOption<NearFungibleTokens>,
+    near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
-    pub validator_set_histories: LazyOption<ValidatorSetHistories>,
+    validator_set_histories: LazyOption<ValidatorSetHistories>,
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
-    pub next_validator_set: LazyOption<ValidatorSet>,
+    next_validator_set: LazyOption<ValidatorSet>,
     /// The map of unwithdrawn validator rewards in eras, in unit of wrapped appchain token.
-    pub unwithdrawn_validator_rewards: LookupMap<(u64, AccountId), Balance>,
+    /// The key in map is `(era_number, account_id_of_validator)`
+    unwithdrawn_validator_rewards: LookupMap<(u64, AccountId), Balance>,
     /// The map of unwithdrawn delegator rewards in eras, in unit of wrapped appchain token.
-    pub unwithdrawn_delegator_rewards: LookupMap<(u64, AccountId, AccountId), Balance>,
+    /// The key in map is `(era_number, account_id_of_delegator, account_id_of_validator)`
+    unwithdrawn_delegator_rewards: LookupMap<(u64, AccountId, AccountId), Balance>,
     /// The map of unbonded stakes in eras.
-    pub unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
+    unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
     /// The validators' profiles data.
-    pub validator_profiles: LazyOption<ValidatorProfiles>,
+    validator_profiles: LazyOption<ValidatorProfiles>,
     /// The custom settings for appchain.
-    pub appchain_settings: LazyOption<AppchainSettings>,
+    appchain_settings: LazyOption<AppchainSettings>,
     /// The anchor settings for appchain.
-    pub anchor_settings: LazyOption<AnchorSettings>,
+    anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
-    pub protocol_settings: LazyOption<ProtocolSettings>,
+    protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain.
-    pub appchain_state: AppchainState,
+    appchain_state: AppchainState,
     /// The staking history data happened in this contract.
-    pub staking_histories: LazyOption<StakingHistories>,
-    /// The anchor events data.
-    pub anchor_event_histories: LazyOption<AnchorEventHistories>,
+    staking_histories: LazyOption<StakingHistories>,
+    /// The anchor event history data.
+    anchor_event_histories: LazyOption<OldAnchorEventHistories>,
     /// The appchain notification history data.
-    pub appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
-    /// The status of permissionless actions
-    pub permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
+    appchain_notification_histories: LazyOption<AppchainNotificationHistories>,
+    /// The status of permissionless actions.
+    permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
-    pub beefy_light_client_state: LazyOption<LightClient>,
+    beefy_light_client_state: LazyOption<LightClient>,
+    /// The reward distribution records data
+    reward_distribution_records: LazyOption<RewardDistributionRecords>,
 }
 
 #[near_bindgen]
@@ -64,6 +78,7 @@ impl AppchainAnchor {
             &old_contract.owner,
             "Can only be called by the owner"
         );
+        let old_anchor_event_histories = old_contract.anchor_event_histories.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -83,14 +98,18 @@ impl AppchainAnchor {
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
             staking_histories: old_contract.staking_histories,
-            anchor_event_histories: old_contract.anchor_event_histories,
+            anchor_event_histories: LazyOption::new(
+                StorageKey::AnchorEventHistories.into_bytes(),
+                Some(&IndexedHistories::<AnchorEventHistory>::migrate_from(
+                    StorageKey::AnchorEventHistoriesMap,
+                    old_anchor_event_histories.start_index,
+                    old_anchor_event_histories.end_index,
+                )),
+            ),
             appchain_notification_histories: old_contract.appchain_notification_histories,
             permissionless_actions_status: old_contract.permissionless_actions_status,
             beefy_light_client_state: old_contract.beefy_light_client_state,
-            reward_distribution_records: LazyOption::new(
-                StorageKey::RewardDistributionRecords.into_bytes(),
-                Some(&RewardDistributionRecords::new()),
-            ),
+            reward_distribution_records: old_contract.reward_distribution_records,
         };
         //
         new_contract
