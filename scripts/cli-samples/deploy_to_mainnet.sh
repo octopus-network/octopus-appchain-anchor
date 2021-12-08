@@ -23,3 +23,6 @@ near call $ANCHOR_ACCOUNT_ID set_era_reward '{"era_reward": "1369900000000000000
 near call $ANCHOR_ACCOUNT_ID set_price_of_wrapped_appchain_token '{"price": "88451"}' --accountId $REGISTRY_ACCOUNT_ID
 #
 near call $ANCHOR_ACCOUNT_ID go_live --accountId $REGISTRY_ACCOUNT_ID
+#
+near call $ANCHOR_ACCOUNT_ID change_minimum_validator_count '{"value":"4"}' --accountId $REGISTRY_ACCOUNT_ID
+near call $ANCHOR_ACCOUNT_ID change_maximum_validator_count '{"value":"30"}' --accountId $REGISTRY_ACCOUNT_ID
