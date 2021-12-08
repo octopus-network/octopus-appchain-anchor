@@ -45,7 +45,7 @@ pub use wrapped_appchain_token::WrappedAppchainTokenManager;
 use beefy_light_client::Hash;
 use near_fungible_tokens::NearFungibleTokens;
 use reward_distribution_records::RewardDistributionRecords;
-use staking::{StakingHistories, UnbondedStakeReference};
+use staking::UnbondedStakeReference;
 use storage_key::StorageKey;
 use types::*;
 use validator_profiles::ValidatorProfiles;
@@ -157,7 +157,7 @@ pub struct AppchainAnchor {
     /// The state of the corresponding appchain.
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
-    staking_histories: LazyOption<StakingHistories>,
+    staking_histories: LazyOption<IndexedHistories<StakingHistory>>,
     /// The anchor event history data.
     anchor_event_histories: LazyOption<IndexedHistories<AnchorEventHistory>>,
     /// The appchain notification history data.
@@ -232,7 +232,7 @@ impl AppchainAnchor {
             appchain_state: AppchainState::Staging,
             staking_histories: LazyOption::new(
                 StorageKey::StakingHistories.into_bytes(),
-                Some(&StakingHistories::new()),
+                Some(&IndexedHistories::new(StorageKey::StakingHistoriesMap)),
             ),
             anchor_event_histories: LazyOption::new(
                 StorageKey::AnchorEventHistories.into_bytes(),
@@ -461,6 +461,17 @@ impl IndexedAndClearable for AppchainNotificationHistory {
     }
     //
     fn clear_extra_storage(&mut self) {
-        todo!()
+        ()
+    }
+}
+
+impl IndexedAndClearable for StakingHistory {
+    //
+    fn set_index(&mut self, index: &u64) {
+        self.index = U64::from(*index);
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        ()
     }
 }

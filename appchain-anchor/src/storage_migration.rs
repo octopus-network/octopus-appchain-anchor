@@ -5,6 +5,16 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize)]
+pub struct OldStakingHistories {
+    /// The staking history data happened in this contract.
+    histories: LookupMap<u64, StakingHistory>,
+    /// The start index of valid staking history.
+    start_index: u64,
+    /// The end index of valid staking history.
+    end_index: u64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAnchorEventHistories {
     /// The anchor event data map.
     histories: LookupMap<u64, AnchorEventHistory>,
@@ -62,7 +72,7 @@ pub struct OldAppchainAnchor {
     /// The state of the corresponding appchain.
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
-    staking_histories: LazyOption<StakingHistories>,
+    staking_histories: LazyOption<OldStakingHistories>,
     /// The anchor event history data.
     anchor_event_histories: LazyOption<OldAnchorEventHistories>,
     /// The appchain notification history data.
@@ -88,6 +98,8 @@ impl AppchainAnchor {
             &old_contract.owner,
             "Can only be called by the owner"
         );
+        //
+        let old_staking_histories = old_contract.staking_histories.get().unwrap();
         let old_anchor_event_histories = old_contract.anchor_event_histories.get().unwrap();
         let old_appchain_notification_histories =
             old_contract.appchain_notification_histories.get().unwrap();
@@ -109,7 +121,14 @@ impl AppchainAnchor {
             anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
-            staking_histories: old_contract.staking_histories,
+            staking_histories: LazyOption::new(
+                StorageKey::StakingHistories.into_bytes(),
+                Some(&IndexedHistories::<StakingHistory>::migrate_from(
+                    StorageKey::StakingHistoriesMap,
+                    old_staking_histories.start_index,
+                    old_staking_histories.end_index,
+                )),
+            ),
             anchor_event_histories: LazyOption::new(
                 StorageKey::AnchorEventHistories.into_bytes(),
                 Some(&IndexedHistories::<AnchorEventHistory>::migrate_from(
