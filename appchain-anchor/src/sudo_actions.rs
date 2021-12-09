@@ -82,6 +82,7 @@ impl SudoActions for AppchainAnchor {
     }
     //
     fn clear_reward_distribution_records(&mut self, era_number: U64) {
+        self.assert_owner();
         let mut reward_distribution_records = self.reward_distribution_records.get().unwrap();
         let next_validator_set = self.next_validator_set.get().unwrap();
         reward_distribution_records.clear(&next_validator_set, &era_number.0);
@@ -90,6 +91,7 @@ impl SudoActions for AppchainAnchor {
     }
     //
     fn clear_unbonded_stakes(&mut self) {
+        self.assert_owner();
         let validator_profiles = self.validator_profiles.get().unwrap();
         validator_profiles
             .get_validator_ids()
@@ -100,6 +102,7 @@ impl SudoActions for AppchainAnchor {
     }
     //
     fn clear_unwithdrawn_rewards(&mut self) {
+        self.assert_owner();
         let next_validator_set = self.next_validator_set.get().unwrap();
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let index_range = validator_set_histories.index_range();
