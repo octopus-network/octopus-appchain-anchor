@@ -428,7 +428,7 @@ impl ValidatorSetOfEra {
         }
     }
     ///
-    pub fn clear(&mut self) {
+    pub fn clear_reward_distribution_records(&mut self) {
         let validator_ids = self.validator_set.validator_id_set.to_vec();
         for validator_id in validator_ids {
             if self.unprofitable_validator_id_set.contains(&validator_id) {
@@ -444,10 +444,14 @@ impl ValidatorSetOfEra {
                     self.delegator_rewards
                         .remove(&(delegator_id.clone(), validator_id.clone()));
                 }
-                self.validator_rewards.remove(&validator_id);
             }
+            self.validator_rewards.remove(&validator_id);
         }
         self.unprofitable_validator_id_set.clear();
+    }
+    ///
+    pub fn clear(&mut self) {
+        self.clear_reward_distribution_records();
         self.validator_set.clear();
     }
 }
