@@ -385,31 +385,37 @@ impl AppchainAnchor {
 
 impl AppchainAnchor {
     ///
-    pub fn internal_append_anchor_event(&mut self, anchor_event: AnchorEvent) {
+    pub fn internal_append_anchor_event(
+        &mut self,
+        anchor_event: AnchorEvent,
+    ) -> AnchorEventHistory {
         let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        anchor_event_histories.append(&mut AnchorEventHistory {
+        let anchor_event_history = anchor_event_histories.append(&mut AnchorEventHistory {
             anchor_event,
             block_height: env::block_index(),
             timestamp: env::block_timestamp(),
             index: U64::from(0),
         });
         self.anchor_event_histories.set(&anchor_event_histories);
+        anchor_event_history
     }
     ///
     pub fn internal_append_appchain_notification(
         &mut self,
         appchain_notification: AppchainNotification,
-    ) {
+    ) -> AppchainNotificationHistory {
         let mut appchain_notification_histories =
             self.appchain_notification_histories.get().unwrap();
-        appchain_notification_histories.append(&mut AppchainNotificationHistory {
-            appchain_notification,
-            block_height: env::block_index(),
-            timestamp: env::block_timestamp(),
-            index: U64::from(0),
-        });
+        let appchain_notification_history =
+            appchain_notification_histories.append(&mut AppchainNotificationHistory {
+                appchain_notification,
+                block_height: env::block_index(),
+                timestamp: env::block_timestamp(),
+                index: U64::from(0),
+            });
         self.appchain_notification_histories
             .set(&appchain_notification_histories);
+        appchain_notification_history
     }
     ///
     pub fn sync_state_to_registry(&self) {

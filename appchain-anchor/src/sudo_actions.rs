@@ -88,6 +88,11 @@ impl SudoActions for AppchainAnchor {
         reward_distribution_records.clear(&next_validator_set, &era_number.0);
         self.reward_distribution_records
             .set(&reward_distribution_records);
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        if let Some(mut validator_set_of_era) = validator_set_histories.get(&era_number.0) {
+            validator_set_of_era.clear_reward_distribution_records();
+            validator_set_histories.insert(&era_number.0, &validator_set_of_era);
+        }
     }
     //
     fn clear_unbonded_stakes(&mut self) {
