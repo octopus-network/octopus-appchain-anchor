@@ -170,13 +170,6 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                env::log(
-                    format!(
-                        "Wrapped appchain token burnt by '{}' for '{}' in appchain. Amount: '{}'",
-                        &sender_id_in_near, &receiver_id_in_appchain, &amount.0
-                    )
-                    .as_bytes(),
-                );
                 let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
                 wrapped_appchain_token.changed_balance = I128::from(
                     wrapped_appchain_token.changed_balance.0 - i128::try_from(amount.0).unwrap(),
@@ -187,12 +180,19 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     receiver_id_in_appchain: receiver_id_in_appchain.clone(),
                     amount: U128::from(amount),
                 });
-                self.internal_append_appchain_notification(
+                let appchain_notification_history = self.internal_append_appchain_notification(
                     AppchainNotification::WrappedAppchainTokenBurnt {
                         sender_id_in_near: sender_id_in_near.clone(),
                         receiver_id_in_appchain: receiver_id_in_appchain.clone(),
                         amount: U128::from(amount),
                     },
+                );
+                env::log(
+                    format!(
+                        "Wrapped appchain token burnt by '{}' for '{}' of appchain. Amount: '{}', Crosschain notification index: '{}'.",
+                        &sender_id_in_near, &receiver_id_in_appchain, &amount.0, &appchain_notification_history.index.0
+                    )
+                    .as_bytes(),
                 );
             }
             PromiseResult::Failed => {
@@ -227,16 +227,9 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                env::log(
-                    format!(
-                        "Wrapped appchain token minted by for '{}'. Amount: '{}'",
-                        &receiver_id_in_near, &amount.0
-                    )
-                    .as_bytes(),
-                );
                 self.internal_append_anchor_event(AnchorEvent::WrappedAppchainTokenMinted {
-                    sender_id_in_appchain,
-                    receiver_id_in_near,
+                    sender_id_in_appchain: sender_id_in_appchain.clone(),
+                    receiver_id_in_near: receiver_id_in_near.clone(),
                     amount: U128::from(amount),
                     appchain_message_nonce,
                 });
@@ -245,6 +238,17 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     wrapped_appchain_token.changed_balance.0 + i128::try_from(amount.0).unwrap(),
                 );
                 self.wrapped_appchain_token.set(&wrapped_appchain_token);
+                let log_message = match sender_id_in_appchain {
+                    Some(sender_id) => format!(
+                        "Wrapped appchain token minted by '{}' of appchain for '{}'. Amount: '{}', Crosschain message nonce: '{}'.",
+                        &sender_id, &receiver_id_in_near, &amount.0, &appchain_message_nonce
+                    ),
+                    None => format!(
+                        "Wrapped appchain token minted by crosschain message with nonce '{}' for '{}'. Amount: '{}'.",
+                        &appchain_message_nonce, &receiver_id_in_near, &amount.0
+                    ),
+                };
+                env::log(log_message.as_bytes());
             }
             PromiseResult::Failed => {
                 env::log(
