@@ -40,9 +40,11 @@ impl SudoActions for AppchainAnchor {
     //
     fn reset_validator_set_histories_to(&mut self, era_number: U64) {
         self.assert_owner();
+        // Clear validator set histories after the `era_number`
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         validator_set_histories.reset_to(&era_number.0);
         self.validator_set_histories.set(&validator_set_histories);
+        // Copy the target validator set to `next_validator_set`
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         next_validator_set.clear();
         let staking_history_index = validator_set_histories
@@ -54,9 +56,12 @@ impl SudoActions for AppchainAnchor {
             next_validator_set.apply_staking_history(&staking_histories.get(&index).unwrap());
         }
         self.next_validator_set.set(&next_validator_set);
+        // Clear staking histories after the index in target `validator set of era`
         let mut staking_histories = self.staking_histories.get().unwrap();
         staking_histories.reset_to(&staking_history_index);
         self.staking_histories.set(&staking_histories);
+        // Reset validator profiles
+        self.reset_validator_profiles_to(era_number);
     }
     //
     fn clear_anchor_event_histories(&mut self) {
@@ -133,5 +138,31 @@ impl SudoActions for AppchainAnchor {
                         .remove(&(era_number, validator_id.clone()));
                 }
             });
+    }
+    //
+    fn reset_validator_profiles_to(&mut self, era_number: U64) {
+        self.assert_owner();
+        let mut validator_profiles = self.validator_profiles.get().unwrap();
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        let mut data_changed = false;
+        if let Some(validator_set_of_era) = validator_set_histories.get(&era_number.0) {
+            validator_profiles
+                .get_validator_ids()
+                .iter()
+                .for_each(|validator_id| {
+                    if !validator_set_of_era
+                        .validator_set
+                        .validator_id_set
+                        .contains(validator_id)
+                    {
+                        if validator_profiles.remove(validator_id) {
+                            data_changed = true;
+                        }
+                    }
+                });
+        }
+        if data_changed {
+            self.validator_profiles.set(&validator_profiles);
+        }
     }
 }

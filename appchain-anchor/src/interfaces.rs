@@ -107,6 +107,8 @@ pub trait AnchorViewer {
     ) -> Vec<AppchainDelegator>;
     /// Get profile of a certain validator.
     fn get_validator_profile(&self, validator_id: AccountId) -> Option<ValidatorProfile>;
+    /// Get profile of a certain validator.
+    fn get_validator_profiles(&self) -> Vec<ValidatorProfile>;
     /// Get validator profile by his/her account id in appchain.
     fn get_validator_profile_by_id_in_appchain(
         &self,
@@ -298,6 +300,8 @@ pub trait SudoActions {
     fn clear_unbonded_stakes(&mut self);
     ///
     fn clear_unwithdrawn_rewards(&mut self);
+    ///
+    fn reset_validator_profiles_to(&mut self, era_number: U64);
 }
 
 pub trait ValidatorActions {

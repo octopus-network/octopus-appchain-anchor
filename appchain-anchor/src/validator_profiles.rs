@@ -57,4 +57,18 @@ impl ValidatorProfiles {
     pub fn get_validator_ids(&self) -> Vec<String> {
         self.validator_id_set.to_vec()
     }
+    ///
+    pub fn remove(&mut self, validator_id: &AccountId) -> bool {
+        if self.validator_id_set.contains(validator_id) {
+            if let Some(profile) = self.profiles.get(validator_id) {
+                self.map_by_id_in_appchain
+                    .remove(&profile.validator_id_in_appchain);
+                self.profiles.remove(&validator_id);
+            }
+            self.validator_id_set.remove(&validator_id);
+            true
+        } else {
+            false
+        }
+    }
 }
