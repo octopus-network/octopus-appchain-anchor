@@ -165,4 +165,14 @@ impl SudoActions for AppchainAnchor {
             self.validator_profiles.set(&validator_profiles);
         }
     }
+    //
+    fn pause_asset_transfer(&mut self) {
+        self.assert_owner();
+        self.asset_transfer_is_paused = true;
+    }
+    //
+    fn resume_asset_transfer(&mut self) {
+        self.assert_owner();
+        self.asset_transfer_is_paused = false;
+    }
 }

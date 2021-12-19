@@ -90,3 +90,21 @@ pub fn clear_unwithdrawn_rewards(
     common::print_execution_result("clear_unwithdrawn_rewards", &result);
     result
 }
+
+pub fn pause_asset_transfer(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> ExecutionResult {
+    let outcome = call!(signer, anchor.pause_asset_transfer());
+    common::print_execution_result("pause_asset_transfer", &outcome);
+    outcome
+}
+
+pub fn resume_asset_transfer(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> ExecutionResult {
+    let outcome = call!(signer, anchor.resume_asset_transfer());
+    common::print_execution_result("resume_asset_transfer", &outcome);
+    outcome
+}

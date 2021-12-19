@@ -428,6 +428,7 @@ impl StakingManager for AppchainAnchor {
     }
     //
     fn withdraw_stake(&mut self, account_id: AccountId) {
+        self.assert_asset_transfer_is_not_paused();
         let protocol_settings = self.protocol_settings.get().unwrap();
         let mut balance_to_withdraw: u128 = 0;
         let mut remained_stakes = Vec::<UnbondedStakeReference>::new();
@@ -508,6 +509,7 @@ impl StakingManager for AppchainAnchor {
     }
     //
     fn withdraw_validator_rewards(&mut self, validator_id: AccountId) {
+        self.assert_asset_transfer_is_not_paused();
         let end_era = self
             .validator_set_histories
             .get()
@@ -545,6 +547,7 @@ impl StakingManager for AppchainAnchor {
     }
     //
     fn withdraw_delegator_rewards(&mut self, delegator_id: AccountId, validator_id: AccountId) {
+        self.assert_asset_transfer_is_not_paused();
         let end_era = self
             .validator_set_histories
             .get()

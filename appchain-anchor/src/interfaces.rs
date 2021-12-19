@@ -302,6 +302,10 @@ pub trait SudoActions {
     fn clear_unwithdrawn_rewards(&mut self);
     ///
     fn reset_validator_profiles_to(&mut self, era_number: U64);
+    ///
+    fn pause_asset_transfer(&mut self);
+    ///
+    fn resume_asset_transfer(&mut self);
 }
 
 pub trait ValidatorActions {

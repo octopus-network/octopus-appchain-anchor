@@ -100,6 +100,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
     }
     //
     fn burn_wrapped_appchain_token(&self, receiver_id: String, amount: U128) {
+        self.assert_asset_transfer_is_not_paused();
         let sender_id = env::predecessor_account_id();
         let account_id_in_appchain = AccountIdInAppchain::new(Some(receiver_id.clone()));
         account_id_in_appchain.assert_valid();

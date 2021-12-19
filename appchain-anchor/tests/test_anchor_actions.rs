@@ -37,13 +37,13 @@ fn test_anchor_actions() {
     //
     // Reset contract status
     //
-    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(0));
-    result.assert_success();
-    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(1));
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(3));
     result.assert_success();
     let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(2));
     result.assert_success();
-    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(3));
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(1));
+    result.assert_success();
+    let result = sudo_actions::clear_reward_distribution_records(&root, &anchor, U64::from(0));
     result.assert_success();
     let result = sudo_actions::clear_unbonded_stakes(&root, &anchor);
     result.assert_success();

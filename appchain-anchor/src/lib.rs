@@ -161,6 +161,8 @@ pub struct AppchainAnchor {
     beefy_light_client_state: LazyOption<LightClient>,
     /// The reward distribution records data
     reward_distribution_records: LazyOption<RewardDistributionRecords>,
+    /// Whether the asset transfer is paused
+    asset_transfer_is_paused: bool,
 }
 
 #[near_bindgen]
@@ -252,6 +254,7 @@ impl AppchainAnchor {
                 StorageKey::RewardDistributionRecords.into_bytes(),
                 Some(&RewardDistributionRecords::new()),
             ),
+            asset_transfer_is_paused: false,
         }
     }
     // Assert that the contract called by the owner.
@@ -320,7 +323,13 @@ impl AppchainAnchor {
             "Beefy light client is updating state."
         );
     }
-
+    ///
+    fn assert_asset_transfer_is_not_paused(&self) {
+        assert!(
+            !self.asset_transfer_is_paused,
+            "Asset transfer is now paused."
+        );
+    }
     /// Set the price (in USD) of OCT token
     pub fn set_price_of_oct_token(&mut self, price: U128) {
         let anchor_settings = self.anchor_settings.get().unwrap();
@@ -364,6 +373,7 @@ impl AppchainAnchor {
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128> {
+        self.assert_asset_transfer_is_not_paused();
         log!(
             "Deposit {} from '@{}' received. msg: '{}'",
             amount.0,

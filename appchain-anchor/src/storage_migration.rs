@@ -5,46 +5,6 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct OldStakingHistories {
-    /// The staking history data happened in this contract.
-    histories: LookupMap<u64, StakingHistory>,
-    /// The start index of valid staking history.
-    start_index: u64,
-    /// The end index of valid staking history.
-    end_index: u64,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct OldAnchorEventHistories {
-    /// The anchor event data map.
-    histories: LookupMap<u64, AnchorEventHistory>,
-    /// The start index of valid anchor event.
-    start_index: u64,
-    /// The end index of valid anchor event.
-    end_index: u64,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct OldAppchainNotificationHistories {
-    /// The anchor event data map.
-    histories: LookupMap<u64, AppchainNotificationHistory>,
-    /// The start index of valid anchor event.
-    start_index: u64,
-    /// The end index of valid anchor event.
-    end_index: u64,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct OldValidatorSetHistories {
-    /// The history version of validator set, mapped by era number in appchain.
-    histories: LookupMap<u64, ValidatorSetOfEra>,
-    /// The start index of valid validator set.
-    start_index: u64,
-    /// The end index of valid validator set.
-    end_index: u64,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
     appchain_id: AppchainId,
@@ -59,7 +19,7 @@ pub struct OldAppchainAnchor {
     /// The NEP-141 tokens data.
     near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
-    validator_set_histories: LazyOption<OldValidatorSetHistories>,
+    validator_set_histories: LazyOption<IndexedHistories<ValidatorSetOfEra>>,
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
     next_validator_set: LazyOption<ValidatorSet>,
@@ -82,11 +42,11 @@ pub struct OldAppchainAnchor {
     /// The state of the corresponding appchain.
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
-    staking_histories: LazyOption<OldStakingHistories>,
+    staking_histories: LazyOption<IndexedHistories<StakingHistory>>,
     /// The anchor event history data.
-    anchor_event_histories: LazyOption<OldAnchorEventHistories>,
+    anchor_event_histories: LazyOption<IndexedHistories<AnchorEventHistory>>,
     /// The appchain notification history data.
-    appchain_notification_histories: LazyOption<OldAppchainNotificationHistories>,
+    appchain_notification_histories: LazyOption<IndexedHistories<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
@@ -109,11 +69,6 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
-        let old_validator_set_histories = old_contract.validator_set_histories.get().unwrap();
-        let old_staking_histories = old_contract.staking_histories.get().unwrap();
-        let old_anchor_event_histories = old_contract.anchor_event_histories.get().unwrap();
-        let old_appchain_notification_histories =
-            old_contract.appchain_notification_histories.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -122,14 +77,7 @@ impl AppchainAnchor {
             oct_token: old_contract.oct_token,
             wrapped_appchain_token: old_contract.wrapped_appchain_token,
             near_fungible_tokens: old_contract.near_fungible_tokens,
-            validator_set_histories: LazyOption::new(
-                StorageKey::ValidatorSetHistories.into_bytes(),
-                Some(&IndexedHistories::<ValidatorSetOfEra>::migrate_from(
-                    StorageKey::ValidatorSetHistoriesMap,
-                    old_validator_set_histories.start_index,
-                    old_validator_set_histories.end_index,
-                )),
-            ),
+            validator_set_histories: old_contract.validator_set_histories,
             next_validator_set: old_contract.next_validator_set,
             unwithdrawn_validator_rewards: old_contract.unwithdrawn_validator_rewards,
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
@@ -139,35 +87,13 @@ impl AppchainAnchor {
             anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
-            staking_histories: LazyOption::new(
-                StorageKey::StakingHistories.into_bytes(),
-                Some(&IndexedHistories::<StakingHistory>::migrate_from(
-                    StorageKey::StakingHistoriesMap,
-                    old_staking_histories.start_index,
-                    old_staking_histories.end_index,
-                )),
-            ),
-            anchor_event_histories: LazyOption::new(
-                StorageKey::AnchorEventHistories.into_bytes(),
-                Some(&IndexedHistories::<AnchorEventHistory>::migrate_from(
-                    StorageKey::AnchorEventHistoriesMap,
-                    old_anchor_event_histories.start_index,
-                    old_anchor_event_histories.end_index,
-                )),
-            ),
-            appchain_notification_histories: LazyOption::new(
-                StorageKey::AppchainNotificationHistories.into_bytes(),
-                Some(
-                    &IndexedHistories::<AppchainNotificationHistory>::migrate_from(
-                        StorageKey::AppchainNotificationHistoriesMap,
-                        old_appchain_notification_histories.start_index,
-                        old_appchain_notification_histories.end_index,
-                    ),
-                ),
-            ),
+            staking_histories: old_contract.staking_histories,
+            anchor_event_histories: old_contract.anchor_event_histories,
+            appchain_notification_histories: old_contract.appchain_notification_histories,
             permissionless_actions_status: old_contract.permissionless_actions_status,
             beefy_light_client_state: old_contract.beefy_light_client_state,
             reward_distribution_records: old_contract.reward_distribution_records,
+            asset_transfer_is_paused: false,
         };
         //
         new_contract
