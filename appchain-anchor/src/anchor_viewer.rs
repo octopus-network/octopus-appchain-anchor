@@ -515,6 +515,20 @@ impl AnchorViewer for AppchainAnchor {
         self.validator_profiles.get().unwrap().get(&validator_id)
     }
     //
+    fn get_validator_profiles(&self) -> Vec<ValidatorProfile> {
+        let mut results = Vec::<ValidatorProfile>::new();
+        let validator_profiles = self.validator_profiles.get().unwrap();
+        validator_profiles
+            .get_validator_ids()
+            .iter()
+            .for_each(|validator_id| {
+                if let Some(profile) = validator_profiles.get(validator_id) {
+                    results.push(profile);
+                }
+            });
+        results
+    }
+    //
     fn get_validator_profile_by_id_in_appchain(
         &self,
         validator_id_in_appchain: String,

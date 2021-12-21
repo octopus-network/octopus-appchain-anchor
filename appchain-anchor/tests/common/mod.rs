@@ -32,7 +32,7 @@ lazy_static_include::lazy_static_include_bytes! {
     REGISTRY_WASM_BYTES => "../res/mock_appchain_registry.wasm",
     ANCHOR_WASM_BYTES => "../res/appchain_anchor.wasm",
     WAT_WASM_BYTES => "../res/mock_wrapped_appchain_token.wasm",
-    OLD_ANCHOR_WASM_BYTES => "../res/appchain_anchor_20211206.wasm",
+    OLD_ANCHOR_WASM_BYTES => "../res/previous_appchain_anchor.wasm",
 }
 
 // Register the given `user` to oct_token

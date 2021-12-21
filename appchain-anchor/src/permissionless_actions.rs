@@ -203,18 +203,32 @@ impl AppchainAnchor {
                 owner_id_in_appchain,
                 receiver_id_in_near,
                 amount,
-            } => self.internal_unlock_near_fungible_token(
-                owner_id_in_appchain,
-                symbol,
-                receiver_id_in_near,
-                amount,
-                appchain_message.nonce,
-            ),
+            } => {
+                if self.asset_transfer_is_paused {
+                    return AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message: format!("Asset transfer is now paused."),
+                    };
+                }
+                self.internal_unlock_near_fungible_token(
+                    owner_id_in_appchain,
+                    symbol,
+                    receiver_id_in_near,
+                    amount,
+                    appchain_message.nonce,
+                )
+            }
             permissionless_actions::AppchainEvent::NativeTokenLocked {
                 owner_id_in_appchain,
                 receiver_id_in_near,
                 amount,
             } => {
+                if self.asset_transfer_is_paused {
+                    return AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message: format!("Asset transfer is now paused."),
+                    };
+                }
                 let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
                 let protocol_settings = self.protocol_settings.get().unwrap();
                 let owner_id = AccountIdInAppchain::new(Some(owner_id_in_appchain.clone()));
