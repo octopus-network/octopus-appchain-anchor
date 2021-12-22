@@ -287,8 +287,7 @@ impl StakingManager for AppchainAnchor {
                 .get(&validator_id)
                 .unwrap()
                 .deposit_amount
-                - amount.0
-                >= protocol_settings.minimum_validator_deposit.0,
+                >= protocol_settings.minimum_validator_deposit.0 + amount.0,
             "Unable to decrease so much stake."
         );
         self.assert_total_stake_price(amount.0);
@@ -386,8 +385,7 @@ impl StakingManager for AppchainAnchor {
                 .get(&(delegator_id.clone(), validator_id.clone()))
                 .unwrap()
                 .deposit_amount
-                - amount.0
-                >= protocol_settings.minimum_delegator_deposit.0,
+                >= protocol_settings.minimum_delegator_deposit.0 + amount.0,
             "Unable to decrease so much stake."
         );
         self.assert_total_stake_price(amount.0);
