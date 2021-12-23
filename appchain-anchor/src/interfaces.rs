@@ -203,6 +203,8 @@ pub trait ProtocolSettingsManager {
     ///
     fn change_minimum_validator_deposit(&mut self, value: U128);
     ///
+    fn change_maximum_validator_deposit_percent(&mut self, value: u16);
+    ///
     fn change_minimum_delegator_deposit(&mut self, value: U128);
     ///
     fn change_minimum_total_stake_price_for_booting(&mut self, value: U128);
@@ -226,6 +228,8 @@ pub trait ProtocolSettingsManager {
     fn change_maximum_era_count_of_valid_appchain_message(&mut self, value: U64);
     ///
     fn change_validator_commission_percent(&mut self, value: u16);
+    ///
+    fn change_maximum_allowed_unprofitable_era_count(&mut self, value: u16);
 }
 
 pub trait AppchainSettingsManager {

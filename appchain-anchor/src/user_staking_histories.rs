@@ -24,12 +24,14 @@ impl UserStakingHistories {
             | StakingFact::StakeIncreased { validator_id, .. }
             | StakingFact::StakeDecreased { validator_id, .. }
             | StakingFact::ValidatorUnbonded { validator_id, .. }
+            | StakingFact::ValidatorAutoUnbonded { validator_id, .. }
             | StakingFact::ValidatorDelegationEnabled { validator_id }
             | StakingFact::ValidatorDelegationDisabled { validator_id } => validator_id,
             StakingFact::DelegatorRegistered { delegator_id, .. }
             | StakingFact::DelegationIncreased { delegator_id, .. }
             | StakingFact::DelegationDecreased { delegator_id, .. }
-            | StakingFact::DelegatorUnbonded { delegator_id, .. } => delegator_id,
+            | StakingFact::DelegatorUnbonded { delegator_id, .. }
+            | StakingFact::DelegatorAutoUnbonded { delegator_id, .. } => delegator_id,
         };
         self.account_id_set.insert(account_id);
         let mut staking_histories_indexes = match self.staking_histories_map.get(account_id) {

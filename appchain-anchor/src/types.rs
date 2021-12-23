@@ -110,6 +110,8 @@ pub struct ProtocolSettings {
     /// A validator has to deposit a certain amount of OCT token to this contract for
     /// being validator of the appchain.
     pub minimum_validator_deposit: U128,
+    /// The maximum percent value that the deposit of a validator in total stake
+    pub maximum_validator_deposit_percent: u16,
     /// The minimum deposit amount for a delegator to delegate his voting weight to
     /// a certain validator.
     pub minimum_delegator_deposit: U128,
@@ -145,6 +147,8 @@ pub struct ProtocolSettings {
     pub maximum_era_count_of_valid_appchain_message: U64,
     /// The percent of commission fees of a validator's reward in an era
     pub validator_commission_percent: u16,
+    /// The maximum unprofitable era count for auto-unbonding a validator
+    pub maximum_allowed_unprofitable_era_count: u16,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -211,6 +215,11 @@ pub enum StakingFact {
         validator_id: AccountId,
         amount: U128,
     },
+    /// A validator is unbonded by contract automatically
+    ValidatorAutoUnbonded {
+        validator_id: AccountId,
+        amount: U128,
+    },
     /// The flag of `can_be_delegated_to` is set to `true`
     ValidatorDelegationEnabled { validator_id: AccountId },
     /// The flag of `can_be_delegated_to` is set to `false`
@@ -235,6 +244,12 @@ pub enum StakingFact {
     },
     /// A delegator unbonded his delegation for a validator in appchain anchor
     DelegatorUnbonded {
+        delegator_id: AccountId,
+        validator_id: AccountId,
+        amount: U128,
+    },
+    /// A delegator is unbonded by contract automatically
+    DelegatorAutoUnbonded {
         delegator_id: AccountId,
         validator_id: AccountId,
         amount: U128,
@@ -376,6 +391,9 @@ pub enum ValidatorSetProcessingStatus {
         appchain_message_nonce: u32,
         distributing_validator_index: U64,
         distributing_delegator_index: U64,
+    },
+    AutoUnbondingValidator {
+        unprofitable_validator_index: U64,
     },
     Completed,
 }

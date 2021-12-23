@@ -8,18 +8,20 @@ impl Default for ProtocolSettings {
     fn default() -> Self {
         Self {
             minimum_validator_deposit: U128::from(10_000 * OCT_DECIMALS_VALUE),
+            maximum_validator_deposit_percent: 25,
             minimum_delegator_deposit: U128::from(1000 * OCT_DECIMALS_VALUE),
             minimum_total_stake_price_for_booting: U128::from(100_000 * USD_DECIMALS_VALUE),
             maximum_market_value_percent_of_near_fungible_tokens: 33,
             maximum_market_value_percent_of_wrapped_appchain_token: 67,
             minimum_validator_count: U64::from(4),
-            maximum_validator_count: U64::from(30),
+            maximum_validator_count: U64::from(60),
             maximum_validators_per_delegator: U64::from(16),
             unlock_period_of_validator_deposit: U64::from(28),
-            unlock_period_of_delegator_deposit: U64::from(7),
+            unlock_period_of_delegator_deposit: U64::from(28),
             maximum_era_count_of_unwithdrawn_reward: U64::from(84),
             maximum_era_count_of_valid_appchain_message: U64::from(7),
             validator_commission_percent: 20,
+            maximum_allowed_unprofitable_era_count: 3,
         }
     }
 }
@@ -51,6 +53,14 @@ impl ProtocolSettingsManager for AppchainAnchor {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         protocol_settings.minimum_validator_deposit = value;
+        self.protocol_settings.set(&protocol_settings);
+    }
+    //
+    fn change_maximum_validator_deposit_percent(&mut self, value: u16) {
+        self.assert_owner();
+        assert!(value < 100, "Invalid percent value.");
+        let mut protocol_settings = self.protocol_settings.get().unwrap();
+        protocol_settings.maximum_validator_deposit_percent = value;
         self.protocol_settings.set(&protocol_settings);
     }
     //
@@ -135,6 +145,17 @@ impl ProtocolSettingsManager for AppchainAnchor {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         protocol_settings.validator_commission_percent = value;
+        self.protocol_settings.set(&protocol_settings);
+    }
+    //
+    fn change_maximum_allowed_unprofitable_era_count(&mut self, value: u16) {
+        self.assert_owner();
+        assert!(
+            value < 10,
+            "Invalid value for maximum allowed unprofitable era count."
+        );
+        let mut protocol_settings = self.protocol_settings.get().unwrap();
+        protocol_settings.maximum_allowed_unprofitable_era_count = value;
         self.protocol_settings.set(&protocol_settings);
     }
 }

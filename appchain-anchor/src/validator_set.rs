@@ -158,7 +158,7 @@ impl ValidatorSetActions for ValidatorSet {
     //
     fn apply_staking_history(&mut self, staking_history: &StakingHistory) {
         match &staking_history.staking_fact {
-            types::StakingFact::ValidatorRegistered {
+            StakingFact::ValidatorRegistered {
                 validator_id,
                 validator_id_in_appchain,
                 amount,
@@ -179,7 +179,7 @@ impl ValidatorSetActions for ValidatorSet {
                 );
                 self.total_stake += amount.0;
             }
-            types::StakingFact::StakeIncreased {
+            StakingFact::StakeIncreased {
                 validator_id,
                 amount,
             } => {
@@ -189,7 +189,7 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake += amount.0;
             }
-            types::StakingFact::StakeDecreased {
+            StakingFact::StakeDecreased {
                 validator_id,
                 amount,
             } => {
@@ -199,7 +199,11 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake -= amount.0;
             }
-            types::StakingFact::ValidatorUnbonded {
+            StakingFact::ValidatorUnbonded {
+                validator_id,
+                amount: _,
+            }
+            | StakingFact::ValidatorAutoUnbonded {
                 validator_id,
                 amount: _,
             } => {
@@ -228,17 +232,17 @@ impl ValidatorSetActions for ValidatorSet {
                 self.total_stake -= validator.total_stake;
                 self.validator_id_set.remove(validator_id);
             }
-            types::StakingFact::ValidatorDelegationEnabled { validator_id } => {
+            StakingFact::ValidatorDelegationEnabled { validator_id } => {
                 let mut validator = self.validators.get(validator_id).unwrap();
                 validator.can_be_delegated_to = true;
                 self.validators.insert(validator_id, &validator);
             }
-            types::StakingFact::ValidatorDelegationDisabled { validator_id } => {
+            StakingFact::ValidatorDelegationDisabled { validator_id } => {
                 let mut validator = self.validators.get(validator_id).unwrap();
                 validator.can_be_delegated_to = false;
                 self.validators.insert(validator_id, &validator);
             }
-            types::StakingFact::DelegatorRegistered {
+            StakingFact::DelegatorRegistered {
                 delegator_id,
                 validator_id,
                 amount,
@@ -302,7 +306,7 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake += amount.0;
             }
-            types::StakingFact::DelegationIncreased {
+            StakingFact::DelegationIncreased {
                 delegator_id,
                 validator_id,
                 amount,
@@ -319,7 +323,7 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake += amount.0;
             }
-            types::StakingFact::DelegationDecreased {
+            StakingFact::DelegationDecreased {
                 delegator_id,
                 validator_id,
                 amount,
@@ -336,7 +340,12 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake -= amount.0;
             }
-            types::StakingFact::DelegatorUnbonded {
+            StakingFact::DelegatorUnbonded {
+                delegator_id,
+                validator_id,
+                amount: _,
+            }
+            | StakingFact::DelegatorAutoUnbonded {
                 delegator_id,
                 validator_id,
                 amount: _,

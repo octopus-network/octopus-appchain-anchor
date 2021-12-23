@@ -754,6 +754,52 @@ impl AppchainAnchor {
                 validator_set_histories.insert(&era_number, &validator_set);
                 false
             }
+            ValidatorSetProcessingStatus::AutoUnbondingValidator {
+                unprofitable_validator_index,
+            } => {
+                let unprofitable_validators = validator_set.unprofitable_validator_id_set.to_vec();
+                let protocol_settings = self.protocol_settings.get().unwrap();
+                while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+                    if unprofitable_validator_index.0
+                        >= unprofitable_validators.len().try_into().unwrap()
+                    {
+                        validator_set.processing_status = ValidatorSetProcessingStatus::Completed;
+                        validator_set_histories.insert(&era_number, &validator_set);
+                        return false;
+                    }
+                    let validator_id = unprofitable_validators
+                        .get(usize::try_from(unprofitable_validator_index.0).unwrap())
+                        .unwrap();
+                    let start_checking_index = match era_number
+                        >= u64::from(protocol_settings.maximum_allowed_unprofitable_era_count)
+                    {
+                        true => {
+                            era_number
+                                - u64::from(
+                                    protocol_settings.maximum_allowed_unprofitable_era_count,
+                                )
+                                + 1
+                        }
+                        false => 0,
+                    };
+                    let mut should_be_unbonded = true;
+                    for index in start_checking_index..era_number {
+                        if let Some(set_of_era) = validator_set_histories.get(&index) {
+                            if !set_of_era
+                                .unprofitable_validator_id_set
+                                .contains(validator_id)
+                            {
+                                should_be_unbonded = false;
+                                break;
+                            }
+                        }
+                    }
+                    if should_be_unbonded {
+                        self.internal_unbond_validator(validator_id, true);
+                    }
+                }
+                false
+            }
             ValidatorSetProcessingStatus::Completed => true,
         }
     }
