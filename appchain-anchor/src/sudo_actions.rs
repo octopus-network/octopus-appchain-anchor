@@ -175,4 +175,10 @@ impl SudoActions for AppchainAnchor {
         self.assert_owner();
         self.asset_transfer_is_paused = false;
     }
+    //
+    fn remove_staking_history_at(&mut self, index: U64) {
+        self.assert_owner();
+        let mut staking_histories = self.staking_histories.get().unwrap();
+        staking_histories.remove_at(&index.0);
+    }
 }

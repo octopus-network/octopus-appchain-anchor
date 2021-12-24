@@ -410,16 +410,14 @@ impl AppchainAnchor {
                 while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING
                     && applying_index.0 <= validator_set.staking_history_index
                 {
-                    let staking_history = self
-                        .staking_histories
-                        .get()
-                        .unwrap()
-                        .get(&applying_index.0)
-                        .unwrap();
-                    self.apply_staking_history_to_validator_set(
-                        &mut validator_set,
-                        &staking_history,
-                    );
+                    if let Some(staking_history) =
+                        self.staking_histories.get().unwrap().get(&applying_index.0)
+                    {
+                        self.apply_staking_history_to_validator_set(
+                            &mut validator_set,
+                            &staking_history,
+                        );
+                    }
                     applying_index.0 += 1;
                 }
                 if applying_index.0 > validator_set.staking_history_index {
