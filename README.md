@@ -19,6 +19,7 @@ Contents
   * [Withdraw reward](#withdraw-reward)
   * [Withdraw unbonded stake](#withdraw-unbonded-stake)
   * [Manage appchain lifecycle](#manage-appchain-lifecycle)
+  * [Pause or resume asset transfer](#pause-or-resume-asset-transfer)
 * [Initial deployment](#initial-deployment)
 
 ## Terminology
@@ -177,6 +178,18 @@ A validator or delegator can withdraw the unbonded stake which is belonged them.
 ### Manage appchain lifecycle
 
 The owner of appchain anchor can manually change the state of corresponding appchain. These actions need to check necessary conditions before changing the state of corresponding appchain. And after changing the state, this contract will call function `sync_state_of` of `appchain registry` contract to synchronize the state to `appchain registry`. (The `appchain registry` will ensure the caller account of this function is `<appchain_id>.<appchain registry account>`.)
+
+### Pause or resume asset transfer
+
+The owner account of this contract can pause or resume asset transfer in this contract. The actions that will be limited should be:
+
+* Transfer OCT token into this contract by function `ft_transfer_call` of OCT token contract, with a certain message attached (to register a validator).
+* Transfer registered NEAR fungible token into this contract by function `ft_transfer_call` of the registered NEAR fungible token contract, with a certain message attached (to transfer to a certain account in appchain).
+* Burn wrapped appchain token (to transfer back to a certain account in appchain).
+* Mint wrapped appchain token (by a verified cross-chain message to transfer native appchain token to a certain account in NEAR protocol).
+* Withdraw unbonded stake (of a validator or a delegator) with OCT token.
+* Withdraw rewards of a validator with wrapped appchain token.
+* Withdraw rewards of a delegator with wrapped appchain token.
 
 ## Initial deployment
 
