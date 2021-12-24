@@ -594,6 +594,10 @@ impl AppchainAnchor {
         let validator_set = self.next_validator_set.get().unwrap();
         let oct_token = self.oct_token.get().unwrap();
         assert!(
+            validator_set.total_stake > stake_reduction,
+            "Not enough stake deposited in anchor."
+        );
+        assert!(
             (validator_set.total_stake - stake_reduction) * oct_token.price_in_usd.0
                 >= protocol_settings.minimum_total_stake_price_for_booting.0,
             "Not enough stake deposited in anchor."

@@ -80,6 +80,38 @@ impl AnchorViewer for AppchainAnchor {
         self.staking_histories.get().unwrap().index_range()
     }
     //
+    fn get_staking_histories(
+        &self,
+        start_index: U64,
+        quantity: Option<U64>,
+    ) -> Vec<StakingHistory> {
+        let staking_histories = self.staking_histories.get().unwrap();
+        let index_range = staking_histories.index_range();
+        let mut result = Vec::<StakingHistory>::new();
+        let start_index = match index_range.start_index.0 > start_index.0 {
+            true => index_range.start_index.0,
+            false => start_index.0,
+        };
+        let mut end_index = start_index
+            + match quantity {
+                Some(quantity) => match quantity.0 > 50 {
+                    true => 49,
+                    false => quantity.0 - 1,
+                },
+                None => 49,
+            };
+        end_index = match end_index < index_range.end_index.0 {
+            true => end_index,
+            false => index_range.end_index.0,
+        };
+        for index in start_index..end_index + 1 {
+            if let Some(record) = staking_histories.get(&index) {
+                result.push(record);
+            }
+        }
+        result
+    }
+    //
     fn get_staking_history(&self, index: Option<U64>) -> Option<StakingHistory> {
         let index = match index {
             Some(index) => index,

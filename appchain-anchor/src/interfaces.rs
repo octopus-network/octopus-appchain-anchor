@@ -26,6 +26,10 @@ pub trait AnchorViewer {
     fn get_processing_status_of(&self, era_number: U64) -> Option<ValidatorSetProcessingStatus>;
     /// Get the index range of staking histories stored in anchor.
     fn get_index_range_of_staking_history(&self) -> IndexRange;
+    /// Get staking history by start index and quantity.
+    /// If the param `quantity` is omitted, up to 50 events will be returned.
+    fn get_staking_histories(&self, start_index: U64, quantity: Option<U64>)
+        -> Vec<StakingHistory>;
     /// Get staking history by index.
     /// If the param `index `is omitted, the latest history will be returned.
     /// If the paran `index` is smaller than the start index, or bigger than the end index
@@ -306,6 +310,8 @@ pub trait SudoActions {
     fn pause_asset_transfer(&mut self);
     ///
     fn resume_asset_transfer(&mut self);
+    ///
+    fn remove_staking_history_at(&mut self, index: U64);
 }
 
 pub trait ValidatorActions {

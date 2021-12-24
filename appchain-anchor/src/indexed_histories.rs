@@ -100,7 +100,7 @@ where
         self.end_index = 0;
     }
     ///
-    fn remove_at(&mut self, index: &u64) {
+    pub fn remove_at(&mut self, index: &u64) {
         if let Some(mut record) = self.histories.get(index) {
             record.clear_extra_storage();
             self.histories.remove(index);
