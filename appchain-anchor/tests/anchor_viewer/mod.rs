@@ -80,9 +80,9 @@ pub fn get_processing_status_of(
 
 pub fn get_validator_set_info_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
-    index: u64,
+    index: U64,
 ) -> ValidatorSetInfo {
-    let view_result = view!(anchor.get_validator_set_info_of(U64::from(index)));
+    let view_result = view!(anchor.get_validator_set_info_of(index));
     if view_result.is_err() {
         println!("{:#?}", view_result);
     }

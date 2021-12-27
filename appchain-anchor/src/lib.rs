@@ -353,20 +353,24 @@ impl AppchainAnchor {
         &self,
         validator_set: &ValidatorSet,
         deposit_amount: u128,
-        total_stake: u128,
+        total_stake: Option<u128>,
     ) {
         let protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             deposit_amount >= protocol_settings.minimum_validator_deposit.0,
-            "The deposit for registering validator is too few."
+            "The deposit of the validator is too few.",
         );
-        let maximum_allowed_deposit = validator_set.total_stake
-            * u128::from(protocol_settings.maximum_validator_stake_percent)
-            / 100;
-        assert!(
-            total_stake <= maximum_allowed_deposit,
-            "The total stake for registering validator is too much."
-        );
+        if let Some(total_stake) = total_stake {
+            if self.appchain_state.eq(&AppchainState::Active) {
+                let maximum_allowed_deposit = validator_set.total_stake
+                    * u128::from(protocol_settings.maximum_validator_stake_percent)
+                    / 100;
+                assert!(
+                    total_stake <= maximum_allowed_deposit,
+                    "The total stake of the validator is too much."
+                );
+            }
+        }
     }
     /// Set the price (in USD) of OCT token
     pub fn set_price_of_oct_token(&mut self, price: U128) {

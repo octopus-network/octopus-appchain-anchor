@@ -115,11 +115,7 @@ impl AppchainAnchor {
                 &formatted_validator_id_in_appchain.origin_to_string()
             );
         }
-        self.assert_validator_stake_is_valid(
-            &next_validator_set,
-            deposit_amount.0,
-            deposit_amount.0,
-        );
+        self.assert_validator_stake_is_valid(&next_validator_set, deposit_amount.0, None);
         let protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             next_validator_set.validator_id_set.len() < protocol_settings.maximum_validator_count.0,
@@ -156,7 +152,7 @@ impl AppchainAnchor {
         self.assert_validator_stake_is_valid(
             &next_validator_set,
             validator.deposit_amount + amount.0,
-            validator.total_stake + amount.0,
+            Some(validator.total_stake + amount.0),
         );
         self.record_and_apply_staking_fact(
             StakingFact::StakeIncreased {
@@ -218,7 +214,7 @@ impl AppchainAnchor {
         self.assert_validator_stake_is_valid(
             &next_validator_set,
             validator.deposit_amount,
-            validator.total_stake + deposit_amount.0,
+            Some(validator.total_stake + deposit_amount.0),
         );
         self.record_and_apply_staking_fact(
             StakingFact::DelegatorRegistered {
@@ -273,7 +269,7 @@ impl AppchainAnchor {
         self.assert_validator_stake_is_valid(
             &next_validator_set,
             validator.deposit_amount,
-            validator.total_stake + amount.0,
+            Some(validator.total_stake + amount.0),
         );
         self.record_and_apply_staking_fact(
             StakingFact::DelegationIncreased {
@@ -308,7 +304,7 @@ impl StakingManager for AppchainAnchor {
         self.assert_validator_stake_is_valid(
             &next_validator_set,
             validator.deposit_amount - amount.0,
-            validator.total_stake - amount.0,
+            None,
         );
         self.assert_total_stake_price(amount.0);
         self.record_and_apply_staking_fact(

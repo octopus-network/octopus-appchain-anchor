@@ -13,7 +13,10 @@ use mock_oct_token::MockOctTokenContract;
 use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FT_METADATA_SPEC};
-use near_sdk::{json_types::U128, serde_json, AccountId, Balance};
+use near_sdk::{
+    json_types::{U128, U64},
+    serde_json, AccountId, Balance,
+};
 use near_sdk_sim::{
     call, deploy, init_simulator, lazy_static_include, runtime::GenesisConfig, to_yocto, view,
     ContractAccount, ExecutionResult, UserAccount,
@@ -299,6 +302,18 @@ pub fn print_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) {
     );
 }
 
+pub fn print_validator_set_info_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    era_number: U64,
+) {
+    let validator_set_info = anchor_viewer::get_validator_set_info_of(anchor, era_number);
+    println!(
+        "Validator set {} info: {}",
+        era_number.0,
+        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
+    );
+}
+
 pub fn print_wrapped_appchain_token_info(anchor: &ContractAccount<AppchainAnchorContract>) {
     let wrapped_appchain_token_info = anchor_viewer::get_wrapped_appchain_token(&anchor);
     println!(
@@ -577,7 +592,7 @@ pub fn switch_era(
         serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
     );
     let validator_set_info =
-        anchor_viewer::get_validator_set_info_of(anchor, u64::from(era_number));
+        anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
     println!(
         "Validator set info of era {}: {}",
         era_number,

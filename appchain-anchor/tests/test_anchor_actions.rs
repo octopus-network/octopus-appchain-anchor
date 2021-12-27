@@ -99,25 +99,6 @@ fn test_staking_actions(
         anchor_viewer::get_appchain_state(&anchor),
         AppchainState::Staging
     );
-    let anchor_settings = anchor_viewer::get_anchor_settings(&anchor);
-    println!(
-        "Anchor settings: {}",
-        serde_json::to_string::<AnchorSettings>(&anchor_settings).unwrap()
-    );
-    let appchain_settings = anchor_viewer::get_appchain_settings(&anchor);
-    println!(
-        "Appchain settings: {}",
-        serde_json::to_string::<AppchainSettings>(&appchain_settings).unwrap()
-    );
-    let protocol_settings = anchor_viewer::get_protocol_settings(&anchor);
-    println!(
-        "Protocol settings: {}",
-        serde_json::to_string::<ProtocolSettings>(&protocol_settings).unwrap()
-    );
-    assert_eq!(
-        protocol_settings.minimum_validator_deposit.0,
-        common::to_oct_amount(10_000)
-    );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
     assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
     assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
@@ -178,7 +159,7 @@ fn test_staking_actions(
     // user0 register validator
     //
     let user0_balance = token_viewer::get_oct_balance_of(&users[0], &oct_token);
-    let amount0 = common::to_oct_amount(10_000);
+    let amount0 = common::to_oct_amount(23_000);
     let result = staking_actions::register_validator(
         &users[0],
         &oct_token,
@@ -201,7 +182,7 @@ fn test_staking_actions(
     // user1 register validator
     //
     let user1_balance = token_viewer::get_oct_balance_of(&users[1], &oct_token);
-    let amount1 = common::to_oct_amount(15_000);
+    let amount1 = common::to_oct_amount(25_000);
     let result = staking_actions::register_validator(
         &users[1],
         &oct_token,
@@ -383,17 +364,6 @@ fn test_staking_actions(
     // Change price of OCT token and try go_booting
     //
     let result = settings_actions::set_price_of_oct_token(&users[4], &anchor, 2_130_000);
-    result.assert_success();
-    let result = lifecycle_actions::go_booting(&root, &anchor);
-    assert!(!result.is_ok());
-    //
-    // Change total stake price and try go_booting
-    //
-    let result = settings_actions::change_minimum_total_stake_price_for_booting(
-        &root,
-        &anchor,
-        63_000_000_000,
-    );
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     result.assert_success();
@@ -741,7 +711,7 @@ fn distribute_reward_of(
         serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
     );
     let validator_set_info =
-        anchor_viewer::get_validator_set_info_of(anchor, u64::from(era_number));
+        anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
     println!(
         "Validator set info of era {}: {}",
         era_number,
@@ -828,6 +798,10 @@ fn test_migration() {
     //
     //
     common::print_anchor_status(&anchor);
+    common::print_validator_set_info_of(&anchor, U64::from(0));
+    common::print_validator_set_info_of(&anchor, U64::from(1));
+    common::print_validator_set_info_of(&anchor, U64::from(2));
+    common::print_validator_set_info_of(&anchor, U64::from(3));
     common::print_validator_list_of(&anchor, Some(0));
     common::print_validator_list_of(&anchor, Some(1));
     common::print_validator_list_of(&anchor, Some(2));

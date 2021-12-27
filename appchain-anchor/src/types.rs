@@ -215,11 +215,6 @@ pub enum StakingFact {
         validator_id: AccountId,
         amount: U128,
     },
-    /// A validator is unbonded by contract automatically
-    ValidatorAutoUnbonded {
-        validator_id: AccountId,
-        amount: U128,
-    },
     /// The flag of `can_be_delegated_to` is set to `true`
     ValidatorDelegationEnabled { validator_id: AccountId },
     /// The flag of `can_be_delegated_to` is set to `false`
@@ -245,6 +240,11 @@ pub enum StakingFact {
     /// A delegator unbonded his delegation for a validator in appchain anchor
     DelegatorUnbonded {
         delegator_id: AccountId,
+        validator_id: AccountId,
+        amount: U128,
+    },
+    /// A validator is unbonded by contract automatically
+    ValidatorAutoUnbonded {
         validator_id: AccountId,
         amount: U128,
     },
@@ -392,10 +392,10 @@ pub enum ValidatorSetProcessingStatus {
         distributing_validator_index: U64,
         distributing_delegator_index: U64,
     },
+    Completed,
     AutoUnbondingValidator {
         unprofitable_validator_index: U64,
     },
-    Completed,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

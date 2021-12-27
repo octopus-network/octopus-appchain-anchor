@@ -582,7 +582,7 @@ fn distribute_reward_of(
         serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
     );
     let validator_set_info =
-        anchor_viewer::get_validator_set_info_of(anchor, u64::from(era_number));
+        anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
     println!(
         "Validator set info of era {}: {}",
         era_number,
