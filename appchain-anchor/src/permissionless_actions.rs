@@ -738,7 +738,9 @@ impl AppchainAnchor {
                         }
                         ResultOfLoopingValidatorSet::NoMoreValidator => {
                             validator_set.processing_status =
-                                ValidatorSetProcessingStatus::Completed;
+                                ValidatorSetProcessingStatus::AutoUnbondingValidator {
+                                    unprofitable_validator_index: U64::from(0),
+                                };
                             validator_set_histories.insert(&era_number, &validator_set);
                             return false;
                         }
@@ -755,7 +757,7 @@ impl AppchainAnchor {
                 false
             }
             ValidatorSetProcessingStatus::AutoUnbondingValidator {
-                unprofitable_validator_index,
+                mut unprofitable_validator_index,
             } => {
                 let unprofitable_validators = validator_set.unprofitable_validator_id_set.to_vec();
                 let protocol_settings = self.protocol_settings.get().unwrap();
@@ -797,7 +799,13 @@ impl AppchainAnchor {
                     if should_be_unbonded {
                         self.internal_unbond_validator(validator_id, true);
                     }
+                    unprofitable_validator_index = U64::from(unprofitable_validator_index.0 + 1);
                 }
+                validator_set.processing_status =
+                    ValidatorSetProcessingStatus::AutoUnbondingValidator {
+                        unprofitable_validator_index,
+                    };
+                validator_set_histories.insert(&era_number, &validator_set);
                 false
             }
             ValidatorSetProcessingStatus::Completed => true,

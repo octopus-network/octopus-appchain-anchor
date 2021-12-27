@@ -596,43 +596,44 @@ impl AppchainAnchor {
     //
     pub fn internal_unbond_validator(&mut self, validator_id: &AccountId, auto_unbond: bool) {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
-        let validator = next_validator_set.validators.get(validator_id).unwrap();
-        self.assert_total_stake_price(validator.total_stake);
-        if let Some(delegator_id_set) = next_validator_set
-            .validator_id_to_delegator_id_set
-            .get(validator_id)
-        {
-            let delegator_ids = delegator_id_set.to_vec();
-            delegator_ids.iter().for_each(|delegator_id| {
-                let delegator = next_validator_set
-                    .delegators
-                    .get(&(delegator_id.clone(), validator_id.clone()))
-                    .unwrap();
-                let staking_fact = match auto_unbond {
-                    true => StakingFact::DelegatorAutoUnbonded {
-                        delegator_id: delegator_id.clone(),
-                        validator_id: validator_id.clone(),
-                        amount: U128::from(delegator.deposit_amount),
-                    },
-                    false => StakingFact::DelegatorUnbonded {
-                        delegator_id: delegator_id.clone(),
-                        validator_id: validator_id.clone(),
-                        amount: U128::from(delegator.deposit_amount),
-                    },
-                };
-                self.record_and_apply_staking_fact(staking_fact, &mut next_validator_set);
-            });
+        if let Some(validator) = next_validator_set.validators.get(validator_id) {
+            self.assert_total_stake_price(validator.total_stake);
+            if let Some(delegator_id_set) = next_validator_set
+                .validator_id_to_delegator_id_set
+                .get(validator_id)
+            {
+                let delegator_ids = delegator_id_set.to_vec();
+                delegator_ids.iter().for_each(|delegator_id| {
+                    let delegator = next_validator_set
+                        .delegators
+                        .get(&(delegator_id.clone(), validator_id.clone()))
+                        .unwrap();
+                    let staking_fact = match auto_unbond {
+                        true => StakingFact::DelegatorAutoUnbonded {
+                            delegator_id: delegator_id.clone(),
+                            validator_id: validator_id.clone(),
+                            amount: U128::from(delegator.deposit_amount),
+                        },
+                        false => StakingFact::DelegatorUnbonded {
+                            delegator_id: delegator_id.clone(),
+                            validator_id: validator_id.clone(),
+                            amount: U128::from(delegator.deposit_amount),
+                        },
+                    };
+                    self.record_and_apply_staking_fact(staking_fact, &mut next_validator_set);
+                });
+            }
+            let staking_fact = match auto_unbond {
+                true => StakingFact::ValidatorAutoUnbonded {
+                    validator_id: validator_id.clone(),
+                    amount: U128::from(validator.deposit_amount),
+                },
+                false => StakingFact::ValidatorUnbonded {
+                    validator_id: validator_id.clone(),
+                    amount: U128::from(validator.deposit_amount),
+                },
+            };
+            self.record_and_apply_staking_fact(staking_fact, &mut next_validator_set);
         }
-        let staking_fact = match auto_unbond {
-            true => StakingFact::ValidatorAutoUnbonded {
-                validator_id: validator_id.clone(),
-                amount: U128::from(validator.deposit_amount),
-            },
-            false => StakingFact::ValidatorUnbonded {
-                validator_id: validator_id.clone(),
-                amount: U128::from(validator.deposit_amount),
-            },
-        };
-        self.record_and_apply_staking_fact(staking_fact, &mut next_validator_set);
     }
 }

@@ -33,7 +33,16 @@ const TOTAL_SUPPLY: u128 = 100_000_000;
 
 #[test]
 fn test_anchor_actions() {
-    let (root, _oct_token, _registryy, anchor, _users) = test_staking_actions(false);
+    let (root, oct_token, wrapped_appchain_token, registry, anchor, users) =
+        test_normal_actions(false);
+    test_staking_actions(
+        &root,
+        &oct_token,
+        &wrapped_appchain_token,
+        &registry,
+        &anchor,
+        &users,
+    );
     //
     // Reset contract status
     //
@@ -69,11 +78,12 @@ fn test_anchor_actions() {
     common::print_appchain_notifications(&anchor);
 }
 
-fn test_staking_actions(
+fn test_normal_actions(
     with_old_anchor: bool,
 ) -> (
     UserAccount,
     ContractAccount<MockOctTokenContract>,
+    ContractAccount<MockWrappedAppchainTokenContract>,
     ContractAccount<MockAppchainRegistryContract>,
     ContractAccount<AppchainAnchorContract>,
     Vec<UserAccount>,
@@ -453,6 +463,7 @@ fn test_staking_actions(
         &wrapped_appchain_token,
         appchain_message_nonce,
         0,
+        Vec::new(),
     );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 0);
@@ -460,6 +471,39 @@ fn test_staking_actions(
     common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 0);
     common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 0);
     common::print_validator_reward_histories(&anchor, &users[4], 0);
+    //
+    //
+    //
+    (
+        root,
+        oct_token,
+        wrapped_appchain_token,
+        registry,
+        anchor,
+        users,
+    )
+}
+
+fn test_staking_actions(
+    root: &UserAccount,
+    oct_token: &ContractAccount<MockOctTokenContract>,
+    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    registry: &ContractAccount<MockAppchainRegistryContract>,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    users: &Vec<UserAccount>,
+) {
+    let user0_id_in_appchain =
+        "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
+    let user1_id_in_appchain =
+        "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da270".to_string();
+    let user4_id_in_appchain =
+        "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da273".to_string();
+    let mut user0_profile = HashMap::<String, String>::new();
+    user0_profile.insert("key0".to_string(), "value0".to_string());
+    let mut user1_profile = HashMap::<String, String>::new();
+    user1_profile.insert("key1".to_string(), "value1".to_string());
+    let mut user4_profile = HashMap::<String, String>::new();
+    user4_profile.insert("key4".to_string(), "value4".to_string());
     //
     // user1 decrease stake
     //
@@ -492,6 +536,8 @@ fn test_staking_actions(
     common::print_validator_list_of(&anchor, Some(2));
     common::print_delegator_list_of(&anchor, 2, &users[0]);
     //
+    let appchain_message_nonce: u32 = 1;
+    //
     // Distribute reward of era1
     //
     distribute_reward_of(
@@ -500,8 +546,10 @@ fn test_staking_actions(
         &wrapped_appchain_token,
         appchain_message_nonce + 2,
         1,
+        [user4_id_in_appchain.clone()].to_vec(),
     );
     common::print_wrapped_appchain_token_info(&anchor);
+    common::print_staking_histories(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 1);
     common::print_validator_reward_histories(&anchor, &users[1], 1);
     common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 1);
@@ -550,8 +598,10 @@ fn test_staking_actions(
         &wrapped_appchain_token,
         appchain_message_nonce + 4,
         2,
+        [user0_id_in_appchain.clone(), user4_id_in_appchain.clone()].to_vec(),
     );
     common::print_wrapped_appchain_token_info(&anchor);
+    common::print_staking_histories(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 2);
     common::print_validator_reward_histories(&anchor, &users[1], 2);
     common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 2);
@@ -565,11 +615,11 @@ fn test_staking_actions(
     //
     // user0 unbond stake
     //
-    let result = staking_actions::unbond_stake(&users[0], &anchor);
-    result.assert_success();
-    common::print_anchor_status(&anchor);
-    let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[0]);
-    assert!(unbonded_stakes.len() == 0);
+    // let result = staking_actions::unbond_stake(&users[0], &anchor);
+    // result.assert_success();
+    // common::print_anchor_status(&anchor);
+    // let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[0]);
+    // assert!(unbonded_stakes.len() == 0);
     //
     // Print staking histories
     //
@@ -583,14 +633,17 @@ fn test_staking_actions(
     //
     // Distribute reward of era3
     //
+    common::print_validator_set_info_of(&anchor, U64::from(3));
     distribute_reward_of(
         &root,
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce + 6,
         3,
+        [user0_id_in_appchain.clone()].to_vec(),
     );
     common::print_wrapped_appchain_token_info(&anchor);
+    common::print_staking_histories(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 3);
     common::print_validator_reward_histories(&anchor, &users[1], 3);
     common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 3);
@@ -607,6 +660,7 @@ fn test_staking_actions(
         &wrapped_appchain_token,
         appchain_message_nonce + 8,
         3,
+        Vec::new(),
     );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 3);
@@ -649,10 +703,6 @@ fn test_staking_actions(
     common::print_staking_histories(&anchor);
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
-    //
-    //
-    //
-    (root, oct_token, registry, anchor, users)
 }
 
 fn distribute_reward_of(
@@ -661,6 +711,7 @@ fn distribute_reward_of(
     wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
     nonce: u32,
     era_number: u32,
+    unprofitable_validator_ids: Vec<String>,
 ) {
     let anchor_balance_of_wat =
         token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token);
@@ -668,7 +719,7 @@ fn distribute_reward_of(
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::EraRewardConcluded {
             era_number,
-            unprofitable_validator_ids: Vec::new(),
+            unprofitable_validator_ids,
         },
         nonce,
     });
@@ -790,7 +841,8 @@ fn withdraw_stake_of(
 
 #[test]
 fn test_migration() {
-    let (root, _oct_token, _registryy, anchor, users) = test_staking_actions(true);
+    let (root, _oct_token, _wrapped_appchain_token, _registryy, anchor, _users) =
+        test_normal_actions(true);
     common::deploy_new_anchor_contract(&anchor);
     let result = call!(root, anchor.migrate_state());
     common::print_execution_result("migrate_state", &result);
@@ -800,8 +852,6 @@ fn test_migration() {
     common::print_anchor_status(&anchor);
     common::print_validator_set_info_of(&anchor, U64::from(0));
     common::print_validator_set_info_of(&anchor, U64::from(1));
-    common::print_validator_set_info_of(&anchor, U64::from(2));
-    common::print_validator_set_info_of(&anchor, U64::from(3));
     common::print_validator_list_of(&anchor, Some(0));
     common::print_validator_list_of(&anchor, Some(1));
     common::print_validator_list_of(&anchor, Some(2));
