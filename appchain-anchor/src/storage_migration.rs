@@ -157,7 +157,7 @@ impl ProtocolSettings {
     pub fn from_old_version(old_version: OldProtocolSettings) -> ProtocolSettings {
         ProtocolSettings {
             minimum_validator_deposit: old_version.minimum_validator_deposit,
-            maximum_validator_deposit_percent: 25,
+            maximum_validator_stake_percent: 25,
             minimum_delegator_deposit: old_version.minimum_delegator_deposit,
             minimum_total_stake_price_for_booting: old_version
                 .minimum_total_stake_price_for_booting,

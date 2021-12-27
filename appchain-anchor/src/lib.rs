@@ -276,7 +276,7 @@ impl AppchainAnchor {
             "Function can only be called by owner."
         );
     }
-    // Assert that the contract called by a registered validator.
+    // Assert the given validator is existed in the given validator set.
     fn assert_validator_id(&self, validator_id: &AccountId, validator_set: &ValidatorSet) {
         assert!(
             validator_set.validator_id_set.contains(validator_id)
@@ -285,7 +285,7 @@ impl AppchainAnchor {
             validator_id
         );
     }
-    // Assert that the contract called by a registered validator.
+    // Assert the given delegator is existed in the given validator set.
     fn assert_delegator_id(
         &self,
         delegator_id: &AccountId,
@@ -346,6 +346,26 @@ impl AppchainAnchor {
         assert!(
             !self.rewards_withdrawal_is_paused,
             "Rewards withdrawal is now paused."
+        );
+    }
+    //
+    fn assert_validator_stake_is_valid(
+        &self,
+        validator_set: &ValidatorSet,
+        deposit_amount: u128,
+        total_stake: u128,
+    ) {
+        let protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            deposit_amount >= protocol_settings.minimum_validator_deposit.0,
+            "The deposit for registering validator is too few."
+        );
+        let maximum_allowed_deposit = validator_set.total_stake
+            * u128::from(protocol_settings.maximum_validator_stake_percent)
+            / 100;
+        assert!(
+            total_stake <= maximum_allowed_deposit,
+            "The total stake for registering validator is too much."
         );
     }
     /// Set the price (in USD) of OCT token

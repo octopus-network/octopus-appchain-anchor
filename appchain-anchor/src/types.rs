@@ -111,7 +111,7 @@ pub struct ProtocolSettings {
     /// being validator of the appchain.
     pub minimum_validator_deposit: U128,
     /// The maximum percent value that the deposit of a validator in total stake
-    pub maximum_validator_deposit_percent: u16,
+    pub maximum_validator_stake_percent: u16,
     /// The minimum deposit amount for a delegator to delegate his voting weight to
     /// a certain validator.
     pub minimum_delegator_deposit: U128,

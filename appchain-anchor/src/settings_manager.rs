@@ -8,7 +8,7 @@ impl Default for ProtocolSettings {
     fn default() -> Self {
         Self {
             minimum_validator_deposit: U128::from(10_000 * OCT_DECIMALS_VALUE),
-            maximum_validator_deposit_percent: 25,
+            maximum_validator_stake_percent: 25,
             minimum_delegator_deposit: U128::from(1000 * OCT_DECIMALS_VALUE),
             minimum_total_stake_price_for_booting: U128::from(100_000 * USD_DECIMALS_VALUE),
             maximum_market_value_percent_of_near_fungible_tokens: 33,
@@ -56,11 +56,11 @@ impl ProtocolSettingsManager for AppchainAnchor {
         self.protocol_settings.set(&protocol_settings);
     }
     //
-    fn change_maximum_validator_deposit_percent(&mut self, value: u16) {
+    fn change_maximum_validator_stake_percent(&mut self, value: u16) {
         self.assert_owner();
         assert!(value < 100, "Invalid percent value.");
         let mut protocol_settings = self.protocol_settings.get().unwrap();
-        protocol_settings.maximum_validator_deposit_percent = value;
+        protocol_settings.maximum_validator_stake_percent = value;
         self.protocol_settings.set(&protocol_settings);
     }
     //

@@ -115,18 +115,12 @@ impl AppchainAnchor {
                 &formatted_validator_id_in_appchain.origin_to_string()
             );
         }
+        self.assert_validator_stake_is_valid(
+            &next_validator_set,
+            deposit_amount.0,
+            deposit_amount.0,
+        );
         let protocol_settings = self.protocol_settings.get().unwrap();
-        assert!(
-            deposit_amount.0 >= protocol_settings.minimum_validator_deposit.0,
-            "The deposit for registering validator is too few."
-        );
-        let maximum_allowed_deposit = next_validator_set.total_stake
-            * u128::from(protocol_settings.maximum_validator_deposit_percent)
-            / 100;
-        assert!(
-            deposit_amount.0 < maximum_allowed_deposit,
-            "The deposit for registering validator is too much."
-        );
         assert!(
             next_validator_set.validator_id_set.len() < protocol_settings.maximum_validator_count.0,
             "Too many validators registered."
@@ -158,6 +152,12 @@ impl AppchainAnchor {
         };
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_validator_id(&validator_id, &next_validator_set);
+        let validator = next_validator_set.validators.get(&validator_id).unwrap();
+        self.assert_validator_stake_is_valid(
+            &next_validator_set,
+            validator.deposit_amount + amount.0,
+            validator.total_stake + amount.0,
+        );
         self.record_and_apply_staking_fact(
             StakingFact::StakeIncreased {
                 validator_id,
@@ -194,11 +194,7 @@ impl AppchainAnchor {
             "The account '{}' is holding unbonded stake(s) which need to be withdrawn first.",
             &delegator_id
         );
-        assert!(
-            next_validator_set.validator_id_set.contains(&validator_id),
-            "Invalid validator id '{}'",
-            &validator_id
-        );
+        self.assert_validator_id(&validator_id, &next_validator_set);
         let validator = next_validator_set.validators.get(&validator_id).unwrap();
         assert!(
             validator.can_be_delegated_to,
@@ -218,6 +214,11 @@ impl AppchainAnchor {
         assert!(
             deposit_amount.0 >= protocol_settings.minimum_delegator_deposit.0,
             "The deposit for registering delegator is too few."
+        );
+        self.assert_validator_stake_is_valid(
+            &next_validator_set,
+            validator.deposit_amount,
+            validator.total_stake + deposit_amount.0,
         );
         self.record_and_apply_staking_fact(
             StakingFact::DelegatorRegistered {
@@ -268,6 +269,12 @@ impl AppchainAnchor {
         };
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_delegator_id(&delegator_id, &validator_id, &next_validator_set);
+        let validator = next_validator_set.validators.get(&validator_id).unwrap();
+        self.assert_validator_stake_is_valid(
+            &next_validator_set,
+            validator.deposit_amount,
+            validator.total_stake + amount.0,
+        );
         self.record_and_apply_staking_fact(
             StakingFact::DelegationIncreased {
                 delegator_id,
@@ -293,15 +300,15 @@ impl StakingManager for AppchainAnchor {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let validator_id = env::predecessor_account_id();
         self.assert_validator_id(&validator_id, &next_validator_set);
-        let protocol_settings = self.protocol_settings.get().unwrap();
+        let validator = next_validator_set.validators.get(&validator_id).unwrap();
         assert!(
-            next_validator_set
-                .validators
-                .get(&validator_id)
-                .unwrap()
-                .deposit_amount
-                >= protocol_settings.minimum_validator_deposit.0 + amount.0,
+            validator.deposit_amount > amount.0,
             "Unable to decrease so much stake."
+        );
+        self.assert_validator_stake_is_valid(
+            &next_validator_set,
+            validator.deposit_amount - amount.0,
+            validator.total_stake - amount.0,
         );
         self.assert_total_stake_price(amount.0);
         self.record_and_apply_staking_fact(
