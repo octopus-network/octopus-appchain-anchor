@@ -118,10 +118,12 @@ pub trait AnchorViewer {
         &self,
         validator_id_in_appchain: String,
     ) -> Option<ValidatorProfile>;
-    /// Get the latest commitment data of appchain state
+    /// Get the latest commitment data of appchain state.
     fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment>;
-    ///
+    /// Get status of the beefy light client.
     fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus;
+    /// Get staking histories related to the given account id.
+    fn get_user_staking_histories_of(&self, account_id: AccountId) -> Vec<UserStakingHistory>;
 }
 
 pub trait AppchainLifecycleManager {
