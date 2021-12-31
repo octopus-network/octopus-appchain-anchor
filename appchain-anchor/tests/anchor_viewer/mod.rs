@@ -1,8 +1,8 @@
 use appchain_anchor::types::{
     AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
     AppchainNotificationHistory, AppchainSettings, AppchainState, AppchainValidator, IndexRange,
-    ProtocolSettings, RewardHistory, StakingHistory, UnbondedStake, ValidatorProfile,
-    ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
+    ProtocolSettings, RewardHistory, StakingHistory, UnbondedStake, UserStakingHistory,
+    ValidatorProfile, ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
 };
 use appchain_anchor::AppchainAnchorContract;
 
@@ -302,4 +302,16 @@ pub fn get_latest_commitment_of_appchain(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Option<AppchainCommitment>>()
+}
+
+pub fn get_user_staking_histories_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    account_id: AccountId,
+) -> Vec<UserStakingHistory> {
+    let view_result = view!(anchor.get_user_staking_histories_of(account_id));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<UserStakingHistory>>()
 }

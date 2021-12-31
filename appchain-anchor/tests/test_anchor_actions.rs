@@ -820,7 +820,7 @@ fn withdraw_stake_of(
 
 #[test]
 fn test_migration() {
-    let (root, _oct_token, _registryy, anchor, _users) = test_staking_actions(true);
+    let (root, _oct_token, _registryy, anchor, users) = test_staking_actions(true);
     common::deploy_new_anchor_contract(&anchor);
     let result = call!(root, anchor.migrate_state());
     common::print_execution_result("migrate_state", &result);
@@ -832,6 +832,11 @@ fn test_migration() {
     common::print_validator_list_of(&anchor, Some(1));
     common::print_validator_list_of(&anchor, Some(2));
     common::print_validator_list_of(&anchor, Some(3));
+    common::print_user_staking_histories_of(&anchor, &users[0]);
+    common::print_user_staking_histories_of(&anchor, &users[1]);
+    common::print_user_staking_histories_of(&anchor, &users[2]);
+    common::print_user_staking_histories_of(&anchor, &users[3]);
+    common::print_user_staking_histories_of(&anchor, &users[4]);
     common::print_staking_histories(&anchor);
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);

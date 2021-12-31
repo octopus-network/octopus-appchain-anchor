@@ -597,4 +597,28 @@ impl AnchorViewer for AppchainAnchor {
             BeefyLightClientStatus::Uninitialized
         }
     }
+    //
+    fn get_user_staking_histories_of(&self, account_id: AccountId) -> Vec<UserStakingHistory> {
+        let staking_histories = self.staking_histories.get().unwrap();
+        let user_staking_histories = self.user_staking_histories.get().unwrap();
+        let mut results = Vec::<UserStakingHistory>::new();
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        let latest_validator_set = validator_set_histories
+            .get(&validator_set_histories.index_range().end_index.0)
+            .unwrap();
+        let staking_history_indexes =
+            user_staking_histories.get_staking_history_indexes_of(&account_id);
+        staking_history_indexes.iter().for_each(|index| {
+            if let Some(staking_history) = staking_histories.get(&index) {
+                results.push(UserStakingHistory {
+                    staking_fact: staking_history.staking_fact,
+                    block_height: staking_history.block_height,
+                    timestamp: staking_history.timestamp,
+                    has_taken_effect: staking_history.index.0
+                        <= latest_validator_set.staking_history_index,
+                });
+            }
+        });
+        results
+    }
 }

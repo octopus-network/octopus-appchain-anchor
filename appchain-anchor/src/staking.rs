@@ -235,8 +235,14 @@ impl AppchainAnchor {
             index: U64::from(0),
         });
         self.staking_histories.set(&staking_histories);
+        //
         next_validator_set.apply_staking_history(&staking_history);
         self.next_validator_set.set(next_validator_set);
+        //
+        let mut user_staking_histories = self.user_staking_histories.get().unwrap();
+        user_staking_histories.add_staking_history(&staking_history);
+        self.user_staking_histories.set(&user_staking_histories);
+        //
         self.sync_state_to_registry();
     }
     //
