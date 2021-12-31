@@ -390,7 +390,10 @@ pub fn print_staking_histories(anchor: &ContractAccount<AppchainAnchorContract>)
     }
 }
 
-pub fn print_user_staking_histories_of(anchor: &ContractAccount<AppchainAnchorContract>, user: &UserAccount) {
+pub fn print_user_staking_histories_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    user: &UserAccount,
+) {
     let staking_histories = anchor_viewer::get_user_staking_histories_of(anchor, user.account_id());
     let mut index = 0;
     for staking_history in staking_histories {
