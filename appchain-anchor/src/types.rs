@@ -467,6 +467,8 @@ pub struct ValidatorProfile {
     pub validator_id_in_appchain: String,
     ///
     pub profile: HashMap<String, String>,
+    ///
+    pub is_validator_in_next_era: bool,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

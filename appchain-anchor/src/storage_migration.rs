@@ -1,5 +1,6 @@
 use crate::*;
 
+use near_sdk::borsh::maybestd::collections::HashMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
@@ -47,6 +48,27 @@ pub struct OldProtocolSettings {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
+pub struct OldValidatorProfile {
+    ///
+    pub validator_id: AccountId,
+    ///
+    pub validator_id_in_appchain: String,
+    ///
+    pub profile: HashMap<String, String>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct OldValidatorProfiles {
+    /// The set of all validator id in NEAR protocol
+    validator_id_set: UnorderedSet<AccountId>,
+    /// The mapping for validator profiles, from account id in NEAR protocol to his/her profile
+    profiles: LookupMap<AccountId, OldValidatorProfile>,
+    /// The mapping for validators' accounts, from account id in the appchain to
+    /// account id in NEAR protocol.
+    map_by_id_in_appchain: LookupMap<String, AccountId>,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
     appchain_id: AppchainId,
@@ -74,7 +96,7 @@ pub struct OldAppchainAnchor {
     /// The map of unbonded stakes in eras.
     unbonded_stakes: LookupMap<AccountId, Vec<UnbondedStakeReference>>,
     /// The validators' profiles data.
-    validator_profiles: LazyOption<ValidatorProfiles>,
+    validator_profiles: LazyOption<OldValidatorProfiles>,
     /// The custom settings for appchain.
     appchain_settings: LazyOption<AppchainSettings>,
     /// The anchor settings for appchain.
@@ -115,9 +137,10 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
+        let old_validator_profiles = old_contract.validator_profiles.get().unwrap();
         let old_protocol_settings = old_contract.protocol_settings.get().unwrap();
         // Create the new contract using the data from the old contract.
-        let new_contract = AppchainAnchor {
+        let mut new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
@@ -129,7 +152,10 @@ impl AppchainAnchor {
             unwithdrawn_validator_rewards: old_contract.unwithdrawn_validator_rewards,
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
             unbonded_stakes: old_contract.unbonded_stakes,
-            validator_profiles: old_contract.validator_profiles,
+            validator_profiles: LazyOption::new(
+                StorageKey::ValidatorProfiles.into_bytes(),
+                Some(&ValidatorProfiles::new()),
+            ),
             appchain_settings: old_contract.appchain_settings,
             anchor_settings: old_contract.anchor_settings,
             protocol_settings: LazyOption::new(
@@ -148,6 +174,7 @@ impl AppchainAnchor {
             rewards_withdrawal_is_paused: false,
         };
         //
+        new_contract.migrate_validator_profiles(old_validator_profiles);
         //
         new_contract
     }
@@ -177,5 +204,26 @@ impl ProtocolSettings {
             validator_commission_percent: old_version.validator_commission_percent,
             maximum_allowed_unprofitable_era_count: 2,
         }
+    }
+}
+
+impl AppchainAnchor {
+    pub fn migrate_validator_profiles(&mut self, old_validator_profiles: OldValidatorProfiles) {
+        let validator_ids = old_validator_profiles.validator_id_set.to_vec();
+        let mut validator_profiles = self.validator_profiles.get().unwrap();
+        let next_validator_set = self.next_validator_set.get().unwrap();
+        validator_ids.iter().for_each(|validator_id| {
+            if let Some(validator_profile) = old_validator_profiles.profiles.get(validator_id) {
+                validator_profiles.insert(ValidatorProfile {
+                    validator_id: validator_profile.validator_id,
+                    validator_id_in_appchain: validator_profile.validator_id_in_appchain,
+                    profile: validator_profile.profile,
+                    is_validator_in_next_era: next_validator_set
+                        .validator_id_set
+                        .contains(validator_id),
+                });
+            }
+        });
+        self.validator_profiles.set(&validator_profiles);
     }
 }

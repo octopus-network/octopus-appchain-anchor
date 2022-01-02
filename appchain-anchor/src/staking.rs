@@ -97,23 +97,20 @@ impl AppchainAnchor {
             "The account '{}' has already been registered.",
             &validator_id
         );
-        assert!(
-            !self.unbonded_stakes.contains_key(&validator_id),
-            "The account '{}' is holding unbonded stake(s) which need to be withdrawn first.",
-            &validator_id
-        );
         let mut validator_profiles = self.validator_profiles.get().unwrap();
         let formatted_validator_id_in_appchain =
             AccountIdInAppchain::new(validator_id_in_appchain.clone());
         if validator_id_in_appchain.is_some() {
             formatted_validator_id_in_appchain.assert_valid();
-            assert!(
-                validator_profiles
-                    .get_by_id_in_appchain(&formatted_validator_id_in_appchain.to_string())
-                    .is_none(),
-                "The account '{}' in appchain has already been registered.",
-                &formatted_validator_id_in_appchain.origin_to_string()
-            );
+            if let Some(validator_profile) = validator_profiles
+                .get_by_id_in_appchain(&formatted_validator_id_in_appchain.to_string())
+            {
+                assert!(
+                    !validator_profile.is_validator_in_next_era,
+                    "The account '{}' in appchain is already used by a validator in next era.",
+                    &formatted_validator_id_in_appchain.origin_to_string()
+                );
+            }
         }
         self.assert_validator_stake_is_valid(&next_validator_set, deposit_amount.0, None);
         let protocol_settings = self.protocol_settings.get().unwrap();
@@ -134,6 +131,7 @@ impl AppchainAnchor {
             validator_id,
             validator_id_in_appchain: formatted_validator_id_in_appchain.to_string(),
             profile,
+            is_validator_in_next_era: true,
         });
         self.validator_profiles.set(&validator_profiles);
     }
@@ -184,11 +182,6 @@ impl AppchainAnchor {
             "The account '{}' has already been registered to validator '{}'.",
             &delegator_id,
             &validator_id
-        );
-        assert!(
-            !self.unbonded_stakes.contains_key(&delegator_id),
-            "The account '{}' is holding unbonded stake(s) which need to be withdrawn first.",
-            &delegator_id
         );
         self.assert_validator_id(&validator_id, &next_validator_set);
         let validator = next_validator_set.validators.get(&validator_id).unwrap();
@@ -634,6 +627,12 @@ impl AppchainAnchor {
                 },
             };
             self.record_and_apply_staking_fact(staking_fact, &mut next_validator_set);
+            let mut validator_profiles = self.validator_profiles.get().unwrap();
+            if let Some(mut validator_profile) = validator_profiles.get(validator_id) {
+                validator_profile.is_validator_in_next_era = false;
+                validator_profiles.insert(validator_profile);
+                self.validator_profiles.set(&validator_profiles);
+            }
         }
     }
 }
