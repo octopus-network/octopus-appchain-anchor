@@ -13,6 +13,7 @@ mod storage_key;
 mod storage_migration;
 mod sudo_actions;
 pub mod types;
+mod user_staking_histories;
 mod validator_actions;
 mod validator_profiles;
 mod validator_set;
@@ -31,6 +32,7 @@ use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
     PromiseOrValue, PromiseResult, Timestamp,
 };
+use user_staking_histories::UserStakingHistories;
 
 pub use message_decoder::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
@@ -163,6 +165,8 @@ pub struct AppchainAnchor {
     reward_distribution_records: LazyOption<RewardDistributionRecords>,
     /// Whether the asset transfer is paused
     asset_transfer_is_paused: bool,
+    /// The staking histories organized by account id
+    user_staking_histories: LazyOption<UserStakingHistories>,
 }
 
 #[near_bindgen]
@@ -255,6 +259,10 @@ impl AppchainAnchor {
                 Some(&RewardDistributionRecords::new()),
             ),
             asset_transfer_is_paused: false,
+            user_staking_histories: LazyOption::new(
+                StorageKey::UserStakingHistories.into_bytes(),
+                Some(&UserStakingHistories::new()),
+            ),
         }
     }
     // Assert that the contract called by the owner.

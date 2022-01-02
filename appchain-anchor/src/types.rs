@@ -522,6 +522,15 @@ pub enum BeefyLightClientStatus {
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainCommitment {
     pub payload: Hash,
-    pub block_number: U64,
-    pub validator_set_id: u32,
+    pub block_number: u32,
+    pub validator_set_id: U64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct UserStakingHistory {
+    pub staking_fact: StakingFact,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub has_taken_effect: bool,
 }

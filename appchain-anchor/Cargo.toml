@@ -1,6 +1,6 @@
 [package]
 name = "appchain-anchor"
-version = "1.0.1"
+version = "1.0.2"
 authors = ["Octopus Network"]
 edition = "2018"
 
@@ -8,7 +8,7 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client", tag = "v1.0.0" }
+beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client", tag = "v1.0.1" }
 near-sdk = "3.1.0"
 near-contract-standards = "3.1.0"
 hex = "0.4.2"
