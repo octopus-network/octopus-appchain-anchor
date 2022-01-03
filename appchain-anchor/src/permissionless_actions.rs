@@ -658,21 +658,28 @@ impl AppchainAnchor {
         for id_in_appchain in unprofitable_validator_ids {
             let account_id_in_appchain = AccountIdInAppchain::new(Some(id_in_appchain.clone()));
             account_id_in_appchain.assert_valid();
-            if validator_profiles
-                .get_by_id_in_appchain(&account_id_in_appchain.to_string())
-                .is_none()
-            {
-                return AppchainMessageProcessingResult::Error {
-                    nonce: appchain_message_nonce,
-                    message: format!("Invalid validator id in appchain: '{}'", id_in_appchain),
-                };
+            match validator_profiles.get_by_id_in_appchain(&account_id_in_appchain.to_string()) {
+                Some(validator_profile) => {
+                    if validator_set
+                        .validator_set
+                        .validator_id_set
+                        .contains(&validator_profile.validator_id)
+                    {
+                        unprofitable_validator_ids_in_near.push(validator_profile.validator_id);
+                    } else {
+                        return AppchainMessageProcessingResult::Error {
+                            nonce: appchain_message_nonce,
+                            message: format!("Validator id in appchain '{}' is not a valid validator in era '{}'.", id_in_appchain, era_number),
+                        };
+                    }
+                }
+                None => {
+                    return AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message_nonce,
+                        message: format!("Invalid validator id in appchain: '{}'", id_in_appchain),
+                    }
+                }
             }
-            unprofitable_validator_ids_in_near.push(
-                validator_profiles
-                    .get_by_id_in_appchain(&account_id_in_appchain.to_string())
-                    .unwrap()
-                    .validator_id,
-            );
         }
         validator_set.set_unprofitable_validator_ids(unprofitable_validator_ids_in_near);
         validator_set.calculate_valid_total_stake();
