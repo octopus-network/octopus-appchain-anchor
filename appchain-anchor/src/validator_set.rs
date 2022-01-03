@@ -77,6 +77,8 @@ pub struct ValidatorSetOfEra {
 }
 
 pub trait ValidatorSetActions {
+    /// Get validator list of current validator set
+    fn get_validator_list(&self) -> Vec<AppchainValidator>;
     /// Apply a certain `staking history` to the validator set.
     fn apply_staking_history(&mut self, staking_history: &StakingHistory);
 }
@@ -99,30 +101,6 @@ impl ValidatorSet {
             delegators: LookupMap::new(StorageKey::DelegatorsOfEra(era_number).into_bytes()),
             total_stake: 0,
         }
-    }
-    ///
-    pub fn get_validator_list(&self) -> Vec<AppchainValidator> {
-        let validator_ids = self.validator_id_set.to_vec();
-        validator_ids
-            .iter()
-            .map(|validator_id| {
-                let validator = self.validators.get(validator_id).unwrap();
-                let mut delegators_count: u64 = 0;
-                if let Some(delegator_id_set) =
-                    self.validator_id_to_delegator_id_set.get(validator_id)
-                {
-                    delegators_count = delegator_id_set.len();
-                }
-                return AppchainValidator {
-                    validator_id: validator.validator_id,
-                    validator_id_in_appchain: validator.validator_id_in_appchain,
-                    deposit_amount: U128::from(validator.deposit_amount),
-                    total_stake: U128::from(validator.total_stake),
-                    delegators_count: U64::from(delegators_count),
-                    can_be_delegated_to: validator.can_be_delegated_to,
-                };
-            })
-            .collect()
     }
     ///
     pub fn clear(&mut self) {
@@ -153,6 +131,30 @@ impl ValidatorSet {
 }
 
 impl ValidatorSetActions for ValidatorSet {
+    //
+    fn get_validator_list(&self) -> Vec<AppchainValidator> {
+        let validator_ids = self.validator_id_set.to_vec();
+        validator_ids
+            .iter()
+            .map(|validator_id| {
+                let validator = self.validators.get(validator_id).unwrap();
+                let mut delegators_count: u64 = 0;
+                if let Some(delegator_id_set) =
+                    self.validator_id_to_delegator_id_set.get(validator_id)
+                {
+                    delegators_count = delegator_id_set.len();
+                }
+                return AppchainValidator {
+                    validator_id: validator.validator_id,
+                    validator_id_in_appchain: validator.validator_id_in_appchain,
+                    deposit_amount: U128::from(validator.deposit_amount),
+                    total_stake: U128::from(validator.total_stake),
+                    delegators_count: U64::from(delegators_count),
+                    can_be_delegated_to: validator.can_be_delegated_to,
+                };
+            })
+            .collect()
+    }
     //
     fn apply_staking_history(&mut self, staking_history: &StakingHistory) {
         match &staking_history.staking_fact {
@@ -457,6 +459,15 @@ impl ValidatorSetOfEra {
 }
 
 impl ValidatorSetActions for ValidatorSetOfEra {
+    //
+    fn get_validator_list(&self) -> Vec<AppchainValidator> {
+        match self.processing_status {
+            ValidatorSetProcessingStatus::ReadyForDistributingReward
+            | ValidatorSetProcessingStatus::DistributingReward { .. }
+            | ValidatorSetProcessingStatus::Completed => self.validator_set.get_validator_list(),
+            _ => Vec::new(),
+        }
+    }
     //
     fn apply_staking_history(&mut self, staking_history: &StakingHistory) {
         self.validator_set.apply_staking_history(staking_history);

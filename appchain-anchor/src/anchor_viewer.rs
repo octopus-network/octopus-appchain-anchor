@@ -1,4 +1,4 @@
-use crate::{interfaces::AnchorViewer, *};
+use crate::{interfaces::AnchorViewer, validator_set::ValidatorSetActions, *};
 
 #[near_bindgen]
 impl AnchorViewer for AppchainAnchor {
@@ -243,7 +243,7 @@ impl AnchorViewer for AppchainAnchor {
                 .unwrap()
                 .get(&era_number.0)
             {
-                validator_set_of_era.validator_set.get_validator_list()
+                validator_set_of_era.get_validator_list()
             } else {
                 Vec::new()
             }
