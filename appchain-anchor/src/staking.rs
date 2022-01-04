@@ -514,6 +514,7 @@ impl StakingManager for AppchainAnchor {
     //
     fn withdraw_validator_rewards(&mut self, validator_id: AccountId) {
         self.assert_asset_transfer_is_not_paused();
+        self.assert_rewards_withdrawal_is_not_paused();
         let end_era = self
             .validator_set_histories
             .get()
@@ -552,6 +553,7 @@ impl StakingManager for AppchainAnchor {
     //
     fn withdraw_delegator_rewards(&mut self, delegator_id: AccountId, validator_id: AccountId) {
         self.assert_asset_transfer_is_not_paused();
+        self.assert_rewards_withdrawal_is_not_paused();
         let end_era = self
             .validator_set_histories
             .get()

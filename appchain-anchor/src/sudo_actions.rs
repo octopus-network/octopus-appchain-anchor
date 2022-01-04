@@ -168,11 +168,19 @@ impl SudoActions for AppchainAnchor {
     //
     fn pause_asset_transfer(&mut self) {
         self.assert_owner();
+        assert!(
+            !self.asset_transfer_is_paused,
+            "Asset transfer is already paused."
+        );
         self.asset_transfer_is_paused = true;
     }
     //
     fn resume_asset_transfer(&mut self) {
         self.assert_owner();
+        assert!(
+            self.asset_transfer_is_paused,
+            "Asset transfer is already resumed."
+        );
         self.asset_transfer_is_paused = false;
     }
     //
@@ -180,5 +188,23 @@ impl SudoActions for AppchainAnchor {
         self.assert_owner();
         let mut staking_histories = self.staking_histories.get().unwrap();
         staking_histories.remove_at(&index.0);
+    }
+    //
+    fn pause_rewards_withdrawal(&mut self) {
+        self.assert_owner();
+        assert!(
+            !self.rewards_withdrawal_is_paused,
+            "Rewards withdrawal is already paused."
+        );
+        self.rewards_withdrawal_is_paused = true;
+    }
+    //
+    fn resume_rewards_withdrawal(&mut self) {
+        self.assert_owner();
+        assert!(
+            self.rewards_withdrawal_is_paused,
+            "Rewards withdrawal is already resumed."
+        );
+        self.rewards_withdrawal_is_paused = false;
     }
 }
