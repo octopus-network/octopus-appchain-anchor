@@ -167,6 +167,8 @@ pub struct AppchainAnchor {
     asset_transfer_is_paused: bool,
     /// The staking histories organized by account id
     user_staking_histories: LazyOption<UserStakingHistories>,
+    /// Whether the rewards withdrawal is paused
+    rewards_withdrawal_is_paused: bool,
 }
 
 #[near_bindgen]
@@ -263,6 +265,7 @@ impl AppchainAnchor {
                 StorageKey::UserStakingHistories.into_bytes(),
                 Some(&UserStakingHistories::new()),
             ),
+            rewards_withdrawal_is_paused: false,
         }
     }
     // Assert that the contract called by the owner.
@@ -336,6 +339,13 @@ impl AppchainAnchor {
         assert!(
             !self.asset_transfer_is_paused,
             "Asset transfer is now paused."
+        );
+    }
+    ///
+    fn assert_rewards_withdrawal_is_not_paused(&self) {
+        assert!(
+            !self.rewards_withdrawal_is_paused,
+            "Rewards withdrawal is now paused."
         );
     }
     /// Set the price (in USD) of OCT token

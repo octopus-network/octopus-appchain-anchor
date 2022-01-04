@@ -314,6 +314,10 @@ pub trait SudoActions {
     fn resume_asset_transfer(&mut self);
     ///
     fn remove_staking_history_at(&mut self, index: U64);
+    ///
+    fn pause_rewards_withdrawal(&mut self);
+    ///
+    fn resume_rewards_withdrawal(&mut self);
 }
 
 pub trait ValidatorActions {
