@@ -55,6 +55,8 @@ pub struct OldAppchainAnchor {
     reward_distribution_records: LazyOption<RewardDistributionRecords>,
     /// Whether the asset transfer is paused
     asset_transfer_is_paused: bool,
+    /// The staking histories organized by account id
+    user_staking_histories: LazyOption<UserStakingHistories>,
 }
 
 #[near_bindgen]
@@ -72,7 +74,7 @@ impl AppchainAnchor {
         );
         //
         // Create the new contract using the data from the old contract.
-        let mut new_contract = AppchainAnchor {
+        let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
@@ -96,28 +98,11 @@ impl AppchainAnchor {
             beefy_light_client_state: old_contract.beefy_light_client_state,
             reward_distribution_records: old_contract.reward_distribution_records,
             asset_transfer_is_paused: old_contract.asset_transfer_is_paused,
-            user_staking_histories: LazyOption::new(
-                StorageKey::UserStakingHistories.into_bytes(),
-                Some(&UserStakingHistories::new()),
-            ),
+            user_staking_histories: old_contract.user_staking_histories,
+            rewards_withdrawal_is_paused: false,
         };
         //
-        new_contract.initialize_user_staking_histories();
         //
         new_contract
-    }
-}
-
-impl AppchainAnchor {
-    pub fn initialize_user_staking_histories(&mut self) {
-        let staking_histories = self.staking_histories.get().unwrap();
-        let index_range = staking_histories.index_range();
-        let mut user_staking_histories = self.user_staking_histories.get().unwrap();
-        for index in index_range.start_index.0..index_range.end_index.0 + 1 {
-            if let Some(staking_history) = staking_histories.get(&index) {
-                user_staking_histories.add_staking_history(&staking_history);
-            }
-        }
-        self.user_staking_histories.set(&user_staking_histories);
     }
 }
