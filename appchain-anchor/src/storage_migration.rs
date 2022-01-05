@@ -110,6 +110,8 @@ pub struct OldAppchainAnchor {
     asset_transfer_is_paused: bool,
     /// The staking histories organized by account id
     user_staking_histories: LazyOption<UserStakingHistories>,
+    /// Whether the rewards withdrawal is paused
+    rewards_withdrawal_is_paused: bool,
 }
 
 #[near_bindgen]
@@ -156,7 +158,7 @@ impl AppchainAnchor {
             reward_distribution_records: old_contract.reward_distribution_records,
             asset_transfer_is_paused: old_contract.asset_transfer_is_paused,
             user_staking_histories: old_contract.user_staking_histories,
-            rewards_withdrawal_is_paused: false,
+            rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
         };
         //
         new_contract.migrate_validator_profiles();
@@ -187,7 +189,7 @@ impl ProtocolSettings {
             maximum_era_count_of_valid_appchain_message: old_version
                 .maximum_era_count_of_valid_appchain_message,
             validator_commission_percent: old_version.validator_commission_percent,
-            maximum_allowed_unprofitable_era_count: 2,
+            maximum_allowed_unprofitable_era_count: 3,
         }
     }
 }

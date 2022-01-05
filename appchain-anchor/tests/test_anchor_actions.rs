@@ -375,7 +375,7 @@ fn test_normal_actions(
     //
     // Change protocol settings and try go_booting
     //
-    let result = settings_actions::change_minimum_validator_count(&root, &anchor, 2);
+    let result = settings_actions::change_minimum_validator_count(&root, &anchor, 1);
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     assert!(!result.is_ok());
@@ -638,11 +638,19 @@ fn test_staking_actions(
     //
     // user0 unbond stake
     //
-    // let result = staking_actions::unbond_stake(&users[0], &anchor);
-    // result.assert_success();
-    // common::print_anchor_status(&anchor);
-    // let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[0]);
-    // assert!(unbonded_stakes.len() == 0);
+    let result = staking_actions::unbond_stake(&users[0], &anchor);
+    result.assert_success();
+    common::print_anchor_status(&anchor);
+    let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[0]);
+    assert!(unbonded_stakes.len() == 0);
+    //
+    // user1 unbond stake
+    //
+    let result = staking_actions::unbond_stake(&users[1], &anchor);
+    result.assert_success();
+    common::print_anchor_status(&anchor);
+    let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[1]);
+    assert!(unbonded_stakes.len() == 1);
     //
     // Print staking histories
     //
