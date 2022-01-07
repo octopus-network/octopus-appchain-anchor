@@ -2,14 +2,6 @@ use crate::{interfaces::StakingManager, *};
 use borsh::maybestd::collections::HashMap;
 use near_sdk::serde_json;
 
-#[derive(BorshDeserialize, BorshSerialize, Clone)]
-pub struct UnbondedStakeReference {
-    /// The number of era in appchain.
-    pub era_number: u64,
-    /// The index of corresponding `staking history`
-    pub staking_history_index: u64,
-}
-
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 enum StakingDepositMessage {

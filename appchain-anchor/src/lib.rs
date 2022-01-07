@@ -1,28 +1,20 @@
 mod anchor_viewer;
-mod appchain_lifecycle;
+mod assets;
 mod indexed_histories;
 pub mod interfaces;
 mod message_decoder;
-mod near_fungible_tokens;
-mod owner_actions;
 mod permissionless_actions;
 mod reward_distribution_records;
-mod settings_manager;
-mod staking;
 mod storage_key;
 mod storage_migration;
-mod sudo_actions;
 pub mod types;
+mod user_actions;
 mod user_staking_histories;
-mod validator_actions;
 mod validator_profiles;
 mod validator_set;
-mod wrapped_appchain_token;
 
-use beefy_light_client::LightClient;
 use core::convert::TryInto;
 use getrandom::{register_custom_getrandom, Error};
-use indexed_histories::{IndexedAndClearable, IndexedHistories};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
@@ -32,19 +24,23 @@ use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
     PromiseOrValue, PromiseResult, Timestamp,
 };
-use user_staking_histories::UserStakingHistories;
 
 pub use message_decoder::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
 
+use assets::near_fungible_tokens::NearFungibleTokens;
 use beefy_light_client::Hash;
-use near_fungible_tokens::NearFungibleTokens;
+use beefy_light_client::LightClient;
+use indexed_histories::{IndexedAndClearable, IndexedHistories};
 use reward_distribution_records::RewardDistributionRecords;
-use staking::UnbondedStakeReference;
 use storage_key::StorageKey;
 use types::*;
+use user_actions::UnbondedStakeReference;
+use user_staking_histories::UserStakingHistories;
 use validator_profiles::ValidatorProfiles;
-use validator_set::{NextValidatorSet, ValidatorSetOfEra, ValidatorSetViewer};
+use validator_set::next_validator_set::NextValidatorSet;
+use validator_set::validator_set_of_era::ValidatorSetOfEra;
+use validator_set::ValidatorSetViewer;
 
 register_custom_getrandom!(get_random_in_near);
 
