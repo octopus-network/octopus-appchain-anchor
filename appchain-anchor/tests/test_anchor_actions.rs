@@ -569,7 +569,7 @@ fn test_staking_actions(
         &wrapped_appchain_token,
         appchain_message_nonce + 2,
         1,
-        [user4_id_in_appchain.clone()].to_vec(),
+        [user0_id_in_appchain.clone()].to_vec(),
     );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_staking_histories(&anchor);
@@ -638,11 +638,11 @@ fn test_staking_actions(
     //
     // user0 unbond stake
     //
-    let result = staking_actions::unbond_stake(&users[0], &anchor);
-    result.assert_success();
-    common::print_anchor_status(&anchor);
-    let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[0]);
-    assert!(unbonded_stakes.len() == 0);
+    // let result = staking_actions::unbond_stake(&users[0], &anchor);
+    // result.assert_success();
+    // common::print_anchor_status(&anchor);
+    // let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[0]);
+    // assert!(unbonded_stakes.len() == 0);
     //
     // user1 unbond stake
     //
@@ -656,7 +656,7 @@ fn test_staking_actions(
     //
     common::print_staking_histories(&anchor);
     //
-    // Try start and complete switching era3
+    // Try start and complete switching era4
     //
     common::switch_era(&root, &anchor, 4);
     common::print_validator_list_of(&anchor, Some(4));
@@ -671,7 +671,7 @@ fn test_staking_actions(
         &wrapped_appchain_token,
         appchain_message_nonce + 6,
         3,
-        [user0_id_in_appchain.clone()].to_vec(),
+        [user0_id_in_appchain.clone(), user4_id_in_appchain.clone()].to_vec(),
     );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_staking_histories(&anchor);
@@ -699,6 +699,36 @@ fn test_staking_actions(
     common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 3);
     common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 3);
     common::print_validator_reward_histories(&anchor, &users[4], 3);
+    common::print_unbonded_stakes_of(&anchor, &users[0]);
+    common::print_unbonded_stakes_of(&anchor, &users[1]);
+    common::print_unbonded_stakes_of(&anchor, &users[2]);
+    common::print_unbonded_stakes_of(&anchor, &users[3]);
+    common::print_unbonded_stakes_of(&anchor, &users[4]);
+    //
+    // Try start and complete switching era5
+    //
+    common::switch_era(&root, &anchor, 5);
+    common::print_validator_list_of(&anchor, Some(5));
+    common::print_delegator_list_of(&anchor, 5, &users[0]);
+    //
+    // Distribute reward of era4
+    //
+    common::print_validator_set_info_of(&anchor, U64::from(4));
+    distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce + 10,
+        4,
+        Vec::new(),
+    );
+    common::print_wrapped_appchain_token_info(&anchor);
+    common::print_staking_histories(&anchor);
+    common::print_validator_reward_histories(&anchor, &users[0], 4);
+    common::print_validator_reward_histories(&anchor, &users[1], 4);
+    common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 4);
+    common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 4);
+    common::print_validator_reward_histories(&anchor, &users[4], 4);
     common::print_unbonded_stakes_of(&anchor, &users[0]);
     common::print_unbonded_stakes_of(&anchor, &users[1]);
     common::print_unbonded_stakes_of(&anchor, &users[2]);

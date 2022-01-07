@@ -351,6 +351,7 @@ pub struct AppchainValidator {
     pub total_stake: U128,
     pub delegators_count: U64,
     pub can_be_delegated_to: bool,
+    pub is_unbonding: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -375,6 +376,10 @@ pub struct UnbondedStake {
     pub unlock_time: U64,
 }
 
+/// The actual processing order is:
+/// `CopyingFromLastEra` -> `UnbondingValidator`-> `AutoUnbondingValidator`
+/// -> `ApplyingStakingHistory` -> `ReadyForDistributingReward` -> `DistributingReward`
+/// -> `CheckingForAutoUnbondingValidator` -> `Completed`
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum ValidatorSetProcessingStatus {
@@ -392,7 +397,15 @@ pub enum ValidatorSetProcessingStatus {
         distributing_delegator_index: U64,
     },
     Completed,
+    UnbondingValidator {
+        unbonding_validator_index: U64,
+        unbonding_delegator_index: U64,
+    },
     AutoUnbondingValidator {
+        unbonding_validator_index: U64,
+        unbonding_delegator_index: U64,
+    },
+    CheckingForAutoUnbondingValidator {
         unprofitable_validator_index: U64,
     },
 }
@@ -466,8 +479,6 @@ pub struct ValidatorProfile {
     pub validator_id_in_appchain: String,
     ///
     pub profile: HashMap<String, String>,
-    ///
-    pub is_validator_in_next_era: bool,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

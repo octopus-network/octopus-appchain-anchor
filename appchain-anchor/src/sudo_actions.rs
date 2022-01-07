@@ -1,7 +1,5 @@
 use crate::*;
-use crate::{
-    interfaces::SudoActions, message_decoder::AppchainMessage, validator_set::ValidatorSetActions,
-};
+use crate::{interfaces::SudoActions, message_decoder::AppchainMessage};
 
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 
@@ -50,10 +48,11 @@ impl SudoActions for AppchainAnchor {
         let staking_history_index = validator_set_histories
             .get(&era_number.0)
             .unwrap()
-            .staking_history_index;
+            .staking_history_index();
         let staking_histories = self.staking_histories.get().unwrap();
         for index in 0..staking_history_index + 1 {
-            next_validator_set.apply_staking_history(&staking_histories.get(&index).unwrap());
+            next_validator_set
+                .apply_staking_fact(&staking_histories.get(&index).unwrap().staking_fact);
         }
         self.next_validator_set.set(&next_validator_set);
         // Clear staking histories after the index in target `validator set of era`
@@ -117,23 +116,20 @@ impl SudoActions for AppchainAnchor {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let index_range = validator_set_histories.index_range();
         next_validator_set
-            .validator_id_set
-            .to_vec()
+            .get_validator_ids()
             .iter()
             .for_each(|validator_id| {
                 for era_number in index_range.start_index.0..index_range.end_index.0 + 1 {
-                    if let Some(delegator_id_set) = next_validator_set
-                        .validator_id_to_delegator_id_set
-                        .get(validator_id)
-                    {
-                        delegator_id_set.to_vec().iter().for_each(|delegator_id| {
+                    next_validator_set
+                        .get_delegator_ids_of(validator_id)
+                        .iter()
+                        .for_each(|delegator_id| {
                             self.unwithdrawn_delegator_rewards.remove(&(
                                 era_number,
                                 delegator_id.clone(),
                                 validator_id.clone(),
                             ));
                         });
-                    }
                     self.unwithdrawn_validator_rewards
                         .remove(&(era_number, validator_id.clone()));
                 }
@@ -150,11 +146,7 @@ impl SudoActions for AppchainAnchor {
                 .get_validator_ids()
                 .iter()
                 .for_each(|validator_id| {
-                    if !validator_set_of_era
-                        .validator_set
-                        .validator_id_set
-                        .contains(validator_id)
-                    {
+                    if !validator_set_of_era.contains_validator(validator_id) {
                         if validator_profiles.remove(validator_id) {
                             data_changed = true;
                         }

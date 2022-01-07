@@ -1,6 +1,6 @@
+use crate::validator_set::ValidatorSet;
 use crate::*;
 
-use near_sdk::borsh::maybestd::collections::HashMap;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
@@ -45,16 +45,6 @@ pub struct OldProtocolSettings {
     pub maximum_era_count_of_valid_appchain_message: U64,
     /// The percent of commission fees of a validator's reward in an era
     pub validator_commission_percent: u16,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct OldValidatorProfile {
-    ///
-    pub validator_id: AccountId,
-    ///
-    pub validator_id_in_appchain: String,
-    ///
-    pub profile: HashMap<String, String>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -128,9 +118,10 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
+        let old_next_validator_set = old_contract.next_validator_set.get().unwrap();
         let old_protocol_settings = old_contract.protocol_settings.get().unwrap();
         // Create the new contract using the data from the old contract.
-        let mut new_contract = AppchainAnchor {
+        let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
@@ -138,7 +129,12 @@ impl AppchainAnchor {
             wrapped_appchain_token: old_contract.wrapped_appchain_token,
             near_fungible_tokens: old_contract.near_fungible_tokens,
             validator_set_histories: old_contract.validator_set_histories,
-            next_validator_set: old_contract.next_validator_set,
+            next_validator_set: LazyOption::new(
+                StorageKey::NextValidatorSet.into_bytes(),
+                Some(&NextValidatorSet::from_validator_set(
+                    old_next_validator_set,
+                )),
+            ),
             unwithdrawn_validator_rewards: old_contract.unwithdrawn_validator_rewards,
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
             unbonded_stakes: old_contract.unbonded_stakes,
@@ -161,7 +157,6 @@ impl AppchainAnchor {
             rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
         };
         //
-        new_contract.migrate_validator_profiles();
         //
         new_contract
     }
@@ -190,32 +185,6 @@ impl ProtocolSettings {
                 .maximum_era_count_of_valid_appchain_message,
             validator_commission_percent: old_version.validator_commission_percent,
             maximum_allowed_unprofitable_era_count: 3,
-        }
-    }
-}
-
-impl AppchainAnchor {
-    pub fn migrate_validator_profiles(&mut self) {
-        let mut validator_profiles = self.validator_profiles.get().unwrap();
-        let validator_ids = validator_profiles.get_validator_ids();
-        let next_validator_set = self.next_validator_set.get().unwrap();
-        validator_ids.iter().for_each(|validator_id| {
-            validator_profiles.migrate_profile_of(validator_id, &next_validator_set);
-        });
-        self.validator_profiles.set(&validator_profiles);
-    }
-}
-
-impl ValidatorProfiles {
-    pub fn migrate_profile_of(&mut self, validator_id: &AccountId, validator_set: &ValidatorSet) {
-        if let Some(raw_data) = self.remove_raw(validator_id) {
-            let old_validator_profile = OldValidatorProfile::try_from_slice(&raw_data).unwrap();
-            self.insert(ValidatorProfile {
-                validator_id: old_validator_profile.validator_id,
-                validator_id_in_appchain: old_validator_profile.validator_id_in_appchain,
-                profile: old_validator_profile.profile,
-                is_validator_in_next_era: validator_set.validator_id_set.contains(validator_id),
-            });
         }
     }
 }
