@@ -207,4 +207,45 @@ impl SudoActions for AppchainAnchor {
         );
         self.rewards_withdrawal_is_paused = false;
     }
+    //
+    fn change_account_id_in_appchain_of_validator(
+        &mut self,
+        validator_id: AccountId,
+        account_id_in_appchain: String,
+    ) {
+        self.assert_owner();
+        self.internal_change_account_id_in_appchain_of_validator(
+            &validator_id,
+            &account_id_in_appchain,
+        );
+    }
+    //
+    fn force_change_account_id_in_appchain_of_staking_history(
+        &mut self,
+        index: U64,
+        account_id_in_appchain: String,
+    ) {
+        self.assert_owner();
+        let mut staking_histories = self.staking_histories.get().unwrap();
+        if let Some(mut staking_history) = staking_histories.get(&index.0) {
+            match staking_history.staking_fact {
+                StakingFact::ValidatorRegistered {
+                    validator_id,
+                    validator_id_in_appchain: _,
+                    amount,
+                    can_be_delegated_to,
+                } => {
+                    staking_history.staking_fact = StakingFact::ValidatorRegistered {
+                        validator_id,
+                        validator_id_in_appchain: account_id_in_appchain,
+                        amount,
+                        can_be_delegated_to,
+                    };
+                    staking_histories.insert(&index.0, &staking_history);
+                    self.staking_histories.set(&staking_histories);
+                }
+                _ => (),
+            }
+        }
+    }
 }

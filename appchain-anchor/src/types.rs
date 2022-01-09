@@ -30,7 +30,10 @@ impl AccountIdInAppchain {
     ///
     fn is_valid(&self) -> bool {
         if self.raw_string.len() > 2 {
-            hex::decode(&self.raw_string.as_str()[2..self.raw_string.len()]).is_ok()
+            match hex::decode(&self.raw_string.as_str()[2..self.raw_string.len()]) {
+                Ok(bytes) => bytes.len() == 32,
+                Err(_) => false,
+            }
         } else {
             false
         }
@@ -410,6 +413,8 @@ pub struct AnchorStatus {
     pub index_range_of_anchor_event_history: IndexRange,
     pub index_range_of_staking_history: IndexRange,
     pub permissionless_actions_status: PermissionlessActionsStatus,
+    pub asset_transfer_is_paused: bool,
+    pub rewards_withdrawal_is_paused: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

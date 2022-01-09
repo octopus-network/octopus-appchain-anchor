@@ -318,6 +318,18 @@ pub trait SudoActions {
     fn pause_rewards_withdrawal(&mut self);
     ///
     fn resume_rewards_withdrawal(&mut self);
+    ///
+    fn change_account_id_in_appchain_of_validator(
+        &mut self,
+        validator_id: AccountId,
+        account_id_in_appchain: String,
+    );
+    ///
+    fn force_change_account_id_in_appchain_of_staking_history(
+        &mut self,
+        index: U64,
+        account_id_in_appchain: String,
+    );
 }
 
 pub trait ValidatorActions {
