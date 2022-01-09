@@ -53,6 +53,8 @@ impl AnchorViewer for AppchainAnchor {
                 .index_range(),
             index_range_of_staking_history: self.staking_histories.get().unwrap().index_range(),
             permissionless_actions_status: self.permissionless_actions_status.get().unwrap(),
+            asset_transfer_is_paused: self.asset_transfer_is_paused,
+            rewards_withdrawal_is_paused: self.rewards_withdrawal_is_paused,
         }
     }
     //
