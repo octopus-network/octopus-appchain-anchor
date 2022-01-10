@@ -253,6 +253,11 @@ pub enum StakingFact {
         validator_id: AccountId,
         amount: U128,
     },
+    /// A validator's account id in appchain changed
+    ValidatorIdInAppchainChanged {
+        validator_id: AccountId,
+        validator_id_in_appchain: String,
+    },
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

@@ -343,6 +343,14 @@ impl ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake -= delegator.deposit_amount;
             }
+            StakingFact::ValidatorIdInAppchainChanged {
+                validator_id,
+                validator_id_in_appchain,
+            } => {
+                let mut validator = self.validators.get(validator_id).unwrap();
+                validator.validator_id_in_appchain = validator_id_in_appchain.to_string();
+                self.validators.insert(validator_id, &validator);
+            }
         }
     }
 }

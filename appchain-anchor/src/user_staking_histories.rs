@@ -26,7 +26,8 @@ impl UserStakingHistories {
             | StakingFact::ValidatorUnbonded { validator_id, .. }
             | StakingFact::ValidatorAutoUnbonded { validator_id, .. }
             | StakingFact::ValidatorDelegationEnabled { validator_id }
-            | StakingFact::ValidatorDelegationDisabled { validator_id } => validator_id,
+            | StakingFact::ValidatorDelegationDisabled { validator_id }
+            | StakingFact::ValidatorIdInAppchainChanged { validator_id, .. } => validator_id,
             StakingFact::DelegatorRegistered { delegator_id, .. }
             | StakingFact::DelegationIncreased { delegator_id, .. }
             | StakingFact::DelegationDecreased { delegator_id, .. }
