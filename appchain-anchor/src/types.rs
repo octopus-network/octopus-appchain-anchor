@@ -444,6 +444,7 @@ pub struct RewardHistory {
 pub struct AnchorStatus {
     pub total_stake_in_next_era: U128,
     pub validator_count_in_next_era: U64,
+    pub index_range_of_appchain_notification_history: IndexRange,
     pub index_range_of_validator_set_history: IndexRange,
     pub index_range_of_anchor_event_history: IndexRange,
     pub index_range_of_staking_history: IndexRange,

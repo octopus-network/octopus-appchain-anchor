@@ -42,14 +42,40 @@ where
         self.histories.get(index)
     }
     ///
-    pub fn contains(&self, era_number: &u64) -> bool {
-        self.histories.contains_key(era_number)
+    pub fn get_histories(&self, start_index: &u64, quantity: Option<u64>) -> Vec<T> {
+        let mut results = Vec::<T>::new();
+        let start_index = match self.start_index > *start_index {
+            true => self.start_index,
+            false => *start_index,
+        };
+        let mut end_index = start_index
+            + match quantity {
+                Some(quantity) => match quantity > 50 {
+                    true => 49,
+                    false => quantity - 1,
+                },
+                None => 49,
+            };
+        end_index = match end_index < self.end_index {
+            true => end_index,
+            false => self.end_index,
+        };
+        for index in start_index..end_index + 1 {
+            if let Some(record) = self.get(&index) {
+                results.push(record);
+            }
+        }
+        results
     }
     ///
-    pub fn insert(&mut self, era_number: &u64, record: &T) {
-        self.histories.insert(era_number, record);
-        if *era_number > self.end_index {
-            self.end_index = *era_number;
+    pub fn contains(&self, index: &u64) -> bool {
+        self.histories.contains_key(index)
+    }
+    ///
+    pub fn insert(&mut self, index: &u64, record: &T) {
+        self.histories.insert(index, record);
+        if *index > self.end_index {
+            self.end_index = *index;
         }
     }
     ///

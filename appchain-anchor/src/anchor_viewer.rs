@@ -40,6 +40,11 @@ impl AnchorViewer for AppchainAnchor {
                 .unwrap()
                 .validator_count()
                 .into(),
+            index_range_of_appchain_notification_history: self
+                .appchain_notification_histories
+                .get()
+                .unwrap()
+                .index_range(),
             index_range_of_validator_set_history: self
                 .validator_set_histories
                 .get()
@@ -87,30 +92,7 @@ impl AnchorViewer for AppchainAnchor {
         quantity: Option<U64>,
     ) -> Vec<StakingHistory> {
         let staking_histories = self.staking_histories.get().unwrap();
-        let index_range = staking_histories.index_range();
-        let mut result = Vec::<StakingHistory>::new();
-        let start_index = match index_range.start_index.0 > start_index.0 {
-            true => index_range.start_index.0,
-            false => start_index.0,
-        };
-        let mut end_index = start_index
-            + match quantity {
-                Some(quantity) => match quantity.0 > 50 {
-                    true => 49,
-                    false => quantity.0 - 1,
-                },
-                None => 49,
-            };
-        end_index = match end_index < index_range.end_index.0 {
-            true => end_index,
-            false => index_range.end_index.0,
-        };
-        for index in start_index..end_index + 1 {
-            if let Some(record) = staking_histories.get(&index) {
-                result.push(record);
-            }
-        }
-        result
+        staking_histories.get_histories(&start_index.0, quantity.map(|q| q.0))
     }
     //
     fn get_staking_history(&self, index: Option<U64>) -> Option<StakingHistory> {
@@ -151,30 +133,7 @@ impl AnchorViewer for AppchainAnchor {
         quantity: Option<U64>,
     ) -> Vec<AnchorEventHistory> {
         let anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        let index_range = anchor_event_histories.index_range();
-        let mut result = Vec::<AnchorEventHistory>::new();
-        let start_index = match index_range.start_index.0 > start_index.0 {
-            true => index_range.start_index.0,
-            false => start_index.0,
-        };
-        let mut end_index = index_range.start_index.0
-            + match quantity {
-                Some(quantity) => match quantity.0 > 50 {
-                    true => 49,
-                    false => quantity.0 - 1,
-                },
-                None => 49,
-            };
-        end_index = match end_index < index_range.end_index.0 {
-            true => end_index,
-            false => index_range.end_index.0,
-        };
-        for index in start_index..end_index + 1 {
-            if let Some(record) = anchor_event_histories.get(&index) {
-                result.push(record);
-            }
-        }
-        result
+        anchor_event_histories.get_histories(&start_index.0, quantity.map(|q| q.0))
     }
     //
     fn get_index_range_of_appchain_notification_history(&self) -> IndexRange {
@@ -210,30 +169,7 @@ impl AnchorViewer for AppchainAnchor {
         quantity: Option<U64>,
     ) -> Vec<AppchainNotificationHistory> {
         let appchain_notification_histories = self.appchain_notification_histories.get().unwrap();
-        let index_range = appchain_notification_histories.index_range();
-        let mut result = Vec::<AppchainNotificationHistory>::new();
-        let start_index = match index_range.start_index.0 > start_index.0 {
-            true => index_range.start_index.0,
-            false => start_index.0,
-        };
-        let mut end_index = start_index
-            + match quantity {
-                Some(quantity) => match quantity.0 > 50 {
-                    true => 49,
-                    false => quantity.0 - 1,
-                },
-                None => 49,
-            };
-        end_index = match end_index < index_range.end_index.0 {
-            true => end_index,
-            false => index_range.end_index.0,
-        };
-        for index in start_index..end_index + 1 {
-            if let Some(record) = appchain_notification_histories.get(&index) {
-                result.push(record);
-            }
-        }
-        result
+        appchain_notification_histories.get_histories(&start_index.0, quantity.map(|q| q.0))
     }
     //
     fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator> {
