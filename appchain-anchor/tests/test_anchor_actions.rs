@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use appchain_anchor::{
     types::{
-        AnchorSettings, AnchorStatus, AppchainMessageProcessingResult, AppchainSettings,
-        AppchainState, MultiTxsOperationProcessingResult, ProtocolSettings, ValidatorSetInfo,
-        ValidatorSetProcessingStatus,
+        AnchorStatus, AppchainMessageProcessingResult, AppchainState,
+        MultiTxsOperationProcessingResult, ValidatorSetInfo, ValidatorSetProcessingStatus,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -56,7 +55,13 @@ fn test_anchor_actions() {
     result.assert_success();
     let result = sudo_actions::clear_unbonded_stakes(&root, &anchor);
     result.assert_success();
-    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor);
+    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor, U64::from(3));
+    result.assert_success();
+    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor, U64::from(2));
+    result.assert_success();
+    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor, U64::from(1));
+    result.assert_success();
+    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor, U64::from(0));
     result.assert_success();
     let result = sudo_actions::clear_anchor_event_histories(&root, &anchor);
     result.assert_success();
@@ -80,7 +85,7 @@ fn test_anchor_actions() {
 
 fn test_normal_actions(
     with_old_anchor: bool,
-    to_print_result: bool,
+    to_confirm_view_result: bool,
 ) -> (
     UserAccount,
     ContractAccount<MockOctTokenContract>,
@@ -110,9 +115,11 @@ fn test_normal_actions(
         anchor_viewer::get_appchain_state(&anchor),
         AppchainState::Staging
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
+    }
     //
     //
     //
@@ -143,7 +150,7 @@ fn test_normal_actions(
         U128::from(total_supply / 2),
         &users,
     );
-    if to_print_result {
+    if to_confirm_view_result {
         common::print_wrapped_appchain_token_info(&anchor);
     }
     //
@@ -165,9 +172,11 @@ fn test_normal_actions(
         token_viewer::get_oct_balance_of(&users[0], &oct_token).0,
         user0_balance.0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
+    }
     //
     // user0 register validator
     //
@@ -187,10 +196,10 @@ fn test_normal_actions(
         token_viewer::get_oct_balance_of(&users[0], &oct_token).0,
         user0_balance.0 - amount0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(anchor_status.total_stake_in_next_era.0, amount0);
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 1);
-    if to_print_result {
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(anchor_status.total_stake_in_next_era.0, amount0);
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 1);
         common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
     }
     //
@@ -212,10 +221,10 @@ fn test_normal_actions(
         token_viewer::get_oct_balance_of(&users[1], &oct_token).0,
         user1_balance.0 - amount1
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
-    if to_print_result {
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
         common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
     }
     //
@@ -235,9 +244,11 @@ fn test_normal_actions(
         token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // user2 register delegator to user0
     //
@@ -255,12 +266,14 @@ fn test_normal_actions(
         token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0 - amount2_0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // user2 register delegator to user1 (error)
     //
@@ -278,12 +291,14 @@ fn test_normal_actions(
         token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // user3 register delegator to user0
     //
@@ -301,12 +316,14 @@ fn test_normal_actions(
         token_viewer::get_oct_balance_of(&users[3], &oct_token).0,
         user3_balance.0 - amount3_0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0 + amount3_0
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0 + amount3_0
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // user0 increase stake
     //
@@ -318,12 +335,14 @@ fn test_normal_actions(
         token_viewer::get_oct_balance_of(&users[0], &oct_token).0,
         user0_balance.0 - amount0_p
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0 + amount3_0 + amount0_p
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0 + amount3_0 + amount0_p
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // user2 increase delegation to user0
     //
@@ -341,16 +360,18 @@ fn test_normal_actions(
         token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0 - amount2_0_p
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // Print anchor status and staking histories
     //
-    if to_print_result {
+    if to_confirm_view_result {
         common::print_anchor_status(&anchor);
         common::print_wrapped_appchain_token_info(&anchor);
         common::print_staking_histories(&anchor);
@@ -394,8 +415,8 @@ fn test_normal_actions(
     // Try complete switching era0
     //
     let appchain_message_nonce: u32 = 1;
-    common::switch_era(&root, &anchor, 0);
-    if to_print_result {
+    common::switch_era(&root, &anchor, 0, false);
+    if to_confirm_view_result {
         common::print_validator_list_of(&anchor, Some(0));
         common::print_delegator_list_of(&anchor, 0, &users[0]);
     }
@@ -422,7 +443,7 @@ fn test_normal_actions(
     result.assert_success();
     let result = validator_actions::set_validator_profile(&users[0], &anchor, &user0_profile);
     result.assert_success();
-    if to_print_result {
+    if to_confirm_view_result {
         common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
     }
     let result =
@@ -430,7 +451,7 @@ fn test_normal_actions(
     result.assert_success();
     let result = validator_actions::set_validator_profile(&users[1], &anchor, &user1_profile);
     result.assert_success();
-    if to_print_result {
+    if to_confirm_view_result {
         common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
     }
     //
@@ -452,26 +473,26 @@ fn test_normal_actions(
         token_viewer::get_oct_balance_of(&users[4], &oct_token).0,
         user4_balance.0 - amount4
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p + amount4
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 3);
-    if to_print_result {
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p + amount4
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 3);
         common::print_validator_profile(&anchor, &users[4].account_id(), &user4_id_in_appchain);
     }
     //
     // Print staking histories
     //
-    if to_print_result {
+    if to_confirm_view_result {
         common::print_staking_histories(&anchor);
     }
     //
     // Try start and complete switching era1
     //
-    common::switch_era(&root, &anchor, 1);
-    if to_print_result {
+    common::switch_era(&root, &anchor, 1, false);
+    if to_confirm_view_result {
         common::print_validator_list_of(&anchor, Some(1));
         common::print_delegator_list_of(&anchor, 1, &users[0]);
     }
@@ -485,8 +506,9 @@ fn test_normal_actions(
         appchain_message_nonce,
         0,
         Vec::new(),
+        false,
     );
-    if to_print_result {
+    if to_confirm_view_result {
         common::print_wrapped_appchain_token_info(&anchor);
         common::print_validator_reward_histories(&anchor, &users[0], 0);
         common::print_validator_reward_histories(&anchor, &users[1], 0);
@@ -555,7 +577,7 @@ fn test_staking_actions(
     //
     // Try start and complete switching era2
     //
-    common::switch_era(&root, &anchor, 2);
+    common::switch_era(&root, &anchor, 2, true);
     common::print_validator_list_of(&anchor, Some(2));
     common::print_delegator_list_of(&anchor, 2, &users[0]);
     //
@@ -570,6 +592,7 @@ fn test_staking_actions(
         appchain_message_nonce + 2,
         1,
         [user0_id_in_appchain.clone()].to_vec(),
+        true,
     );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_staking_histories(&anchor);
@@ -609,7 +632,7 @@ fn test_staking_actions(
     //
     // Try start and complete switching era3
     //
-    common::switch_era(&root, &anchor, 3);
+    common::switch_era(&root, &anchor, 3, true);
     common::print_validator_list_of(&anchor, Some(3));
     common::print_delegator_list_of(&anchor, 3, &users[0]);
     //
@@ -622,6 +645,7 @@ fn test_staking_actions(
         appchain_message_nonce + 4,
         2,
         [user0_id_in_appchain.clone(), user4_id_in_appchain.clone()].to_vec(),
+        true,
     );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_staking_histories(&anchor);
@@ -658,7 +682,7 @@ fn test_staking_actions(
     //
     // Try start and complete switching era4
     //
-    common::switch_era(&root, &anchor, 4);
+    common::switch_era(&root, &anchor, 4, true);
     common::print_validator_list_of(&anchor, Some(4));
     common::print_delegator_list_of(&anchor, 4, &users[0]);
     //
@@ -672,6 +696,7 @@ fn test_staking_actions(
         appchain_message_nonce + 6,
         3,
         [user0_id_in_appchain.clone(), user4_id_in_appchain.clone()].to_vec(),
+        true,
     );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_staking_histories(&anchor);
@@ -692,6 +717,7 @@ fn test_staking_actions(
         appchain_message_nonce + 8,
         3,
         Vec::new(),
+        true,
     );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 3);
@@ -707,7 +733,7 @@ fn test_staking_actions(
     //
     // Try start and complete switching era5
     //
-    common::switch_era(&root, &anchor, 5);
+    common::switch_era(&root, &anchor, 5, true);
     common::print_validator_list_of(&anchor, Some(5));
     common::print_delegator_list_of(&anchor, 5, &users[0]);
     //
@@ -721,6 +747,7 @@ fn test_staking_actions(
         appchain_message_nonce + 10,
         4,
         Vec::new(),
+        true,
     );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_staking_histories(&anchor);
@@ -773,6 +800,7 @@ fn distribute_reward_of(
     nonce: u32,
     era_number: u32,
     unprofitable_validator_ids: Vec<String>,
+    to_confirm_view_result: bool,
 ) {
     let anchor_balance_of_wat =
         token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token);
@@ -791,11 +819,13 @@ fn distribute_reward_of(
             serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
         )
     }
-    let anchor_status = anchor_viewer::get_anchor_status(anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(anchor);
+        println!(
+            "Anchor status: {}",
+            serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+        );
+    }
     loop {
         let result = permissionless_actions::try_complete_distributing_reward(root, anchor);
         println!(
@@ -817,20 +847,22 @@ fn distribute_reward_of(
         token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
         anchor_balance_of_wat.0 + common::to_oct_amount(10)
     );
-    let anchor_status = anchor_viewer::get_anchor_status(anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
-    let validator_set_info =
-        anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
-    println!(
-        "Validator set info of era {}: {}",
-        era_number,
-        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
-    );
-    common::print_anchor_events(&anchor);
-    common::print_appchain_notifications(&anchor);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(anchor);
+        println!(
+            "Anchor status: {}",
+            serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+        );
+        let validator_set_info =
+            anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
+        println!(
+            "Validator set info of era {}: {}",
+            era_number,
+            serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
+        );
+        common::print_anchor_events(&anchor);
+        common::print_appchain_notifications(&anchor);
+    }
 }
 
 fn withdraw_validator_rewards_of(

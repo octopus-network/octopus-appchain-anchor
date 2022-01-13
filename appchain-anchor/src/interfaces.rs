@@ -299,6 +299,10 @@ pub trait SudoActions {
     ///
     fn reset_validator_set_histories_to(&mut self, era_number: U64);
     ///
+    fn reset_staking_histories_to(&mut self, era_number: U64);
+    ///
+    fn reset_next_validator_set_to(&mut self, era_number: U64);
+    ///
     fn clear_anchor_event_histories(&mut self);
     ///
     fn clear_appchain_notification_histories(&mut self);
@@ -309,7 +313,7 @@ pub trait SudoActions {
     ///
     fn clear_unbonded_stakes(&mut self);
     ///
-    fn clear_unwithdrawn_rewards(&mut self);
+    fn clear_unwithdrawn_rewards(&mut self, era_number: U64);
     ///
     fn reset_validator_profiles_to(&mut self, era_number: U64);
     ///

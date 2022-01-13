@@ -547,6 +547,7 @@ pub fn switch_era(
     root: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
     era_number: u32,
+    to_confirm_view_result: bool,
 ) {
     if era_number > 0 {
         let mut appchain_messages = Vec::<AppchainMessage>::new();
@@ -586,16 +587,18 @@ pub fn switch_era(
             break;
         }
     }
-    let anchor_status = anchor_viewer::get_anchor_status(anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
-    let validator_set_info =
-        anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
-    println!(
-        "Validator set info of era {}: {}",
-        era_number,
-        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
-    );
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(anchor);
+        println!(
+            "Anchor status: {}",
+            serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+        );
+        let validator_set_info =
+            anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
+        println!(
+            "Validator set info of era {}: {}",
+            era_number,
+            serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
+        );
+    }
 }

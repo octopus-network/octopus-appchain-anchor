@@ -279,7 +279,7 @@ fn test_wrapped_appchain_token_bridging() {
     //
     // Try complete switching era0
     //
-    common::switch_era(&root, &anchor, 0);
+    common::switch_era(&root, &anchor, 0, true);
     common::print_validator_list_of(&anchor, Some(0));
     common::print_delegator_list_of(&anchor, 0, &users[0]);
     //

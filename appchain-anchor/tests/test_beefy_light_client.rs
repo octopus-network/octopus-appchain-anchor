@@ -287,7 +287,7 @@ fn test_beefy_light_client() {
     //
     // Try complete switching era0
     //
-    common::switch_era(&root, &anchor, 0);
+    common::switch_era(&root, &anchor, 0, true);
     common::print_validator_list_of(&anchor, Some(0));
     common::print_delegator_list_of(&anchor, 0, &users[0]);
     //
@@ -356,7 +356,7 @@ fn test_beefy_light_client() {
     //
     // Try start and complete switching era1
     //
-    common::switch_era(&root, &anchor, 1);
+    common::switch_era(&root, &anchor, 1, true);
     common::print_validator_list_of(&anchor, Some(1));
     common::print_delegator_list_of(&anchor, 1, &users[0]);
     //
@@ -397,7 +397,7 @@ fn test_beefy_light_client() {
     //
     // Try start and complete switching era2
     //
-    common::switch_era(&root, &anchor, 2);
+    common::switch_era(&root, &anchor, 2, true);
     common::print_validator_list_of(&anchor, Some(2));
     common::print_delegator_list_of(&anchor, 2, &users[0]);
     //
@@ -441,7 +441,7 @@ fn test_beefy_light_client() {
     //
     // Try start and complete switching era3
     //
-    common::switch_era(&root, &anchor, 3);
+    common::switch_era(&root, &anchor, 3, true);
     common::print_validator_list_of(&anchor, Some(3));
     common::print_delegator_list_of(&anchor, 3, &users[0]);
     //
@@ -474,7 +474,7 @@ fn test_beefy_light_client() {
     //
     // Try start and complete switching era3
     //
-    common::switch_era(&root, &anchor, 4);
+    common::switch_era(&root, &anchor, 4, true);
     common::print_validator_list_of(&anchor, Some(4));
     common::print_delegator_list_of(&anchor, 4, &users[0]);
     //

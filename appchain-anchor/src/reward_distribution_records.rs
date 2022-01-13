@@ -54,7 +54,9 @@ impl RewardDistributionRecords {
             Some(nonces) => nonces,
             None => Vec::new(),
         };
-        nonces.push(appchain_message_nonce);
+        if !nonces.contains(&appchain_message_nonce) {
+            nonces.push(appchain_message_nonce);
+        }
         self.era_number_to_nonces_map.insert(&era_number, &nonces);
         self.record_set.insert(&(
             appchain_message_nonce,
@@ -67,7 +69,13 @@ impl RewardDistributionRecords {
     pub fn clear<V: ValidatorSetViewer>(&mut self, validator_set: &V, era_number: &u64) {
         if self.era_number_set.contains(era_number) {
             if let Some(nonce_array) = self.era_number_to_nonces_map.get(era_number) {
+                let mut nonces = Vec::<u32>::new();
                 nonce_array.iter().for_each(|nonce| {
+                    if !nonces.contains(nonce) {
+                        nonces.push(*nonce);
+                    }
+                });
+                nonces.iter().for_each(|nonce| {
                     let validator_ids = validator_set.get_validator_ids();
                     validator_ids.iter().for_each(|validator_id| {
                         self.record_set.remove(&(
@@ -89,7 +97,9 @@ impl RewardDistributionRecords {
                             });
                     })
                 });
+                self.era_number_to_nonces_map.remove(era_number);
             }
+            self.era_number_set.remove(era_number);
         }
     }
 }
