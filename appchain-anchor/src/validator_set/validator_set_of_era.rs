@@ -393,6 +393,27 @@ impl ValidatorSetViewer for ValidatorSetOfEra {
         }
         self.validator_set.validator_id_set.len()
     }
+    //
+    fn delegator_count(&self) -> u64 {
+        if !self.all_staking_histories_are_applied() {
+            return 0;
+        }
+        let mut delegator_count: u64 = 0;
+        self.validator_set
+            .validator_id_set
+            .to_vec()
+            .iter()
+            .for_each(|validator_id| {
+                if let Some(delegator_id_set) = self
+                    .validator_set
+                    .validator_id_to_delegator_id_set
+                    .get(validator_id)
+                {
+                    delegator_count += delegator_id_set.len();
+                }
+            });
+        delegator_count
+    }
 }
 
 impl IndexedAndClearable for ValidatorSetOfEra {

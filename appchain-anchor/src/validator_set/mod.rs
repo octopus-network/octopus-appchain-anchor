@@ -84,6 +84,8 @@ pub trait ValidatorSetViewer {
     fn total_stake(&self) -> u128;
     ///
     fn validator_count(&self) -> u64;
+    ///
+    fn delegator_count(&self) -> u64;
 }
 
 impl ValidatorSet {

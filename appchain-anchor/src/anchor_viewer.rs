@@ -32,14 +32,11 @@ impl AnchorViewer for AppchainAnchor {
     }
     //
     fn get_anchor_status(&self) -> AnchorStatus {
+        let next_validator_set = self.next_validator_set.get().unwrap();
         AnchorStatus {
-            total_stake_in_next_era: self.next_validator_set.get().unwrap().total_stake().into(),
-            validator_count_in_next_era: self
-                .next_validator_set
-                .get()
-                .unwrap()
-                .validator_count()
-                .into(),
+            total_stake_in_next_era: next_validator_set.total_stake().into(),
+            validator_count_in_next_era: next_validator_set.validator_count().into(),
+            delegator_count_in_next_era: next_validator_set.delegator_count().into(),
             index_range_of_appchain_notification_history: self
                 .appchain_notification_histories
                 .get()

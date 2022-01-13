@@ -193,4 +193,18 @@ impl ValidatorSetViewer for NextValidatorSet {
     fn validator_count(&self) -> u64 {
         self.get_validator_list().len().try_into().unwrap()
     }
+    //
+    fn delegator_count(&self) -> u64 {
+        let mut delegator_count: u64 = 0;
+        self.get_validator_ids().iter().for_each(|validator_id| {
+            if let Some(delegator_id_set) = self
+                .validator_set
+                .validator_id_to_delegator_id_set
+                .get(validator_id)
+            {
+                delegator_count += delegator_id_set.len();
+            }
+        });
+        delegator_count
+    }
 }
