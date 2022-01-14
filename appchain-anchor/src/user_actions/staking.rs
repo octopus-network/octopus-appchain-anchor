@@ -131,6 +131,18 @@ impl AppchainAnchor {
                 serde_json::to_string(&self.appchain_state).unwrap()
             ),
         };
+        let protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            amount.0
+                >= protocol_settings
+                    .minimum_validator_deposit_changing_amount
+                    .0,
+            "Too few amount to increase. It should not be less than {} OCT.",
+            protocol_settings
+                .minimum_validator_deposit_changing_amount
+                .0
+                / OCT_DECIMALS_VALUE
+        );
         let next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_validator_id(&validator_id, &next_validator_set);
         let validator = next_validator_set.get_validator(&validator_id).unwrap();
@@ -229,6 +241,18 @@ impl AppchainAnchor {
                 serde_json::to_string(&self.appchain_state).unwrap()
             ),
         };
+        let protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            amount.0
+                >= protocol_settings
+                    .minimum_delegator_deposit_changing_amount
+                    .0,
+            "Too few amount to increase. It should not be less than {} OCT.",
+            protocol_settings
+                .minimum_delegator_deposit_changing_amount
+                .0
+                / OCT_DECIMALS_VALUE
+        );
         let next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_delegator_id(&delegator_id, &validator_id, &next_validator_set);
         let validator = next_validator_set.get_validator(&validator_id).unwrap();
@@ -256,6 +280,18 @@ impl StakingManager for AppchainAnchor {
                 serde_json::to_string(&self.appchain_state).unwrap()
             ),
         };
+        let protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            amount.0
+                >= protocol_settings
+                    .minimum_validator_deposit_changing_amount
+                    .0,
+            "Too few amount to decrease. It should not be less than {} OCT.",
+            protocol_settings
+                .minimum_validator_deposit_changing_amount
+                .0
+                / OCT_DECIMALS_VALUE
+        );
         let next_validator_set = self.next_validator_set.get().unwrap();
         let validator_id = env::predecessor_account_id();
         self.assert_validator_id(&validator_id, &next_validator_set);
@@ -321,6 +357,18 @@ impl StakingManager for AppchainAnchor {
                 serde_json::to_string(&self.appchain_state).unwrap()
             ),
         };
+        let protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            amount.0
+                >= protocol_settings
+                    .minimum_delegator_deposit_changing_amount
+                    .0,
+            "Too few amount to decrease. It should not be less than {} OCT.",
+            protocol_settings
+                .minimum_delegator_deposit_changing_amount
+                .0
+                / OCT_DECIMALS_VALUE
+        );
         let next_validator_set = self.next_validator_set.get().unwrap();
         let delegator_id = env::predecessor_account_id();
         self.assert_delegator_id(&delegator_id, &validator_id, &next_validator_set);

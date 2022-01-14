@@ -109,11 +109,16 @@ pub struct ProtocolSettings {
     /// A validator has to deposit a certain amount of OCT token to this contract for
     /// being validator of the appchain.
     pub minimum_validator_deposit: U128,
+    /// The minimum amount for a validator to increase or decrease his/her deposit.
+    pub minimum_validator_deposit_changing_amount: U128,
     /// The maximum percent value that the deposit of a validator in total stake
     pub maximum_validator_stake_percent: u16,
     /// The minimum deposit amount for a delegator to delegate his voting weight to
     /// a certain validator.
     pub minimum_delegator_deposit: U128,
+    /// The minimum amount for a delegator to increase or decrease his/her delegation
+    /// to a validator.
+    pub minimum_delegator_deposit_changing_amount: U128,
     /// The minimum price (in USD) of total stake in this contract for
     /// booting corresponding appchain
     pub minimum_total_stake_price_for_booting: U128,

@@ -166,8 +166,10 @@ impl ProtocolSettings {
     pub fn from_old_version(old_version: OldProtocolSettings) -> ProtocolSettings {
         ProtocolSettings {
             minimum_validator_deposit: old_version.minimum_validator_deposit,
+            minimum_validator_deposit_changing_amount: U128::from(1000 * OCT_DECIMALS_VALUE),
             maximum_validator_stake_percent: 25,
             minimum_delegator_deposit: old_version.minimum_delegator_deposit,
+            minimum_delegator_deposit_changing_amount: U128::from(100 * OCT_DECIMALS_VALUE),
             minimum_total_stake_price_for_booting: old_version
                 .minimum_total_stake_price_for_booting,
             maximum_market_value_percent_of_near_fungible_tokens: old_version

@@ -8,8 +8,10 @@ impl Default for ProtocolSettings {
     fn default() -> Self {
         Self {
             minimum_validator_deposit: U128::from(10_000 * OCT_DECIMALS_VALUE),
+            minimum_validator_deposit_changing_amount: U128::from(1000 * OCT_DECIMALS_VALUE),
             maximum_validator_stake_percent: 25,
             minimum_delegator_deposit: U128::from(1000 * OCT_DECIMALS_VALUE),
+            minimum_delegator_deposit_changing_amount: U128::from(100 * OCT_DECIMALS_VALUE),
             minimum_total_stake_price_for_booting: U128::from(100_000 * USD_DECIMALS_VALUE),
             maximum_market_value_percent_of_near_fungible_tokens: 33,
             maximum_market_value_percent_of_wrapped_appchain_token: 67,
