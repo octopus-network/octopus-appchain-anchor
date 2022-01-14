@@ -203,9 +203,13 @@ pub trait ProtocolSettingsManager {
     ///
     fn change_minimum_validator_deposit(&mut self, value: U128);
     ///
+    fn change_minimum_validator_deposit_changing_amount(&mut self, value: U128);
+    ///
     fn change_maximum_validator_stake_percent(&mut self, value: u16);
     ///
     fn change_minimum_delegator_deposit(&mut self, value: U128);
+    ///
+    fn change_minimum_delegator_deposit_changing_amount(&mut self, value: U128);
     ///
     fn change_minimum_total_stake_price_for_booting(&mut self, value: U128);
     ///
