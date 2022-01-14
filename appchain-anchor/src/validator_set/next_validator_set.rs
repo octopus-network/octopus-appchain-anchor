@@ -187,7 +187,11 @@ impl ValidatorSetViewer for NextValidatorSet {
     }
     //
     fn total_stake(&self) -> u128 {
-        self.validator_set.total_stake
+        self.get_validator_list()
+            .iter()
+            .map(|v| v.total_stake.0)
+            .reduce(|s1, s2| s1 + s2)
+            .unwrap_or(0)
     }
     //
     fn validator_count(&self) -> u64 {
