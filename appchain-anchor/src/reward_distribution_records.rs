@@ -102,4 +102,18 @@ impl RewardDistributionRecords {
             self.era_number_set.remove(era_number);
         }
     }
+    /// This function is for fixing wrong history data
+    pub fn remove_duplicated_message_nonces(&mut self, era_number: u64) {
+        if self.era_number_set.contains(&era_number) {
+            if let Some(nonce_array) = self.era_number_to_nonces_map.get(&era_number) {
+                let mut nonces = Vec::<u32>::new();
+                nonce_array.iter().for_each(|nonce| {
+                    if !nonces.contains(nonce) {
+                        nonces.push(*nonce);
+                    }
+                });
+                self.era_number_to_nonces_map.insert(&era_number, &nonces);
+            }
+        }
+    }
 }

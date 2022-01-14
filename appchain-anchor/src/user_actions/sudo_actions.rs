@@ -256,4 +256,12 @@ impl SudoActions for AppchainAnchor {
             }
         }
     }
+    //
+    fn remove_duplicated_message_nonces_in_reward_distribution_records(&mut self, era_number: U64) {
+        self.assert_owner();
+        let mut reward_distribution_records = self.reward_distribution_records.get().unwrap();
+        reward_distribution_records.remove_duplicated_message_nonces(era_number.0);
+        self.reward_distribution_records
+            .set(&reward_distribution_records);
+    }
 }

@@ -338,6 +338,8 @@ pub trait SudoActions {
         index: U64,
         account_id_in_appchain: String,
     );
+    ///
+    fn remove_duplicated_message_nonces_in_reward_distribution_records(&mut self, era_number: U64);
 }
 
 pub trait ValidatorActions {
