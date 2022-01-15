@@ -333,12 +333,7 @@ impl AppchainAnchor {
         );
     }
     //
-    fn assert_validator_stake_is_valid<V: ValidatorSetViewer>(
-        &self,
-        validator_set: &V,
-        deposit_amount: u128,
-        total_stake: Option<u128>,
-    ) {
+    fn assert_validator_stake_is_valid(&self, deposit_amount: u128, total_stake: Option<u128>) {
         let protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             deposit_amount >= protocol_settings.minimum_validator_deposit.0,
@@ -346,6 +341,10 @@ impl AppchainAnchor {
         );
         if let Some(total_stake) = total_stake {
             if self.appchain_state.eq(&AppchainState::Active) {
+                let validator_set_histories = self.validator_set_histories.get().unwrap();
+                let validator_set = validator_set_histories
+                    .get(&validator_set_histories.index_range().end_index.0)
+                    .unwrap();
                 let maximum_allowed_deposit = validator_set.total_stake()
                     * u128::from(protocol_settings.maximum_validator_stake_percent)
                     / 100;

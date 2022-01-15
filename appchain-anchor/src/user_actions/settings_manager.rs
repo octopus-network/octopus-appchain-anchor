@@ -66,7 +66,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
-            value.0 != protocol_settings.minimum_validator_deposit_changing_amount.0,
+            value.0
+                != protocol_settings
+                    .minimum_validator_deposit_changing_amount
+                    .0,
             "The value is not changed."
         );
         protocol_settings.minimum_validator_deposit_changing_amount = value;
@@ -100,7 +103,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
-            value.0 != protocol_settings.minimum_delegator_deposit_changing_amount.0,
+            value.0
+                != protocol_settings
+                    .minimum_delegator_deposit_changing_amount
+                    .0,
             "The value is not changed."
         );
         protocol_settings.minimum_delegator_deposit_changing_amount = value;
@@ -210,7 +216,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
-            value.0 != protocol_settings.maximum_era_count_of_valid_appchain_message.0,
+            value.0
+                != protocol_settings
+                    .maximum_era_count_of_valid_appchain_message
+                    .0,
             "The value is not changed."
         );
         protocol_settings.maximum_era_count_of_valid_appchain_message = value;

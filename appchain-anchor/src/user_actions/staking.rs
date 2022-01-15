@@ -103,7 +103,7 @@ impl AppchainAnchor {
                 );
             }
         }
-        self.assert_validator_stake_is_valid(&next_validator_set, deposit_amount.0, None);
+        self.assert_validator_stake_is_valid(deposit_amount.0, None);
         let protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             next_validator_set.validator_count() < protocol_settings.maximum_validator_count.0,
@@ -147,7 +147,6 @@ impl AppchainAnchor {
         self.assert_validator_id(&validator_id, &next_validator_set);
         let validator = next_validator_set.get_validator(&validator_id).unwrap();
         self.assert_validator_stake_is_valid(
-            &next_validator_set,
             validator.deposit_amount + amount.0,
             Some(validator.total_stake + amount.0),
         );
@@ -195,7 +194,6 @@ impl AppchainAnchor {
             "The deposit for registering delegator is too few."
         );
         self.assert_validator_stake_is_valid(
-            &next_validator_set,
             validator.deposit_amount,
             Some(validator.total_stake + deposit_amount.0),
         );
@@ -257,7 +255,6 @@ impl AppchainAnchor {
         self.assert_delegator_id(&delegator_id, &validator_id, &next_validator_set);
         let validator = next_validator_set.get_validator(&validator_id).unwrap();
         self.assert_validator_stake_is_valid(
-            &next_validator_set,
             validator.deposit_amount,
             Some(validator.total_stake + amount.0),
         );
@@ -300,11 +297,7 @@ impl StakingManager for AppchainAnchor {
             validator.deposit_amount > amount.0,
             "Unable to decrease so much stake."
         );
-        self.assert_validator_stake_is_valid(
-            &next_validator_set,
-            validator.deposit_amount - amount.0,
-            None,
-        );
+        self.assert_validator_stake_is_valid(validator.deposit_amount - amount.0, None);
         self.assert_total_stake_price(amount.0);
         self.record_and_apply_staking_fact(StakingFact::StakeDecreased {
             validator_id: validator_id.clone(),
