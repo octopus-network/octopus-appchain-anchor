@@ -53,6 +53,20 @@ impl SudoActions for AppchainAnchor {
         }
     }
     //
+    fn refresh_user_staking_histories(&mut self) {
+        self.assert_owner();
+        let mut user_staking_histories = self.user_staking_histories.get().unwrap();
+        user_staking_histories.clear();
+        let staking_histories = self.staking_histories.get().unwrap();
+        let index_range = staking_histories.index_range();
+        for index in index_range.start_index.0..index_range.end_index.0 + 1 {
+            if let Some(staking_history) = staking_histories.get(&index) {
+                user_staking_histories.add_staking_history(&staking_history);
+            }
+        }
+        self.user_staking_histories.set(&user_staking_histories);
+    }
+    //
     fn reset_next_validator_set_to(&mut self, era_number: U64) {
         self.assert_owner();
         let validator_set_histories = self.validator_set_histories.get().unwrap();

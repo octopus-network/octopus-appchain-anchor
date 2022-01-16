@@ -305,6 +305,8 @@ pub trait SudoActions {
     ///
     fn reset_staking_histories_to(&mut self, era_number: U64);
     ///
+    fn refresh_user_staking_histories(&mut self);
+    ///
     fn reset_next_validator_set_to(&mut self, era_number: U64);
     ///
     fn clear_anchor_event_histories(&mut self);
