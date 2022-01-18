@@ -9,12 +9,12 @@ use appchain_anchor::{
 };
 use mock_appchain_registry::MockAppchainRegistryContract;
 use mock_oct_token::MockOctTokenContract;
-use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 use near_sdk::{
     json_types::{U128, U64},
     serde_json,
 };
 use near_sdk_sim::{call, ContractAccount, UserAccount};
+use wrapped_appchain_token::WrappedAppchainTokenContract;
 
 mod anchor_viewer;
 mod common;
@@ -89,7 +89,7 @@ fn test_normal_actions(
 ) -> (
     UserAccount,
     ContractAccount<MockOctTokenContract>,
-    ContractAccount<MockWrappedAppchainTokenContract>,
+    ContractAccount<WrappedAppchainTokenContract>,
     ContractAccount<MockAppchainRegistryContract>,
     ContractAccount<AppchainAnchorContract>,
     Vec<UserAccount>,
@@ -135,7 +135,7 @@ fn test_normal_actions(
     // Initialize wrapped appchain token contract.
     //
     let result = wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
-        &users[4], &anchor, 110_000,
+        &users[4], &anchor, 110,
     );
     result.assert_success();
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
@@ -532,7 +532,7 @@ fn test_normal_actions(
 fn test_staking_actions(
     root: &UserAccount,
     oct_token: &ContractAccount<MockOctTokenContract>,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
     registry: &ContractAccount<MockAppchainRegistryContract>,
     anchor: &ContractAccount<AppchainAnchorContract>,
     users: &Vec<UserAccount>,
@@ -796,7 +796,7 @@ fn test_staking_actions(
 fn distribute_reward_of(
     root: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
     nonce: u32,
     era_number: u32,
     unprofitable_validator_ids: Vec<String>,
@@ -868,7 +868,7 @@ fn distribute_reward_of(
 fn withdraw_validator_rewards_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
     user: &UserAccount,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
     end_era: u64,
 ) {
     common::print_wat_balance_of_anchor(anchor, wrapped_appchain_token);
@@ -893,7 +893,7 @@ fn withdraw_delegator_rewards_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
     user: &UserAccount,
     validator: &UserAccount,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
     end_era: u64,
 ) {
     common::print_wat_balance_of_anchor(anchor, wrapped_appchain_token);

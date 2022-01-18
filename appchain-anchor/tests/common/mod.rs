@@ -10,7 +10,7 @@ use appchain_anchor::{
 };
 use mock_appchain_registry::MockAppchainRegistryContract;
 use mock_oct_token::MockOctTokenContract;
-use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
+use wrapped_appchain_token::WrappedAppchainTokenContract;
 
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FT_METADATA_SPEC};
 use near_sdk::{
@@ -55,7 +55,7 @@ fn register_user_to_oct_token(
 
 fn register_user_to_wat_token(
     account: &UserAccount,
-    contract: &ContractAccount<MockWrappedAppchainTokenContract>,
+    contract: &ContractAccount<WrappedAppchainTokenContract>,
 ) {
     let result = call!(
         account,
@@ -220,7 +220,7 @@ pub fn deploy_wrapped_appchain_token_contract(
     anchor: &ContractAccount<AppchainAnchorContract>,
     premined_balance: U128,
     users: &Vec<UserAccount>,
-) -> ContractAccount<MockWrappedAppchainTokenContract> {
+) -> ContractAccount<WrappedAppchainTokenContract> {
     let wat_ft_metadata = FungibleTokenMetadata {
         spec: FT_METADATA_SPEC.to_string(),
         name: "WrappedAppchainToken".to_string(),
@@ -231,7 +231,7 @@ pub fn deploy_wrapped_appchain_token_contract(
         decimals: 18,
     };
     let wrapped_appchain_token = deploy! {
-        contract: MockWrappedAppchainTokenContract,
+        contract: WrappedAppchainTokenContract,
         contract_id: "wrapped_appchain_token",
         bytes: &WAT_WASM_BYTES,
         signer_account: root,
@@ -533,7 +533,7 @@ pub fn print_latest_appchain_commitment(anchor: &ContractAccount<AppchainAnchorC
 
 pub fn print_wat_balance_of_anchor(
     anchor: &ContractAccount<AppchainAnchorContract>,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
 ) {
     let wat_balance_of_anchor =
         token_viewer::get_wat_balance_of(&anchor.valid_account_id(), wrapped_appchain_token);

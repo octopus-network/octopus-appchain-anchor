@@ -124,6 +124,17 @@ pub trait AnchorViewer {
     fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus;
     /// Get staking histories related to the given account id.
     fn get_user_staking_histories_of(&self, account_id: AccountId) -> Vec<UserStakingHistory>;
+    /// Get processing result of a certain appchain message.
+    fn get_appchain_message_processing_result_of(
+        &self,
+        nonce: u32,
+    ) -> Option<AppchainMessageProcessingResult>;
+    /// Get processing result of appchain messages.
+    fn get_appchain_message_processing_results(
+        &self,
+        start_index: U64,
+        quantity: Option<U64>,
+    ) -> Vec<AppchainMessageProcessingResult>;
 }
 
 pub trait AppchainLifecycleManager {

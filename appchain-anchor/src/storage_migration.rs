@@ -155,6 +155,10 @@ impl AppchainAnchor {
             asset_transfer_is_paused: old_contract.asset_transfer_is_paused,
             user_staking_histories: old_contract.user_staking_histories,
             rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
+            appchain_message_processing_results: LazyOption::new(
+                StorageKey::AppchainMessageProcessingResults.into_bytes(),
+                Some(&AppchainMessageProcessingResults::new()),
+            ),
         };
         //
         //

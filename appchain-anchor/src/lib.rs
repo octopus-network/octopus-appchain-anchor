@@ -1,4 +1,5 @@
 mod anchor_viewer;
+mod appchain_message_processing_results;
 mod assets;
 mod indexed_histories;
 pub mod interfaces;
@@ -28,6 +29,7 @@ use near_sdk::{
 pub use message_decoder::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
 
+use appchain_message_processing_results::AppchainMessageProcessingResults;
 use assets::near_fungible_tokens::NearFungibleTokens;
 use beefy_light_client::Hash;
 use beefy_light_client::LightClient;
@@ -165,6 +167,8 @@ pub struct AppchainAnchor {
     user_staking_histories: LazyOption<UserStakingHistories>,
     /// Whether the rewards withdrawal is paused
     rewards_withdrawal_is_paused: bool,
+    /// The processing result of appchain messages
+    appchain_message_processing_results: LazyOption<AppchainMessageProcessingResults>,
 }
 
 #[near_bindgen]
@@ -262,6 +266,10 @@ impl AppchainAnchor {
                 Some(&UserStakingHistories::new()),
             ),
             rewards_withdrawal_is_paused: false,
+            appchain_message_processing_results: LazyOption::new(
+                StorageKey::AppchainMessageProcessingResults.into_bytes(),
+                Some(&AppchainMessageProcessingResults::new()),
+            ),
         }
     }
     // Assert that the contract called by the owner.

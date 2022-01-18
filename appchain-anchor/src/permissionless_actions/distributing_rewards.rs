@@ -55,7 +55,6 @@ impl AppchainAnchor {
         let validator_profiles = self.validator_profiles.get().unwrap();
         for id_in_appchain in unprofitable_validator_ids {
             let account_id_in_appchain = AccountIdInAppchain::new(Some(id_in_appchain.clone()));
-            account_id_in_appchain.assert_valid();
             match validator_profiles.get_by_id_in_appchain(&account_id_in_appchain.to_string()) {
                 Some(validator_profile) => {
                     if validator_set.contains_validator(&validator_profile.validator_id) {
@@ -93,11 +92,7 @@ impl AppchainAnchor {
             env::current_account_id(),
             appchain_settings.era_reward,
             appchain_message_nonce,
-        );
-        AppchainMessageProcessingResult::Ok {
-            nonce: appchain_message_nonce,
-            message: None,
-        }
+        )
     }
     //
     pub fn complete_distributing_reward_of_era(&mut self, era_number: u64) -> bool {

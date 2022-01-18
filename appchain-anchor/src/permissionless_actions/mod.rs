@@ -206,10 +206,12 @@ impl AppchainAnchor {
                 amount,
             } => {
                 if self.asset_transfer_is_paused {
-                    return AppchainMessageProcessingResult::Error {
+                    let result = AppchainMessageProcessingResult::Error {
                         nonce: appchain_message.nonce,
                         message: format!("Asset transfer is now paused."),
                     };
+                    self.record_appchain_message_processing_result(&result);
+                    return result;
                 }
                 self.internal_unlock_near_fungible_token(
                     owner_id_in_appchain,
@@ -225,56 +227,43 @@ impl AppchainAnchor {
                 amount,
             } => {
                 if self.asset_transfer_is_paused {
-                    return AppchainMessageProcessingResult::Error {
+                    let result = AppchainMessageProcessingResult::Error {
                         nonce: appchain_message.nonce,
                         message: format!("Asset transfer is now paused."),
                     };
+                    self.record_appchain_message_processing_result(&result);
+                    return result;
                 }
-                let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-                let protocol_settings = self.protocol_settings.get().unwrap();
-                let owner_id = AccountIdInAppchain::new(Some(owner_id_in_appchain.clone()));
-                owner_id.assert_valid();
-                if wrapped_appchain_token.total_market_value()
-                    + wrapped_appchain_token.get_market_value_of(amount.0)
-                    > self.get_market_value_of_staked_oct_token().0
-                        * u128::from(
-                            protocol_settings
-                                .maximum_market_value_percent_of_wrapped_appchain_token,
-                        )
-                        / 100
-                {
-                    let message = format!("Too much wrapped appchain token to mint.");
-                    self.internal_append_anchor_event(
-                        AnchorEvent::FailedToMintWrappedAppchainToken {
-                            sender_id_in_appchain: Some(owner_id.to_string()),
-                            receiver_id_in_near,
-                            amount,
-                            appchain_message_nonce: appchain_message.nonce,
-                            reason: message.clone(),
-                        },
-                    );
-                    AppchainMessageProcessingResult::Error {
-                        nonce: appchain_message.nonce,
-                        message,
-                    }
-                } else {
-                    self.internal_mint_wrapped_appchain_token(
-                        Some(owner_id.to_string()),
-                        receiver_id_in_near,
-                        amount,
-                        appchain_message.nonce,
-                    )
-                }
+                self.internal_mint_wrapped_appchain_token(
+                    Some(owner_id_in_appchain),
+                    receiver_id_in_near,
+                    amount,
+                    appchain_message.nonce,
+                )
             }
             permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
-                self.assert_era_number_is_valid(u64::from(era_number));
+                if self.is_era_number_too_old(u64::from(era_number)) {
+                    let result = AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message: format!("Appchain message is too old."),
+                    };
+                    self.record_appchain_message_processing_result(&result);
+                    return result;
+                }
                 self.internal_start_switching_era(u64::from(era_number), appchain_message.nonce)
             }
             permissionless_actions::AppchainEvent::EraRewardConcluded {
                 era_number,
                 unprofitable_validator_ids,
             } => {
-                self.assert_era_number_is_valid(u64::from(era_number));
+                if self.is_era_number_too_old(u64::from(era_number)) {
+                    let result = AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message: format!("Appchain message is too old."),
+                    };
+                    self.record_appchain_message_processing_result(&result);
+                    return result;
+                }
                 self.internal_start_distributing_reward_of_era(
                     appchain_message.nonce,
                     u64::from(era_number),
@@ -284,23 +273,43 @@ impl AppchainAnchor {
         }
     }
     //
-    fn assert_era_number_is_valid(&self, era_number: u64) {
+    fn is_era_number_too_old(&self, era_number: u64) -> bool {
         let protocol_settings = self.protocol_settings.get().unwrap();
         let validator_set_histories = self.validator_set_histories.get().unwrap();
-        let latest_era_number = validator_set_histories.index_range().end_index.0;
-        if latest_era_number
+        let index_range = validator_set_histories.index_range();
+        if index_range.end_index.0
             > protocol_settings
                 .maximum_era_count_of_valid_appchain_message
                 .0
         {
-            assert!(
-                era_number
-                    >= latest_era_number
-                        - protocol_settings
-                            .maximum_era_count_of_valid_appchain_message
-                            .0,
-                "Message is too old."
-            );
+            era_number
+                >= index_range.end_index.0
+                    - protocol_settings
+                        .maximum_era_count_of_valid_appchain_message
+                        .0
+        } else {
+            era_number < index_range.start_index.0
+        }
+    }
+    ///
+    pub fn record_appchain_message_processing_result(
+        &mut self,
+        processing_result: &AppchainMessageProcessingResult,
+    ) {
+        let mut appchain_message_processing_results =
+            self.appchain_message_processing_results.get().unwrap();
+        appchain_message_processing_results
+            .insert_processing_result(processing_result.nonce(), processing_result);
+        self.appchain_message_processing_results
+            .set(&appchain_message_processing_results);
+    }
+}
+
+impl AppchainMessageProcessingResult {
+    pub fn nonce(&self) -> u32 {
+        match self {
+            AppchainMessageProcessingResult::Ok { nonce, .. }
+            | AppchainMessageProcessingResult::Error { nonce, .. } => *nonce,
         }
     }
 }

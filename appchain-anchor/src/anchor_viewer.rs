@@ -541,4 +541,24 @@ impl AnchorViewer for AppchainAnchor {
         });
         results
     }
+    //
+    fn get_appchain_message_processing_result_of(
+        &self,
+        nonce: u32,
+    ) -> Option<AppchainMessageProcessingResult> {
+        let appchain_message_processing_results =
+            self.appchain_message_processing_results.get().unwrap();
+        appchain_message_processing_results.get_processing_result(nonce)
+    }
+    //
+    fn get_appchain_message_processing_results(
+        &self,
+        start_index: U64,
+        quantity: Option<U64>,
+    ) -> Vec<AppchainMessageProcessingResult> {
+        let appchain_message_processing_results =
+            self.appchain_message_processing_results.get().unwrap();
+        appchain_message_processing_results
+            .get_processing_results(&start_index.0, quantity.map(|q| q.0))
+    }
 }

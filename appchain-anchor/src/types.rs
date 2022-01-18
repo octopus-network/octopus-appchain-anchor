@@ -27,7 +27,7 @@ impl AccountIdInAppchain {
         }
     }
     ///
-    fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         if self.raw_string.len() > 2 {
             match hex::decode(&self.raw_string.as_str()[2..self.raw_string.len()]) {
                 Ok(bytes) => bytes.len() == 32,
@@ -521,7 +521,7 @@ pub struct AppchainNotificationHistory {
     pub index: U64,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainMessageProcessingResult {
     Ok { nonce: u32, message: Option<String> },

@@ -11,12 +11,12 @@ use appchain_anchor::{
 use codec::Decode;
 use hex_literal::hex;
 use mock_oct_token::MockOctTokenContract;
-use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 use near_sdk::{
     json_types::{U128, U64},
     serde_json,
 };
 use near_sdk_sim::{ContractAccount, UserAccount};
+use wrapped_appchain_token::WrappedAppchainTokenContract;
 
 use beefy_light_client::mmr::{MmrLeaf, MmrLeafProof};
 use beefy_light_client::{beefy_ecdsa_to_ethereum, commitment::SignedCommitment};
@@ -95,7 +95,7 @@ fn test_beefy_light_client() {
     // Initialize wrapped appchain token contract.
     //
     let result = wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
-        &users[4], &anchor, 110_000,
+        &users[4], &anchor, 110,
     );
     result.assert_success();
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
@@ -530,7 +530,7 @@ fn test_beefy_light_client() {
 fn distribute_reward_of(
     root: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
     era_number: u32,
 ) {
     let anchor_balance_of_wat =
@@ -595,7 +595,7 @@ fn distribute_reward_of(
 fn withdraw_validator_rewards_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
     user: &UserAccount,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
     end_era: u64,
 ) {
     let wat_balance_before_withdraw =
@@ -619,7 +619,7 @@ fn withdraw_delegator_rewards_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
     user: &UserAccount,
     validator: &UserAccount,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
     end_era: u64,
 ) {
     let wat_balance_before_withdraw =

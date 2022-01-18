@@ -91,7 +91,7 @@ fn test_beefy_light_client_2() {
     // Initialize wrapped appchain token contract.
     //
     let result = wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
-        &users[4], &anchor, 110_000,
+        &users[4], &anchor, 110,
     );
     result.assert_success();
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
@@ -359,7 +359,7 @@ fn update_state_of_beefy_light_client_max(
     }
 
     let encoded_mmr_leaf = hex!("c501000800000079f0451c096266bee167393545bafc7b27b7d14810084a843955624588ba29c1010000000000000005000000304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a20000000000000000000000000000000000000000000000000000000000000000");
-    let encoded_mmr_proof =  hex!("0800000000000000090000000000000004c2d6348aef1ef52e779c59bcc1d87fa0175b59b4fa2ea8fc322e4ceb2bdd1ea2");
+    let encoded_mmr_proof = hex!("0800000000000000090000000000000004c2d6348aef1ef52e779c59bcc1d87fa0175b59b4fa2ea8fc322e4ceb2bdd1ea2");
     //
     let result = lifecycle_actions::initialize_beefy_light_client(
         &user,
