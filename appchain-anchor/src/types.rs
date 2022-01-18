@@ -454,6 +454,7 @@ pub struct AnchorStatus {
     pub index_range_of_validator_set_history: IndexRange,
     pub index_range_of_anchor_event_history: IndexRange,
     pub index_range_of_staking_history: IndexRange,
+    pub index_range_of_appchain_message_processing_results: IndexRange,
     pub permissionless_actions_status: PermissionlessActionsStatus,
     pub asset_transfer_is_paused: bool,
     pub rewards_withdrawal_is_paused: bool,

@@ -32,6 +32,10 @@ impl AppchainMessageProcessingResults {
         }
     }
     ///
+    pub fn index_range(&self) -> IndexRange {
+        self.message_nonce_histories.index_range()
+    }
+    ///
     pub fn insert_processing_result(
         &mut self,
         mut appchain_message_nonce: u32,
