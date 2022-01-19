@@ -286,7 +286,7 @@ impl AppchainAnchor {
                 None,
                 &near_fungible_token.contract_account,
                 1,
-                GAS_FOR_FT_TRANSFER_CALL,
+                GAS_FOR_FT_TRANSFER,
             )
             .then(ext_self::resolve_fungible_token_transfer(
                 symbol,

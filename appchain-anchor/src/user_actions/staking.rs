@@ -479,7 +479,7 @@ impl StakingManager for AppchainAnchor {
                     None,
                     &self.oct_token.get().unwrap().contract_account,
                     1,
-                    GAS_FOR_FT_TRANSFER_CALL,
+                    GAS_FOR_FT_TRANSFER,
                 );
             }
         };
@@ -519,7 +519,7 @@ impl StakingManager for AppchainAnchor {
                 None,
                 &self.wrapped_appchain_token.get().unwrap().contract_account,
                 1,
-                GAS_FOR_FT_TRANSFER_CALL,
+                GAS_FOR_FT_TRANSFER,
             );
         }
     }
@@ -562,7 +562,7 @@ impl StakingManager for AppchainAnchor {
                 None,
                 &self.wrapped_appchain_token.get().unwrap().contract_account,
                 1,
-                GAS_FOR_FT_TRANSFER_CALL,
+                GAS_FOR_FT_TRANSFER,
             );
         }
     }

@@ -23,7 +23,7 @@ impl Default for ProtocolSettings {
             maximum_era_count_of_unwithdrawn_reward: U64::from(84),
             maximum_era_count_of_valid_appchain_message: U64::from(7),
             validator_commission_percent: 20,
-            maximum_allowed_unprofitable_era_count: 3,
+            maximum_allowed_unprofitable_era_count: 2,
         }
     }
 }
