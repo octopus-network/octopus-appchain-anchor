@@ -58,7 +58,11 @@ impl AppchainAnchor {
             match validator_profiles.get_by_id_in_appchain(&account_id_in_appchain.to_string()) {
                 Some(validator_profile) => {
                     if validator_set.contains_validator(&validator_profile.validator_id) {
-                        unprofitable_validator_ids_in_near.push(validator_profile.validator_id);
+                        if !unprofitable_validator_ids_in_near
+                            .contains(&validator_profile.validator_id)
+                        {
+                            unprofitable_validator_ids_in_near.push(validator_profile.validator_id);
+                        }
                     } else {
                         return AppchainMessageProcessingResult::Error {
                             nonce: appchain_message_nonce,
@@ -158,6 +162,7 @@ impl AppchainAnchor {
             } => {
                 let unprofitable_validators = validator_set.unprofitable_validator_ids();
                 let protocol_settings = self.protocol_settings.get().unwrap();
+                let next_validator_set = self.next_validator_set.get().unwrap();
                 while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                     if unprofitable_validator_index.0
                         >= unprofitable_validators.len().try_into().unwrap()
@@ -170,32 +175,34 @@ impl AppchainAnchor {
                     let validator_id = unprofitable_validators
                         .get(usize::try_from(unprofitable_validator_index.0).unwrap())
                         .unwrap();
-                    let start_checking_index = match era_number
-                        >= u64::from(protocol_settings.maximum_allowed_unprofitable_era_count)
-                    {
-                        true => {
-                            era_number
-                                - u64::from(
-                                    protocol_settings.maximum_allowed_unprofitable_era_count,
-                                )
-                                + 1
-                        }
-                        false => 0,
-                    };
-                    let mut should_be_unbonded = true;
-                    for index in start_checking_index..era_number {
-                        if let Some(set_of_era) = validator_set_histories.get(&index) {
-                            if !set_of_era
-                                .unprofitable_validator_ids()
-                                .contains(validator_id)
-                            {
-                                should_be_unbonded = false;
-                                break;
+                    if next_validator_set.contains_validator(validator_id) {
+                        let start_checking_index = match era_number
+                            >= u64::from(protocol_settings.maximum_allowed_unprofitable_era_count)
+                        {
+                            true => {
+                                era_number
+                                    - u64::from(
+                                        protocol_settings.maximum_allowed_unprofitable_era_count,
+                                    )
+                                    + 1
+                            }
+                            false => 0,
+                        };
+                        let mut should_be_unbonded = true;
+                        for index in start_checking_index..era_number {
+                            if let Some(set_of_era) = validator_set_histories.get(&index) {
+                                if !set_of_era
+                                    .unprofitable_validator_ids()
+                                    .contains(validator_id)
+                                {
+                                    should_be_unbonded = false;
+                                    break;
+                                }
                             }
                         }
-                    }
-                    if should_be_unbonded {
-                        self.record_unbonding_validator(validator_id, true);
+                        if should_be_unbonded {
+                            self.record_unbonding_validator(validator_id, true);
+                        }
                     }
                     unprofitable_validator_index = U64::from(unprofitable_validator_index.0 + 1);
                 }

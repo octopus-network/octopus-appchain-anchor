@@ -8,23 +8,23 @@ pub trait IndexedAndClearable {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct IndexedHistories<T: BorshDeserialize + BorshSerialize + IndexedAndClearable> {
+pub struct LookupArray<T: BorshDeserialize + BorshSerialize + IndexedAndClearable> {
     /// The anchor event data map.
-    histories: LookupMap<u64, T>,
+    pub lookup_map: LookupMap<u64, T>,
     /// The start index of valid anchor event.
-    start_index: u64,
+    pub start_index: u64,
     /// The end index of valid anchor event.
-    end_index: u64,
+    pub end_index: u64,
 }
 
-impl<T> IndexedHistories<T>
+impl<T> LookupArray<T>
 where
     T: BorshDeserialize + BorshSerialize + IndexedAndClearable,
 {
     ///
     pub fn new(storage_key: StorageKey) -> Self {
         Self {
-            histories: LookupMap::new(storage_key.into_bytes()),
+            lookup_map: LookupMap::new(storage_key.into_bytes()),
             start_index: 0,
             end_index: 0,
         }
@@ -32,17 +32,17 @@ where
     ///
     pub fn migrate_from(storage_key: StorageKey, start_index: u64, end_index: u64) -> Self {
         Self {
-            histories: LookupMap::new(storage_key.into_bytes()),
+            lookup_map: LookupMap::new(storage_key.into_bytes()),
             start_index,
             end_index,
         }
     }
     ///
     pub fn get(&self, index: &u64) -> Option<T> {
-        self.histories.get(index)
+        self.lookup_map.get(index)
     }
     ///
-    pub fn get_histories(&self, start_index: &u64, quantity: Option<u64>) -> Vec<T> {
+    pub fn get_slice_of(&self, start_index: &u64, quantity: Option<u64>) -> Vec<T> {
         let mut results = Vec::<T>::new();
         let start_index = match self.start_index > *start_index {
             true => self.start_index,
@@ -69,11 +69,11 @@ where
     }
     ///
     pub fn contains(&self, index: &u64) -> bool {
-        self.histories.contains_key(index)
+        self.lookup_map.contains_key(index)
     }
     ///
     pub fn insert(&mut self, index: &u64, record: &T) {
-        self.histories.insert(index, record);
+        self.lookup_map.insert(index, record);
         if *index > self.end_index {
             self.end_index = *index;
         }
@@ -87,14 +87,14 @@ where
     }
     ///
     pub fn append(&mut self, record: &mut T) -> T {
-        let index = match self.histories.contains_key(&0) {
+        let index = match self.lookup_map.contains_key(&0) {
             true => self.end_index + 1,
             false => 0,
         };
         record.set_index(&index);
-        self.histories.insert(&index, &record);
+        self.lookup_map.insert(&index, &record);
         self.end_index = index;
-        self.histories.get(&index).unwrap()
+        self.lookup_map.get(&index).unwrap()
     }
     ///
     pub fn remove_before(&mut self, index: &u64) {
@@ -102,7 +102,7 @@ where
             return;
         }
         for index in self.start_index..*index {
-            self.histories.remove(&index);
+            self.remove_at(&index);
         }
         self.start_index = *index;
     }
@@ -127,9 +127,9 @@ where
     }
     ///
     pub fn remove_at(&mut self, index: &u64) {
-        if let Some(mut record) = self.histories.get(index) {
+        if let Some(mut record) = self.lookup_map.get(index) {
             record.clear_extra_storage();
-            self.histories.remove(index);
+            self.lookup_map.remove(index);
         }
     }
 }

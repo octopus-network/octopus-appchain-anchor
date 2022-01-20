@@ -1,8 +1,8 @@
 mod anchor_viewer;
 mod appchain_message_processing_results;
 mod assets;
-mod indexed_histories;
 pub mod interfaces;
+mod lookup_array;
 mod message_decoder;
 mod permissionless_actions;
 mod reward_distribution_records;
@@ -33,7 +33,7 @@ use appchain_message_processing_results::AppchainMessageProcessingResults;
 use assets::near_fungible_tokens::NearFungibleTokens;
 use beefy_light_client::Hash;
 use beefy_light_client::LightClient;
-use indexed_histories::{IndexedAndClearable, IndexedHistories};
+use lookup_array::{IndexedAndClearable, LookupArray};
 use reward_distribution_records::RewardDistributionRecords;
 use storage_key::StorageKey;
 use types::*;
@@ -127,7 +127,7 @@ pub struct AppchainAnchor {
     /// The NEP-141 tokens data.
     near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
-    validator_set_histories: LazyOption<IndexedHistories<ValidatorSetOfEra>>,
+    validator_set_histories: LazyOption<LookupArray<ValidatorSetOfEra>>,
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
     next_validator_set: LazyOption<NextValidatorSet>,
@@ -150,11 +150,11 @@ pub struct AppchainAnchor {
     /// The state of the corresponding appchain.
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
-    staking_histories: LazyOption<IndexedHistories<StakingHistory>>,
+    staking_histories: LazyOption<LookupArray<StakingHistory>>,
     /// The anchor event history data.
-    anchor_event_histories: LazyOption<IndexedHistories<AnchorEventHistory>>,
+    anchor_event_histories: LazyOption<LookupArray<AnchorEventHistory>>,
     /// The appchain notification history data.
-    appchain_notification_histories: LazyOption<IndexedHistories<AppchainNotificationHistory>>,
+    appchain_notification_histories: LazyOption<LookupArray<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
@@ -201,7 +201,7 @@ impl AppchainAnchor {
             ),
             validator_set_histories: LazyOption::new(
                 StorageKey::ValidatorSetHistories.into_bytes(),
-                Some(&IndexedHistories::new(StorageKey::ValidatorSetHistoriesMap)),
+                Some(&LookupArray::new(StorageKey::ValidatorSetHistoriesMap)),
             ),
             next_validator_set: LazyOption::new(
                 StorageKey::NextValidatorSet.into_bytes(),
@@ -233,15 +233,15 @@ impl AppchainAnchor {
             appchain_state: AppchainState::Staging,
             staking_histories: LazyOption::new(
                 StorageKey::StakingHistories.into_bytes(),
-                Some(&IndexedHistories::new(StorageKey::StakingHistoriesMap)),
+                Some(&LookupArray::new(StorageKey::StakingHistoriesMap)),
             ),
             anchor_event_histories: LazyOption::new(
                 StorageKey::AnchorEventHistories.into_bytes(),
-                Some(&IndexedHistories::new(StorageKey::AnchorEventHistoriesMap)),
+                Some(&LookupArray::new(StorageKey::AnchorEventHistoriesMap)),
             ),
             appchain_notification_histories: LazyOption::new(
                 StorageKey::AppchainNotificationHistories.into_bytes(),
-                Some(&IndexedHistories::new(
+                Some(&LookupArray::new(
                     StorageKey::AppchainNotificationHistoriesMap,
                 )),
             ),

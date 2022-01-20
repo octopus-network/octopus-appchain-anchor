@@ -94,7 +94,7 @@ impl AnchorViewer for AppchainAnchor {
         quantity: Option<U64>,
     ) -> Vec<StakingHistory> {
         let staking_histories = self.staking_histories.get().unwrap();
-        staking_histories.get_histories(&start_index.0, quantity.map(|q| q.0))
+        staking_histories.get_slice_of(&start_index.0, quantity.map(|q| q.0))
     }
     //
     fn get_staking_history(&self, index: Option<U64>) -> Option<StakingHistory> {
@@ -135,7 +135,7 @@ impl AnchorViewer for AppchainAnchor {
         quantity: Option<U64>,
     ) -> Vec<AnchorEventHistory> {
         let anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        anchor_event_histories.get_histories(&start_index.0, quantity.map(|q| q.0))
+        anchor_event_histories.get_slice_of(&start_index.0, quantity.map(|q| q.0))
     }
     //
     fn get_index_range_of_appchain_notification_history(&self) -> IndexRange {
@@ -171,7 +171,7 @@ impl AnchorViewer for AppchainAnchor {
         quantity: Option<U64>,
     ) -> Vec<AppchainNotificationHistory> {
         let appchain_notification_histories = self.appchain_notification_histories.get().unwrap();
-        appchain_notification_histories.get_histories(&start_index.0, quantity.map(|q| q.0))
+        appchain_notification_histories.get_slice_of(&start_index.0, quantity.map(|q| q.0))
     }
     //
     fn get_validator_list_of(&self, era_number: Option<U64>) -> Vec<AppchainValidator> {

@@ -6,6 +6,16 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize)]
+pub struct IndexedHistories<T: BorshDeserialize + BorshSerialize + IndexedAndClearable> {
+    /// The anchor event data map.
+    pub histories: LookupMap<u64, T>,
+    /// The start index of valid anchor event.
+    pub start_index: u64,
+    /// The end index of valid anchor event.
+    pub end_index: u64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldProtocolSettings {
     /// A validator has to deposit a certain amount of OCT token to this contract for
     /// being validator of the appchain.
@@ -128,7 +138,12 @@ impl AppchainAnchor {
             oct_token: old_contract.oct_token,
             wrapped_appchain_token: old_contract.wrapped_appchain_token,
             near_fungible_tokens: old_contract.near_fungible_tokens,
-            validator_set_histories: old_contract.validator_set_histories,
+            validator_set_histories: LazyOption::new(
+                StorageKey::ValidatorSetHistories.into_bytes(),
+                Some(&LookupArray::from_indexed_histories(
+                    old_contract.validator_set_histories.get().unwrap(),
+                )),
+            ),
             next_validator_set: LazyOption::new(
                 StorageKey::NextValidatorSet.into_bytes(),
                 Some(&NextValidatorSet::from_validator_set(
@@ -146,9 +161,24 @@ impl AppchainAnchor {
                 Some(&ProtocolSettings::from_old_version(old_protocol_settings)),
             ),
             appchain_state: old_contract.appchain_state,
-            staking_histories: old_contract.staking_histories,
-            anchor_event_histories: old_contract.anchor_event_histories,
-            appchain_notification_histories: old_contract.appchain_notification_histories,
+            staking_histories: LazyOption::new(
+                StorageKey::StakingHistories.into_bytes(),
+                Some(&LookupArray::from_indexed_histories(
+                    old_contract.staking_histories.get().unwrap(),
+                )),
+            ),
+            anchor_event_histories: LazyOption::new(
+                StorageKey::AnchorEventHistories.into_bytes(),
+                Some(&LookupArray::from_indexed_histories(
+                    old_contract.anchor_event_histories.get().unwrap(),
+                )),
+            ),
+            appchain_notification_histories: LazyOption::new(
+                StorageKey::AppchainNotificationHistories.into_bytes(),
+                Some(&LookupArray::from_indexed_histories(
+                    old_contract.appchain_notification_histories.get().unwrap(),
+                )),
+            ),
             permissionless_actions_status: old_contract.permissionless_actions_status,
             beefy_light_client_state: old_contract.beefy_light_client_state,
             reward_distribution_records: old_contract.reward_distribution_records,
@@ -191,6 +221,19 @@ impl ProtocolSettings {
                 .maximum_era_count_of_valid_appchain_message,
             validator_commission_percent: old_version.validator_commission_percent,
             maximum_allowed_unprofitable_era_count: 3,
+        }
+    }
+}
+
+impl<T> LookupArray<T>
+where
+    T: BorshDeserialize + BorshSerialize + IndexedAndClearable,
+{
+    pub fn from_indexed_histories(indexed_histories: IndexedHistories<T>) -> Self {
+        Self {
+            lookup_map: indexed_histories.histories,
+            start_index: indexed_histories.start_index,
+            end_index: indexed_histories.end_index,
         }
     }
 }

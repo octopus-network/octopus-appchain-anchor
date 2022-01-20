@@ -385,14 +385,6 @@ fn test_wrapped_appchain_token_bridging() {
         },
         nonce: (era_number + 6).try_into().unwrap(),
     });
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].account_id(),
-            amount: U128::from(common::to_oct_amount(55)),
-        },
-        nonce: (era_number + 7).try_into().unwrap(),
-    });
     let results = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
     for result in results {
         println!(
@@ -405,6 +397,6 @@ fn test_wrapped_appchain_token_bridging() {
     common::print_wrapped_appchain_token_info(&anchor);
     assert_eq!(
         token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token).0,
-        user1_wat_balance.0 + common::to_oct_amount(300)
+        user1_wat_balance.0 + common::to_oct_amount(245)
     );
 }

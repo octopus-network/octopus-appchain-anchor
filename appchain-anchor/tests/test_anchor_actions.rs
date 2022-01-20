@@ -670,11 +670,11 @@ fn test_staking_actions(
     //
     // user1 unbond stake
     //
-    let result = staking_actions::unbond_stake(&users[1], &anchor);
-    result.assert_success();
-    common::print_anchor_status(&anchor);
-    let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[1]);
-    assert!(unbonded_stakes.len() == 1);
+    // let result = staking_actions::unbond_stake(&users[1], &anchor);
+    // result.assert_success();
+    // common::print_anchor_status(&anchor);
+    // let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[1]);
+    // assert!(unbonded_stakes.len() == 1);
     //
     // Print staking histories
     //

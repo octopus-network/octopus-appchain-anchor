@@ -14,7 +14,7 @@ impl IndexedAndClearable for u32 {
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainMessageProcessingResults {
     ///
-    message_nonce_histories: IndexedHistories<u32>,
+    message_nonce_histories: LookupArray<u32>,
     ///
     processing_result_map: LookupMap<u32, AppchainMessageProcessingResult>,
 }
@@ -23,7 +23,7 @@ impl AppchainMessageProcessingResults {
     ///
     pub fn new() -> Self {
         Self {
-            message_nonce_histories: IndexedHistories::new(
+            message_nonce_histories: LookupArray::new(
                 StorageKey::AppchainMessageProcessingResultsNonceSet,
             ),
             processing_result_map: LookupMap::new(
@@ -66,7 +66,7 @@ impl AppchainMessageProcessingResults {
     ) -> Vec<AppchainMessageProcessingResult> {
         let nonces = self
             .message_nonce_histories
-            .get_histories(start_index, quantity);
+            .get_slice_of(start_index, quantity);
         let mut results = Vec::<AppchainMessageProcessingResult>::new();
         nonces.iter().for_each(|nonce| {
             if let Some(processing_result) = self.processing_result_map.get(nonce) {
