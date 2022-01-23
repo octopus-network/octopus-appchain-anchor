@@ -12,9 +12,6 @@ pub fn process_appchain_messages(
 ) -> MultiTxsOperationProcessingResult {
     let result = call!(signer, anchor.process_appchain_messages());
     common::print_execution_result("process_appchain_messages", &result);
-    if !result.is_ok() {
-        println!("{:#?}", result);
-    }
     assert!(result.is_ok());
     result.unwrap_json::<MultiTxsOperationProcessingResult>()
 }

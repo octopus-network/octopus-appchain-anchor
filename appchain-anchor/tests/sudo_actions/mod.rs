@@ -16,9 +16,7 @@ pub fn stage_appchain_messages(
         );
     });
     let result = call!(signer, anchor.stage_appchain_messages(messages));
-    if !result.is_ok() {
-        println!("{:#?}", result);
-    }
+    common::print_execution_result("stage_appchain_messages", &result);
     assert!(result.is_ok());
     common::print_appchain_messages(anchor);
     common::print_anchor_status(anchor);

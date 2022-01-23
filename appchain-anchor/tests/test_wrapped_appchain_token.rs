@@ -460,4 +460,45 @@ fn test_wrapped_appchain_token_bridging() {
         token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token).0,
         user1_wat_balance.0 + common::to_oct_amount(515)
     );
+    //
+    //
+    //
+    let mut appchain_messages = Vec::<AppchainMessage>::new();
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 2 },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraRewardConcluded {
+            era_number: 1,
+            unprofitable_validator_ids: Vec::new(),
+        },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 3 },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraRewardConcluded {
+            era_number: 2,
+            unprofitable_validator_ids: Vec::new(),
+        },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraRewardConcluded {
+            era_number: 1,
+            unprofitable_validator_ids: Vec::new(),
+        },
+        nonce: appchain_message_nonce,
+    });
+    sudo_actions::stage_appchain_messages(&root, &anchor, appchain_messages);
+    common::process_appchain_messages(&users[3], &anchor);
+    common::print_appchain_messages_processing_results(&anchor);
 }
