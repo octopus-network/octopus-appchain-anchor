@@ -1,5 +1,4 @@
 mod anchor_viewer;
-mod appchain_message_processing_results;
 mod appchain_messages;
 mod assets;
 pub mod interfaces;
@@ -30,7 +29,6 @@ use near_sdk::{
 pub use message_decoder::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
 
-use appchain_message_processing_results::AppchainMessageProcessingResults;
 use appchain_messages::AppchainMessages;
 use assets::near_fungible_tokens::NearFungibleTokens;
 use beefy_light_client::Hash;
