@@ -5,7 +5,7 @@ use crate::*;
 use crate::{interfaces::PermissionlessActions, message_decoder::AppchainMessage};
 use core::convert::{TryFrom, TryInto};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainEvent {
     /// The fact that a certain amount of bridge token has been burnt in the appchain.
@@ -29,6 +29,83 @@ pub enum AppchainEvent {
         era_number: u32,
         unprofitable_validator_ids: Vec<String>,
     },
+}
+
+pub struct AppchainMessagesProcessingContext {
+    processing_status: PermissionlessActionsStatus,
+    prepaid_gas_for_extra_actions: Gas,
+}
+
+impl AppchainMessagesProcessingContext {
+    ///
+    pub fn new(status: PermissionlessActionsStatus) -> Self {
+        Self {
+            processing_status: status,
+            prepaid_gas_for_extra_actions: 0,
+        }
+    }
+    ///
+    pub fn add_prepaid_gas(&mut self, gas: Gas) {
+        self.prepaid_gas_for_extra_actions += gas;
+    }
+    ///
+    pub fn set_processing_nonce(&mut self, nonce: u32) {
+        self.processing_status.processing_appchain_message_nonce = Some(nonce);
+    }
+    ///
+    pub fn clear_processing_nonce(&mut self) {
+        self.processing_status.processing_appchain_message_nonce = None;
+    }
+    ///
+    pub fn set_latest_applied_nonce(&mut self, nonce: u32) {
+        self.processing_status.latest_applied_appchain_message_nonce = nonce;
+    }
+    ///
+    pub fn set_switching_era_number(&mut self, era_number: u64) {
+        self.processing_status.switching_era_number = Some(U64::from(era_number));
+    }
+    ///
+    pub fn clear_switching_era_number(&mut self) {
+        self.processing_status.switching_era_number = None;
+    }
+    ///
+    pub fn set_distributing_reward_era_number(&mut self, era_number: u64) {
+        self.processing_status.distributing_reward_era_number = Some(U64::from(era_number));
+    }
+    ///
+    pub fn clear_distributing_reward_era_number(&mut self) {
+        self.processing_status.distributing_reward_era_number = None;
+    }
+    ///
+    pub fn processing_status(&self) -> &PermissionlessActionsStatus {
+        &self.processing_status
+    }
+    ///
+    pub fn processing_nonce(&self) -> Option<u32> {
+        self.processing_status.processing_appchain_message_nonce
+    }
+    ///
+    pub fn max_nonce(&self) -> u32 {
+        self.processing_status.max_nonce_of_staged_appchain_messages
+    }
+    ///
+    pub fn latest_applied_nonce(&self) -> u32 {
+        self.processing_status.latest_applied_appchain_message_nonce
+    }
+    ///
+    pub fn switching_era_number(&self) -> Option<u64> {
+        self.processing_status.switching_era_number.map(|n| n.0)
+    }
+    ///
+    pub fn distributing_reward_era_number(&self) -> Option<u64> {
+        self.processing_status
+            .distributing_reward_era_number
+            .map(|n| n.0)
+    }
+    ///
+    pub fn used_gas_of_current_function_call(&self) -> Gas {
+        env::used_gas() - self.prepaid_gas_for_extra_actions
+    }
 }
 
 enum ResultOfLoopingValidatorSet {
@@ -111,13 +188,13 @@ impl PermissionlessActions for AppchainAnchor {
         MultiTxsOperationProcessingResult::NeedMoreGas
     }
     //
-    fn verify_and_apply_appchain_messages(
+    fn verify_and_stage_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
         header: Vec<u8>,
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
-    ) -> Vec<AppchainMessageProcessingResult> {
+    ) {
         let anchor_settings = self.anchor_settings.get().unwrap();
         if anchor_settings.beefy_light_client_witness_mode {
             assert!(
@@ -137,81 +214,96 @@ impl PermissionlessActions for AppchainAnchor {
             }
         }
         let messages = message_decoder::decode(encoded_messages);
-        messages
-            .iter()
-            .map(|m| self.internal_apply_appchain_message(m.clone()))
-            .collect::<Vec<AppchainMessageProcessingResult>>()
+        self.internal_stage_appchain_messages(messages);
     }
     //
-    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult {
-        match self
-            .permissionless_actions_status
-            .get()
-            .unwrap()
-            .switching_era_number
+    fn process_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult {
+        let processing_status = self.permissionless_actions_status.get().unwrap();
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        let mut result = MultiTxsOperationProcessingResult::Ok;
+        while processing_context.used_gas_of_current_function_call()
+            < GAS_CAP_FOR_MULTI_TXS_PROCESSING
+            && env::used_gas() < GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES
         {
-            Some(era_number) => {
-                let completed = self.complete_switching_era(era_number.0);
-                if completed {
-                    let mut permissionless_actions_status =
-                        self.permissionless_actions_status.get().unwrap();
-                    permissionless_actions_status.switching_era_number = None;
-                    self.permissionless_actions_status
-                        .set(&permissionless_actions_status);
-                    MultiTxsOperationProcessingResult::Ok
+            if let Some(processing_nonce) = processing_context.processing_nonce() {
+                if let Some(appchain_message) = appchain_messages.get_message(processing_nonce) {
+                    result = self.internal_apply_appchain_message(
+                        &mut processing_context,
+                        &mut validator_set_histories,
+                        appchain_message,
+                    );
+                    match result {
+                        MultiTxsOperationProcessingResult::Ok => {
+                            processing_context.clear_processing_nonce();
+                            processing_context.set_latest_applied_nonce(processing_nonce);
+                        }
+                        MultiTxsOperationProcessingResult::NeedMoreGas => (),
+                        MultiTxsOperationProcessingResult::Error(..) => break,
+                    }
                 } else {
-                    MultiTxsOperationProcessingResult::NeedMoreGas
+                    result = MultiTxsOperationProcessingResult::Error(format!(
+                        "Missing appchain message with nonce '{}'.",
+                        processing_nonce
+                    ));
+                    break;
+                }
+            } else {
+                if processing_context.latest_applied_nonce() < processing_context.max_nonce() {
+                    processing_context
+                        .set_processing_nonce(processing_context.latest_applied_nonce() + 1);
+                } else {
+                    break;
                 }
             }
-            None => MultiTxsOperationProcessingResult::Ok,
         }
-    }
-    //
-    fn try_complete_distributing_reward(&mut self) -> MultiTxsOperationProcessingResult {
-        match self
-            .permissionless_actions_status
-            .get()
-            .unwrap()
-            .distributing_reward_era_number
+        self.permissionless_actions_status
+            .set(processing_context.processing_status());
+        self.validator_set_histories.set(&validator_set_histories);
+        if result.eq(&MultiTxsOperationProcessingResult::Ok)
+            && processing_context.latest_applied_nonce() < processing_context.max_nonce()
         {
-            Some(era_number) => {
-                let completed = self.complete_distributing_reward_of_era(era_number.0);
-                if completed {
-                    let mut permissionless_actions_status =
-                        self.permissionless_actions_status.get().unwrap();
-                    permissionless_actions_status.distributing_reward_era_number = None;
-                    self.permissionless_actions_status
-                        .set(&permissionless_actions_status);
-                    MultiTxsOperationProcessingResult::Ok
-                } else {
-                    MultiTxsOperationProcessingResult::NeedMoreGas
-                }
-            }
-            None => MultiTxsOperationProcessingResult::Ok,
+            result = MultiTxsOperationProcessingResult::NeedMoreGas;
         }
+        result
     }
 }
 
 impl AppchainAnchor {
+    ///
+    pub fn internal_stage_appchain_messages(&mut self, messages: Vec<AppchainMessage>) {
+        let mut appchain_messages = self.appchain_messages.get().unwrap();
+        messages
+            .iter()
+            .for_each(|m| appchain_messages.insert_message(m));
+        self.appchain_messages.set(&appchain_messages);
+        let mut processing_status = self.permissionless_actions_status.get().unwrap();
+        processing_status.max_nonce_of_staged_appchain_messages = appchain_messages.max_nonce();
+        self.permissionless_actions_status.set(&processing_status);
+    }
     /// Apply a certain `AppchainMessage`
     pub fn internal_apply_appchain_message(
         &mut self,
+        processing_context: &mut AppchainMessagesProcessingContext,
+        validator_set_histories: &mut LookupArray<ValidatorSetOfEra>,
         appchain_message: AppchainMessage,
-    ) -> AppchainMessageProcessingResult {
+    ) -> MultiTxsOperationProcessingResult {
         match appchain_message.appchain_event {
-            permissionless_actions::AppchainEvent::NearFungibleTokenBurnt {
+            AppchainEvent::NearFungibleTokenBurnt {
                 contract_account,
                 owner_id_in_appchain,
                 receiver_id_in_near,
                 amount,
             } => {
                 if self.asset_transfer_is_paused {
+                    let message = format!("Asset transfer is now paused.");
                     let result = AppchainMessageProcessingResult::Error {
                         nonce: appchain_message.nonce,
-                        message: format!("Asset transfer is now paused."),
+                        message: message.clone(),
                     };
                     self.record_appchain_message_processing_result(&result);
-                    return result;
+                    return MultiTxsOperationProcessingResult::Error(message);
                 }
                 self.internal_unlock_near_fungible_token(
                     owner_id_in_appchain,
@@ -219,20 +311,22 @@ impl AppchainAnchor {
                     receiver_id_in_near,
                     amount,
                     appchain_message.nonce,
+                    processing_context,
                 )
             }
-            permissionless_actions::AppchainEvent::NativeTokenLocked {
+            AppchainEvent::NativeTokenLocked {
                 owner_id_in_appchain,
                 receiver_id_in_near,
                 amount,
             } => {
                 if self.asset_transfer_is_paused {
+                    let message = format!("Asset transfer is now paused.");
                     let result = AppchainMessageProcessingResult::Error {
                         nonce: appchain_message.nonce,
-                        message: format!("Asset transfer is now paused."),
+                        message: message.clone(),
                     };
                     self.record_appchain_message_processing_result(&result);
-                    return result;
+                    return MultiTxsOperationProcessingResult::Error(message);
                 }
                 let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
                 if i128::try_from(wrapped_appchain_token.premined_balance.0).unwrap()
@@ -252,46 +346,71 @@ impl AppchainAnchor {
                     );
                     let result = AppchainMessageProcessingResult::Error {
                         nonce: appchain_message.nonce,
-                        message,
+                        message: message.clone(),
                     };
                     self.record_appchain_message_processing_result(&result);
-                    return result;
+                    return MultiTxsOperationProcessingResult::Error(message);
                 }
                 self.internal_mint_wrapped_appchain_token(
                     Some(owner_id_in_appchain),
                     receiver_id_in_near,
                     amount,
                     appchain_message.nonce,
+                    processing_context,
                 )
             }
-            permissionless_actions::AppchainEvent::EraSwitchPlaned { era_number } => {
+            AppchainEvent::EraSwitchPlaned { era_number } => {
                 if self.is_era_number_too_old(u64::from(era_number)) {
+                    let message = format!("Appchain message is too old.");
                     let result = AppchainMessageProcessingResult::Error {
                         nonce: appchain_message.nonce,
-                        message: format!("Appchain message is too old."),
+                        message: message.clone(),
                     };
                     self.record_appchain_message_processing_result(&result);
-                    return result;
+                    return MultiTxsOperationProcessingResult::Error(message);
                 }
-                self.internal_start_switching_era(u64::from(era_number), appchain_message.nonce)
+                if let Some(era_number) = processing_context.switching_era_number() {
+                    self.complete_switching_era(
+                        processing_context,
+                        validator_set_histories,
+                        era_number,
+                    )
+                } else {
+                    self.internal_start_switching_era(
+                        processing_context,
+                        validator_set_histories,
+                        u64::from(era_number),
+                    )
+                }
             }
-            permissionless_actions::AppchainEvent::EraRewardConcluded {
+            AppchainEvent::EraRewardConcluded {
                 era_number,
                 unprofitable_validator_ids,
             } => {
                 if self.is_era_number_too_old(u64::from(era_number)) {
+                    let message = format!("Appchain message is too old.");
                     let result = AppchainMessageProcessingResult::Error {
                         nonce: appchain_message.nonce,
-                        message: format!("Appchain message is too old."),
+                        message: message.clone(),
                     };
                     self.record_appchain_message_processing_result(&result);
-                    return result;
+                    return MultiTxsOperationProcessingResult::Error(message);
                 }
-                self.internal_start_distributing_reward_of_era(
-                    appchain_message.nonce,
-                    u64::from(era_number),
-                    unprofitable_validator_ids,
-                )
+                if let Some(era_number) = processing_context.distributing_reward_era_number() {
+                    self.complete_distributing_reward_of_era(
+                        processing_context,
+                        validator_set_histories,
+                        era_number,
+                    )
+                } else {
+                    self.internal_start_distributing_reward_of_era(
+                        processing_context,
+                        validator_set_histories,
+                        appchain_message.nonce,
+                        u64::from(era_number),
+                        unprofitable_validator_ids,
+                    )
+                }
             }
         }
     }
@@ -319,12 +438,9 @@ impl AppchainAnchor {
         &mut self,
         processing_result: &AppchainMessageProcessingResult,
     ) {
-        let mut appchain_message_processing_results =
-            self.appchain_message_processing_results.get().unwrap();
-        appchain_message_processing_results
-            .insert_processing_result(processing_result.nonce(), processing_result);
-        self.appchain_message_processing_results
-            .set(&appchain_message_processing_results);
+        let mut appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.insert_processing_result(processing_result.nonce(), processing_result);
+        self.appchain_messages.set(&appchain_messages);
     }
 }
 

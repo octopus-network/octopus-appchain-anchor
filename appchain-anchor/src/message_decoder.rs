@@ -40,7 +40,7 @@ pub struct EraPayoutPayload {
     pub excluded_validators: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainMessage {
     pub appchain_event: AppchainEvent,

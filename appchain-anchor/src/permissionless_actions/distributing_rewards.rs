@@ -1,4 +1,4 @@
-use super::ResultOfLoopingValidatorSet;
+use super::{AppchainMessagesProcessingContext, ResultOfLoopingValidatorSet};
 use crate::*;
 use core::convert::{TryFrom, TryInto};
 
@@ -17,39 +17,22 @@ impl AppchainAnchor {
     //
     pub fn internal_start_distributing_reward_of_era(
         &mut self,
+        processing_context: &mut AppchainMessagesProcessingContext,
+        validator_set_histories: &mut LookupArray<ValidatorSetOfEra>,
         appchain_message_nonce: u32,
         era_number: u64,
         unprofitable_validator_ids: Vec<String>,
-    ) -> AppchainMessageProcessingResult {
-        let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
-        if permissionless_actions_status
-            .distributing_reward_era_number
-            .is_some()
-        {
-            return AppchainMessageProcessingResult::Error {
-                nonce: appchain_message_nonce,
-                message: format!(
-                    "Contract is still distributing reward for era {}.",
-                    permissionless_actions_status
-                        .distributing_reward_era_number
-                        .unwrap()
-                        .0
-                ),
-            };
-        }
-        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+    ) -> MultiTxsOperationProcessingResult {
         if !validator_set_histories.contains(&era_number) {
-            return AppchainMessageProcessingResult::Error {
-                nonce: appchain_message_nonce,
-                message: format!("Validator set is not existed."),
-            };
+            return MultiTxsOperationProcessingResult::Error(format!(
+                "Validator set is not existed."
+            ));
         }
         let mut validator_set = validator_set_histories.get(&era_number).unwrap();
         if !validator_set.processing_status().can_distribute_reward() {
-            return AppchainMessageProcessingResult::Error {
-                nonce: appchain_message_nonce,
-                message: format!("Validator set is not ready for distributing reward."),
-            };
+            return MultiTxsOperationProcessingResult::Error(format!(
+                "Validator set is not ready for distributing reward."
+            ));
         }
         let mut unprofitable_validator_ids_in_near = Vec::<AccountId>::new();
         let validator_profiles = self.validator_profiles.get().unwrap();
@@ -64,17 +47,17 @@ impl AppchainAnchor {
                             unprofitable_validator_ids_in_near.push(validator_profile.validator_id);
                         }
                     } else {
-                        return AppchainMessageProcessingResult::Error {
-                            nonce: appchain_message_nonce,
-                            message: format!("Validator id in appchain '{}' is not a valid validator in era '{}'.", id_in_appchain, era_number),
-                        };
+                        return MultiTxsOperationProcessingResult::Error(format!(
+                            "Validator id in appchain '{}' is not a valid validator in era '{}'.",
+                            id_in_appchain, era_number
+                        ));
                     }
                 }
                 None => {
-                    return AppchainMessageProcessingResult::Error {
-                        nonce: appchain_message_nonce,
-                        message: format!("Invalid validator id in appchain: '{}'", id_in_appchain),
-                    }
+                    return MultiTxsOperationProcessingResult::Error(format!(
+                        "Invalid validator id in appchain: '{}'",
+                        id_in_appchain
+                    ));
                 }
             }
         }
@@ -86,28 +69,41 @@ impl AppchainAnchor {
             distributing_delegator_index: U64::from(0),
         });
         validator_set_histories.insert(&era_number, &validator_set);
-        permissionless_actions_status.distributing_reward_era_number = Some(U64::from(era_number));
-        self.permissionless_actions_status
-            .set(&permissionless_actions_status);
+        processing_context.set_distributing_reward_era_number(era_number);
         // Mint `total_reward` in the contract of wrapped appchain token.
         let appchain_settings = self.appchain_settings.get().unwrap();
-        self.internal_mint_wrapped_appchain_token(
+        let mut result = self.internal_mint_wrapped_appchain_token(
             None,
             env::current_account_id(),
             appchain_settings.era_reward,
             appchain_message_nonce,
-        )
+            processing_context,
+        );
+        if result.eq(&MultiTxsOperationProcessingResult::Ok) {
+            result = MultiTxsOperationProcessingResult::NeedMoreGas;
+        }
+        result
     }
     //
-    pub fn complete_distributing_reward_of_era(&mut self, era_number: u64) -> bool {
-        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+    pub fn complete_distributing_reward_of_era(
+        &mut self,
+        processing_context: &mut AppchainMessagesProcessingContext,
+        validator_set_histories: &mut LookupArray<ValidatorSetOfEra>,
+        era_number: u64,
+    ) -> MultiTxsOperationProcessingResult {
         let mut validator_set = validator_set_histories.get(&era_number).unwrap();
         match validator_set.processing_status() {
-            ValidatorSetProcessingStatus::CopyingFromLastEra { .. } => false,
-            ValidatorSetProcessingStatus::UnbondingValidator { .. } => false,
-            ValidatorSetProcessingStatus::AutoUnbondingValidator { .. } => false,
-            ValidatorSetProcessingStatus::ApplyingStakingHistory { .. } => false,
-            ValidatorSetProcessingStatus::ReadyForDistributingReward => false,
+            ValidatorSetProcessingStatus::CopyingFromLastEra { .. }
+            | ValidatorSetProcessingStatus::UnbondingValidator { .. }
+            | ValidatorSetProcessingStatus::AutoUnbondingValidator { .. }
+            | ValidatorSetProcessingStatus::ApplyingStakingHistory { .. }
+            | ValidatorSetProcessingStatus::ReadyForDistributingReward => {
+                MultiTxsOperationProcessingResult::Error(format!(
+                    "Wrong processing status '{:?}' of validator set '{}'.",
+                    validator_set.processing_status(),
+                    era_number
+                ))
+            }
             ValidatorSetProcessingStatus::DistributingReward {
                 appchain_message_nonce,
                 distributing_validator_index,
@@ -122,7 +118,9 @@ impl AppchainAnchor {
                 let mut validator_index = distributing_validator_index.0;
                 let mut delegator_index = distributing_delegator_index.0;
                 let era_reward = self.appchain_settings.get().unwrap().era_reward;
-                while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+                while processing_context.used_gas_of_current_function_call()
+                    < GAS_CAP_FOR_MULTI_TXS_PROCESSING
+                {
                     match self.distribute_reward_in_validator_set(
                         appchain_message_nonce,
                         &mut validator_set,
@@ -142,7 +140,7 @@ impl AppchainAnchor {
                                 },
                             );
                             validator_set_histories.insert(&era_number, &validator_set);
-                            return false;
+                            return MultiTxsOperationProcessingResult::NeedMoreGas;
                         }
                         ResultOfLoopingValidatorSet::NeedToContinue => delegator_index += 1,
                     }
@@ -155,7 +153,7 @@ impl AppchainAnchor {
                     },
                 );
                 validator_set_histories.insert(&era_number, &validator_set);
-                false
+                MultiTxsOperationProcessingResult::NeedMoreGas
             }
             ValidatorSetProcessingStatus::CheckingForAutoUnbondingValidator {
                 mut unprofitable_validator_index,
@@ -163,14 +161,17 @@ impl AppchainAnchor {
                 let unprofitable_validators = validator_set.unprofitable_validator_ids();
                 let protocol_settings = self.protocol_settings.get().unwrap();
                 let mut next_validator_set = self.next_validator_set.get().unwrap();
-                while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+                while processing_context.used_gas_of_current_function_call()
+                    < GAS_CAP_FOR_MULTI_TXS_PROCESSING
+                {
                     if unprofitable_validator_index.0
                         >= unprofitable_validators.len().try_into().unwrap()
                     {
+                        processing_context.clear_distributing_reward_era_number();
                         validator_set
                             .set_processing_status(ValidatorSetProcessingStatus::Completed);
                         validator_set_histories.insert(&era_number, &validator_set);
-                        return false;
+                        return MultiTxsOperationProcessingResult::Ok;
                     }
                     let validator_id = unprofitable_validators
                         .get(usize::try_from(unprofitable_validator_index.0).unwrap())
@@ -218,9 +219,9 @@ impl AppchainAnchor {
                     },
                 );
                 validator_set_histories.insert(&era_number, &validator_set);
-                false
+                MultiTxsOperationProcessingResult::NeedMoreGas
             }
-            ValidatorSetProcessingStatus::Completed => true,
+            ValidatorSetProcessingStatus::Completed => MultiTxsOperationProcessingResult::Ok,
         }
     }
     //
