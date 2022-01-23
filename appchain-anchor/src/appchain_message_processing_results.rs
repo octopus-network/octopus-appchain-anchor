@@ -1,16 +1,5 @@
 use crate::*;
 
-impl IndexedAndClearable for u32 {
-    //
-    fn set_index(&mut self, _index: &u64) {
-        ()
-    }
-    //
-    fn clear_extra_storage(&mut self) {
-        ()
-    }
-}
-
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct AppchainMessageProcessingResults {
     ///

@@ -6,15 +6,9 @@ use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 #[near_bindgen]
 impl SudoActions for AppchainAnchor {
     //
-    fn apply_appchain_messages(
-        &mut self,
-        appchain_messages: Vec<AppchainMessage>,
-    ) -> Vec<AppchainMessageProcessingResult> {
+    fn stage_appchain_messages(&mut self, messages: Vec<AppchainMessage>) {
         self.assert_owner();
-        appchain_messages
-            .iter()
-            .map(|m| self.internal_apply_appchain_message(m.clone()))
-            .collect::<Vec<AppchainMessageProcessingResult>>()
+        self.internal_stage_appchain_messages(messages);
     }
     //
     fn set_metadata_of_wrapped_appchain_token(&mut self, metadata: FungibleTokenMetadata) {

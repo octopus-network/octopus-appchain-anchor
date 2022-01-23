@@ -2,7 +2,10 @@ use core::convert::TryFrom;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_sdk::json_types::I128;
 
-use crate::{interfaces::WrappedAppchainTokenManager, *};
+use crate::{
+    interfaces::WrappedAppchainTokenManager,
+    permissionless_actions::AppchainMessagesProcessingContext, *,
+};
 
 pub trait WrappedAppchainTokenContractResolver {
     /// Resolver for burning wrapped appchain token
@@ -130,17 +133,19 @@ impl AppchainAnchor {
         receiver_id: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
-    ) -> AppchainMessageProcessingResult {
+        processing_context: &mut AppchainMessagesProcessingContext,
+    ) -> MultiTxsOperationProcessingResult {
         let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         let protocol_settings = self.protocol_settings.get().unwrap();
         if let Some(sender_id) = &sender_id {
             if !AccountIdInAppchain::new(Some(sender_id.clone())).is_valid() {
+                let message = format!("Invalid sender id in appchain: '{}'", sender_id);
                 let result = AppchainMessageProcessingResult::Error {
                     nonce: appchain_message_nonce,
-                    message: format!("Invalid sender id in appchain: '{}'", sender_id),
+                    message: message.clone(),
                 };
                 self.record_appchain_message_processing_result(&result);
-                return result;
+                return MultiTxsOperationProcessingResult::Error(message);
             }
         }
         if wrapped_appchain_token.total_market_value()
@@ -161,10 +166,10 @@ impl AppchainAnchor {
             });
             let result = AppchainMessageProcessingResult::Error {
                 nonce: appchain_message_nonce,
-                message,
+                message: message.clone(),
             };
             self.record_appchain_message_processing_result(&result);
-            result
+            MultiTxsOperationProcessingResult::Error(message)
         } else {
             ext_fungible_token::mint(
                 receiver_id.clone(),
@@ -182,13 +187,9 @@ impl AppchainAnchor {
                 0,
                 GAS_FOR_RESOLVER_FUNCTION,
             ));
-            AppchainMessageProcessingResult::Ok {
-                nonce: appchain_message_nonce,
-                message: Some(format!(
-                    "Need to confirm result of 'mint' on account '{}'.",
-                    wrapped_appchain_token.contract_account
-                )),
-            }
+            processing_context
+                .add_prepaid_gas(GAS_FOR_MINT_FUNGIBLE_TOKEN + GAS_FOR_RESOLVER_FUNCTION);
+            MultiTxsOperationProcessingResult::Ok
         }
     }
 }

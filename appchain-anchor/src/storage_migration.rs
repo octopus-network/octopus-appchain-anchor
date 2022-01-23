@@ -1,4 +1,3 @@
-use crate::validator_set::ValidatorSet;
 use crate::*;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -6,55 +5,11 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct IndexedHistories<T: BorshDeserialize + BorshSerialize + IndexedAndClearable> {
-    /// The anchor event data map.
-    pub histories: LookupMap<u64, T>,
-    /// The start index of valid anchor event.
-    pub start_index: u64,
-    /// The end index of valid anchor event.
-    pub end_index: u64,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct OldProtocolSettings {
-    /// A validator has to deposit a certain amount of OCT token to this contract for
-    /// being validator of the appchain.
-    pub minimum_validator_deposit: U128,
-    /// The minimum deposit amount for a delegator to delegate his voting weight to
-    /// a certain validator.
-    pub minimum_delegator_deposit: U128,
-    /// The minimum price (in USD) of total stake in this contract for
-    /// booting corresponding appchain
-    pub minimum_total_stake_price_for_booting: U128,
-    /// The maximum percentage of the total market value of all NEP-141 tokens to the total
-    /// market value of OCT token staked in this contract
-    pub maximum_market_value_percent_of_near_fungible_tokens: u16,
-    /// The maximum percentage of the total market value of wrapped appchain token to the total
-    /// market value of OCT token staked in this contract
-    pub maximum_market_value_percent_of_wrapped_appchain_token: u16,
-    /// The minimum number of validator(s) registered in this contract for
-    /// booting the corresponding appchain and keep it alive.
-    pub minimum_validator_count: U64,
-    /// The maximum number of validator(s) registered in this contract for
-    /// the corresponding appchain.
-    pub maximum_validator_count: U64,
-    /// The maximum number of validator(s) which a delegator can delegate to.
-    pub maximum_validators_per_delegator: U64,
-    /// The unlock period (in days) for validator(s) can withdraw their deposit after
-    /// they are removed from the corresponding appchain.
-    pub unlock_period_of_validator_deposit: U64,
-    /// The unlock period (in days) for delegator(s) can withdraw their deposit after
-    /// they no longer delegates their stake to a certain validator on the corresponding appchain.
-    pub unlock_period_of_delegator_deposit: U64,
-    /// The maximum number of historical eras that the validators or delegators are allowed to
-    /// withdraw their reward
-    pub maximum_era_count_of_unwithdrawn_reward: U64,
-    /// The maximum number of valid appchain message.
-    /// If the era number of appchain message is smaller than the latest era number minus
-    /// this value, the message will be considered as `invalid`.
-    pub maximum_era_count_of_valid_appchain_message: U64,
-    /// The percent of commission fees of a validator's reward in an era
-    pub validator_commission_percent: u16,
+pub struct OldPermissionlessActionsStatus {
+    /// The era number that is switching by permissionless actions
+    pub switching_era_number: Option<U64>,
+    /// The era number that is distributing reward by permissionless actions
+    pub distributing_reward_era_number: Option<U64>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -72,10 +27,10 @@ pub struct OldAppchainAnchor {
     /// The NEP-141 tokens data.
     near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
-    validator_set_histories: LazyOption<IndexedHistories<ValidatorSetOfEra>>,
+    validator_set_histories: LazyOption<LookupArray<ValidatorSetOfEra>>,
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
-    next_validator_set: LazyOption<ValidatorSet>,
+    next_validator_set: LazyOption<NextValidatorSet>,
     /// The map of unwithdrawn validator rewards in eras, in unit of wrapped appchain token.
     /// The key in map is `(era_number, account_id_of_validator)`
     unwithdrawn_validator_rewards: LookupMap<(u64, AccountId), Balance>,
@@ -91,17 +46,17 @@ pub struct OldAppchainAnchor {
     /// The anchor settings for appchain.
     anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
-    protocol_settings: LazyOption<OldProtocolSettings>,
+    protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain.
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
-    staking_histories: LazyOption<IndexedHistories<StakingHistory>>,
+    staking_histories: LazyOption<LookupArray<StakingHistory>>,
     /// The anchor event history data.
-    anchor_event_histories: LazyOption<IndexedHistories<AnchorEventHistory>>,
+    anchor_event_histories: LazyOption<LookupArray<AnchorEventHistory>>,
     /// The appchain notification history data.
-    appchain_notification_histories: LazyOption<IndexedHistories<AppchainNotificationHistory>>,
+    appchain_notification_histories: LazyOption<LookupArray<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
-    permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
+    permissionless_actions_status: LazyOption<OldPermissionlessActionsStatus>,
     /// The state of beefy light client
     beefy_light_client_state: LazyOption<LightClient>,
     /// The reward distribution records data
@@ -112,6 +67,8 @@ pub struct OldAppchainAnchor {
     user_staking_histories: LazyOption<UserStakingHistories>,
     /// Whether the rewards withdrawal is paused
     rewards_withdrawal_is_paused: bool,
+    /// The processing result of appchain messages
+    appchain_message_processing_results: LazyOption<AppchainMessageProcessingResults>,
 }
 
 #[near_bindgen]
@@ -128,8 +85,8 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
-        let old_next_validator_set = old_contract.next_validator_set.get().unwrap();
-        let old_protocol_settings = old_contract.protocol_settings.get().unwrap();
+        let old_permissionless_action_status =
+            old_contract.permissionless_actions_status.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -138,56 +95,33 @@ impl AppchainAnchor {
             oct_token: old_contract.oct_token,
             wrapped_appchain_token: old_contract.wrapped_appchain_token,
             near_fungible_tokens: old_contract.near_fungible_tokens,
-            validator_set_histories: LazyOption::new(
-                StorageKey::ValidatorSetHistories.into_bytes(),
-                Some(&LookupArray::from_indexed_histories(
-                    old_contract.validator_set_histories.get().unwrap(),
-                )),
-            ),
-            next_validator_set: LazyOption::new(
-                StorageKey::NextValidatorSet.into_bytes(),
-                Some(&NextValidatorSet::from_validator_set(
-                    old_next_validator_set,
-                )),
-            ),
+            validator_set_histories: old_contract.validator_set_histories,
+            next_validator_set: old_contract.next_validator_set,
             unwithdrawn_validator_rewards: old_contract.unwithdrawn_validator_rewards,
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
             unbonded_stakes: old_contract.unbonded_stakes,
             validator_profiles: old_contract.validator_profiles,
             appchain_settings: old_contract.appchain_settings,
             anchor_settings: old_contract.anchor_settings,
-            protocol_settings: LazyOption::new(
-                StorageKey::ProtocolSettings.into_bytes(),
-                Some(&ProtocolSettings::from_old_version(old_protocol_settings)),
-            ),
+            protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
-            staking_histories: LazyOption::new(
-                StorageKey::StakingHistories.into_bytes(),
-                Some(&LookupArray::from_indexed_histories(
-                    old_contract.staking_histories.get().unwrap(),
+            staking_histories: old_contract.staking_histories,
+            anchor_event_histories: old_contract.anchor_event_histories,
+            appchain_notification_histories: old_contract.appchain_notification_histories,
+            permissionless_actions_status: LazyOption::new(
+                StorageKey::PermissionlessActionsStatus.into_bytes(),
+                Some(&PermissionlessActionsStatus::from_old_version(
+                    old_permissionless_action_status,
                 )),
             ),
-            anchor_event_histories: LazyOption::new(
-                StorageKey::AnchorEventHistories.into_bytes(),
-                Some(&LookupArray::from_indexed_histories(
-                    old_contract.anchor_event_histories.get().unwrap(),
-                )),
-            ),
-            appchain_notification_histories: LazyOption::new(
-                StorageKey::AppchainNotificationHistories.into_bytes(),
-                Some(&LookupArray::from_indexed_histories(
-                    old_contract.appchain_notification_histories.get().unwrap(),
-                )),
-            ),
-            permissionless_actions_status: old_contract.permissionless_actions_status,
             beefy_light_client_state: old_contract.beefy_light_client_state,
             reward_distribution_records: old_contract.reward_distribution_records,
             asset_transfer_is_paused: old_contract.asset_transfer_is_paused,
             user_staking_histories: old_contract.user_staking_histories,
             rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
-            appchain_message_processing_results: LazyOption::new(
-                StorageKey::AppchainMessageProcessingResults.into_bytes(),
-                Some(&AppchainMessageProcessingResults::new()),
+            appchain_messages: LazyOption::new(
+                StorageKey::AppchainMessages.into_bytes(),
+                Some(&AppchainMessages::new()),
             ),
         };
         //
@@ -196,44 +130,14 @@ impl AppchainAnchor {
     }
 }
 
-impl ProtocolSettings {
-    pub fn from_old_version(old_version: OldProtocolSettings) -> ProtocolSettings {
-        ProtocolSettings {
-            minimum_validator_deposit: old_version.minimum_validator_deposit,
-            minimum_validator_deposit_changing_amount: U128::from(1000 * OCT_DECIMALS_VALUE),
-            maximum_validator_stake_percent: 25,
-            minimum_delegator_deposit: old_version.minimum_delegator_deposit,
-            minimum_delegator_deposit_changing_amount: U128::from(100 * OCT_DECIMALS_VALUE),
-            minimum_total_stake_price_for_booting: old_version
-                .minimum_total_stake_price_for_booting,
-            maximum_market_value_percent_of_near_fungible_tokens: old_version
-                .maximum_market_value_percent_of_near_fungible_tokens,
-            maximum_market_value_percent_of_wrapped_appchain_token: old_version
-                .maximum_market_value_percent_of_wrapped_appchain_token,
-            minimum_validator_count: old_version.minimum_validator_count,
-            maximum_validator_count: old_version.maximum_validator_count,
-            maximum_validators_per_delegator: old_version.maximum_validators_per_delegator,
-            unlock_period_of_validator_deposit: old_version.unlock_period_of_validator_deposit,
-            unlock_period_of_delegator_deposit: old_version.unlock_period_of_delegator_deposit,
-            maximum_era_count_of_unwithdrawn_reward: old_version
-                .maximum_era_count_of_unwithdrawn_reward,
-            maximum_era_count_of_valid_appchain_message: old_version
-                .maximum_era_count_of_valid_appchain_message,
-            validator_commission_percent: old_version.validator_commission_percent,
-            maximum_allowed_unprofitable_era_count: 3,
-        }
-    }
-}
-
-impl<T> LookupArray<T>
-where
-    T: BorshDeserialize + BorshSerialize + IndexedAndClearable,
-{
-    pub fn from_indexed_histories(indexed_histories: IndexedHistories<T>) -> Self {
+impl PermissionlessActionsStatus {
+    pub fn from_old_version(old_version: OldPermissionlessActionsStatus) -> Self {
         Self {
-            lookup_map: indexed_histories.histories,
-            start_index: indexed_histories.start_index,
-            end_index: indexed_histories.end_index,
+            switching_era_number: old_version.switching_era_number,
+            distributing_reward_era_number: old_version.distributing_reward_era_number,
+            processing_appchain_message_nonce: None,
+            max_nonce_of_staged_appchain_messages: 0,
+            latest_applied_appchain_message_nonce: 0,
         }
     }
 }

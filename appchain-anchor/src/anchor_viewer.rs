@@ -53,11 +53,7 @@ impl AnchorViewer for AppchainAnchor {
                 .unwrap()
                 .index_range(),
             index_range_of_staking_history: self.staking_histories.get().unwrap().index_range(),
-            index_range_of_appchain_message_processing_results: self
-                .appchain_message_processing_results
-                .get()
-                .unwrap()
-                .index_range(),
+            index_range_of_appchain_messages: self.appchain_messages.get().unwrap().index_range(),
             permissionless_actions_status: self.permissionless_actions_status.get().unwrap(),
             asset_transfer_is_paused: self.asset_transfer_is_paused,
             rewards_withdrawal_is_paused: self.rewards_withdrawal_is_paused,
@@ -556,23 +552,34 @@ impl AnchorViewer for AppchainAnchor {
         results
     }
     //
+    fn get_appchain_message_of(&self, nonce: u32) -> Option<AppchainMessage> {
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.get_message(nonce)
+    }
+    //
+    fn get_appchain_messages(
+        &self,
+        start_nonce: u32,
+        quantity: Option<u32>,
+    ) -> Vec<AppchainMessage> {
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.get_messages(&start_nonce, quantity)
+    }
+    //
     fn get_appchain_message_processing_result_of(
         &self,
         nonce: u32,
     ) -> Option<AppchainMessageProcessingResult> {
-        let appchain_message_processing_results =
-            self.appchain_message_processing_results.get().unwrap();
-        appchain_message_processing_results.get_processing_result(nonce)
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.get_processing_result(nonce)
     }
     //
     fn get_appchain_message_processing_results(
         &self,
-        start_index: U64,
-        quantity: Option<U64>,
+        start_nonce: u32,
+        quantity: Option<u32>,
     ) -> Vec<AppchainMessageProcessingResult> {
-        let appchain_message_processing_results =
-            self.appchain_message_processing_results.get().unwrap();
-        appchain_message_processing_results
-            .get_processing_results(&start_index.0, quantity.map(|q| q.0))
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.get_processing_results(&start_nonce, quantity)
     }
 }
