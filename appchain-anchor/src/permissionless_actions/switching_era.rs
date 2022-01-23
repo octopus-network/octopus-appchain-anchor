@@ -224,7 +224,11 @@ impl AppchainAnchor {
                 validator_set_histories.insert(&era_number, &validator_set);
                 MultiTxsOperationProcessingResult::Ok
             }
-            _ => MultiTxsOperationProcessingResult::Ok,
+            _ => MultiTxsOperationProcessingResult::Error(format!(
+                "Wrong processing status '{:?}' of validator set '{}'.",
+                validator_set.processing_status(),
+                era_number
+            )),
         }
     }
     //

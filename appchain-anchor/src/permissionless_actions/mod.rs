@@ -273,12 +273,32 @@ impl PermissionlessActions for AppchainAnchor {
 impl AppchainAnchor {
     ///
     pub fn internal_stage_appchain_messages(&mut self, messages: Vec<AppchainMessage>) {
+        let mut processing_status = self.permissionless_actions_status.get().unwrap();
         let mut appchain_messages = self.appchain_messages.get().unwrap();
+        let protocol_settings = self.protocol_settings.get().unwrap();
         messages
             .iter()
-            .for_each(|m| appchain_messages.insert_message(m));
+            .filter(|message| {
+                if message.nonce > processing_status.latest_applied_appchain_message_nonce {
+                    match message.appchain_event {
+                        AppchainEvent::EraSwitchPlaned { era_number } => {
+                            !self.era_number_is_too_old(u64::from(era_number), 0)
+                        }
+                        AppchainEvent::EraRewardConcluded { era_number, .. } => !self
+                            .era_number_is_too_old(
+                                u64::from(era_number),
+                                protocol_settings
+                                    .maximum_era_count_of_valid_appchain_message
+                                    .0,
+                            ),
+                        _ => true,
+                    }
+                } else {
+                    false
+                }
+            })
+            .for_each(|message| appchain_messages.insert_message(message));
         self.appchain_messages.set(&appchain_messages);
-        let mut processing_status = self.permissionless_actions_status.get().unwrap();
         processing_status.max_nonce_of_staged_appchain_messages = appchain_messages.max_nonce();
         self.permissionless_actions_status.set(&processing_status);
     }
@@ -337,15 +357,6 @@ impl AppchainAnchor {
                 )
             }
             AppchainEvent::EraSwitchPlaned { era_number } => {
-                if self.is_era_number_too_old(u64::from(era_number)) {
-                    let message = format!("Appchain message is too old.");
-                    let result = AppchainMessageProcessingResult::Error {
-                        nonce: appchain_message.nonce,
-                        message: message.clone(),
-                    };
-                    self.record_appchain_message_processing_result(&result);
-                    return MultiTxsOperationProcessingResult::Error(message);
-                }
                 if let Some(era_number) = processing_context.switching_era_number() {
                     self.complete_switching_era(
                         processing_context,
@@ -364,15 +375,6 @@ impl AppchainAnchor {
                 era_number,
                 unprofitable_validator_ids,
             } => {
-                if self.is_era_number_too_old(u64::from(era_number)) {
-                    let message = format!("Appchain message is too old.");
-                    let result = AppchainMessageProcessingResult::Error {
-                        nonce: appchain_message.nonce,
-                        message: message.clone(),
-                    };
-                    self.record_appchain_message_processing_result(&result);
-                    return MultiTxsOperationProcessingResult::Error(message);
-                }
                 if let Some(era_number) = processing_context.distributing_reward_era_number() {
                     self.complete_distributing_reward_of_era(
                         processing_context,
@@ -392,20 +394,11 @@ impl AppchainAnchor {
         }
     }
     //
-    fn is_era_number_too_old(&self, era_number: u64) -> bool {
-        let protocol_settings = self.protocol_settings.get().unwrap();
+    fn era_number_is_too_old(&self, era_number: u64, range: u64) -> bool {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let index_range = validator_set_histories.index_range();
-        if index_range.end_index.0
-            > protocol_settings
-                .maximum_era_count_of_valid_appchain_message
-                .0
-        {
-            era_number
-                < index_range.end_index.0
-                    - protocol_settings
-                        .maximum_era_count_of_valid_appchain_message
-                        .0
+        if index_range.end_index.0 > range {
+            era_number <= index_range.end_index.0 - range
         } else {
             era_number < index_range.start_index.0
         }
