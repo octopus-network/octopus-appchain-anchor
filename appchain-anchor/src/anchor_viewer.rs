@@ -241,7 +241,7 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_unbonded_stakes_of(&self, account_id: AccountId) -> Vec<UnbondedStake> {
         let protocol_settings = self.protocol_settings.get().unwrap();
-        let mut result = Vec::<UnbondedStake>::new();
+        let mut results = Vec::<UnbondedStake>::new();
         if let Some(unbonded_stake_references) = self.unbonded_stakes.get(&account_id) {
             unbonded_stake_references.iter().for_each(|reference| {
                 let validator_set = self
@@ -264,7 +264,11 @@ impl AnchorViewer for AppchainAnchor {
                     | StakingFact::ValidatorUnbonded {
                         validator_id,
                         amount,
-                    } => result.push(UnbondedStake {
+                    }
+                    | StakingFact::ValidatorAutoUnbonded {
+                        validator_id,
+                        amount,
+                    } => results.push(UnbondedStake {
                         era_number: U64::from(reference.era_number),
                         account_id: validator_id,
                         amount,
@@ -284,7 +288,12 @@ impl AnchorViewer for AppchainAnchor {
                         delegator_id,
                         validator_id: _,
                         amount,
-                    } => result.push(UnbondedStake {
+                    }
+                    | StakingFact::DelegatorAutoUnbonded {
+                        delegator_id,
+                        validator_id: _,
+                        amount,
+                    } => results.push(UnbondedStake {
                         era_number: U64::from(reference.era_number),
                         account_id: delegator_id,
                         amount,
@@ -299,7 +308,7 @@ impl AnchorViewer for AppchainAnchor {
                 };
             });
         }
-        result
+        results
     }
     //
     fn get_validator_rewards_of(

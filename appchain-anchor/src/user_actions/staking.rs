@@ -431,6 +431,10 @@ impl StakingManager for AppchainAnchor {
                     | StakingFact::ValidatorUnbonded {
                         validator_id: _,
                         amount,
+                    }
+                    | StakingFact::ValidatorAutoUnbonded {
+                        validator_id: _,
+                        amount,
                     } => {
                         if validator_set.start_timestamp()
                             + protocol_settings.unlock_period_of_validator_deposit.0
@@ -449,6 +453,11 @@ impl StakingManager for AppchainAnchor {
                         amount,
                     }
                     | StakingFact::DelegatorUnbonded {
+                        delegator_id: _,
+                        validator_id: _,
+                        amount,
+                    }
+                    | StakingFact::DelegatorAutoUnbonded {
                         delegator_id: _,
                         validator_id: _,
                         amount,
