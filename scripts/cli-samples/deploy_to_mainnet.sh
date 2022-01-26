@@ -26,3 +26,7 @@ near call $ANCHOR_ACCOUNT_ID go_live --accountId $REGISTRY_ACCOUNT_ID
 #
 near call $ANCHOR_ACCOUNT_ID change_minimum_validator_count '{"value":"4"}' --accountId $REGISTRY_ACCOUNT_ID
 near call $ANCHOR_ACCOUNT_ID change_maximum_validator_count '{"value":"30"}' --accountId $REGISTRY_ACCOUNT_ID
+#
+near call $ANCHOR_ACCOUNT_ID set_subql_endpoint '{"subql_endpoint":"https://api.subquery.network/sq/octopus-appchains/subql-debionetwork"}' --accountId $REGISTRY_ACCOUNT_ID
+#
+near call $ANCHOR_ACCOUNT_ID change_minimum_delegator_deposit '{"value":"500000000000000000000"}' --accountId $REGISTRY_ACCOUNT_ID
