@@ -32,7 +32,7 @@ impl AppchainAnchor {
         validator_id: &AccountId,
         account_id_in_appchain: &String,
     ) {
-        let mut next_validator_set = self.next_validator_set.get().unwrap();
+        let next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_validator_id(validator_id, &next_validator_set);
         let validator_id_in_appchain =
             AccountIdInAppchain::new(Some(account_id_in_appchain.clone()));
@@ -44,10 +44,9 @@ impl AppchainAnchor {
         validator_profiles.insert(validator_profile);
         self.validator_profiles.set(&validator_profiles);
         //
-        let mut validator = next_validator_set.validators.get(validator_id).unwrap();
-        validator.validator_id_in_appchain = validator_id_in_appchain.to_string();
-        next_validator_set
-            .validators
-            .insert(validator_id, &validator);
+        self.record_and_apply_staking_fact(StakingFact::ValidatorIdInAppchainChanged {
+            validator_id: validator_id.clone(),
+            validator_id_in_appchain: account_id_in_appchain.clone(),
+        });
     }
 }

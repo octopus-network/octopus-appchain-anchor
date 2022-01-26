@@ -71,4 +71,9 @@ impl ValidatorProfiles {
             false
         }
     }
+    /// Only for data migration
+    pub fn remove_raw(&mut self, validator_id: &AccountId) -> Option<Vec<u8>> {
+        self.profiles
+            .remove_raw(&validator_id.try_to_vec().unwrap())
+    }
 }

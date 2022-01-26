@@ -286,7 +286,7 @@ impl AppchainAnchor {
                 None,
                 &near_fungible_token.contract_account,
                 1,
-                GAS_FOR_FT_TRANSFER_CALL,
+                GAS_FOR_FT_TRANSFER,
             )
             .then(ext_self::resolve_fungible_token_transfer(
                 symbol,
@@ -306,10 +306,12 @@ impl AppchainAnchor {
                 )),
             }
         } else {
-            AppchainMessageProcessingResult::Error {
+            let result = AppchainMessageProcessingResult::Error {
                 nonce: appchain_message_nonce,
                 message: format!("Invalid symbol of NEAR fungible token: {}", symbol),
-            }
+            };
+            self.record_appchain_message_processing_result(&result);
+            result
         }
     }
 }
@@ -345,19 +347,33 @@ impl FungibleTokenContractResolver for AppchainAnchor {
                         };
                     near_fungible_tokens.insert(&near_fungible_token);
                 };
+                self.record_appchain_message_processing_result(
+                    &AppchainMessageProcessingResult::Ok {
+                        nonce: appchain_message_nonce,
+                        message: None,
+                    },
+                );
             }
             PromiseResult::Failed => {
+                let reason = format!(
+                    "Maybe the receiver account '{}' is not registered in '{}' token contract.",
+                    &receiver_id_in_near, &symbol
+                );
+                let message = format!("Failed to unlock near fungible token. {}", reason);
                 self.internal_append_anchor_event(AnchorEvent::FailedToUnlockNearFungibleToken {
                     symbol: symbol.clone(),
                     sender_id_in_appchain,
                     receiver_id_in_near: receiver_id_in_near.clone(),
                     amount,
                     appchain_message_nonce,
-                    reason: format!(
-                        "Maybe the receiver account '{}' is not registered in '{}' token contract.",
-                        &receiver_id_in_near, &symbol
-                    ),
+                    reason,
                 });
+                self.record_appchain_message_processing_result(
+                    &AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message_nonce,
+                        message,
+                    },
+                );
             }
         }
     }

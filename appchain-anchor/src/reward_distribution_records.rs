@@ -54,7 +54,9 @@ impl RewardDistributionRecords {
             Some(nonces) => nonces,
             None => Vec::new(),
         };
-        nonces.push(appchain_message_nonce);
+        if !nonces.contains(&appchain_message_nonce) {
+            nonces.push(appchain_message_nonce);
+        }
         self.era_number_to_nonces_map.insert(&era_number, &nonces);
         self.record_set.insert(&(
             appchain_message_nonce,
@@ -64,23 +66,28 @@ impl RewardDistributionRecords {
         ));
     }
     ///
-    pub fn clear(&mut self, validator_set: &ValidatorSet, era_number: &u64) {
+    pub fn clear<V: ValidatorSetViewer>(&mut self, validator_set: &V, era_number: &u64) {
         if self.era_number_set.contains(era_number) {
             if let Some(nonce_array) = self.era_number_to_nonces_map.get(era_number) {
+                let mut nonces = Vec::<u32>::new();
                 nonce_array.iter().for_each(|nonce| {
-                    let validator_id_array = validator_set.validator_id_set.to_vec();
-                    validator_id_array.iter().for_each(|validator_id| {
+                    if !nonces.contains(nonce) {
+                        nonces.push(*nonce);
+                    }
+                });
+                nonces.iter().for_each(|nonce| {
+                    let validator_ids = validator_set.get_validator_ids();
+                    validator_ids.iter().for_each(|validator_id| {
                         self.record_set.remove(&(
                             *nonce,
                             *era_number,
                             String::new(),
                             validator_id.clone(),
                         ));
-                        if let Some(delegator_id_set) = validator_set
-                            .validator_id_to_delegator_id_set
-                            .get(validator_id)
-                        {
-                            delegator_id_set.to_vec().iter().for_each(|delegator_id| {
+                        validator_set
+                            .get_delegator_ids_of(validator_id)
+                            .iter()
+                            .for_each(|delegator_id| {
                                 self.record_set.remove(&(
                                     *nonce,
                                     *era_number,
@@ -88,9 +95,24 @@ impl RewardDistributionRecords {
                                     validator_id.clone(),
                                 ));
                             });
-                        }
                     })
                 });
+                self.era_number_to_nonces_map.remove(era_number);
+            }
+            self.era_number_set.remove(era_number);
+        }
+    }
+    /// This function is for fixing wrong history data
+    pub fn remove_duplicated_message_nonces(&mut self, era_number: u64) {
+        if self.era_number_set.contains(&era_number) {
+            if let Some(nonce_array) = self.era_number_to_nonces_map.get(&era_number) {
+                let mut nonces = Vec::<u32>::new();
+                nonce_array.iter().for_each(|nonce| {
+                    if !nonces.contains(nonce) {
+                        nonces.push(*nonce);
+                    }
+                });
+                self.era_number_to_nonces_map.insert(&era_number, &nonces);
             }
         }
     }

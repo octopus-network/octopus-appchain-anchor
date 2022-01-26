@@ -1,28 +1,21 @@
 mod anchor_viewer;
-mod appchain_lifecycle;
-mod indexed_histories;
+mod appchain_message_processing_results;
+mod assets;
 pub mod interfaces;
+mod lookup_array;
 mod message_decoder;
-mod near_fungible_tokens;
-mod owner_actions;
 mod permissionless_actions;
 mod reward_distribution_records;
-mod settings_manager;
-mod staking;
 mod storage_key;
 mod storage_migration;
-mod sudo_actions;
 pub mod types;
+mod user_actions;
 mod user_staking_histories;
-mod validator_actions;
 mod validator_profiles;
 mod validator_set;
-mod wrapped_appchain_token;
 
-use beefy_light_client::LightClient;
 use core::convert::TryInto;
 use getrandom::{register_custom_getrandom, Error};
-use indexed_histories::{IndexedAndClearable, IndexedHistories};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
@@ -32,27 +25,32 @@ use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
     PromiseOrValue, PromiseResult, Timestamp,
 };
-use user_staking_histories::UserStakingHistories;
 
 pub use message_decoder::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
 
+use appchain_message_processing_results::AppchainMessageProcessingResults;
+use assets::near_fungible_tokens::NearFungibleTokens;
 use beefy_light_client::Hash;
-use near_fungible_tokens::NearFungibleTokens;
+use beefy_light_client::LightClient;
+use lookup_array::{IndexedAndClearable, LookupArray};
 use reward_distribution_records::RewardDistributionRecords;
-use staking::UnbondedStakeReference;
 use storage_key::StorageKey;
 use types::*;
+use user_actions::UnbondedStakeReference;
+use user_staking_histories::UserStakingHistories;
 use validator_profiles::ValidatorProfiles;
-use validator_set::{ValidatorSet, ValidatorSetOfEra};
+use validator_set::next_validator_set::NextValidatorSet;
+use validator_set::validator_set_of_era::ValidatorSetOfEra;
+use validator_set::ValidatorSetViewer;
 
 register_custom_getrandom!(get_random_in_near);
 
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
-const GAS_FOR_FT_TRANSFER_CALL: u64 = 15 * T_GAS;
+const GAS_FOR_FT_TRANSFER: u64 = 10 * T_GAS;
 const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10 * T_GAS;
-const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 10 * T_GAS;
+const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 20 * T_GAS;
 const GAS_FOR_RESOLVER_FUNCTION: u64 = 10 * T_GAS;
 const GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 40 * T_GAS;
 const GAS_CAP_FOR_MULTI_TXS_PROCESSING: Gas = 160 * T_GAS;
@@ -129,10 +127,10 @@ pub struct AppchainAnchor {
     /// The NEP-141 tokens data.
     near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
-    validator_set_histories: LazyOption<IndexedHistories<ValidatorSetOfEra>>,
+    validator_set_histories: LazyOption<LookupArray<ValidatorSetOfEra>>,
     /// The validator set of the next era in appchain.
     /// This validator set is only for checking staking rules.
-    next_validator_set: LazyOption<ValidatorSet>,
+    next_validator_set: LazyOption<NextValidatorSet>,
     /// The map of unwithdrawn validator rewards in eras, in unit of wrapped appchain token.
     /// The key in map is `(era_number, account_id_of_validator)`
     unwithdrawn_validator_rewards: LookupMap<(u64, AccountId), Balance>,
@@ -152,11 +150,11 @@ pub struct AppchainAnchor {
     /// The state of the corresponding appchain.
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
-    staking_histories: LazyOption<IndexedHistories<StakingHistory>>,
+    staking_histories: LazyOption<LookupArray<StakingHistory>>,
     /// The anchor event history data.
-    anchor_event_histories: LazyOption<IndexedHistories<AnchorEventHistory>>,
+    anchor_event_histories: LazyOption<LookupArray<AnchorEventHistory>>,
     /// The appchain notification history data.
-    appchain_notification_histories: LazyOption<IndexedHistories<AppchainNotificationHistory>>,
+    appchain_notification_histories: LazyOption<LookupArray<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
@@ -169,6 +167,8 @@ pub struct AppchainAnchor {
     user_staking_histories: LazyOption<UserStakingHistories>,
     /// Whether the rewards withdrawal is paused
     rewards_withdrawal_is_paused: bool,
+    /// The processing result of appchain messages
+    appchain_message_processing_results: LazyOption<AppchainMessageProcessingResults>,
 }
 
 #[near_bindgen]
@@ -201,11 +201,11 @@ impl AppchainAnchor {
             ),
             validator_set_histories: LazyOption::new(
                 StorageKey::ValidatorSetHistories.into_bytes(),
-                Some(&IndexedHistories::new(StorageKey::ValidatorSetHistoriesMap)),
+                Some(&LookupArray::new(StorageKey::ValidatorSetHistoriesMap)),
             ),
             next_validator_set: LazyOption::new(
                 StorageKey::NextValidatorSet.into_bytes(),
-                Some(&ValidatorSet::new(u64::MAX)),
+                Some(&NextValidatorSet::new(u64::MAX)),
             ),
             unwithdrawn_validator_rewards: LookupMap::new(
                 StorageKey::UnwithdrawnValidatorRewards.into_bytes(),
@@ -233,15 +233,15 @@ impl AppchainAnchor {
             appchain_state: AppchainState::Staging,
             staking_histories: LazyOption::new(
                 StorageKey::StakingHistories.into_bytes(),
-                Some(&IndexedHistories::new(StorageKey::StakingHistoriesMap)),
+                Some(&LookupArray::new(StorageKey::StakingHistoriesMap)),
             ),
             anchor_event_histories: LazyOption::new(
                 StorageKey::AnchorEventHistories.into_bytes(),
-                Some(&IndexedHistories::new(StorageKey::AnchorEventHistoriesMap)),
+                Some(&LookupArray::new(StorageKey::AnchorEventHistoriesMap)),
             ),
             appchain_notification_histories: LazyOption::new(
                 StorageKey::AppchainNotificationHistories.into_bytes(),
-                Some(&IndexedHistories::new(
+                Some(&LookupArray::new(
                     StorageKey::AppchainNotificationHistoriesMap,
                 )),
             ),
@@ -266,6 +266,10 @@ impl AppchainAnchor {
                 Some(&UserStakingHistories::new()),
             ),
             rewards_withdrawal_is_paused: false,
+            appchain_message_processing_results: LazyOption::new(
+                StorageKey::AppchainMessageProcessingResults.into_bytes(),
+                Some(&AppchainMessageProcessingResults::new()),
+            ),
         }
     }
     // Assert that the contract called by the owner.
@@ -276,40 +280,28 @@ impl AppchainAnchor {
             "Function can only be called by owner."
         );
     }
-    // Assert that the contract called by a registered validator.
-    fn assert_validator_id(&self, validator_id: &AccountId, validator_set: &ValidatorSet) {
+    // Assert the given validator is existed in the given validator set.
+    fn assert_validator_id<V: ValidatorSetViewer>(
+        &self,
+        validator_id: &AccountId,
+        validator_set: &V,
+    ) {
         assert!(
-            validator_set.validator_id_set.contains(validator_id)
-                || validator_set.validators.contains_key(validator_id),
+            validator_set.contains_validator(validator_id),
             "Validator id '{}' is not valid.",
             validator_id
         );
     }
-    // Assert that the contract called by a registered validator.
-    fn assert_delegator_id(
+    // Assert the given delegator is existed in the given validator set.
+    fn assert_delegator_id<V: ValidatorSetViewer>(
         &self,
         delegator_id: &AccountId,
         validator_id: &AccountId,
-        validator_set: &ValidatorSet,
+        validator_set: &V,
     ) {
         self.assert_validator_id(validator_id, validator_set);
         assert!(
-            validator_set
-                .validator_id_to_delegator_id_set
-                .contains_key(validator_id),
-            "Delegator id '{}' of validator '{}' is not valid.",
-            delegator_id,
-            validator_id
-        );
-        let delegator_id_set = validator_set
-            .validator_id_to_delegator_id_set
-            .get(validator_id)
-            .unwrap();
-        assert!(
-            delegator_id_set.contains(delegator_id)
-                || validator_set
-                    .delegators
-                    .contains_key(&(delegator_id.clone(), validator_id.clone())),
+            validator_set.contains_delegator(delegator_id, validator_id),
             "Delegator id '{}' of validator '{}' is not valid.",
             delegator_id,
             validator_id
@@ -348,6 +340,29 @@ impl AppchainAnchor {
             "Rewards withdrawal is now paused."
         );
     }
+    //
+    fn assert_validator_stake_is_valid(&self, deposit_amount: u128, total_stake: Option<u128>) {
+        let protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            deposit_amount >= protocol_settings.minimum_validator_deposit.0,
+            "The deposit of the validator is too few.",
+        );
+        if let Some(total_stake) = total_stake {
+            if self.appchain_state.eq(&AppchainState::Active) {
+                let validator_set_histories = self.validator_set_histories.get().unwrap();
+                let validator_set = validator_set_histories
+                    .get(&validator_set_histories.index_range().end_index.0)
+                    .unwrap();
+                let maximum_allowed_deposit = validator_set.total_stake()
+                    * u128::from(protocol_settings.maximum_validator_stake_percent)
+                    / 100;
+                assert!(
+                    total_stake <= maximum_allowed_deposit,
+                    "The total stake of the validator is too much."
+                );
+            }
+        }
+    }
     /// Set the price (in USD) of OCT token
     pub fn set_price_of_oct_token(&mut self, price: U128) {
         let anchor_settings = self.anchor_settings.get().unwrap();
@@ -364,7 +379,7 @@ impl AppchainAnchor {
     ///
     pub fn get_market_value_of_staked_oct_token(&self) -> U128 {
         U128::from(
-            self.next_validator_set.get().unwrap().total_stake / OCT_DECIMALS_VALUE
+            self.next_validator_set.get().unwrap().total_stake() / OCT_DECIMALS_VALUE
                 * self.oct_token.get().unwrap().price_in_usd.0,
         )
     }
@@ -451,12 +466,8 @@ impl AppchainAnchor {
         ext_appchain_registry::sync_state_of(
             self.appchain_id.clone(),
             self.appchain_state.clone(),
-            next_validator_set
-                .validator_id_set
-                .len()
-                .try_into()
-                .unwrap(),
-            U128::from(next_validator_set.total_stake),
+            next_validator_set.validator_count().try_into().unwrap(),
+            U128::from(next_validator_set.total_stake()),
             &self.appchain_registry,
             0,
             GAS_FOR_SYNC_STATE_TO_REGISTRY,
