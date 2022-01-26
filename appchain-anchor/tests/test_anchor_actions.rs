@@ -135,7 +135,7 @@ fn test_normal_actions(
     // Initialize wrapped appchain token contract.
     //
     let result = wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
-        &users[4], &anchor, 110,
+        &users[4], &anchor, 0,
     );
     result.assert_success();
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
@@ -231,7 +231,7 @@ fn test_normal_actions(
     // user2 register delegator to user0 (error)
     //
     let user2_balance = token_viewer::get_oct_balance_of(&users[2], &oct_token);
-    let amount2 = common::to_oct_amount(999);
+    let amount2 = common::to_oct_amount(499);
     let result = staking_actions::register_delegator(
         &users[2],
         &oct_token,
