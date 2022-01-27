@@ -254,7 +254,7 @@ impl AppchainAnchor {
                     });
                     self.internal_append_appchain_notification(
                         AppchainNotification::NearFungibleTokenLocked {
-                            symbol: near_fungible_token.metadata.symbol.clone(),
+                            contract_account: near_fungible_token.contract_account,
                             sender_id_in_near: sender_id.clone(),
                             receiver_id_in_appchain: receiver_id_in_appchain.clone(),
                             amount,
