@@ -273,13 +273,15 @@ impl AppchainAnchor {
     pub fn internal_unlock_near_fungible_token(
         &mut self,
         sender_id_in_appchain: String,
-        symbol: String,
+        contract_account: String,
         receiver_id_in_near: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
     ) -> AppchainMessageProcessingResult {
         let near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
-        if let Some(near_fungible_token) = near_fungible_tokens.get(&symbol) {
+        if let Some(near_fungible_token) =
+            near_fungible_tokens.get_by_contract_account(&contract_account)
+        {
             ext_fungible_token::ft_transfer(
                 receiver_id_in_near.clone(),
                 amount,
@@ -289,7 +291,7 @@ impl AppchainAnchor {
                 GAS_FOR_FT_TRANSFER,
             )
             .then(ext_self::resolve_fungible_token_transfer(
-                symbol,
+                near_fungible_token.metadata.symbol,
                 sender_id_in_appchain,
                 receiver_id_in_near.clone(),
                 amount,
@@ -308,7 +310,10 @@ impl AppchainAnchor {
         } else {
             let result = AppchainMessageProcessingResult::Error {
                 nonce: appchain_message_nonce,
-                message: format!("Invalid symbol of NEAR fungible token: {}", symbol),
+                message: format!(
+                    "Invalid contract account of NEAR fungible token: {}",
+                    &contract_account
+                ),
             };
             self.record_appchain_message_processing_result(&result);
             result

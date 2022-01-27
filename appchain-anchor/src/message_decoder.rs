@@ -78,7 +78,7 @@ pub fn decode(encoded_message: Vec<u8>) -> Vec<AppchainMessage> {
                 AppchainMessage {
                     nonce: m.nonce as u32,
                     appchain_event: AppchainEvent::NearFungibleTokenBurnt {
-                        symbol: payload.token_id,
+                        contract_account: payload.token_id,
                         owner_id_in_appchain: payload.sender,
                         receiver_id_in_near: payload.receiver_id,
                         amount: payload.amount.into(),
