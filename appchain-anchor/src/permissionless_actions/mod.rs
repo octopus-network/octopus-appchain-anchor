@@ -10,7 +10,7 @@ use core::convert::TryInto;
 pub enum AppchainEvent {
     /// The fact that a certain amount of bridge token has been burnt in the appchain.
     NearFungibleTokenBurnt {
-        symbol: String,
+        contract_account: String,
         owner_id_in_appchain: String,
         receiver_id_in_near: AccountId,
         amount: U128,
@@ -200,7 +200,7 @@ impl AppchainAnchor {
     ) -> AppchainMessageProcessingResult {
         match appchain_message.appchain_event {
             permissionless_actions::AppchainEvent::NearFungibleTokenBurnt {
-                symbol,
+                contract_account,
                 owner_id_in_appchain,
                 receiver_id_in_near,
                 amount,
@@ -215,7 +215,7 @@ impl AppchainAnchor {
                 }
                 self.internal_unlock_near_fungible_token(
                     owner_id_in_appchain,
-                    symbol,
+                    contract_account,
                     receiver_id_in_near,
                     amount,
                     appchain_message.nonce,
