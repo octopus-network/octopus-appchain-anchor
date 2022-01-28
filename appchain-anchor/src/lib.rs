@@ -53,7 +53,7 @@ const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10 * T_GAS;
 const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 20 * T_GAS;
 const GAS_FOR_RESOLVER_FUNCTION: u64 = 10 * T_GAS;
 const GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 40 * T_GAS;
-const GAS_CAP_FOR_MULTI_TXS_PROCESSING: Gas = 160 * T_GAS;
+const GAS_CAP_FOR_MULTI_TXS_PROCESSING: Gas = 150 * T_GAS;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.
