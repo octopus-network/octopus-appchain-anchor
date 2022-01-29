@@ -44,9 +44,10 @@ impl AppchainAnchor {
         validator_profiles.insert(validator_profile);
         self.validator_profiles.set(&validator_profiles);
         //
-        self.record_and_apply_staking_fact(StakingFact::ValidatorIdInAppchainChanged {
+        let staking_history = self.record_staking_fact(StakingFact::ValidatorIdInAppchainChanged {
             validator_id: validator_id.clone(),
             validator_id_in_appchain: account_id_in_appchain.clone(),
         });
+        self.apply_staking_history_to_next_validator_set(&staking_history);
     }
 }
