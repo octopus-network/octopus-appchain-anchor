@@ -1,5 +1,6 @@
 use super::ResultOfLoopingValidatorSet;
 use crate::*;
+use core::convert::TryFrom;
 use user_actions::UnbondedStakeReference;
 
 impl AppchainAnchor {
@@ -255,12 +256,16 @@ impl AppchainAnchor {
         delegator_index: u64,
     ) -> ResultOfLoopingValidatorSet {
         let next_validator_set = self.next_validator_set.get().unwrap();
-        if validator_index >= next_validator_set.validator_set().validator_count() {
+        let unbonding_validator_ids = next_validator_set.get_unbonding_validator_ids();
+        if validator_index >= unbonding_validator_ids.len().try_into().unwrap() {
             return ResultOfLoopingValidatorSet::NoMoreValidator;
         }
+        let validator_id = unbonding_validator_ids
+            .get(usize::from(u16::try_from(validator_index).unwrap()))
+            .unwrap();
         let validator = next_validator_set
             .validator_set()
-            .get_validator_by_index(&validator_index)
+            .get_validator(&validator_id)
             .unwrap();
         if delegator_index
             >= next_validator_set
@@ -291,12 +296,16 @@ impl AppchainAnchor {
         delegator_index: u64,
     ) -> ResultOfLoopingValidatorSet {
         let next_validator_set = self.next_validator_set.get().unwrap();
-        if validator_index >= next_validator_set.validator_set().validator_count() {
+        let auto_unbonding_validator_ids = next_validator_set.get_auto_unbonding_validator_ids();
+        if validator_index >= auto_unbonding_validator_ids.len().try_into().unwrap() {
             return ResultOfLoopingValidatorSet::NoMoreValidator;
         }
+        let validator_id = auto_unbonding_validator_ids
+            .get(usize::from(u16::try_from(validator_index).unwrap()))
+            .unwrap();
         let validator = next_validator_set
             .validator_set()
-            .get_validator_by_index(&validator_index)
+            .get_validator(&validator_id)
             .unwrap();
         if delegator_index
             >= next_validator_set
