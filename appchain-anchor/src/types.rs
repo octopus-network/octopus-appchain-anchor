@@ -1,6 +1,5 @@
-use crate::borsh::maybestd::collections::HashMap;
-
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
+use near_sdk::borsh::maybestd::collections::HashMap;
 use near_sdk::{json_types::I128, BlockHeight};
 
 use crate::*;
@@ -28,7 +27,7 @@ impl AccountIdInAppchain {
         }
     }
     ///
-    fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         if self.raw_string.len() > 2 {
             match hex::decode(&self.raw_string.as_str()[2..self.raw_string.len()]) {
                 Ok(bytes) => bytes.len() == 32,
@@ -110,9 +109,16 @@ pub struct ProtocolSettings {
     /// A validator has to deposit a certain amount of OCT token to this contract for
     /// being validator of the appchain.
     pub minimum_validator_deposit: U128,
+    /// The minimum amount for a validator to increase or decrease his/her deposit.
+    pub minimum_validator_deposit_changing_amount: U128,
+    /// The maximum percent value that the deposit of a validator in total stake
+    pub maximum_validator_stake_percent: u16,
     /// The minimum deposit amount for a delegator to delegate his voting weight to
     /// a certain validator.
     pub minimum_delegator_deposit: U128,
+    /// The minimum amount for a delegator to increase or decrease his/her delegation
+    /// to a validator.
+    pub minimum_delegator_deposit_changing_amount: U128,
     /// The minimum price (in USD) of total stake in this contract for
     /// booting corresponding appchain
     pub minimum_total_stake_price_for_booting: U128,
@@ -145,6 +151,8 @@ pub struct ProtocolSettings {
     pub maximum_era_count_of_valid_appchain_message: U64,
     /// The percent of commission fees of a validator's reward in an era
     pub validator_commission_percent: u16,
+    /// The maximum unprofitable era count for auto-unbonding a validator
+    pub maximum_allowed_unprofitable_era_count: u16,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -238,6 +246,22 @@ pub enum StakingFact {
         delegator_id: AccountId,
         validator_id: AccountId,
         amount: U128,
+    },
+    /// A validator is unbonded by contract automatically
+    ValidatorAutoUnbonded {
+        validator_id: AccountId,
+        amount: U128,
+    },
+    /// A delegator is unbonded by contract automatically
+    DelegatorAutoUnbonded {
+        delegator_id: AccountId,
+        validator_id: AccountId,
+        amount: U128,
+    },
+    /// A validator's account id in appchain changed
+    ValidatorIdInAppchainChanged {
+        validator_id: AccountId,
+        validator_id_in_appchain: String,
     },
 }
 
@@ -337,6 +361,7 @@ pub struct AppchainValidator {
     pub total_stake: U128,
     pub delegators_count: U64,
     pub can_be_delegated_to: bool,
+    pub is_unbonding: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -361,6 +386,10 @@ pub struct UnbondedStake {
     pub unlock_time: U64,
 }
 
+/// The actual processing order is:
+/// `CopyingFromLastEra` -> `UnbondingValidator`-> `AutoUnbondingValidator`
+/// -> `ApplyingStakingHistory` -> `ReadyForDistributingReward` -> `DistributingReward`
+/// -> `CheckingForAutoUnbondingValidator` -> `Completed`
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum ValidatorSetProcessingStatus {
@@ -378,6 +407,17 @@ pub enum ValidatorSetProcessingStatus {
         distributing_delegator_index: U64,
     },
     Completed,
+    UnbondingValidator {
+        unbonding_validator_index: U64,
+        unbonding_delegator_index: U64,
+    },
+    AutoUnbondingValidator {
+        unbonding_validator_index: U64,
+        unbonding_delegator_index: U64,
+    },
+    CheckingForAutoUnbondingValidator {
+        unprofitable_validator_index: U64,
+    },
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -409,9 +449,12 @@ pub struct RewardHistory {
 pub struct AnchorStatus {
     pub total_stake_in_next_era: U128,
     pub validator_count_in_next_era: U64,
+    pub delegator_count_in_next_era: U64,
+    pub index_range_of_appchain_notification_history: IndexRange,
     pub index_range_of_validator_set_history: IndexRange,
     pub index_range_of_anchor_event_history: IndexRange,
     pub index_range_of_staking_history: IndexRange,
+    pub index_range_of_appchain_message_processing_results: IndexRange,
     pub permissionless_actions_status: PermissionlessActionsStatus,
     pub asset_transfer_is_paused: bool,
     pub rewards_withdrawal_is_paused: bool,
@@ -456,7 +499,7 @@ pub struct ValidatorProfile {
 pub enum AppchainNotification {
     /// A certain amount of a NEAR fungible token has been locked in appchain anchor.
     NearFungibleTokenLocked {
-        symbol: String,
+        contract_account: String,
         sender_id_in_near: AccountId,
         receiver_id_in_appchain: String,
         amount: U128,
@@ -479,7 +522,7 @@ pub struct AppchainNotificationHistory {
     pub index: U64,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainMessageProcessingResult {
     Ok { nonce: u32, message: Option<String> },

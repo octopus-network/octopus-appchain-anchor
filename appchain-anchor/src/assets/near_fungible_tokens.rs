@@ -254,7 +254,7 @@ impl AppchainAnchor {
                     });
                     self.internal_append_appchain_notification(
                         AppchainNotification::NearFungibleTokenLocked {
-                            symbol: near_fungible_token.metadata.symbol.clone(),
+                            contract_account: near_fungible_token.contract_account,
                             sender_id_in_near: sender_id.clone(),
                             receiver_id_in_appchain: receiver_id_in_appchain.clone(),
                             amount,
@@ -273,23 +273,25 @@ impl AppchainAnchor {
     pub fn internal_unlock_near_fungible_token(
         &mut self,
         sender_id_in_appchain: String,
-        symbol: String,
+        contract_account: String,
         receiver_id_in_near: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
     ) -> AppchainMessageProcessingResult {
         let near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
-        if let Some(near_fungible_token) = near_fungible_tokens.get(&symbol) {
+        if let Some(near_fungible_token) =
+            near_fungible_tokens.get_by_contract_account(&contract_account)
+        {
             ext_fungible_token::ft_transfer(
                 receiver_id_in_near.clone(),
                 amount,
                 None,
                 &near_fungible_token.contract_account,
                 1,
-                GAS_FOR_FT_TRANSFER_CALL,
+                GAS_FOR_FT_TRANSFER,
             )
             .then(ext_self::resolve_fungible_token_transfer(
-                symbol,
+                near_fungible_token.metadata.symbol,
                 sender_id_in_appchain,
                 receiver_id_in_near.clone(),
                 amount,
@@ -306,10 +308,15 @@ impl AppchainAnchor {
                 )),
             }
         } else {
-            AppchainMessageProcessingResult::Error {
+            let result = AppchainMessageProcessingResult::Error {
                 nonce: appchain_message_nonce,
-                message: format!("Invalid symbol of NEAR fungible token: {}", symbol),
-            }
+                message: format!(
+                    "Invalid contract account of NEAR fungible token: {}",
+                    &contract_account
+                ),
+            };
+            self.record_appchain_message_processing_result(&result);
+            result
         }
     }
 }
@@ -345,19 +352,33 @@ impl FungibleTokenContractResolver for AppchainAnchor {
                         };
                     near_fungible_tokens.insert(&near_fungible_token);
                 };
+                self.record_appchain_message_processing_result(
+                    &AppchainMessageProcessingResult::Ok {
+                        nonce: appchain_message_nonce,
+                        message: None,
+                    },
+                );
             }
             PromiseResult::Failed => {
+                let reason = format!(
+                    "Maybe the receiver account '{}' is not registered in '{}' token contract.",
+                    &receiver_id_in_near, &symbol
+                );
+                let message = format!("Failed to unlock near fungible token. {}", reason);
                 self.internal_append_anchor_event(AnchorEvent::FailedToUnlockNearFungibleToken {
                     symbol: symbol.clone(),
                     sender_id_in_appchain,
                     receiver_id_in_near: receiver_id_in_near.clone(),
                     amount,
                     appchain_message_nonce,
-                    reason: format!(
-                        "Maybe the receiver account '{}' is not registered in '{}' token contract.",
-                        &receiver_id_in_near, &symbol
-                    ),
+                    reason,
                 });
+                self.record_appchain_message_processing_result(
+                    &AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message_nonce,
+                        message,
+                    },
+                );
             }
         }
     }
