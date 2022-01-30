@@ -2,6 +2,9 @@ use near_sdk::BlockHeight;
 
 use crate::*;
 
+pub mod next_validator_set;
+pub mod validator_set_of_era;
+
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Validator {
     /// The validator's id in NEAR protocol.
@@ -54,33 +57,35 @@ pub struct ValidatorSet {
     pub total_stake: Balance,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct ValidatorSetOfEra {
-    /// The validator set of this era
-    pub validator_set: ValidatorSet,
-    /// The block height when the era starts.
-    pub start_block_height: BlockHeight,
-    /// The timestamp when the era starts.
-    pub start_timestamp: Timestamp,
-    /// The index of the latest staking history happened in the era of corresponding appchain.
-    pub staking_history_index: u64,
-    /// The set of validator id which will not be profited.
-    pub unprofitable_validator_id_set: UnorderedSet<AccountId>,
-    /// Total stake excluding all unprofitable validators' stake.
-    pub valid_total_stake: Balance,
-    /// The rewards of validators in this era
-    pub validator_rewards: LookupMap<AccountId, Balance>,
-    /// The rewards of delegators in this era
-    pub delegator_rewards: LookupMap<(AccountId, AccountId), Balance>,
-    /// The status of creation of this set
-    pub processing_status: ValidatorSetProcessingStatus,
-}
-
-pub trait ValidatorSetActions {
-    /// Get validator list of current validator set
+pub trait ValidatorSetViewer {
+    ///
+    fn contains_validator(&self, validator_id: &AccountId) -> bool;
+    ///
+    fn contains_delegator(&self, delegator_id: &AccountId, validator_id: &AccountId) -> bool;
+    ///
+    fn get_validator(&self, validator_id: &AccountId) -> Option<Validator>;
+    ///
+    fn get_delegator(
+        &self,
+        delegator_id: &AccountId,
+        validator_id: &AccountId,
+    ) -> Option<Delegator>;
+    ///
+    fn get_validator_ids(&self) -> Vec<AccountId>;
+    ///
+    fn get_validator_ids_of(&self, delegator_id: &AccountId) -> Vec<AccountId>;
+    ///
+    fn get_delegator_ids_of(&self, validator_id: &AccountId) -> Vec<AccountId>;
+    ///
     fn get_validator_list(&self) -> Vec<AppchainValidator>;
-    /// Apply a certain `staking history` to the validator set.
-    fn apply_staking_history(&mut self, staking_history: &StakingHistory);
+    ///
+    fn get_validator_count_of(&self, delegator_id: &AccountId) -> u64;
+    ///
+    fn total_stake(&self) -> u128;
+    ///
+    fn validator_count(&self) -> u64;
+    ///
+    fn delegator_count(&self) -> u64;
 }
 
 impl ValidatorSet {
@@ -128,37 +133,10 @@ impl ValidatorSet {
         self.validator_id_set.clear();
         self.total_stake = 0;
     }
-}
-
-impl ValidatorSetActions for ValidatorSet {
     //
-    fn get_validator_list(&self) -> Vec<AppchainValidator> {
-        let validator_ids = self.validator_id_set.to_vec();
-        validator_ids
-            .iter()
-            .map(|validator_id| {
-                let validator = self.validators.get(validator_id).unwrap();
-                let mut delegators_count: u64 = 0;
-                if let Some(delegator_id_set) =
-                    self.validator_id_to_delegator_id_set.get(validator_id)
-                {
-                    delegators_count = delegator_id_set.len();
-                }
-                return AppchainValidator {
-                    validator_id: validator.validator_id,
-                    validator_id_in_appchain: validator.validator_id_in_appchain,
-                    deposit_amount: U128::from(validator.deposit_amount),
-                    total_stake: U128::from(validator.total_stake),
-                    delegators_count: U64::from(delegators_count),
-                    can_be_delegated_to: validator.can_be_delegated_to,
-                };
-            })
-            .collect()
-    }
-    //
-    fn apply_staking_history(&mut self, staking_history: &StakingHistory) {
-        match &staking_history.staking_fact {
-            types::StakingFact::ValidatorRegistered {
+    fn apply_staking_fact(&mut self, staking_fact: &StakingFact) {
+        match staking_fact {
+            StakingFact::ValidatorRegistered {
                 validator_id,
                 validator_id_in_appchain,
                 amount,
@@ -179,7 +157,7 @@ impl ValidatorSetActions for ValidatorSet {
                 );
                 self.total_stake += amount.0;
             }
-            types::StakingFact::StakeIncreased {
+            StakingFact::StakeIncreased {
                 validator_id,
                 amount,
             } => {
@@ -189,7 +167,7 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake += amount.0;
             }
-            types::StakingFact::StakeDecreased {
+            StakingFact::StakeDecreased {
                 validator_id,
                 amount,
             } => {
@@ -199,46 +177,36 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake -= amount.0;
             }
-            types::StakingFact::ValidatorUnbonded {
+            StakingFact::ValidatorUnbonded {
+                validator_id,
+                amount: _,
+            }
+            | StakingFact::ValidatorAutoUnbonded {
                 validator_id,
                 amount: _,
             } => {
-                if let Some(delegator_id_set) =
-                    self.validator_id_to_delegator_id_set.get(validator_id)
-                {
-                    let delegator_ids = delegator_id_set.to_vec();
-                    delegator_ids.iter().for_each(|delegator_id| {
-                        self.delegators
-                            .remove(&(delegator_id.clone(), validator_id.clone()));
-                        if let Some(mut validator_id_set) =
-                            self.delegator_id_to_validator_id_set.get(delegator_id)
-                        {
-                            validator_id_set.remove(validator_id);
-                            if validator_id_set.len() > 0 {
-                                self.delegator_id_to_validator_id_set
-                                    .insert(delegator_id, &validator_id_set);
-                            } else {
-                                self.delegator_id_to_validator_id_set.remove(delegator_id);
-                            }
-                        }
-                    });
-                    self.validator_id_to_delegator_id_set.remove(validator_id);
-                }
+                assert!(
+                    !self
+                        .validator_id_to_delegator_id_set
+                        .contains_key(validator_id),
+                    "All delegators should be unbonded first, before unbonding validator '{}'.",
+                    validator_id
+                );
                 let validator = self.validators.remove(validator_id).unwrap();
                 self.total_stake -= validator.total_stake;
                 self.validator_id_set.remove(validator_id);
             }
-            types::StakingFact::ValidatorDelegationEnabled { validator_id } => {
+            StakingFact::ValidatorDelegationEnabled { validator_id } => {
                 let mut validator = self.validators.get(validator_id).unwrap();
                 validator.can_be_delegated_to = true;
                 self.validators.insert(validator_id, &validator);
             }
-            types::StakingFact::ValidatorDelegationDisabled { validator_id } => {
+            StakingFact::ValidatorDelegationDisabled { validator_id } => {
                 let mut validator = self.validators.get(validator_id).unwrap();
                 validator.can_be_delegated_to = false;
                 self.validators.insert(validator_id, &validator);
             }
-            types::StakingFact::DelegatorRegistered {
+            StakingFact::DelegatorRegistered {
                 delegator_id,
                 validator_id,
                 amount,
@@ -302,7 +270,7 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake += amount.0;
             }
-            types::StakingFact::DelegationIncreased {
+            StakingFact::DelegationIncreased {
                 delegator_id,
                 validator_id,
                 amount,
@@ -319,7 +287,7 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake += amount.0;
             }
-            types::StakingFact::DelegationDecreased {
+            StakingFact::DelegationDecreased {
                 delegator_id,
                 validator_id,
                 amount,
@@ -336,7 +304,12 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake -= amount.0;
             }
-            types::StakingFact::DelegatorUnbonded {
+            StakingFact::DelegatorUnbonded {
+                delegator_id,
+                validator_id,
+                amount: _,
+            }
+            | StakingFact::DelegatorAutoUnbonded {
                 delegator_id,
                 validator_id,
                 amount: _,
@@ -372,115 +345,14 @@ impl ValidatorSetActions for ValidatorSet {
                 self.validators.insert(validator_id, &validator);
                 self.total_stake -= delegator.deposit_amount;
             }
-        }
-    }
-}
-
-impl ValidatorSetOfEra {
-    ///
-    pub fn new(era_number: u64, staking_history_index: u64) -> Self {
-        Self {
-            start_block_height: env::block_index(),
-            start_timestamp: env::block_timestamp(),
-            staking_history_index,
-            unprofitable_validator_id_set: UnorderedSet::new(
-                StorageKey::UnprofitableValidatorIdsOfEra(era_number).into_bytes(),
-            ),
-            validator_set: ValidatorSet::new(era_number),
-            valid_total_stake: 0,
-            validator_rewards: LookupMap::new(
-                StorageKey::ValidatorRewardsOfEra(era_number).into_bytes(),
-            ),
-            delegator_rewards: LookupMap::new(
-                StorageKey::DelegatorRewardsOfEra(era_number).into_bytes(),
-            ),
-            processing_status: ValidatorSetProcessingStatus::CopyingFromLastEra {
-                copying_validator_index: U64::from(0),
-                copying_delegator_index: U64::from(0),
-            },
-        }
-    }
-    ///
-    pub fn set_unprofitable_validator_ids(&mut self, unprofitable_validator_ids: Vec<AccountId>) {
-        unprofitable_validator_ids.iter().for_each(|v_id| {
-            self.unprofitable_validator_id_set.insert(&v_id);
-        });
-    }
-    ///
-    pub fn calculate_valid_total_stake(&mut self) {
-        let unprofitable_validator_ids = self.unprofitable_validator_id_set.to_vec();
-        self.valid_total_stake = self.validator_set.total_stake;
-        unprofitable_validator_ids.iter().for_each(|v_id| {
-            let validator = self.validator_set.validators.get(v_id).unwrap();
-            self.valid_total_stake -= validator.total_stake;
-        });
-    }
-    ///
-    pub fn to_validator_set_info(&self) -> ValidatorSetInfo {
-        ValidatorSetInfo {
-            era_number: U64::from(self.validator_set.era_number),
-            total_stake: U128::from(self.validator_set.total_stake),
-            validator_list: self.validator_set.get_validator_list(),
-            start_block_height: U64::from(self.start_block_height),
-            start_timestamp: U64::from(self.start_timestamp),
-            staking_history_index: U64::from(self.staking_history_index),
-            unprofitable_validator_ids: self.unprofitable_validator_id_set.to_vec(),
-            valid_total_stake: U128::from(self.valid_total_stake),
-            processing_status: self.processing_status.clone(),
-        }
-    }
-    ///
-    pub fn clear_reward_distribution_records(&mut self) {
-        let validator_ids = self.validator_set.validator_id_set.to_vec();
-        for validator_id in validator_ids {
-            if self.unprofitable_validator_id_set.contains(&validator_id) {
-                continue;
+            StakingFact::ValidatorIdInAppchainChanged {
+                validator_id,
+                validator_id_in_appchain,
+            } => {
+                let mut validator = self.validators.get(validator_id).unwrap();
+                validator.validator_id_in_appchain = validator_id_in_appchain.to_string();
+                self.validators.insert(validator_id, &validator);
             }
-            if let Some(delegator_id_set) = self
-                .validator_set
-                .validator_id_to_delegator_id_set
-                .get(&validator_id)
-            {
-                let delegator_ids = delegator_id_set.to_vec();
-                for delegator_id in delegator_ids {
-                    self.delegator_rewards
-                        .remove(&(delegator_id.clone(), validator_id.clone()));
-                }
-            }
-            self.validator_rewards.remove(&validator_id);
         }
-        self.unprofitable_validator_id_set.clear();
-    }
-    ///
-    pub fn clear(&mut self) {
-        self.clear_reward_distribution_records();
-        self.validator_set.clear();
-    }
-}
-
-impl ValidatorSetActions for ValidatorSetOfEra {
-    //
-    fn get_validator_list(&self) -> Vec<AppchainValidator> {
-        match self.processing_status {
-            ValidatorSetProcessingStatus::ReadyForDistributingReward
-            | ValidatorSetProcessingStatus::DistributingReward { .. }
-            | ValidatorSetProcessingStatus::Completed => self.validator_set.get_validator_list(),
-            _ => Vec::new(),
-        }
-    }
-    //
-    fn apply_staking_history(&mut self, staking_history: &StakingHistory) {
-        self.validator_set.apply_staking_history(staking_history);
-    }
-}
-
-impl IndexedAndClearable for ValidatorSetOfEra {
-    //
-    fn set_index(&mut self, _index: &u64) {
-        ()
-    }
-    //
-    fn clear_extra_storage(&mut self) {
-        self.clear();
     }
 }

@@ -1,7 +1,5 @@
 use crate::*;
-use crate::{
-    interfaces::SudoActions, message_decoder::AppchainMessage, validator_set::ValidatorSetActions,
-};
+use crate::{interfaces::SudoActions, message_decoder::AppchainMessage};
 
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 
@@ -40,28 +38,50 @@ impl SudoActions for AppchainAnchor {
     //
     fn reset_validator_set_histories_to(&mut self, era_number: U64) {
         self.assert_owner();
-        // Clear validator set histories after the `era_number`
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         validator_set_histories.reset_to(&era_number.0);
         self.validator_set_histories.set(&validator_set_histories);
-        // Copy the target validator set to `next_validator_set`
-        let mut next_validator_set = self.next_validator_set.get().unwrap();
-        next_validator_set.clear();
-        let staking_history_index = validator_set_histories
-            .get(&era_number.0)
-            .unwrap()
-            .staking_history_index;
-        let staking_histories = self.staking_histories.get().unwrap();
-        for index in 0..staking_history_index + 1 {
-            next_validator_set.apply_staking_history(&staking_histories.get(&index).unwrap());
+    }
+    //
+    fn reset_staking_histories_to(&mut self, era_number: U64) {
+        self.assert_owner();
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        if let Some(validator_set_of_era) = validator_set_histories.get(&era_number.0) {
+            let mut staking_histories = self.staking_histories.get().unwrap();
+            staking_histories.reset_to(&validator_set_of_era.staking_history_index());
+            self.staking_histories.set(&staking_histories);
         }
-        self.next_validator_set.set(&next_validator_set);
-        // Clear staking histories after the index in target `validator set of era`
-        let mut staking_histories = self.staking_histories.get().unwrap();
-        staking_histories.reset_to(&staking_history_index);
-        self.staking_histories.set(&staking_histories);
-        // Reset validator profiles
-        self.reset_validator_profiles_to(era_number);
+    }
+    //
+    fn refresh_user_staking_histories(&mut self) {
+        self.assert_owner();
+        let mut user_staking_histories = self.user_staking_histories.get().unwrap();
+        user_staking_histories.clear();
+        let staking_histories = self.staking_histories.get().unwrap();
+        let index_range = staking_histories.index_range();
+        for index in index_range.start_index.0..index_range.end_index.0 + 1 {
+            if let Some(staking_history) = staking_histories.get(&index) {
+                user_staking_histories.add_staking_history(&staking_history);
+            }
+        }
+        self.user_staking_histories.set(&user_staking_histories);
+    }
+    //
+    fn reset_next_validator_set_to(&mut self, era_number: U64) {
+        self.assert_owner();
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        if let Some(validator_set_of_era) = validator_set_histories.get(&era_number.0) {
+            let mut next_validator_set = self.next_validator_set.get().unwrap();
+            next_validator_set.clear();
+            let staking_history_index = validator_set_of_era.staking_history_index();
+            let staking_histories = self.staking_histories.get().unwrap();
+            for index in 0..staking_history_index + 1 {
+                if let Some(staking_history) = staking_histories.get(&index) {
+                    next_validator_set.apply_staking_fact(&staking_history.staking_fact);
+                }
+            }
+            self.next_validator_set.set(&next_validator_set);
+        }
     }
     //
     fn clear_anchor_event_histories(&mut self) {
@@ -89,12 +109,11 @@ impl SudoActions for AppchainAnchor {
     fn clear_reward_distribution_records(&mut self, era_number: U64) {
         self.assert_owner();
         let mut reward_distribution_records = self.reward_distribution_records.get().unwrap();
-        let next_validator_set = self.next_validator_set.get().unwrap();
-        reward_distribution_records.clear(&next_validator_set, &era_number.0);
-        self.reward_distribution_records
-            .set(&reward_distribution_records);
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         if let Some(mut validator_set_of_era) = validator_set_histories.get(&era_number.0) {
+            reward_distribution_records.clear(&validator_set_of_era, &era_number.0);
+            self.reward_distribution_records
+                .set(&reward_distribution_records);
             validator_set_of_era.clear_reward_distribution_records();
             validator_set_histories.insert(&era_number.0, &validator_set_of_era);
         }
@@ -102,42 +121,49 @@ impl SudoActions for AppchainAnchor {
     //
     fn clear_unbonded_stakes(&mut self) {
         self.assert_owner();
-        let validator_profiles = self.validator_profiles.get().unwrap();
-        validator_profiles
-            .get_validator_ids()
-            .iter()
-            .for_each(|validator_id| {
-                self.unbonded_stakes.remove(validator_id);
-            });
+        let staking_histories = self.staking_histories.get().unwrap();
+        let index_range = staking_histories.index_range();
+        for index in index_range.start_index.0..index_range.end_index.0 + 1 {
+            if let Some(staking_history) = staking_histories.get(&index) {
+                match staking_history.staking_fact {
+                    StakingFact::StakeDecreased { validator_id, .. }
+                    | StakingFact::ValidatorUnbonded { validator_id, .. }
+                    | StakingFact::ValidatorAutoUnbonded { validator_id, .. } => {
+                        self.unbonded_stakes.remove(&validator_id);
+                    }
+                    StakingFact::DelegationDecreased { delegator_id, .. }
+                    | StakingFact::DelegatorUnbonded { delegator_id, .. }
+                    | StakingFact::DelegatorAutoUnbonded { delegator_id, .. } => {
+                        self.unbonded_stakes.remove(&delegator_id);
+                    }
+                    _ => (),
+                }
+            }
+        }
     }
     //
-    fn clear_unwithdrawn_rewards(&mut self) {
+    fn clear_unwithdrawn_rewards(&mut self, era_number: U64) {
         self.assert_owner();
-        let next_validator_set = self.next_validator_set.get().unwrap();
         let validator_set_histories = self.validator_set_histories.get().unwrap();
-        let index_range = validator_set_histories.index_range();
-        next_validator_set
-            .validator_id_set
-            .to_vec()
-            .iter()
-            .for_each(|validator_id| {
-                for era_number in index_range.start_index.0..index_range.end_index.0 + 1 {
-                    if let Some(delegator_id_set) = next_validator_set
-                        .validator_id_to_delegator_id_set
-                        .get(validator_id)
-                    {
-                        delegator_id_set.to_vec().iter().for_each(|delegator_id| {
+        if let Some(validator_set_of_era) = validator_set_histories.get(&era_number.0) {
+            validator_set_of_era
+                .get_validator_ids()
+                .iter()
+                .for_each(|validator_id| {
+                    validator_set_of_era
+                        .get_delegator_ids_of(validator_id)
+                        .iter()
+                        .for_each(|delegator_id| {
                             self.unwithdrawn_delegator_rewards.remove(&(
-                                era_number,
+                                era_number.0,
                                 delegator_id.clone(),
                                 validator_id.clone(),
                             ));
                         });
-                    }
                     self.unwithdrawn_validator_rewards
-                        .remove(&(era_number, validator_id.clone()));
-                }
-            });
+                        .remove(&(era_number.0, validator_id.clone()));
+                });
+        }
     }
     //
     fn reset_validator_profiles_to(&mut self, era_number: U64) {
@@ -150,11 +176,7 @@ impl SudoActions for AppchainAnchor {
                 .get_validator_ids()
                 .iter()
                 .for_each(|validator_id| {
-                    if !validator_set_of_era
-                        .validator_set
-                        .validator_id_set
-                        .contains(validator_id)
-                    {
+                    if !validator_set_of_era.contains_validator(validator_id) {
                         if validator_profiles.remove(validator_id) {
                             data_changed = true;
                         }
@@ -247,5 +269,13 @@ impl SudoActions for AppchainAnchor {
                 _ => (),
             }
         }
+    }
+    //
+    fn remove_duplicated_message_nonces_in_reward_distribution_records(&mut self, era_number: U64) {
+        self.assert_owner();
+        let mut reward_distribution_records = self.reward_distribution_records.get().unwrap();
+        reward_distribution_records.remove_duplicated_message_nonces(era_number.0);
+        self.reward_distribution_records
+            .set(&reward_distribution_records);
     }
 }

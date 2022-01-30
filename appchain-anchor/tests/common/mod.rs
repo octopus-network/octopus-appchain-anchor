@@ -10,10 +10,13 @@ use appchain_anchor::{
 };
 use mock_appchain_registry::MockAppchainRegistryContract;
 use mock_oct_token::MockOctTokenContract;
-use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
+use wrapped_appchain_token::WrappedAppchainTokenContract;
 
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FT_METADATA_SPEC};
-use near_sdk::{json_types::U128, serde_json, AccountId, Balance};
+use near_sdk::{
+    json_types::{U128, U64},
+    serde_json, AccountId, Balance,
+};
 use near_sdk_sim::{
     call, deploy, init_simulator, lazy_static_include, runtime::GenesisConfig, to_yocto, view,
     ContractAccount, ExecutionResult, UserAccount,
@@ -52,7 +55,7 @@ fn register_user_to_oct_token(
 
 fn register_user_to_wat_token(
     account: &UserAccount,
-    contract: &ContractAccount<MockWrappedAppchainTokenContract>,
+    contract: &ContractAccount<WrappedAppchainTokenContract>,
 ) {
     let result = call!(
         account,
@@ -217,7 +220,7 @@ pub fn deploy_wrapped_appchain_token_contract(
     anchor: &ContractAccount<AppchainAnchorContract>,
     premined_balance: U128,
     users: &Vec<UserAccount>,
-) -> ContractAccount<MockWrappedAppchainTokenContract> {
+) -> ContractAccount<WrappedAppchainTokenContract> {
     let wat_ft_metadata = FungibleTokenMetadata {
         spec: FT_METADATA_SPEC.to_string(),
         name: "WrappedAppchainToken".to_string(),
@@ -228,7 +231,7 @@ pub fn deploy_wrapped_appchain_token_contract(
         decimals: 18,
     };
     let wrapped_appchain_token = deploy! {
-        contract: MockWrappedAppchainTokenContract,
+        contract: WrappedAppchainTokenContract,
         contract_id: "wrapped_appchain_token",
         bytes: &WAT_WASM_BYTES,
         signer_account: root,
@@ -296,6 +299,18 @@ pub fn print_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) {
     println!(
         "Anchor status: {}",
         serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+    );
+}
+
+pub fn print_validator_set_info_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    era_number: U64,
+) {
+    let validator_set_info = anchor_viewer::get_validator_set_info_of(anchor, era_number);
+    println!(
+        "Validator set {} info: {}",
+        era_number.0,
+        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
     );
 }
 
@@ -518,7 +533,7 @@ pub fn print_latest_appchain_commitment(anchor: &ContractAccount<AppchainAnchorC
 
 pub fn print_wat_balance_of_anchor(
     anchor: &ContractAccount<AppchainAnchorContract>,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
 ) {
     let wat_balance_of_anchor =
         token_viewer::get_wat_balance_of(&anchor.valid_account_id(), wrapped_appchain_token);
@@ -532,6 +547,7 @@ pub fn switch_era(
     root: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
     era_number: u32,
+    to_confirm_view_result: bool,
 ) {
     if era_number > 0 {
         let mut appchain_messages = Vec::<AppchainMessage>::new();
@@ -571,16 +587,18 @@ pub fn switch_era(
             break;
         }
     }
-    let anchor_status = anchor_viewer::get_anchor_status(anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
-    let validator_set_info =
-        anchor_viewer::get_validator_set_info_of(anchor, u64::from(era_number));
-    println!(
-        "Validator set info of era {}: {}",
-        era_number,
-        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
-    );
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(anchor);
+        println!(
+            "Anchor status: {}",
+            serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+        );
+        let validator_set_info =
+            anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
+        println!(
+            "Validator set info of era {}: {}",
+            era_number,
+            serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
+        );
+    }
 }

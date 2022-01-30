@@ -8,18 +8,22 @@ impl Default for ProtocolSettings {
     fn default() -> Self {
         Self {
             minimum_validator_deposit: U128::from(10_000 * OCT_DECIMALS_VALUE),
-            minimum_delegator_deposit: U128::from(1000 * OCT_DECIMALS_VALUE),
+            minimum_validator_deposit_changing_amount: U128::from(1000 * OCT_DECIMALS_VALUE),
+            maximum_validator_stake_percent: 25,
+            minimum_delegator_deposit: U128::from(500 * OCT_DECIMALS_VALUE),
+            minimum_delegator_deposit_changing_amount: U128::from(100 * OCT_DECIMALS_VALUE),
             minimum_total_stake_price_for_booting: U128::from(100_000 * USD_DECIMALS_VALUE),
             maximum_market_value_percent_of_near_fungible_tokens: 33,
             maximum_market_value_percent_of_wrapped_appchain_token: 67,
             minimum_validator_count: U64::from(4),
-            maximum_validator_count: U64::from(30),
+            maximum_validator_count: U64::from(60),
             maximum_validators_per_delegator: U64::from(16),
             unlock_period_of_validator_deposit: U64::from(28),
-            unlock_period_of_delegator_deposit: U64::from(7),
+            unlock_period_of_delegator_deposit: U64::from(28),
             maximum_era_count_of_unwithdrawn_reward: U64::from(84),
             maximum_era_count_of_valid_appchain_message: U64::from(7),
             validator_commission_percent: 20,
+            maximum_allowed_unprofitable_era_count: 3,
         }
     }
 }
@@ -50,20 +54,72 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_minimum_validator_deposit(&mut self, value: U128) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0 != protocol_settings.minimum_validator_deposit.0,
+            "The value is not changed."
+        );
         protocol_settings.minimum_validator_deposit = value;
+        self.protocol_settings.set(&protocol_settings);
+    }
+    //
+    fn change_minimum_validator_deposit_changing_amount(&mut self, value: U128) {
+        self.assert_owner();
+        let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0
+                != protocol_settings
+                    .minimum_validator_deposit_changing_amount
+                    .0,
+            "The value is not changed."
+        );
+        protocol_settings.minimum_validator_deposit_changing_amount = value;
+        self.protocol_settings.set(&protocol_settings);
+    }
+    //
+    fn change_maximum_validator_stake_percent(&mut self, value: u16) {
+        self.assert_owner();
+        assert!(value < 100, "Invalid percent value.");
+        let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value != protocol_settings.maximum_validator_stake_percent,
+            "The value is not changed."
+        );
+        protocol_settings.maximum_validator_stake_percent = value;
         self.protocol_settings.set(&protocol_settings);
     }
     //
     fn change_minimum_delegator_deposit(&mut self, value: U128) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0 != protocol_settings.minimum_delegator_deposit.0,
+            "The value is not changed."
+        );
         protocol_settings.minimum_delegator_deposit = value;
+        self.protocol_settings.set(&protocol_settings);
+    }
+    //
+    fn change_minimum_delegator_deposit_changing_amount(&mut self, value: U128) {
+        self.assert_owner();
+        let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0
+                != protocol_settings
+                    .minimum_delegator_deposit_changing_amount
+                    .0,
+            "The value is not changed."
+        );
+        protocol_settings.minimum_delegator_deposit_changing_amount = value;
         self.protocol_settings.set(&protocol_settings);
     }
     //
     fn change_minimum_total_stake_price_for_booting(&mut self, value: U128) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0 != protocol_settings.minimum_total_stake_price_for_booting.0,
+            "The value is not changed."
+        );
         protocol_settings.minimum_total_stake_price_for_booting = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -71,6 +127,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_maximum_market_value_percent_of_near_fungible_tokens(&mut self, value: u16) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value != protocol_settings.maximum_market_value_percent_of_near_fungible_tokens,
+            "The value is not changed."
+        );
         protocol_settings.maximum_market_value_percent_of_near_fungible_tokens = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -78,6 +138,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_maximum_market_value_percent_of_wrapped_appchain_token(&mut self, value: u16) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value != protocol_settings.maximum_market_value_percent_of_wrapped_appchain_token,
+            "The value is not changed."
+        );
         protocol_settings.maximum_market_value_percent_of_wrapped_appchain_token = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -85,6 +149,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_minimum_validator_count(&mut self, value: U64) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0 != protocol_settings.minimum_validator_count.0,
+            "The value is not changed."
+        );
         protocol_settings.minimum_validator_count = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -92,6 +160,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_maximum_validator_count(&mut self, value: U64) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0 != protocol_settings.maximum_validator_count.0,
+            "The value is not changed."
+        );
         protocol_settings.maximum_validator_count = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -99,6 +171,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_maximum_validators_per_delegator(&mut self, value: U64) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0 != protocol_settings.maximum_validators_per_delegator.0,
+            "The value is not changed."
+        );
         protocol_settings.maximum_validators_per_delegator = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -106,6 +182,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_unlock_period_of_validator_deposit(&mut self, value: U64) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0 != protocol_settings.unlock_period_of_validator_deposit.0,
+            "The value is not changed."
+        );
         protocol_settings.unlock_period_of_validator_deposit = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -113,6 +193,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_unlock_period_of_delegator_deposit(&mut self, value: U64) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0 != protocol_settings.unlock_period_of_delegator_deposit.0,
+            "The value is not changed."
+        );
         protocol_settings.unlock_period_of_delegator_deposit = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -120,6 +204,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_maximum_era_count_of_unwithdrawn_reward(&mut self, value: U64) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0 != protocol_settings.maximum_era_count_of_unwithdrawn_reward.0,
+            "The value is not changed."
+        );
         protocol_settings.maximum_era_count_of_unwithdrawn_reward = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -127,6 +215,13 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_maximum_era_count_of_valid_appchain_message(&mut self, value: U64) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value.0
+                != protocol_settings
+                    .maximum_era_count_of_valid_appchain_message
+                    .0,
+            "The value is not changed."
+        );
         protocol_settings.maximum_era_count_of_valid_appchain_message = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -134,7 +229,26 @@ impl ProtocolSettingsManager for AppchainAnchor {
     fn change_validator_commission_percent(&mut self, value: u16) {
         self.assert_owner();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value != protocol_settings.validator_commission_percent,
+            "The value is not changed."
+        );
         protocol_settings.validator_commission_percent = value;
+        self.protocol_settings.set(&protocol_settings);
+    }
+    //
+    fn change_maximum_allowed_unprofitable_era_count(&mut self, value: u16) {
+        self.assert_owner();
+        assert!(
+            value < 10,
+            "Invalid value for maximum allowed unprofitable era count."
+        );
+        let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            value != protocol_settings.maximum_allowed_unprofitable_era_count,
+            "The value is not changed."
+        );
+        protocol_settings.maximum_allowed_unprofitable_era_count = value;
         self.protocol_settings.set(&protocol_settings);
     }
 }

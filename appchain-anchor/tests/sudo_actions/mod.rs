@@ -85,8 +85,9 @@ pub fn clear_unbonded_stakes(
 pub fn clear_unwithdrawn_rewards(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
+    era_number: U64,
 ) -> ExecutionResult {
-    let result = call!(signer, anchor.clear_unwithdrawn_rewards());
+    let result = call!(signer, anchor.clear_unwithdrawn_rewards(era_number));
     common::print_execution_result("clear_unwithdrawn_rewards", &result);
     result
 }

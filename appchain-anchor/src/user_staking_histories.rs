@@ -24,12 +24,15 @@ impl UserStakingHistories {
             | StakingFact::StakeIncreased { validator_id, .. }
             | StakingFact::StakeDecreased { validator_id, .. }
             | StakingFact::ValidatorUnbonded { validator_id, .. }
+            | StakingFact::ValidatorAutoUnbonded { validator_id, .. }
             | StakingFact::ValidatorDelegationEnabled { validator_id }
-            | StakingFact::ValidatorDelegationDisabled { validator_id } => validator_id,
+            | StakingFact::ValidatorDelegationDisabled { validator_id }
+            | StakingFact::ValidatorIdInAppchainChanged { validator_id, .. } => validator_id,
             StakingFact::DelegatorRegistered { delegator_id, .. }
             | StakingFact::DelegationIncreased { delegator_id, .. }
             | StakingFact::DelegationDecreased { delegator_id, .. }
-            | StakingFact::DelegatorUnbonded { delegator_id, .. } => delegator_id,
+            | StakingFact::DelegatorUnbonded { delegator_id, .. }
+            | StakingFact::DelegatorAutoUnbonded { delegator_id, .. } => delegator_id,
         };
         self.account_id_set.insert(account_id);
         let mut staking_histories_indexes = match self.staking_histories_map.get(account_id) {
@@ -38,9 +41,9 @@ impl UserStakingHistories {
         };
         if !staking_histories_indexes.contains(&staking_history.index.0) {
             staking_histories_indexes.push(staking_history.index.0);
+            self.staking_histories_map
+                .insert(account_id, &staking_histories_indexes);
         }
-        self.staking_histories_map
-            .insert(account_id, &staking_histories_indexes);
     }
     ///
     pub fn get_staking_history_indexes_of(&self, account_id: &AccountId) -> Vec<u64> {
@@ -48,5 +51,12 @@ impl UserStakingHistories {
             Some(indexes) => indexes,
             None => Vec::new(),
         }
+    }
+    ///
+    pub fn clear(&mut self) {
+        self.account_id_set.to_vec().iter().for_each(|account_id| {
+            self.staking_histories_map.remove(account_id);
+        });
+        self.account_id_set.clear();
     }
 }

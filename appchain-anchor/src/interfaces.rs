@@ -111,7 +111,7 @@ pub trait AnchorViewer {
     ) -> Vec<AppchainDelegator>;
     /// Get profile of a certain validator.
     fn get_validator_profile(&self, validator_id: AccountId) -> Option<ValidatorProfile>;
-    /// Get profile of a certain validator.
+    /// Get profiles of all registered validator.
     fn get_validator_profiles(&self) -> Vec<ValidatorProfile>;
     /// Get validator profile by his/her account id in appchain.
     fn get_validator_profile_by_id_in_appchain(
@@ -124,6 +124,17 @@ pub trait AnchorViewer {
     fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus;
     /// Get staking histories related to the given account id.
     fn get_user_staking_histories_of(&self, account_id: AccountId) -> Vec<UserStakingHistory>;
+    /// Get processing result of a certain appchain message.
+    fn get_appchain_message_processing_result_of(
+        &self,
+        nonce: u32,
+    ) -> Option<AppchainMessageProcessingResult>;
+    /// Get processing result of appchain messages.
+    fn get_appchain_message_processing_results(
+        &self,
+        start_index: U64,
+        quantity: Option<U64>,
+    ) -> Vec<AppchainMessageProcessingResult>;
 }
 
 pub trait AppchainLifecycleManager {
@@ -203,7 +214,13 @@ pub trait ProtocolSettingsManager {
     ///
     fn change_minimum_validator_deposit(&mut self, value: U128);
     ///
+    fn change_minimum_validator_deposit_changing_amount(&mut self, value: U128);
+    ///
+    fn change_maximum_validator_stake_percent(&mut self, value: u16);
+    ///
     fn change_minimum_delegator_deposit(&mut self, value: U128);
+    ///
+    fn change_minimum_delegator_deposit_changing_amount(&mut self, value: U128);
     ///
     fn change_minimum_total_stake_price_for_booting(&mut self, value: U128);
     ///
@@ -226,6 +243,8 @@ pub trait ProtocolSettingsManager {
     fn change_maximum_era_count_of_valid_appchain_message(&mut self, value: U64);
     ///
     fn change_validator_commission_percent(&mut self, value: u16);
+    ///
+    fn change_maximum_allowed_unprofitable_era_count(&mut self, value: u16);
 }
 
 pub trait AppchainSettingsManager {
@@ -295,6 +314,12 @@ pub trait SudoActions {
     ///
     fn reset_validator_set_histories_to(&mut self, era_number: U64);
     ///
+    fn reset_staking_histories_to(&mut self, era_number: U64);
+    ///
+    fn refresh_user_staking_histories(&mut self);
+    ///
+    fn reset_next_validator_set_to(&mut self, era_number: U64);
+    ///
     fn clear_anchor_event_histories(&mut self);
     ///
     fn clear_appchain_notification_histories(&mut self);
@@ -305,7 +330,7 @@ pub trait SudoActions {
     ///
     fn clear_unbonded_stakes(&mut self);
     ///
-    fn clear_unwithdrawn_rewards(&mut self);
+    fn clear_unwithdrawn_rewards(&mut self, era_number: U64);
     ///
     fn reset_validator_profiles_to(&mut self, era_number: U64);
     ///
@@ -330,6 +355,8 @@ pub trait SudoActions {
         index: U64,
         account_id_in_appchain: String,
     );
+    ///
+    fn remove_duplicated_message_nonces_in_reward_distribution_records(&mut self, era_number: U64);
 }
 
 pub trait ValidatorActions {

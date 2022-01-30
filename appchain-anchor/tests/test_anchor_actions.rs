@@ -2,20 +2,19 @@ use std::collections::HashMap;
 
 use appchain_anchor::{
     types::{
-        AnchorSettings, AnchorStatus, AppchainMessageProcessingResult, AppchainSettings,
-        AppchainState, MultiTxsOperationProcessingResult, ProtocolSettings, ValidatorSetInfo,
-        ValidatorSetProcessingStatus,
+        AnchorStatus, AppchainMessageProcessingResult, AppchainState,
+        MultiTxsOperationProcessingResult, ValidatorSetInfo, ValidatorSetProcessingStatus,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
 use mock_appchain_registry::MockAppchainRegistryContract;
 use mock_oct_token::MockOctTokenContract;
-use mock_wrapped_appchain_token::MockWrappedAppchainTokenContract;
 use near_sdk::{
     json_types::{U128, U64},
     serde_json,
 };
 use near_sdk_sim::{call, ContractAccount, UserAccount};
+use wrapped_appchain_token::WrappedAppchainTokenContract;
 
 mod anchor_viewer;
 mod common;
@@ -33,7 +32,16 @@ const TOTAL_SUPPLY: u128 = 100_000_000;
 
 #[test]
 fn test_anchor_actions() {
-    let (root, _oct_token, _registryy, anchor, _users) = test_staking_actions(false);
+    let (root, oct_token, wrapped_appchain_token, registry, anchor, users) =
+        test_normal_actions(false, true);
+    test_staking_actions(
+        &root,
+        &oct_token,
+        &wrapped_appchain_token,
+        &registry,
+        &anchor,
+        &users,
+    );
     //
     // Reset contract status
     //
@@ -47,7 +55,13 @@ fn test_anchor_actions() {
     result.assert_success();
     let result = sudo_actions::clear_unbonded_stakes(&root, &anchor);
     result.assert_success();
-    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor);
+    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor, U64::from(3));
+    result.assert_success();
+    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor, U64::from(2));
+    result.assert_success();
+    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor, U64::from(1));
+    result.assert_success();
+    let result = sudo_actions::clear_unwithdrawn_rewards(&root, &anchor, U64::from(0));
     result.assert_success();
     let result = sudo_actions::clear_anchor_event_histories(&root, &anchor);
     result.assert_success();
@@ -69,11 +83,13 @@ fn test_anchor_actions() {
     common::print_appchain_notifications(&anchor);
 }
 
-fn test_staking_actions(
+fn test_normal_actions(
     with_old_anchor: bool,
+    to_confirm_view_result: bool,
 ) -> (
     UserAccount,
     ContractAccount<MockOctTokenContract>,
+    ContractAccount<WrappedAppchainTokenContract>,
     ContractAccount<MockAppchainRegistryContract>,
     ContractAccount<AppchainAnchorContract>,
     Vec<UserAccount>,
@@ -99,28 +115,11 @@ fn test_staking_actions(
         anchor_viewer::get_appchain_state(&anchor),
         AppchainState::Staging
     );
-    let anchor_settings = anchor_viewer::get_anchor_settings(&anchor);
-    println!(
-        "Anchor settings: {}",
-        serde_json::to_string::<AnchorSettings>(&anchor_settings).unwrap()
-    );
-    let appchain_settings = anchor_viewer::get_appchain_settings(&anchor);
-    println!(
-        "Appchain settings: {}",
-        serde_json::to_string::<AppchainSettings>(&appchain_settings).unwrap()
-    );
-    let protocol_settings = anchor_viewer::get_protocol_settings(&anchor);
-    println!(
-        "Protocol settings: {}",
-        serde_json::to_string::<ProtocolSettings>(&protocol_settings).unwrap()
-    );
-    assert_eq!(
-        protocol_settings.minimum_validator_deposit.0,
-        common::to_oct_amount(10_000)
-    );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
+    }
     //
     //
     //
@@ -136,7 +135,7 @@ fn test_staking_actions(
     // Initialize wrapped appchain token contract.
     //
     let result = wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
-        &users[4], &anchor, 110_000,
+        &users[4], &anchor, 0,
     );
     result.assert_success();
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
@@ -151,7 +150,9 @@ fn test_staking_actions(
         U128::from(total_supply / 2),
         &users,
     );
-    common::print_wrapped_appchain_token_info(&anchor);
+    if to_confirm_view_result {
+        common::print_wrapped_appchain_token_info(&anchor);
+    }
     //
     // user0 register validator (error)
     //
@@ -171,14 +172,16 @@ fn test_staking_actions(
         token_viewer::get_oct_balance_of(&users[0], &oct_token).0,
         user0_balance.0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
+    }
     //
     // user0 register validator
     //
     let user0_balance = token_viewer::get_oct_balance_of(&users[0], &oct_token);
-    let amount0 = common::to_oct_amount(10_000);
+    let amount0 = common::to_oct_amount(23_000);
     let result = staking_actions::register_validator(
         &users[0],
         &oct_token,
@@ -193,15 +196,17 @@ fn test_staking_actions(
         token_viewer::get_oct_balance_of(&users[0], &oct_token).0,
         user0_balance.0 - amount0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(anchor_status.total_stake_in_next_era.0, amount0);
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 1);
-    common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(anchor_status.total_stake_in_next_era.0, amount0);
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 1);
+        common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
+    }
     //
     // user1 register validator
     //
     let user1_balance = token_viewer::get_oct_balance_of(&users[1], &oct_token);
-    let amount1 = common::to_oct_amount(15_000);
+    let amount1 = common::to_oct_amount(25_000);
     let result = staking_actions::register_validator(
         &users[1],
         &oct_token,
@@ -216,15 +221,17 @@ fn test_staking_actions(
         token_viewer::get_oct_balance_of(&users[1], &oct_token).0,
         user1_balance.0 - amount1
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
-    common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+        common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
+    }
     //
     // user2 register delegator to user0 (error)
     //
     let user2_balance = token_viewer::get_oct_balance_of(&users[2], &oct_token);
-    let amount2 = common::to_oct_amount(999);
+    let amount2 = common::to_oct_amount(499);
     let result = staking_actions::register_delegator(
         &users[2],
         &oct_token,
@@ -237,9 +244,11 @@ fn test_staking_actions(
         token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // user2 register delegator to user0
     //
@@ -257,12 +266,14 @@ fn test_staking_actions(
         token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0 - amount2_0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // user2 register delegator to user1 (error)
     //
@@ -280,12 +291,14 @@ fn test_staking_actions(
         token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // user3 register delegator to user0
     //
@@ -303,12 +316,14 @@ fn test_staking_actions(
         token_viewer::get_oct_balance_of(&users[3], &oct_token).0,
         user3_balance.0 - amount3_0
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0 + amount3_0
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0 + amount3_0
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // user0 increase stake
     //
@@ -320,12 +335,14 @@ fn test_staking_actions(
         token_viewer::get_oct_balance_of(&users[0], &oct_token).0,
         user0_balance.0 - amount0_p
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0 + amount3_0 + amount0_p
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0 + amount3_0 + amount0_p
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // user2 increase delegation to user0
     //
@@ -343,19 +360,23 @@ fn test_staking_actions(
         token_viewer::get_oct_balance_of(&users[2], &oct_token).0,
         user2_balance.0 - amount2_0_p
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
+    }
     //
     // Print anchor status and staking histories
     //
-    common::print_anchor_status(&anchor);
-    common::print_wrapped_appchain_token_info(&anchor);
-    common::print_staking_histories(&anchor);
-    common::print_validator_list_of(&anchor, None);
+    if to_confirm_view_result {
+        common::print_anchor_status(&anchor);
+        common::print_wrapped_appchain_token_info(&anchor);
+        common::print_staking_histories(&anchor);
+        common::print_validator_list_of(&anchor, None);
+    }
     //
     // Try go_booting
     //
@@ -375,7 +396,7 @@ fn test_staking_actions(
     //
     // Change protocol settings and try go_booting
     //
-    let result = settings_actions::change_minimum_validator_count(&root, &anchor, 2);
+    let result = settings_actions::change_minimum_validator_count(&root, &anchor, 1);
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     assert!(!result.is_ok());
@@ -383,17 +404,6 @@ fn test_staking_actions(
     // Change price of OCT token and try go_booting
     //
     let result = settings_actions::set_price_of_oct_token(&users[4], &anchor, 2_130_000);
-    result.assert_success();
-    let result = lifecycle_actions::go_booting(&root, &anchor);
-    assert!(!result.is_ok());
-    //
-    // Change total stake price and try go_booting
-    //
-    let result = settings_actions::change_minimum_total_stake_price_for_booting(
-        &root,
-        &anchor,
-        63_000_000_000,
-    );
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     result.assert_success();
@@ -405,9 +415,11 @@ fn test_staking_actions(
     // Try complete switching era0
     //
     let appchain_message_nonce: u32 = 1;
-    common::switch_era(&root, &anchor, 0);
-    common::print_validator_list_of(&anchor, Some(0));
-    common::print_delegator_list_of(&anchor, 0, &users[0]);
+    common::switch_era(&root, &anchor, 0, false);
+    if to_confirm_view_result {
+        common::print_validator_list_of(&anchor, Some(0));
+        common::print_delegator_list_of(&anchor, 0, &users[0]);
+    }
     //
     // Initialize beefy light client
     //
@@ -431,13 +443,17 @@ fn test_staking_actions(
     result.assert_success();
     let result = validator_actions::set_validator_profile(&users[0], &anchor, &user0_profile);
     result.assert_success();
-    common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
+    if to_confirm_view_result {
+        common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
+    }
     let result =
         validator_actions::set_validator_id_in_appchain(&users[1], &anchor, &user1_id_in_appchain);
     result.assert_success();
     let result = validator_actions::set_validator_profile(&users[1], &anchor, &user1_profile);
     result.assert_success();
-    common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
+    if to_confirm_view_result {
+        common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
+    }
     //
     // user4 register validator
     //
@@ -457,23 +473,29 @@ fn test_staking_actions(
         token_viewer::get_oct_balance_of(&users[4], &oct_token).0,
         user4_balance.0 - amount4
     );
-    let anchor_status = anchor_viewer::get_anchor_status(&anchor);
-    assert_eq!(
-        anchor_status.total_stake_in_next_era.0,
-        amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p + amount4
-    );
-    assert_eq!(anchor_status.validator_count_in_next_era.0, 3);
-    common::print_validator_profile(&anchor, &users[4].account_id(), &user4_id_in_appchain);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor);
+        assert_eq!(
+            anchor_status.total_stake_in_next_era.0,
+            amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p + amount4
+        );
+        assert_eq!(anchor_status.validator_count_in_next_era.0, 3);
+        common::print_validator_profile(&anchor, &users[4].account_id(), &user4_id_in_appchain);
+    }
     //
     // Print staking histories
     //
-    common::print_staking_histories(&anchor);
+    if to_confirm_view_result {
+        common::print_staking_histories(&anchor);
+    }
     //
     // Try start and complete switching era1
     //
-    common::switch_era(&root, &anchor, 1);
-    common::print_validator_list_of(&anchor, Some(1));
-    common::print_delegator_list_of(&anchor, 1, &users[0]);
+    common::switch_era(&root, &anchor, 1, false);
+    if to_confirm_view_result {
+        common::print_validator_list_of(&anchor, Some(1));
+        common::print_delegator_list_of(&anchor, 1, &users[0]);
+    }
     //
     // Distribut reward of era0
     //
@@ -483,13 +505,50 @@ fn test_staking_actions(
         &wrapped_appchain_token,
         appchain_message_nonce,
         0,
+        Vec::new(),
+        false,
     );
-    common::print_wrapped_appchain_token_info(&anchor);
-    common::print_validator_reward_histories(&anchor, &users[0], 0);
-    common::print_validator_reward_histories(&anchor, &users[1], 0);
-    common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 0);
-    common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 0);
-    common::print_validator_reward_histories(&anchor, &users[4], 0);
+    if to_confirm_view_result {
+        common::print_wrapped_appchain_token_info(&anchor);
+        common::print_validator_reward_histories(&anchor, &users[0], 0);
+        common::print_validator_reward_histories(&anchor, &users[1], 0);
+        common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 0);
+        common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 0);
+        common::print_validator_reward_histories(&anchor, &users[4], 0);
+    }
+    //
+    //
+    //
+    (
+        root,
+        oct_token,
+        wrapped_appchain_token,
+        registry,
+        anchor,
+        users,
+    )
+}
+
+fn test_staking_actions(
+    root: &UserAccount,
+    oct_token: &ContractAccount<MockOctTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
+    registry: &ContractAccount<MockAppchainRegistryContract>,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    users: &Vec<UserAccount>,
+) {
+    let user0_id_in_appchain =
+        "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
+    let user1_id_in_appchain =
+        "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da270".to_string();
+    let user4_id_in_appchain =
+        "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da273".to_string();
+    let mut user0_profile = HashMap::<String, String>::new();
+    user0_profile.insert("key0".to_string(), "value0".to_string());
+    let mut user1_profile = HashMap::<String, String>::new();
+    user1_profile.insert("key1".to_string(), "value1".to_string());
+    let mut user4_profile = HashMap::<String, String>::new();
+    user4_profile.insert("key4".to_string(), "value4".to_string());
     //
     // user1 decrease stake
     //
@@ -518,9 +577,11 @@ fn test_staking_actions(
     //
     // Try start and complete switching era2
     //
-    common::switch_era(&root, &anchor, 2);
+    common::switch_era(&root, &anchor, 2, true);
     common::print_validator_list_of(&anchor, Some(2));
     common::print_delegator_list_of(&anchor, 2, &users[0]);
+    //
+    let appchain_message_nonce: u32 = 1;
     //
     // Distribute reward of era1
     //
@@ -530,8 +591,11 @@ fn test_staking_actions(
         &wrapped_appchain_token,
         appchain_message_nonce + 2,
         1,
+        [user0_id_in_appchain.clone()].to_vec(),
+        true,
     );
     common::print_wrapped_appchain_token_info(&anchor);
+    common::print_staking_histories(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 1);
     common::print_validator_reward_histories(&anchor, &users[1], 1);
     common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 1);
@@ -568,7 +632,7 @@ fn test_staking_actions(
     //
     // Try start and complete switching era3
     //
-    common::switch_era(&root, &anchor, 3);
+    common::switch_era(&root, &anchor, 3, true);
     common::print_validator_list_of(&anchor, Some(3));
     common::print_delegator_list_of(&anchor, 3, &users[0]);
     //
@@ -580,8 +644,11 @@ fn test_staking_actions(
         &wrapped_appchain_token,
         appchain_message_nonce + 4,
         2,
+        [user0_id_in_appchain.clone(), user4_id_in_appchain.clone()].to_vec(),
+        true,
     );
     common::print_wrapped_appchain_token_info(&anchor);
+    common::print_staking_histories(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 2);
     common::print_validator_reward_histories(&anchor, &users[1], 2);
     common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 2);
@@ -595,32 +662,44 @@ fn test_staking_actions(
     //
     // user0 unbond stake
     //
-    let result = staking_actions::unbond_stake(&users[0], &anchor);
-    result.assert_success();
-    common::print_anchor_status(&anchor);
-    let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[0]);
-    assert!(unbonded_stakes.len() == 0);
+    // let result = staking_actions::unbond_stake(&users[0], &anchor);
+    // result.assert_success();
+    // common::print_anchor_status(&anchor);
+    // let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[0]);
+    // assert!(unbonded_stakes.len() == 0);
+    //
+    // user1 unbond stake
+    //
+    // let result = staking_actions::unbond_stake(&users[1], &anchor);
+    // result.assert_success();
+    // common::print_anchor_status(&anchor);
+    // let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[1]);
+    // assert!(unbonded_stakes.len() == 1);
     //
     // Print staking histories
     //
     common::print_staking_histories(&anchor);
     //
-    // Try start and complete switching era3
+    // Try start and complete switching era4
     //
-    common::switch_era(&root, &anchor, 4);
+    common::switch_era(&root, &anchor, 4, true);
     common::print_validator_list_of(&anchor, Some(4));
     common::print_delegator_list_of(&anchor, 4, &users[0]);
     //
     // Distribute reward of era3
     //
+    common::print_validator_set_info_of(&anchor, U64::from(3));
     distribute_reward_of(
         &root,
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce + 6,
         3,
+        [user0_id_in_appchain.clone(), user4_id_in_appchain.clone()].to_vec(),
+        true,
     );
     common::print_wrapped_appchain_token_info(&anchor);
+    common::print_staking_histories(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 3);
     common::print_validator_reward_histories(&anchor, &users[1], 3);
     common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 3);
@@ -637,6 +716,8 @@ fn test_staking_actions(
         &wrapped_appchain_token,
         appchain_message_nonce + 8,
         3,
+        Vec::new(),
+        true,
     );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 3);
@@ -644,6 +725,37 @@ fn test_staking_actions(
     common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 3);
     common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 3);
     common::print_validator_reward_histories(&anchor, &users[4], 3);
+    common::print_unbonded_stakes_of(&anchor, &users[0]);
+    common::print_unbonded_stakes_of(&anchor, &users[1]);
+    common::print_unbonded_stakes_of(&anchor, &users[2]);
+    common::print_unbonded_stakes_of(&anchor, &users[3]);
+    common::print_unbonded_stakes_of(&anchor, &users[4]);
+    //
+    // Try start and complete switching era5
+    //
+    common::switch_era(&root, &anchor, 5, true);
+    common::print_validator_list_of(&anchor, Some(5));
+    common::print_delegator_list_of(&anchor, 5, &users[0]);
+    //
+    // Distribute reward of era4
+    //
+    common::print_validator_set_info_of(&anchor, U64::from(4));
+    distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce + 10,
+        4,
+        Vec::new(),
+        true,
+    );
+    common::print_wrapped_appchain_token_info(&anchor);
+    common::print_staking_histories(&anchor);
+    common::print_validator_reward_histories(&anchor, &users[0], 4);
+    common::print_validator_reward_histories(&anchor, &users[1], 4);
+    common::print_delegator_reward_histories(&anchor, &users[2], &users[0], 4);
+    common::print_delegator_reward_histories(&anchor, &users[3], &users[0], 4);
+    common::print_validator_reward_histories(&anchor, &users[4], 4);
     common::print_unbonded_stakes_of(&anchor, &users[0]);
     common::print_unbonded_stakes_of(&anchor, &users[1]);
     common::print_unbonded_stakes_of(&anchor, &users[2]);
@@ -679,18 +791,16 @@ fn test_staking_actions(
     common::print_staking_histories(&anchor);
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
-    //
-    //
-    //
-    (root, oct_token, registry, anchor, users)
 }
 
 fn distribute_reward_of(
     root: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
     nonce: u32,
     era_number: u32,
+    unprofitable_validator_ids: Vec<String>,
+    to_confirm_view_result: bool,
 ) {
     let anchor_balance_of_wat =
         token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token);
@@ -698,7 +808,7 @@ fn distribute_reward_of(
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::EraRewardConcluded {
             era_number,
-            unprofitable_validator_ids: Vec::new(),
+            unprofitable_validator_ids,
         },
         nonce,
     });
@@ -709,11 +819,13 @@ fn distribute_reward_of(
             serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
         )
     }
-    let anchor_status = anchor_viewer::get_anchor_status(anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(anchor);
+        println!(
+            "Anchor status: {}",
+            serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+        );
+    }
     loop {
         let result = permissionless_actions::try_complete_distributing_reward(root, anchor);
         println!(
@@ -735,26 +847,28 @@ fn distribute_reward_of(
         token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
         anchor_balance_of_wat.0 + common::to_oct_amount(10)
     );
-    let anchor_status = anchor_viewer::get_anchor_status(anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
-    let validator_set_info =
-        anchor_viewer::get_validator_set_info_of(anchor, u64::from(era_number));
-    println!(
-        "Validator set info of era {}: {}",
-        era_number,
-        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
-    );
-    common::print_anchor_events(&anchor);
-    common::print_appchain_notifications(&anchor);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(anchor);
+        println!(
+            "Anchor status: {}",
+            serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+        );
+        let validator_set_info =
+            anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
+        println!(
+            "Validator set info of era {}: {}",
+            era_number,
+            serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
+        );
+        common::print_anchor_events(&anchor);
+        common::print_appchain_notifications(&anchor);
+    }
 }
 
 fn withdraw_validator_rewards_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
     user: &UserAccount,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
     end_era: u64,
 ) {
     common::print_wat_balance_of_anchor(anchor, wrapped_appchain_token);
@@ -779,7 +893,7 @@ fn withdraw_delegator_rewards_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
     user: &UserAccount,
     validator: &UserAccount,
-    wrapped_appchain_token: &ContractAccount<MockWrappedAppchainTokenContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
     end_era: u64,
 ) {
     common::print_wat_balance_of_anchor(anchor, wrapped_appchain_token);
@@ -820,7 +934,13 @@ fn withdraw_stake_of(
 
 #[test]
 fn test_migration() {
-    let (root, _oct_token, _registryy, anchor, users) = test_staking_actions(true);
+    let user0_id_in_appchain =
+        "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
+    let user1_id_in_appchain =
+        "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da270".to_string();
+    //
+    let (root, _oct_token, _wrapped_appchain_token, _registryy, anchor, users) =
+        test_normal_actions(true, false);
     common::deploy_new_anchor_contract(&anchor);
     let result = call!(root, anchor.migrate_state());
     common::print_execution_result("migrate_state", &result);
@@ -828,6 +948,8 @@ fn test_migration() {
     //
     //
     common::print_anchor_status(&anchor);
+    common::print_validator_set_info_of(&anchor, U64::from(0));
+    common::print_validator_set_info_of(&anchor, U64::from(1));
     common::print_validator_list_of(&anchor, Some(0));
     common::print_validator_list_of(&anchor, Some(1));
     common::print_validator_list_of(&anchor, Some(2));
@@ -837,6 +959,8 @@ fn test_migration() {
     common::print_user_staking_histories_of(&anchor, &users[2]);
     common::print_user_staking_histories_of(&anchor, &users[3]);
     common::print_user_staking_histories_of(&anchor, &users[4]);
+    common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
+    common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
     common::print_staking_histories(&anchor);
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
