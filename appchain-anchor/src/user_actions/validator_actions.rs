@@ -32,7 +32,7 @@ impl AppchainAnchor {
         validator_id: &AccountId,
         account_id_in_appchain: &String,
     ) {
-        let next_validator_set = self.next_validator_set.get().unwrap();
+        let mut next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_validator_id(validator_id, &next_validator_set);
         let validator_id_in_appchain =
             AccountIdInAppchain::new(Some(account_id_in_appchain.clone()));
@@ -48,6 +48,13 @@ impl AppchainAnchor {
             validator_id: validator_id.clone(),
             validator_id_in_appchain: account_id_in_appchain.clone(),
         });
-        self.apply_staking_history_to_next_validator_set(&staking_history);
+        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
+        //
+        next_validator_set.apply_staking_fact(&staking_history.staking_fact);
+        self.next_validator_set.set(&next_validator_set);
+        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
+        //
+        self.sync_state_to_registry();
+        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
     }
 }

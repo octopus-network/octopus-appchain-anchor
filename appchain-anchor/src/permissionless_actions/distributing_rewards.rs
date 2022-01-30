@@ -162,7 +162,7 @@ impl AppchainAnchor {
             } => {
                 let unprofitable_validators = validator_set.unprofitable_validator_ids();
                 let protocol_settings = self.protocol_settings.get().unwrap();
-                let next_validator_set = self.next_validator_set.get().unwrap();
+                let mut next_validator_set = self.next_validator_set.get().unwrap();
                 while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                     if unprofitable_validator_index.0
                         >= unprofitable_validators.len().try_into().unwrap()
@@ -201,7 +201,13 @@ impl AppchainAnchor {
                             }
                         }
                         if should_be_unbonded {
-                            self.record_unbonding_validator(validator_id, true);
+                            self.record_unbonding_validator(
+                                &protocol_settings,
+                                &mut next_validator_set,
+                                validator_id,
+                                true,
+                            );
+                            self.next_validator_set.set(&next_validator_set);
                         }
                     }
                     unprofitable_validator_index = U64::from(unprofitable_validator_index.0 + 1);
