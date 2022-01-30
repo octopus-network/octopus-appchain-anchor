@@ -283,7 +283,7 @@ impl AppchainAnchor {
                 .0
         {
             era_number
-                >= index_range.end_index.0
+                < index_range.end_index.0
                     - protocol_settings
                         .maximum_era_count_of_valid_appchain_message
                         .0
