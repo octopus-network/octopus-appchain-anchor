@@ -162,7 +162,7 @@ impl AppchainAnchor {
             } => {
                 let unprofitable_validators = validator_set.unprofitable_validator_ids();
                 let protocol_settings = self.protocol_settings.get().unwrap();
-                let next_validator_set = self.next_validator_set.get().unwrap();
+                let mut next_validator_set = self.next_validator_set.get().unwrap();
                 while env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                     if unprofitable_validator_index.0
                         >= unprofitable_validators.len().try_into().unwrap()
@@ -201,7 +201,13 @@ impl AppchainAnchor {
                             }
                         }
                         if should_be_unbonded {
-                            self.record_unbonding_validator(validator_id, true);
+                            self.record_unbonding_validator(
+                                &protocol_settings,
+                                &mut next_validator_set,
+                                validator_id,
+                                true,
+                            );
+                            self.next_validator_set.set(&next_validator_set);
                         }
                     }
                     unprofitable_validator_index = U64::from(unprofitable_validator_index.0 + 1);
@@ -227,68 +233,62 @@ impl AppchainAnchor {
         era_reward: Balance,
         validator_commission_percent: u128,
     ) -> ResultOfLoopingValidatorSet {
-        let validator_ids = validator_set.get_validator_ids();
-        if validator_index >= validator_ids.len().try_into().unwrap() {
+        if validator_index >= validator_set.validator_count() {
             return ResultOfLoopingValidatorSet::NoMoreValidator;
         }
-        let validator_id = validator_ids
-            .get(usize::try_from(validator_index).unwrap())
+        let validator = validator_set
+            .get_validator_by_index(&validator_index)
             .unwrap();
         if validator_set
             .unprofitable_validator_ids()
-            .contains(validator_id)
+            .contains(&validator.validator_id)
         {
             return ResultOfLoopingValidatorSet::NoMoreDelegator;
         }
-        let validator = validator_set.get_validator(validator_id).unwrap();
         let total_reward_of_validator = era_reward * (validator.total_stake / OCT_DECIMALS_VALUE)
             / (validator_set.valid_total_stake() / OCT_DECIMALS_VALUE);
         let validator_commission_reward =
             total_reward_of_validator * validator_commission_percent / 100;
         let mut reward_distribution_records = self.reward_distribution_records.get().unwrap();
-        let delegater_ids = validator_set.get_delegator_ids_of(validator_id);
-        if delegator_index >= delegater_ids.len().try_into().unwrap() {
+        if delegator_index >= validator_set.get_delegator_count_of(&validator.validator_id) {
             let validator_reward = validator_commission_reward
                 + (total_reward_of_validator - validator_commission_reward)
                     * (validator.deposit_amount / OCT_DECIMALS_VALUE)
                     / (validator.total_stake / OCT_DECIMALS_VALUE);
-            self.add_reward_for_validator(validator_set, validator_id, validator_reward);
+            self.add_reward_for_validator(validator_set, &validator.validator_id, validator_reward);
             reward_distribution_records.insert(
                 appchain_message_nonce,
                 validator_set.era_number(),
                 &String::new(),
-                validator_id,
+                &validator.validator_id,
             );
             self.reward_distribution_records
                 .set(&reward_distribution_records);
             return ResultOfLoopingValidatorSet::NoMoreDelegator;
         }
-        let delegator_id = delegater_ids
-            .get(usize::try_from(delegator_index).unwrap())
+        let delegator = validator_set
+            .get_delegator_by_index(&delegator_index, &validator.validator_id)
             .unwrap();
         if !reward_distribution_records.contains_record(
             appchain_message_nonce,
             validator_set.era_number(),
-            delegator_id,
-            validator_id,
+            &delegator.delegator_id,
+            &delegator.validator_id,
         ) {
-            let delegator = validator_set
-                .get_delegator(&delegator_id, &validator_id)
-                .unwrap();
             let delegator_reward = (total_reward_of_validator - validator_commission_reward)
                 * (delegator.deposit_amount / OCT_DECIMALS_VALUE)
                 / (validator.total_stake / OCT_DECIMALS_VALUE);
             self.add_reward_for_delegator(
                 validator_set,
-                delegator_id,
-                validator_id,
+                &delegator.delegator_id,
+                &delegator.validator_id,
                 delegator_reward,
             );
             reward_distribution_records.insert(
                 appchain_message_nonce,
                 validator_set.era_number(),
-                delegator_id,
-                validator_id,
+                &delegator.delegator_id,
+                &delegator.validator_id,
             );
             self.reward_distribution_records
                 .set(&reward_distribution_records);

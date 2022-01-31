@@ -40,21 +40,21 @@ pub struct Delegator {
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct ValidatorSet {
     /// The number of era in appchain.
-    pub era_number: u64,
+    era_number: u64,
     /// The set of account id of validators.
-    pub validator_id_set: UnorderedSet<AccountId>,
+    validator_id_set: UnorderedSet<AccountId>,
     /// The map from validator id to the set of its delegators' id.
-    pub validator_id_to_delegator_id_set: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    validator_id_to_delegator_id_set: LookupMap<AccountId, UnorderedSet<AccountId>>,
     /// The map from delegator id to the set of its validators' id that
     /// the delegator delegates his/her voting rights to.
-    pub delegator_id_to_validator_id_set: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    delegator_id_to_validator_id_set: LookupMap<AccountId, UnorderedSet<AccountId>>,
     /// The validators data, mapped by their account id in NEAR protocol.
-    pub validators: LookupMap<AccountId, Validator>,
+    validators: LookupMap<AccountId, Validator>,
     /// The delegators data, mapped by the tuple of their delegator account id and
     /// validator account id in NEAR protocol.
-    pub delegators: LookupMap<(AccountId, AccountId), Delegator>,
+    delegators: LookupMap<(AccountId, AccountId), Delegator>,
     /// Total stake of current set
-    pub total_stake: Balance,
+    total_stake: Balance,
 }
 
 pub trait ValidatorSetViewer {
@@ -65,11 +65,15 @@ pub trait ValidatorSetViewer {
     ///
     fn get_validator(&self, validator_id: &AccountId) -> Option<Validator>;
     ///
+    fn get_validator_by_index(&self, index: &u64) -> Option<Validator>;
+    ///
     fn get_delegator(
         &self,
         delegator_id: &AccountId,
         validator_id: &AccountId,
     ) -> Option<Delegator>;
+    ///
+    fn get_delegator_by_index(&self, index: &u64, validator_id: &AccountId) -> Option<Delegator>;
     ///
     fn get_validator_ids(&self) -> Vec<AccountId>;
     ///
@@ -77,9 +81,11 @@ pub trait ValidatorSetViewer {
     ///
     fn get_delegator_ids_of(&self, validator_id: &AccountId) -> Vec<AccountId>;
     ///
-    fn get_validator_list(&self) -> Vec<AppchainValidator>;
-    ///
     fn get_validator_count_of(&self, delegator_id: &AccountId) -> u64;
+    ///
+    fn get_delegator_count_of(&self, validator_id: &AccountId) -> u64;
+    ///
+    fn era_number(&self) -> u64;
     ///
     fn total_stake(&self) -> u128;
     ///
@@ -353,6 +359,114 @@ impl ValidatorSet {
                 validator.validator_id_in_appchain = validator_id_in_appchain.to_string();
                 self.validators.insert(validator_id, &validator);
             }
+        }
+    }
+}
+
+impl ValidatorSetViewer for ValidatorSet {
+    //
+    fn contains_validator(&self, validator_id: &AccountId) -> bool {
+        self.validators.contains_key(validator_id)
+    }
+    //
+    fn contains_delegator(&self, delegator_id: &AccountId, validator_id: &AccountId) -> bool {
+        self.delegators
+            .contains_key(&(delegator_id.clone(), validator_id.clone()))
+    }
+    //
+    fn get_validator(&self, validator_id: &AccountId) -> Option<Validator> {
+        self.validators.get(validator_id)
+    }
+    //
+    fn get_validator_by_index(&self, index: &u64) -> Option<Validator> {
+        match self.validator_id_set.as_vector().get(*index) {
+            Some(validator_id) => self.validators.get(&validator_id),
+            None => None,
+        }
+    }
+    //
+    fn get_delegator(
+        &self,
+        delegator_id: &AccountId,
+        validator_id: &AccountId,
+    ) -> Option<Delegator> {
+        self.delegators
+            .get(&(delegator_id.clone(), validator_id.clone()))
+    }
+    //
+    fn get_delegator_by_index(&self, index: &u64, validator_id: &AccountId) -> Option<Delegator> {
+        if let Some(delegator_id_set) = self.validator_id_to_delegator_id_set.get(validator_id) {
+            if let Some(delegator_id) = delegator_id_set.as_vector().get(*index) {
+                return self.get_delegator(&delegator_id, validator_id);
+            }
+        }
+        None
+    }
+    //
+    fn get_validator_ids(&self) -> Vec<AccountId> {
+        self.validator_id_set.to_vec()
+    }
+    //
+    fn get_validator_ids_of(&self, delegator_id: &AccountId) -> Vec<AccountId> {
+        match self.delegator_id_to_validator_id_set.get(delegator_id) {
+            Some(validator_id_set) => validator_id_set.to_vec(),
+            None => Vec::new(),
+        }
+    }
+    //
+    fn get_delegator_ids_of(&self, validator_id: &AccountId) -> Vec<AccountId> {
+        match self.validator_id_to_delegator_id_set.get(validator_id) {
+            Some(delegator_id_set) => delegator_id_set.to_vec(),
+            None => Vec::new(),
+        }
+    }
+    //
+    fn get_validator_count_of(&self, delegator_id: &AccountId) -> u64 {
+        match self.delegator_id_to_validator_id_set.get(delegator_id) {
+            Some(validator_id_set) => validator_id_set.len(),
+            None => 0,
+        }
+    }
+    //
+    fn get_delegator_count_of(&self, validator_id: &AccountId) -> u64 {
+        match self.validator_id_to_delegator_id_set.get(validator_id) {
+            Some(delegator_id_set) => delegator_id_set.len(),
+            None => 0,
+        }
+    }
+    //
+    fn era_number(&self) -> u64 {
+        self.era_number
+    }
+    //
+    fn total_stake(&self) -> u128 {
+        self.total_stake
+    }
+    //
+    fn validator_count(&self) -> u64 {
+        self.validator_id_set.len()
+    }
+    //
+    fn delegator_count(&self) -> u64 {
+        self.get_validator_ids()
+            .iter()
+            .map(|v| self.get_delegator_count_of(v))
+            .reduce(|s1, s2| s1 + s2)
+            .unwrap_or(0)
+    }
+}
+
+impl AppchainValidator {
+    ///
+    pub fn from_validator(validator: Validator, delegators_count: u64, is_unbonding: bool) -> Self {
+        Self {
+            validator_id: validator.validator_id,
+            validator_id_in_appchain: validator.validator_id_in_appchain,
+            deposit_amount: U128::from(validator.deposit_amount),
+            total_stake: U128::from(validator.total_stake),
+            delegators_count: U64::from(delegators_count),
+            can_be_delegated_to: validator.can_be_delegated_to,
+            is_unbonding,
         }
     }
 }
