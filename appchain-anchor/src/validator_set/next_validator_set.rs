@@ -190,11 +190,14 @@ impl ValidatorSetViewer for NextValidatorSet {
     }
     //
     fn total_stake(&self) -> u128 {
-        self.get_validator_ids()
-            .iter()
-            .map(|id| self.get_validator(id).map(|v| v.total_stake).unwrap_or(0))
-            .reduce(|s1, s2| s1 + s2)
-            .unwrap_or(0)
+        let mut total_stake = self.validator_set.total_stake();
+        self.auto_unbonding_validator_ids.iter().for_each(|id| {
+            total_stake -= self.get_validator(id).map(|v| v.total_stake).unwrap_or(0);
+        });
+        self.unbonding_validator_ids.iter().for_each(|id| {
+            total_stake -= self.get_validator(id).map(|v| v.total_stake).unwrap_or(0);
+        });
+        total_stake
     }
     //
     fn validator_count(&self) -> u64 {
