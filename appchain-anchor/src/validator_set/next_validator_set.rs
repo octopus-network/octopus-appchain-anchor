@@ -30,6 +30,10 @@ impl NextValidatorSet {
         }
     }
     ///
+    pub fn validator_set(&self) -> &ValidatorSet {
+        &self.validator_set
+    }
+    ///
     pub fn clear(&mut self) {
         self.validator_set.clear();
         self.unbonding_validator_ids.clear();
@@ -67,31 +71,54 @@ impl NextValidatorSet {
     pub fn clear_auto_unbonding_validator_ids(&mut self) {
         self.auto_unbonding_validator_ids.clear();
     }
+    ///
+    pub fn get_validator_list(&self) -> Vec<AppchainValidator> {
+        self.validator_set
+            .get_validator_ids()
+            .iter()
+            .map(|validator_id| {
+                AppchainValidator::from_validator(
+                    self.validator_set.get_validator(validator_id).unwrap(),
+                    self.validator_set.get_delegator_count_of(validator_id),
+                    self.unbonding_validator_ids.contains(validator_id)
+                        || self.auto_unbonding_validator_ids.contains(validator_id),
+                )
+            })
+            .collect()
+    }
 }
 
 impl ValidatorSetViewer for NextValidatorSet {
     //
     fn contains_validator(&self, validator_id: &AccountId) -> bool {
-        self.validator_set.validator_id_set.contains(validator_id)
+        self.validator_set.contains_validator(validator_id)
             && !self.unbonding_validator_ids.contains(validator_id)
             && !self.auto_unbonding_validator_ids.contains(validator_id)
     }
     //
     fn contains_delegator(&self, delegator_id: &AccountId, validator_id: &AccountId) -> bool {
         if self.contains_validator(validator_id) {
-            if let Some(delegator_id_set) = self
-                .validator_set
-                .validator_id_to_delegator_id_set
-                .get(validator_id)
-            {
-                return delegator_id_set.contains(delegator_id);
-            }
+            self.validator_set
+                .contains_delegator(delegator_id, validator_id)
+        } else {
+            false
         }
-        false
     }
     //
     fn get_validator(&self, validator_id: &AccountId) -> Option<Validator> {
-        self.validator_set.validators.get(validator_id)
+        if self.contains_validator(validator_id) {
+            self.validator_set.get_validator(validator_id)
+        } else {
+            None
+        }
+    }
+    //
+    fn get_validator_by_index(&self, index: &u64) -> Option<Validator> {
+        assert!(
+            self.auto_unbonding_validator_ids.len() == 0 && self.unbonding_validator_ids.len() == 0,
+            "Can not use method 'get_validator_by_index' while next validator set has not been finalized."
+        );
+        self.validator_set.get_validator_by_index(index)
     }
     //
     fn get_delegator(
@@ -99,116 +126,89 @@ impl ValidatorSetViewer for NextValidatorSet {
         delegator_id: &AccountId,
         validator_id: &AccountId,
     ) -> Option<Delegator> {
+        if self.contains_validator(validator_id) {
+            self.validator_set.get_delegator(delegator_id, validator_id)
+        } else {
+            None
+        }
+    }
+    //
+    fn get_delegator_by_index(&self, index: &u64, validator_id: &AccountId) -> Option<Delegator> {
         self.validator_set
-            .delegators
-            .get(&(delegator_id.clone(), validator_id.clone()))
+            .get_delegator_by_index(index, validator_id)
     }
     //
     fn get_validator_ids(&self) -> Vec<AccountId> {
-        let validator_ids = self.validator_set.validator_id_set.to_vec();
-        let mut results = Vec::<AccountId>::new();
-        validator_ids.iter().for_each(|validator_id| {
-            if !self.unbonding_validator_ids.contains(validator_id)
-                && !self.auto_unbonding_validator_ids.contains(validator_id)
-            {
-                results.push(validator_id.clone());
-            }
-        });
-        results
+        self.validator_set
+            .get_validator_ids()
+            .iter()
+            .filter(|validator_id| {
+                !self.unbonding_validator_ids.contains(validator_id)
+                    && !self.auto_unbonding_validator_ids.contains(validator_id)
+            })
+            .cloned()
+            .collect()
     }
     //
     fn get_validator_ids_of(&self, delegator_id: &AccountId) -> Vec<AccountId> {
-        let mut results = Vec::<AccountId>::new();
-        if let Some(validator_id_set) = self
-            .validator_set
-            .delegator_id_to_validator_id_set
-            .get(delegator_id)
-        {
-            validator_id_set.to_vec().iter().for_each(|validator_id| {
-                if !self.unbonding_validator_ids.contains(validator_id)
+        self.validator_set
+            .get_validator_ids_of(delegator_id)
+            .iter()
+            .filter(|validator_id| {
+                !self.unbonding_validator_ids.contains(validator_id)
                     && !self.auto_unbonding_validator_ids.contains(validator_id)
-                {
-                    results.push(validator_id.clone());
-                }
-            });
-        }
-        results
+            })
+            .cloned()
+            .collect()
     }
     //
     fn get_delegator_ids_of(&self, validator_id: &AccountId) -> Vec<AccountId> {
-        if let Some(delegator_id_set) = self
-            .validator_set
-            .validator_id_to_delegator_id_set
-            .get(validator_id)
-        {
-            delegator_id_set.to_vec()
+        if self.contains_validator(validator_id) {
+            self.validator_set.get_delegator_ids_of(validator_id)
         } else {
             Vec::new()
         }
     }
     //
-    fn get_validator_list(&self) -> Vec<AppchainValidator> {
-        let validator_ids = self.validator_set.validator_id_set.to_vec();
-        let mut results = Vec::<AppchainValidator>::new();
-        validator_ids.iter().for_each(|validator_id| {
-            let validator = self.validator_set.validators.get(validator_id).unwrap();
-            let mut delegators_count: u64 = 0;
-            if let Some(delegator_id_set) = self
-                .validator_set
-                .validator_id_to_delegator_id_set
-                .get(validator_id)
-            {
-                delegators_count = delegator_id_set.len();
-            }
-            results.push(AppchainValidator {
-                validator_id: validator.validator_id,
-                validator_id_in_appchain: validator.validator_id_in_appchain,
-                deposit_amount: U128::from(validator.deposit_amount),
-                total_stake: U128::from(validator.total_stake),
-                delegators_count: U64::from(delegators_count),
-                can_be_delegated_to: validator.can_be_delegated_to,
-                is_unbonding: self.unbonding_validator_ids.contains(validator_id)
-                    || self.auto_unbonding_validator_ids.contains(validator_id),
-            });
-        });
-        results
+    fn get_validator_count_of(&self, delegator_id: &AccountId) -> u64 {
+        self.get_validator_ids_of(delegator_id)
+            .len()
+            .try_into()
+            .unwrap_or(0)
     }
     //
-    fn get_validator_count_of(&self, delegator_id: &AccountId) -> u64 {
-        if let Some(validator_id_set) = self
-            .validator_set
-            .delegator_id_to_validator_id_set
-            .get(&delegator_id)
-        {
-            validator_id_set.len()
+    fn get_delegator_count_of(&self, validator_id: &AccountId) -> u64 {
+        if self.contains_validator(validator_id) {
+            self.validator_set.get_delegator_count_of(validator_id)
         } else {
             0
         }
     }
     //
+    fn era_number(&self) -> u64 {
+        self.validator_set.era_number()
+    }
+    //
     fn total_stake(&self) -> u128 {
-        self.get_validator_list()
-            .iter()
-            .map(|v| v.total_stake.0)
-            .reduce(|s1, s2| s1 + s2)
-            .unwrap_or(0)
+        let mut total_stake = self.validator_set.total_stake();
+        self.auto_unbonding_validator_ids.iter().for_each(|id| {
+            total_stake -= self.get_validator(id).map(|v| v.total_stake).unwrap_or(0);
+        });
+        self.unbonding_validator_ids.iter().for_each(|id| {
+            total_stake -= self.get_validator(id).map(|v| v.total_stake).unwrap_or(0);
+        });
+        total_stake
     }
     //
     fn validator_count(&self) -> u64 {
-        self.get_validator_list().len().try_into().unwrap()
+        self.get_validator_ids().len().try_into().unwrap()
     }
     //
     fn delegator_count(&self) -> u64 {
-        let mut delegator_count: u64 = 0;
-        self.get_validator_ids().iter().for_each(|validator_id| {
-            if let Some(delegator_id_set) = self
-                .validator_set
-                .validator_id_to_delegator_id_set
-                .get(validator_id)
-            {
-                delegator_count += delegator_id_set.len();
-            }
-        });
-        delegator_count
+        self.get_validator_ids()
+            .iter()
+            .map(|id| self.get_delegator_count_of(id))
+            .reduce(|s1, s2| s1 + s2)
+            .unwrap_or(0)
     }
 }

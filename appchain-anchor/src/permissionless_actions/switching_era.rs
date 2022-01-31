@@ -1,6 +1,6 @@
 use super::ResultOfLoopingValidatorSet;
 use crate::*;
-use core::convert::{TryFrom, TryInto};
+use core::convert::TryFrom;
 use user_actions::UnbondedStakeReference;
 
 impl AppchainAnchor {
@@ -203,7 +203,7 @@ impl AppchainAnchor {
                     if let Some(staking_history) =
                         self.staking_histories.get().unwrap().get(&applying_index.0)
                     {
-                        self.apply_staking_history_to_validator_set(
+                        self.apply_staking_history_to_validator_set_of_era(
                             &mut validator_set,
                             &staking_history,
                         );
@@ -233,24 +233,18 @@ impl AppchainAnchor {
         validator_index: u64,
         delegator_index: u64,
     ) -> ResultOfLoopingValidatorSet {
-        let validator_ids = source_validator_set.get_validator_ids();
-        if validator_index >= validator_ids.len().try_into().unwrap() {
+        if validator_index >= source_validator_set.validator_count() {
             return ResultOfLoopingValidatorSet::NoMoreValidator;
         }
-        let validator_id = validator_ids
-            .get(usize::try_from(validator_index).unwrap())
+        let validator = source_validator_set
+            .get_validator_by_index(&validator_index)
             .unwrap();
-        let validator = source_validator_set.get_validator(validator_id).unwrap();
-        let delegator_ids = source_validator_set.get_delegator_ids_of(validator_id);
-        if delegator_index >= delegator_ids.len().try_into().unwrap() {
+        if delegator_index >= source_validator_set.get_delegator_count_of(&validator.validator_id) {
             target_validator_set.insert_validator(&validator);
             return ResultOfLoopingValidatorSet::NoMoreDelegator;
         }
-        let delegator_id = delegator_ids
-            .get(usize::try_from(delegator_index).unwrap())
-            .unwrap();
         let delegator = source_validator_set
-            .get_delegator(&delegator_id, &validator_id)
+            .get_delegator_by_index(&delegator_index, &validator.validator_id)
             .unwrap();
         target_validator_set.insert_delegator(&delegator);
         return ResultOfLoopingValidatorSet::NeedToContinue;
@@ -262,31 +256,35 @@ impl AppchainAnchor {
         delegator_index: u64,
     ) -> ResultOfLoopingValidatorSet {
         let next_validator_set = self.next_validator_set.get().unwrap();
-        let validator_ids = next_validator_set.get_unbonding_validator_ids();
-        if validator_index >= validator_ids.len().try_into().unwrap() {
+        let unbonding_validator_ids = next_validator_set.get_unbonding_validator_ids();
+        if validator_index >= unbonding_validator_ids.len().try_into().unwrap() {
             return ResultOfLoopingValidatorSet::NoMoreValidator;
         }
-        let validator_id = validator_ids
-            .get(usize::try_from(validator_index).unwrap())
+        let validator_id = unbonding_validator_ids
+            .get(usize::from(u16::try_from(validator_index).unwrap()))
             .unwrap();
-        let validator = next_validator_set.get_validator(validator_id).unwrap();
-        let delegator_ids = next_validator_set.get_delegator_ids_of(validator_id);
-        if delegator_index >= delegator_ids.len().try_into().unwrap() {
-            self.record_and_apply_staking_fact(StakingFact::ValidatorUnbonded {
-                validator_id: validator_id.clone(),
+        let validator = next_validator_set
+            .validator_set()
+            .get_validator(&validator_id)
+            .unwrap();
+        if delegator_index
+            >= next_validator_set
+                .validator_set()
+                .get_delegator_count_of(&validator.validator_id)
+        {
+            self.record_staking_fact(StakingFact::ValidatorUnbonded {
+                validator_id: validator.validator_id,
                 amount: U128::from(validator.deposit_amount),
             });
             return ResultOfLoopingValidatorSet::NoMoreDelegator;
         }
-        let delegator_id = delegator_ids
-            .get(usize::try_from(delegator_index).unwrap())
-            .unwrap();
         let delegator = next_validator_set
-            .get_delegator(&delegator_id, &validator_id)
+            .validator_set()
+            .get_delegator_by_index(&delegator_index, &validator.validator_id)
             .unwrap();
-        self.record_and_apply_staking_fact(StakingFact::DelegatorAutoUnbonded {
-            delegator_id: delegator_id.clone(),
-            validator_id: validator_id.clone(),
+        self.record_staking_fact(StakingFact::DelegatorAutoUnbonded {
+            delegator_id: delegator.delegator_id,
+            validator_id: delegator.validator_id,
             amount: U128::from(delegator.deposit_amount),
         });
         return ResultOfLoopingValidatorSet::NeedToContinue;
@@ -298,37 +296,41 @@ impl AppchainAnchor {
         delegator_index: u64,
     ) -> ResultOfLoopingValidatorSet {
         let next_validator_set = self.next_validator_set.get().unwrap();
-        let validator_ids = next_validator_set.get_auto_unbonding_validator_ids();
-        if validator_index >= validator_ids.len().try_into().unwrap() {
+        let auto_unbonding_validator_ids = next_validator_set.get_auto_unbonding_validator_ids();
+        if validator_index >= auto_unbonding_validator_ids.len().try_into().unwrap() {
             return ResultOfLoopingValidatorSet::NoMoreValidator;
         }
-        let validator_id = validator_ids
-            .get(usize::try_from(validator_index).unwrap())
+        let validator_id = auto_unbonding_validator_ids
+            .get(usize::from(u16::try_from(validator_index).unwrap()))
             .unwrap();
-        let validator = next_validator_set.get_validator(validator_id).unwrap();
-        let delegator_ids = next_validator_set.get_delegator_ids_of(validator_id);
-        if delegator_index >= delegator_ids.len().try_into().unwrap() {
-            self.record_and_apply_staking_fact(StakingFact::ValidatorAutoUnbonded {
-                validator_id: validator_id.clone(),
+        let validator = next_validator_set
+            .validator_set()
+            .get_validator(&validator_id)
+            .unwrap();
+        if delegator_index
+            >= next_validator_set
+                .validator_set()
+                .get_delegator_count_of(&validator.validator_id)
+        {
+            self.record_staking_fact(StakingFact::ValidatorAutoUnbonded {
+                validator_id: validator.validator_id,
                 amount: U128::from(validator.deposit_amount),
             });
             return ResultOfLoopingValidatorSet::NoMoreDelegator;
         }
-        let delegator_id = delegator_ids
-            .get(usize::try_from(delegator_index).unwrap())
-            .unwrap();
         let delegator = next_validator_set
-            .get_delegator(&delegator_id, &validator_id)
+            .validator_set()
+            .get_delegator_by_index(&delegator_index, &validator.validator_id)
             .unwrap();
-        self.record_and_apply_staking_fact(StakingFact::DelegatorAutoUnbonded {
-            delegator_id: delegator_id.clone(),
-            validator_id: validator_id.clone(),
+        self.record_staking_fact(StakingFact::DelegatorAutoUnbonded {
+            delegator_id: delegator.delegator_id,
+            validator_id: delegator.validator_id,
             amount: U128::from(delegator.deposit_amount),
         });
         return ResultOfLoopingValidatorSet::NeedToContinue;
     }
     //
-    fn apply_staking_history_to_validator_set(
+    fn apply_staking_history_to_validator_set_of_era(
         &mut self,
         validator_set: &mut ValidatorSetOfEra,
         staking_history: &StakingHistory,
@@ -347,15 +349,13 @@ impl AppchainAnchor {
                 validator_id,
                 amount: _,
             } => {
-                let mut stakes = match self.unbonded_stakes.get(validator_id) {
-                    Some(stakes) => stakes,
-                    None => Vec::<UnbondedStakeReference>::new(),
-                };
-                stakes.push(UnbondedStakeReference {
-                    era_number: validator_set.era_number(),
-                    staking_history_index: staking_history.index.0,
-                });
-                self.unbonded_stakes.insert(validator_id, &stakes);
+                self.add_unbonded_stake_of(
+                    validator_id,
+                    UnbondedStakeReference {
+                        era_number: validator_set.era_number(),
+                        staking_history_index: staking_history.index.0,
+                    },
+                );
             }
             StakingFact::DelegationDecreased {
                 delegator_id,
@@ -372,17 +372,39 @@ impl AppchainAnchor {
                 validator_id: _,
                 amount: _,
             } => {
-                let mut stakes = match self.unbonded_stakes.get(delegator_id) {
-                    Some(stakes) => stakes,
-                    None => Vec::<UnbondedStakeReference>::new(),
-                };
-                stakes.push(UnbondedStakeReference {
-                    era_number: validator_set.era_number(),
-                    staking_history_index: staking_history.index.0,
-                });
-                self.unbonded_stakes.insert(delegator_id, &stakes);
+                self.add_unbonded_stake_of(
+                    delegator_id,
+                    UnbondedStakeReference {
+                        era_number: validator_set.era_number(),
+                        staking_history_index: staking_history.index.0,
+                    },
+                );
             }
             _ => (),
         }
+        match &staking_history.staking_fact {
+            StakingFact::ValidatorUnbonded { .. }
+            | StakingFact::ValidatorAutoUnbonded { .. }
+            | StakingFact::DelegatorAutoUnbonded { .. } => {
+                let mut next_validator_set = self.next_validator_set.get().unwrap();
+                next_validator_set.apply_staking_fact(&staking_history.staking_fact);
+                self.next_validator_set.set(&next_validator_set);
+                self.sync_state_to_registry();
+            }
+            _ => (),
+        }
+    }
+    //
+    fn add_unbonded_stake_of(
+        &mut self,
+        account_id: &AccountId,
+        unbonded_stake_reference: UnbondedStakeReference,
+    ) {
+        let mut stakes = match self.unbonded_stakes.get(account_id) {
+            Some(stakes) => stakes,
+            None => Vec::<UnbondedStakeReference>::new(),
+        };
+        stakes.push(unbonded_stake_reference);
+        self.unbonded_stakes.insert(account_id, &stakes);
     }
 }
