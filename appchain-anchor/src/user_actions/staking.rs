@@ -115,14 +115,12 @@ impl AppchainAnchor {
             amount: deposit_amount,
             can_be_delegated_to,
         });
-        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
         //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
-        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
         //
         self.sync_state_to_registry();
-        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
+        //
         validator_profiles.insert(ValidatorProfile {
             validator_id,
             validator_id_in_appchain: formatted_validator_id_in_appchain.to_string(),
@@ -162,14 +160,11 @@ impl AppchainAnchor {
             validator_id,
             amount,
         });
-        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
         //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
-        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
         //
         self.sync_state_to_registry();
-        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
     }
     //
     fn register_delegator(
@@ -218,19 +213,15 @@ impl AppchainAnchor {
             validator_id,
             amount: U128::from(deposit_amount),
         });
-        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
         //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
-        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
         //
         self.sync_state_to_registry();
-        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
     }
     //
     pub fn record_staking_fact(&mut self, staking_fact: StakingFact) -> StakingHistory {
         //
-        env::log(format!("Used gas 4: {}", env::used_gas()).as_bytes());
         let mut staking_histories = self.staking_histories.get().unwrap();
         let staking_history = staking_histories.append(&mut StakingHistory {
             staking_fact,
@@ -239,13 +230,11 @@ impl AppchainAnchor {
             index: U64::from(0),
         });
         self.staking_histories.set(&staking_histories);
-        env::log(format!("Used gas 5: {}", env::used_gas()).as_bytes());
         //
         let mut user_staking_histories = self.user_staking_histories.get().unwrap();
         user_staking_histories.add_staking_history(&staking_history);
         self.user_staking_histories.set(&user_staking_histories);
         //
-        env::log(format!("Used gas 6: {}", env::used_gas()).as_bytes());
         staking_history
     }
     //
@@ -286,14 +275,11 @@ impl AppchainAnchor {
             validator_id,
             amount,
         });
-        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
         //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
-        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
         //
         self.sync_state_to_registry();
-        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
     }
 }
 
@@ -334,14 +320,11 @@ impl StakingManager for AppchainAnchor {
             validator_id: validator_id.clone(),
             amount,
         });
-        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
         //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
-        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
         //
         self.sync_state_to_registry();
-        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
     }
     //
     fn unbond_stake(&mut self) {
@@ -375,14 +358,11 @@ impl StakingManager for AppchainAnchor {
         self.assert_validator_id(&validator_id, &next_validator_set);
         let staking_history =
             self.record_staking_fact(StakingFact::ValidatorDelegationEnabled { validator_id });
-        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
         //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
-        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
         //
         self.sync_state_to_registry();
-        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
     }
     //
     fn disable_delegation(&mut self) {
@@ -391,18 +371,14 @@ impl StakingManager for AppchainAnchor {
         self.assert_validator_id(&validator_id, &next_validator_set);
         let staking_history =
             self.record_staking_fact(StakingFact::ValidatorDelegationDisabled { validator_id });
-        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
         //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
-        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
         //
         self.sync_state_to_registry();
-        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
     }
     //
     fn decrease_delegation(&mut self, validator_id: AccountId, amount: U128) {
-        env::log(format!("Used gas 1: {}", env::used_gas()).as_bytes());
         match self.appchain_state {
             AppchainState::Active => (),
             _ => panic!(
@@ -422,7 +398,6 @@ impl StakingManager for AppchainAnchor {
                 .0
                 / OCT_DECIMALS_VALUE
         );
-        env::log(format!("Used gas 2: {}", env::used_gas()).as_bytes());
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let delegator_id = env::predecessor_account_id();
         self.assert_delegator_id(&delegator_id, &validator_id, &next_validator_set);
@@ -436,20 +411,16 @@ impl StakingManager for AppchainAnchor {
             "Unable to decrease so much stake."
         );
         self.assert_total_stake_price(&protocol_settings, &next_validator_set, amount.0);
-        env::log(format!("Used gas 3: {}", env::used_gas()).as_bytes());
         let staking_history = self.record_staking_fact(StakingFact::DelegationDecreased {
             delegator_id: delegator_id.clone(),
             validator_id: validator_id.clone(),
             amount,
         });
-        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
         //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
-        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
         //
         self.sync_state_to_registry();
-        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
     }
     //
     fn unbond_delegation(&mut self, validator_id: AccountId) {
@@ -477,14 +448,11 @@ impl StakingManager for AppchainAnchor {
             validator_id: validator_id.clone(),
             amount: U128::from(delegator.deposit_amount),
         });
-        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
         //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
-        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
         //
         self.sync_state_to_registry();
-        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
     }
     //
     fn withdraw_stake(&mut self, account_id: AccountId) {

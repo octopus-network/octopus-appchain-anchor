@@ -386,15 +386,10 @@ impl AppchainAnchor {
             StakingFact::ValidatorUnbonded { .. }
             | StakingFact::ValidatorAutoUnbonded { .. }
             | StakingFact::DelegatorAutoUnbonded { .. } => {
-                env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
-                //
                 let mut next_validator_set = self.next_validator_set.get().unwrap();
                 next_validator_set.apply_staking_fact(&staking_history.staking_fact);
                 self.next_validator_set.set(&next_validator_set);
-                env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
-                //
                 self.sync_state_to_registry();
-                env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
             }
             _ => (),
         }

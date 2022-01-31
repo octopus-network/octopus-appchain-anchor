@@ -48,13 +48,10 @@ impl AppchainAnchor {
             validator_id: validator_id.clone(),
             validator_id_in_appchain: account_id_in_appchain.clone(),
         });
-        env::log(format!("Used gas 7: {}", env::used_gas()).as_bytes());
         //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
-        env::log(format!("Used gas 10: {}", env::used_gas()).as_bytes());
         //
         self.sync_state_to_registry();
-        env::log(format!("Used gas 11: {}", env::used_gas()).as_bytes());
     }
 }

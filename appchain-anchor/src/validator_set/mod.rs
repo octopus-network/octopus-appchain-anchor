@@ -298,7 +298,6 @@ impl ValidatorSet {
                 validator_id,
                 amount,
             } => {
-                env::log(format!("Used gas 8: {}", env::used_gas()).as_bytes());
                 let mut delegator = self
                     .delegators
                     .get(&(delegator_id.clone(), validator_id.clone()))
@@ -310,7 +309,6 @@ impl ValidatorSet {
                 validator.total_stake -= amount.0;
                 self.validators.insert(validator_id, &validator);
                 self.total_stake -= amount.0;
-                env::log(format!("Used gas 9: {}", env::used_gas()).as_bytes());
             }
             StakingFact::DelegatorUnbonded {
                 delegator_id,
@@ -322,7 +320,6 @@ impl ValidatorSet {
                 validator_id,
                 amount: _,
             } => {
-                env::log(format!("Used gas 8: {}", env::used_gas()).as_bytes());
                 let mut delegator_id_set = self
                     .validator_id_to_delegator_id_set
                     .get(validator_id)
@@ -353,7 +350,6 @@ impl ValidatorSet {
                 validator.total_stake -= delegator.deposit_amount;
                 self.validators.insert(validator_id, &validator);
                 self.total_stake -= delegator.deposit_amount;
-                env::log(format!("Used gas 9: {}", env::used_gas()).as_bytes());
             }
             StakingFact::ValidatorIdInAppchainChanged {
                 validator_id,
