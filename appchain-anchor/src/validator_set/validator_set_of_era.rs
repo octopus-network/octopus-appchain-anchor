@@ -51,10 +51,6 @@ impl ValidatorSetOfEra {
         }
     }
     ///
-    pub fn era_number(&self) -> u64 {
-        self.validator_set.era_number
-    }
-    ///
     pub fn start_timestamp(&self) -> Timestamp {
         self.start_timestamp
     }
@@ -251,6 +247,23 @@ impl ValidatorSetOfEra {
     pub fn apply_staking_fact(&mut self, staking_fact: &StakingFact) {
         self.validator_set.apply_staking_fact(staking_fact);
     }
+    ///
+    pub fn get_validator_list(&self) -> Vec<AppchainValidator> {
+        if !self.all_staking_histories_are_applied() {
+            return Vec::new();
+        }
+        self.validator_set
+            .get_validator_ids()
+            .iter()
+            .map(|validator_id| {
+                AppchainValidator::from_validator(
+                    self.validator_set.get_validator(validator_id).unwrap(),
+                    self.validator_set.get_delegator_count_of(validator_id),
+                    false,
+                )
+            })
+            .collect()
+    }
 }
 
 impl ValidatorSetViewer for ValidatorSetOfEra {
@@ -259,30 +272,29 @@ impl ValidatorSetViewer for ValidatorSetOfEra {
         if !self.all_staking_histories_are_applied() {
             return false;
         }
-        self.validator_set.validator_id_set.contains(validator_id)
+        self.validator_set.contains_validator(validator_id)
     }
     //
     fn contains_delegator(&self, delegator_id: &AccountId, validator_id: &AccountId) -> bool {
         if !self.all_staking_histories_are_applied() {
             return false;
         }
-        if self.contains_validator(validator_id) {
-            if let Some(delegator_id_set) = self
-                .validator_set
-                .validator_id_to_delegator_id_set
-                .get(validator_id)
-            {
-                return delegator_id_set.contains(delegator_id);
-            }
-        }
-        false
+        self.validator_set
+            .contains_delegator(delegator_id, validator_id)
     }
     //
     fn get_validator(&self, validator_id: &AccountId) -> Option<Validator> {
         if !self.all_staking_histories_are_applied() {
             return None;
         }
-        self.validator_set.validators.get(validator_id)
+        self.validator_set.get_validator(validator_id)
+    }
+    //
+    fn get_validator_by_index(&self, index: &u64) -> Option<Validator> {
+        if !self.all_staking_histories_are_applied() {
+            return None;
+        }
+        self.validator_set.get_validator_by_index(index)
     }
     //
     fn get_delegator(
@@ -293,126 +305,75 @@ impl ValidatorSetViewer for ValidatorSetOfEra {
         if !self.all_staking_histories_are_applied() {
             return None;
         }
+        self.validator_set.get_delegator(delegator_id, validator_id)
+    }
+    //
+    fn get_delegator_by_index(&self, index: &u64, validator_id: &AccountId) -> Option<Delegator> {
+        if !self.all_staking_histories_are_applied() {
+            return None;
+        }
         self.validator_set
-            .delegators
-            .get(&(delegator_id.clone(), validator_id.clone()))
+            .get_delegator_by_index(index, validator_id)
     }
     //
     fn get_validator_ids(&self) -> Vec<AccountId> {
         if !self.all_staking_histories_are_applied() {
             return Vec::new();
         }
-        self.validator_set.validator_id_set.to_vec()
+        self.validator_set.get_validator_ids()
     }
     //
     fn get_validator_ids_of(&self, delegator_id: &AccountId) -> Vec<AccountId> {
         if !self.all_staking_histories_are_applied() {
             return Vec::new();
         }
-        if let Some(validator_id_set) = self
-            .validator_set
-            .delegator_id_to_validator_id_set
-            .get(delegator_id)
-        {
-            validator_id_set.to_vec()
-        } else {
-            Vec::new()
-        }
+        self.validator_set.get_validator_ids_of(delegator_id)
     }
     //
     fn get_delegator_ids_of(&self, validator_id: &AccountId) -> Vec<AccountId> {
         if !self.all_staking_histories_are_applied() {
             return Vec::new();
         }
-        if let Some(delegator_id_set) = self
-            .validator_set
-            .validator_id_to_delegator_id_set
-            .get(validator_id)
-        {
-            delegator_id_set.to_vec()
-        } else {
-            Vec::new()
-        }
-    }
-    //
-    fn get_validator_list(&self) -> Vec<AppchainValidator> {
-        if !self.all_staking_histories_are_applied() {
-            return Vec::new();
-        }
-        let validator_ids = self.validator_set.validator_id_set.to_vec();
-        validator_ids
-            .iter()
-            .map(|validator_id| {
-                let validator = self.validator_set.validators.get(validator_id).unwrap();
-                let mut delegators_count: u64 = 0;
-                if let Some(delegator_id_set) = self
-                    .validator_set
-                    .validator_id_to_delegator_id_set
-                    .get(validator_id)
-                {
-                    delegators_count = delegator_id_set.len();
-                }
-                return AppchainValidator {
-                    validator_id: validator.validator_id,
-                    validator_id_in_appchain: validator.validator_id_in_appchain,
-                    deposit_amount: U128::from(validator.deposit_amount),
-                    total_stake: U128::from(validator.total_stake),
-                    delegators_count: U64::from(delegators_count),
-                    can_be_delegated_to: validator.can_be_delegated_to,
-                    is_unbonding: false,
-                };
-            })
-            .collect()
+        self.validator_set.get_delegator_ids_of(validator_id)
     }
     //
     fn get_validator_count_of(&self, delegator_id: &AccountId) -> u64 {
         if !self.all_staking_histories_are_applied() {
             return 0;
         }
-        if let Some(validator_id_set) = self
-            .validator_set
-            .delegator_id_to_validator_id_set
-            .get(&delegator_id)
-        {
-            validator_id_set.len()
-        } else {
-            0
+        self.validator_set.get_validator_count_of(delegator_id)
+    }
+    //
+    fn get_delegator_count_of(&self, validator_id: &AccountId) -> u64 {
+        if !self.all_staking_histories_are_applied() {
+            return 0;
         }
+        self.validator_set.get_delegator_count_of(validator_id)
+    }
+    //
+    fn era_number(&self) -> u64 {
+        self.validator_set.era_number()
     }
     //
     fn total_stake(&self) -> u128 {
         if !self.all_staking_histories_are_applied() {
             return 0;
         }
-        self.validator_set.total_stake
+        self.validator_set.total_stake()
     }
     //
     fn validator_count(&self) -> u64 {
         if !self.all_staking_histories_are_applied() {
             return 0;
         }
-        self.validator_set.validator_id_set.len()
+        self.validator_set.validator_count()
     }
     //
     fn delegator_count(&self) -> u64 {
         if !self.all_staking_histories_are_applied() {
             return 0;
         }
-        let mut delegator_count: u64 = 0;
-        self.validator_set
-            .validator_id_set
-            .to_vec()
-            .iter()
-            .for_each(|validator_id| {
-                if let Some(delegator_id_set) = self
-                    .validator_set
-                    .validator_id_to_delegator_id_set
-                    .get(validator_id)
-                {
-                    delegator_count += delegator_id_set.len();
-                }
-            });
-        delegator_count
+        self.validator_set.delegator_count()
     }
 }
 
