@@ -5,14 +5,6 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct AppchainMessageProcessingResults {
-    ///
-    message_nonce_histories: LookupArray<u32>,
-    ///
-    processing_result_map: LookupMap<u32, AppchainMessageProcessingResult>,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
     appchain_id: AppchainId,
@@ -68,8 +60,6 @@ pub struct OldAppchainAnchor {
     /// Whether the rewards withdrawal is paused
     rewards_withdrawal_is_paused: bool,
     /// The processing result of appchain messages
-    appchain_message_processing_results: LazyOption<AppchainMessageProcessingResults>,
-    /// The processing result of appchain messages
     appchain_messages: LazyOption<AppchainMessages>,
 }
 
@@ -78,8 +68,7 @@ impl AppchainAnchor {
     #[init(ignore_state)]
     pub fn migrate_state() -> Self {
         // Deserialize the state using the old contract structure.
-        let mut old_contract: OldAppchainAnchor =
-            env::state_read().expect("Old state doesn't exist");
+        let old_contract: OldAppchainAnchor = env::state_read().expect("Old state doesn't exist");
         // Verify that the migration can only be done by the owner.
         // This is not necessary, if the upgrade is done internally.
         assert_eq!(
@@ -88,7 +77,6 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
-        old_contract.appchain_message_processing_results.remove();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -117,6 +105,10 @@ impl AppchainAnchor {
             user_staking_histories: old_contract.user_staking_histories,
             rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
             appchain_messages: old_contract.appchain_messages,
+            appchain_challenges: LazyOption::new(
+                StorageKey::AppchainChallenges.into_bytes(),
+                Some(&LookupArray::new(StorageKey::AppchainChallengesMap)),
+            ),
         };
         //
         //

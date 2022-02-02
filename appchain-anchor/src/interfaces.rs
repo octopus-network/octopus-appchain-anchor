@@ -216,6 +216,8 @@ pub trait PermissionlessActions {
     );
     ///
     fn process_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult;
+    ///
+    fn commit_appchain_challenge(&mut self, appchain_challenge: AppchainChallenge);
 }
 
 pub trait ProtocolSettingsManager {
