@@ -1,4 +1,5 @@
 mod anchor_viewer;
+mod appchain_challenge;
 mod appchain_messages;
 mod assets;
 pub mod interfaces;
@@ -29,6 +30,7 @@ use near_sdk::{
 pub use message_decoder::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
 
+use appchain_challenge::AppchainChallenge;
 use appchain_messages::AppchainMessages;
 use assets::near_fungible_tokens::NearFungibleTokens;
 use beefy_light_client::Hash;
@@ -172,6 +174,8 @@ pub struct AppchainAnchor {
     rewards_withdrawal_is_paused: bool,
     /// The processing result of appchain messages
     appchain_messages: LazyOption<AppchainMessages>,
+    /// The appchain challenges
+    appchain_challenges: LazyOption<LookupArray<AppchainChallenge>>,
 }
 
 #[near_bindgen]
@@ -275,6 +279,10 @@ impl AppchainAnchor {
             appchain_messages: LazyOption::new(
                 StorageKey::AppchainMessages.into_bytes(),
                 Some(&AppchainMessages::new()),
+            ),
+            appchain_challenges: LazyOption::new(
+                StorageKey::AppchainChallenges.into_bytes(),
+                Some(&LookupArray::new(StorageKey::AppchainChallengesMap)),
             ),
         }
     }
@@ -513,6 +521,17 @@ impl IndexedAndClearable for StakingHistory {
     //
     fn set_index(&mut self, index: &u64) {
         self.index = U64::from(*index);
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        ()
+    }
+}
+
+impl IndexedAndClearable for AppchainChallenge {
+    //
+    fn set_index(&mut self, _index: &u64) {
+        ()
     }
     //
     fn clear_extra_storage(&mut self) {
