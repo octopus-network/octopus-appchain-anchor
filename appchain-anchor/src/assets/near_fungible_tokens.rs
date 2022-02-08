@@ -315,7 +315,10 @@ impl AppchainAnchor {
             processing_context.add_prepaid_gas(GAS_FOR_FT_TRANSFER + GAS_FOR_RESOLVER_FUNCTION);
             MultiTxsOperationProcessingResult::Ok
         } else {
-            let message = format!("Invalid contract account of NEAR fungible token: {}", contract_account);
+            let message = format!(
+                "Invalid contract account of NEAR fungible token: {}",
+                contract_account
+            );
             let result = AppchainMessageProcessingResult::Error {
                 nonce: appchain_message_nonce,
                 message: message.clone(),

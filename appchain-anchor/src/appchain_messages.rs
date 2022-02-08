@@ -20,6 +20,8 @@ pub struct AppchainMessages {
     ///
     processing_result_map: LookupMap<u32, AppchainMessageProcessingResult>,
     ///
+    min_nonce: u32,
+    ///
     max_nonce: u32,
 }
 
@@ -32,6 +34,7 @@ impl AppchainMessages {
             processing_result_map: LookupMap::new(
                 StorageKey::AppchainMessageProcessingResultMap.into_bytes(),
             ),
+            min_nonce: 0,
             max_nonce: 0,
         }
     }
@@ -44,6 +47,10 @@ impl AppchainMessages {
         self.message_nonces.get_slice_of(start_index, quantity)
     }
     ///
+    pub fn min_nonce(&self) -> u32 {
+        self.min_nonce
+    }
+    ///
     pub fn max_nonce(&self) -> u32 {
         self.max_nonce
     }
@@ -53,8 +60,16 @@ impl AppchainMessages {
         if !self.message_map.contains_key(&nonce) {
             self.message_nonces.append(&mut nonce);
             self.message_map.insert(&nonce, appchain_message);
-            if nonce > self.max_nonce {
+            if self.min_nonce == 0 && self.max_nonce == 0 {
+                self.min_nonce = nonce;
                 self.max_nonce = nonce;
+            } else {
+                if nonce < self.min_nonce {
+                    self.min_nonce = nonce;
+                }
+                if nonce > self.max_nonce {
+                    self.max_nonce = nonce;
+                }
             }
         }
     }

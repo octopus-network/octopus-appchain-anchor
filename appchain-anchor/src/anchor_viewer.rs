@@ -33,6 +33,7 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_anchor_status(&self) -> AnchorStatus {
         let next_validator_set = self.next_validator_set.get().unwrap();
+        let appchain_messages = self.appchain_messages.get().unwrap();
         AnchorStatus {
             total_stake_in_next_era: next_validator_set.total_stake().into(),
             validator_count_in_next_era: next_validator_set.validator_count().into(),
@@ -53,7 +54,10 @@ impl AnchorViewer for AppchainAnchor {
                 .unwrap()
                 .index_range(),
             index_range_of_staking_history: self.staking_histories.get().unwrap().index_range(),
-            index_range_of_appchain_messages: self.appchain_messages.get().unwrap().index_range(),
+            nonce_range_of_appchain_messages: IndexRange {
+                start_index: U64::from(u64::from(appchain_messages.min_nonce())),
+                end_index: U64::from(u64::from(appchain_messages.max_nonce())),
+            },
             permissionless_actions_status: self.permissionless_actions_status.get().unwrap(),
             asset_transfer_is_paused: self.asset_transfer_is_paused,
             rewards_withdrawal_is_paused: self.rewards_withdrawal_is_paused,
