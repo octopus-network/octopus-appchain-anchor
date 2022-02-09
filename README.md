@@ -127,28 +127,50 @@ When this contract receives an `appchain message` which indicates that the appch
 
 ### Manage staking
 
+#### Register validator
+
 Any user in NEAR protocol can deposit a certain amount (not less than `minimum_validator_deposit` of `protocol settings`) of OCT token to this contract to register his/her account as a `validator` of next `era` of corresponding appchain. The user should also specify the validator account id which will be used in the corresponding appchain, and specify the flag which indicates that 'whether the validator wants to be delegated to'.
+
+#### Increase stake of validator
 
 Any user in NEAR protocol can deposit a certain amount of OCT token to this contract to increase his/her stake as a `validator` in next `era` of corresponding appchain. The user must be already a registered `validator` and the `validator` must not be unbonded.
 
+#### Register delegator
+
 Any user in NEAR protocol can deposit a certain amount (not less than `minimum_delegator_deposit` of `protocol settings`) of OCT token to this contract to register his/her account as a `delegator` of next `era` of corresponding appchain. The user should also specify the validator account id (in the corresponding appchain) that he/she want to delegate to.
 
+#### Increase delegation of delegator
+
 Any user in NEAR protocol can deposit a certain amount of OCT token to this contract to increase his/her delegation as a `delegator` in next `era` of corresponding appchain. The user must be already a registered `delegator` of a certain `validator` and the `delegator` must not be unbonded.
+
+#### Unbond validator
 
 A registered `validator` can unbond himself/herself from corresponding appchain. At this case, this contract should:
 
 * Remove the `validator` from the `validator set` of next `era` of corresponding appchain and move it to `unbonded validator set`. The lock period of the unbonded stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the unbonded stake.
 * Remove all delegators of the `validator` from the `validator set` of next `era` of corresponding appchain. The lock period of the decreased delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the unbonded delegation.
 
+#### Unbond delegator
+
 A registered `delegator` can unbond himself/herself from a specific `validator` of corresponding appchain. At this case, this contract should remove the `delegator` from the `validator set` of next `era` of corresponding appchain. The lock period of the unbonded delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the unbonded delegation.
+
+#### Decrease stake of validator
 
 A validator can decrease his/her stake while the validator is still active (not unbonded) in corresponding appchain. The deposit of the validator after the reduction cannot be less than `minimum_validator_deposit` of `protocol settings`, and the total stake of the `validator set` of next `era` after the reduction cannot be less than 2/3 of the total stake of the `validator set` of last `era`. The lock period of the decreased stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the decreased stake.
 
+#### Decrease delegation of delegator
+
 A delegator can decrease his/her delegation while the delegator is still active (not unbonded) in corresponding appchain. The deposit of the delegator after the reduction cannot be less than `minimum_delegator_deposit` of `protocol settings`, and the total stake of the `validator set` of next `era` after the reduction cannot be less than 2/3 of the total stake of the `validator set` of last `era`. The lock period of the decreased delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the decreased delegation.
+
+#### Staking history
 
 Each of the above actions will generate a corresponding `staking history` that is stored in this contract. These staking histories are used to restore the `validator set` of a certain `era`.
 
+#### Enable/disable delegation
+
 A validator can also change the flag which is set at registering time and stored in this contract, the flag indicates that 'whether he/she wants to be delegated to'. After this flag is set to `false`, delegators cannot delegate to this validator any more. But those delegators already delegated to this validator will be kept.
+
+#### Permissions
 
 The staking actions also depend on the state of corresponding appchain:
 
