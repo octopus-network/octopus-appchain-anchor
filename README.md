@@ -145,10 +145,7 @@ Any user in NEAR protocol can deposit a certain amount of OCT token to this cont
 
 #### Unbond validator
 
-A registered `validator` can unbond himself/herself from corresponding appchain. At this case, this contract should:
-
-* Remove the `validator` from the `validator set` of next `era` of corresponding appchain and move it to `unbonded validator set`. The lock period of the unbonded stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the unbonded stake.
-* Remove all delegators of the `validator` from the `validator set` of next `era` of corresponding appchain. The lock period of the decreased delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the unbonded delegation.
+A registered `validator` can unbond himself/herself from corresponding appchain. The contract will mark this `validator` as `unbonding`, and apply this action while generating validator set for the next era.
 
 #### Unbond delegator
 
@@ -207,7 +204,14 @@ The `appchain message` s which can be applied in this contract have the followin
 When this contract receives an `appchain message` which indicates that the corresponding appchain has switched to a new `era`, this contract should:
 
 * Create a new (empty) `validator set` for the given `era`.
-* Restore the state of the `validator set` by sequentially applying all staking histories happened by the time of this `appchain message` is received.
+* Copy the whole state of the `validator set` of the previous `era` of the given `era`.
+* Unbond the validators who are marked as `unbonding`:
+  * Remove all delegators of the `validator` from the `validator set`. The lock period of the decreased delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the unbonded delegation.
+  * Remove the `validator` from the `validator set`. The lock period of the unbonded stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the unbonded stake.
+* Unbond the validators who are marked as `auto_unbonding` (refer to [Distribute reward of era](#distribute-reward-of-era)):
+  * Remove all delegators of the `validator` from the `validator set`. The lock period of the decreased delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the unbonded delegation.
+  * Remove the `validator` from the `validator set`. The lock period of the unbonded stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the unbonded stake.
+* Restore the state of the `validator set` by sequentially applying all staking histories happened by the time of this `appchain message` is received (that is the staking histories happened from the last `era` was switched).
 
 During this process:
 
@@ -226,7 +230,9 @@ When this contract receives an `appchain message` which indicates that the corre
 
 * Store the `unprofitable validator id list` carried by the `appchain message` in the `validator set` of the given `era`.
 * Mint a certain amount of `wrapped appchain token` in the corresponding token contract. The amount is `era_reward` of `appchain settings`.
-* Distribute the `era_reward` proportionally to all profitable validators and delegators (only calculate the reward amount of each one validator and delegator), and store the results in this contract.
+* Distribute the `era_reward` proportionally to all profitable validators and delegators, and store the results in this contract.
+* Mark validators who should be `auto_unbond`:
+  * If a validator did not receive reward in a certain amount of consecutive `era`s, it will be marked as `auto_unbonding`. The count of consecutive `era`s is `maximum_allowed_unprofitable_era_count` of `protocol_settings`.
 
 > The validator and delegator need to withdraw the rewards manually.
 
