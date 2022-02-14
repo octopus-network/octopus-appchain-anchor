@@ -150,10 +150,7 @@ pub trait AnchorViewer {
     /// If the paran `index` is smaller than the start index, or bigger than the end index
     /// stored in anchor, or there is no challenge data in anchor yet,
     /// `Option::None` will be returned.
-    fn get_appchain_challenge(
-        &self,
-        index: Option<U64>,
-    ) -> Option<AppchainChallenge>;
+    fn get_appchain_challenge(&self, index: Option<U64>) -> Option<AppchainChallenge>;
     /// Get appchain challenge data by start index and quantity.
     /// If the param `quantity` is omitted, up to 50 records will be returned.
     fn get_appchain_challenges(

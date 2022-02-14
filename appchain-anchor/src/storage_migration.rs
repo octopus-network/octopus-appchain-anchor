@@ -77,6 +77,7 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
+        let old_appchain_settings = old_contract.appchain_settings.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -91,7 +92,10 @@ impl AppchainAnchor {
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
             unbonded_stakes: old_contract.unbonded_stakes,
             validator_profiles: old_contract.validator_profiles,
-            appchain_settings: old_contract.appchain_settings,
+            appchain_settings: LazyOption::new(
+                StorageKey::AppchainSettings.into_bytes(),
+                Some(&old_appchain_settings),
+            ),
             anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,

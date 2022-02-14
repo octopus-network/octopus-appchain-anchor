@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use appchain_anchor::{
     types::{
-        AnchorStatus, AppchainCommitment, AppchainMessageProcessingResult,
+        AnchorStatus, AppchainCommitment, AppchainMessageProcessingResult, AppchainSettings,
         MultiTxsOperationProcessingResult, ValidatorProfile, ValidatorSetInfo,
         ValidatorSetProcessingStatus, WrappedAppchainToken,
     },
@@ -299,6 +299,14 @@ pub fn print_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) {
     println!(
         "Anchor status: {}",
         serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+    );
+}
+
+pub fn print_appchain_settings(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let appchain_settings = anchor_viewer::get_appchain_settings(anchor);
+    println!(
+        "Anchor status: {}",
+        serde_json::to_string::<AppchainSettings>(&appchain_settings).unwrap()
     );
 }
 

@@ -76,7 +76,7 @@ impl StorageKey {
             StorageKey::UnwithdrawnValidatorRewards => "uwvrs".to_string(),
             StorageKey::UnwithdrawnDelegatorRewards => "uwdrs".to_string(),
             StorageKey::UnbondedStakes => "ubss".to_string(),
-            StorageKey::AppchainSettings => "acs".to_string(),
+            StorageKey::AppchainSettings => "ass".to_string(),
             StorageKey::AnchorSettings => "ans".to_string(),
             StorageKey::ProtocolSettings => "pcs".to_string(),
             StorageKey::StakingHistories => "skh".to_string(),
