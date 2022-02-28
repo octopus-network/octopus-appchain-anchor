@@ -252,21 +252,29 @@ impl AppchainAnchor {
                         receiver_id_in_appchain: receiver_id_in_appchain.clone(),
                         amount,
                     });
-                    self.internal_append_appchain_notification(
+                    let appchain_notification_history = self.internal_append_appchain_notification(
                         AppchainNotification::NearFungibleTokenLocked {
-                            contract_account: near_fungible_token.contract_account,
+                            contract_account: near_fungible_token.contract_account.clone(),
                             sender_id_in_near: sender_id.clone(),
                             receiver_id_in_appchain: receiver_id_in_appchain.clone(),
                             amount,
                         },
+                    );
+                    log!(
+                        "Received fungible token in contract '{}' from '{}'. Start transfer to '{}' of appchain. Amount: '{}', Crosschain notification index: '{}'.",
+                        &near_fungible_token.contract_account,
+                        &sender_id.clone(),
+                        &receiver_id_in_appchain,
+                        &amount.0,
+                        &appchain_notification_history.index.0
                     );
                     return PromiseOrValue::Value(0.into());
                 }
             }
         }
         panic!(
-            "Invalid deposit '{}' of unknown NEP-141 asset from '{}' received. Return deposit.",
-            amount.0, sender_id,
+            "Received invalid deposit '{}' in contract '{}' from '{}'. Return deposit.",
+            &amount.0, &predecessor_account_id, &sender_id,
         );
     }
     //

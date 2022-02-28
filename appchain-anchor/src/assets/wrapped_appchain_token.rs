@@ -203,10 +203,10 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
         amount: U128,
     ) {
         assert_self();
+        let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
                 wrapped_appchain_token.changed_balance = I128::from(
                     wrapped_appchain_token.changed_balance.0 - i128::try_from(amount.0).unwrap(),
                 );
@@ -223,21 +223,22 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                         amount: U128::from(amount),
                     },
                 );
-                env::log(
-                    format!(
-                        "Wrapped appchain token burnt by '{}' for '{}' of appchain. Amount: '{}', Crosschain notification index: '{}'.",
-                        &sender_id_in_near, &receiver_id_in_appchain, &amount.0, &appchain_notification_history.index.0
-                    )
-                    .as_bytes(),
+                log!(
+                    "Wrapped appchain token burnt in contract '{}' by '{}' for '{}' of appchain. Amount: '{}', Crosschain notification index: '{}'.",
+                    &wrapped_appchain_token.contract_account,
+                    &sender_id_in_near,
+                    &receiver_id_in_appchain,
+                    &amount.0,
+                    &appchain_notification_history.index.0
                 );
             }
             PromiseResult::Failed => {
-                env::log(
-                    format!(
-                        "Failed to burn wrapped appchain token owned by '{}' for '{}' in appchain. Amount: '{}'",
-                        &sender_id_in_near, &receiver_id_in_appchain, &amount.0
-                    )
-                    .as_bytes(),
+                log!(
+                    "Failed to burn wrapped appchain token in contract '{}' by '{}' for '{}' in appchain. Amount: '{}'",
+                    &wrapped_appchain_token.contract_account,
+                    &sender_id_in_near,
+                    &receiver_id_in_appchain,
+                    &amount.0
                 );
                 self.internal_append_anchor_event(AnchorEvent::FailedToBurnWrappedAppchainToken {
                     sender_id_in_near: sender_id_in_near.clone(),
