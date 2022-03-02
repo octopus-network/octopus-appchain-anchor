@@ -39,6 +39,7 @@ impl Default for WrappedAppchainToken {
             premined_balance: U128::from(0),
             changed_balance: I128::from(0),
             price_in_usd: U128::from(0),
+            total_supply: U128::from(0),
         }
     }
 }
@@ -76,6 +77,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         wrapped_appchain_token.metadata = metadata;
         wrapped_appchain_token.premined_beneficiary = premined_beneficiary;
         wrapped_appchain_token.premined_balance = premined_balance;
+        wrapped_appchain_token.total_supply = premined_balance;
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
@@ -83,6 +85,13 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         wrapped_appchain_token.contract_account = contract_account;
+        self.wrapped_appchain_token.set(&wrapped_appchain_token);
+    }
+    //
+    fn set_total_supply_of_wrapped_appchain_token(&mut self, total_supply: U128) {
+        self.assert_owner();
+        let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+        wrapped_appchain_token.total_supply = total_supply;
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
@@ -132,7 +141,6 @@ impl AppchainAnchor {
         appchain_message_nonce: u32,
     ) -> AppchainMessageProcessingResult {
         let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-        let protocol_settings = self.protocol_settings.get().unwrap();
         if let Some(sender_id) = &sender_id {
             if !AccountIdInAppchain::new(Some(sender_id.clone())).is_valid() {
                 let result = AppchainMessageProcessingResult::Error {
@@ -143,52 +151,28 @@ impl AppchainAnchor {
                 return result;
             }
         }
-        if wrapped_appchain_token.total_market_value()
-            + wrapped_appchain_token.get_market_value_of(amount.0)
-            > self.get_market_value_of_staked_oct_token().0
-                * u128::from(
-                    protocol_settings.maximum_market_value_percent_of_wrapped_appchain_token,
-                )
-                / 100
-        {
-            let message = format!("Too much wrapped appchain token to mint.");
-            self.internal_append_anchor_event(AnchorEvent::FailedToMintWrappedAppchainToken {
-                sender_id_in_appchain: sender_id,
-                receiver_id_in_near: receiver_id,
-                amount,
-                appchain_message_nonce,
-                reason: message.clone(),
-            });
-            let result = AppchainMessageProcessingResult::Error {
-                nonce: appchain_message_nonce,
-                message,
-            };
-            self.record_appchain_message_processing_result(&result);
-            result
-        } else {
-            ext_fungible_token::mint(
-                receiver_id.clone(),
-                amount,
-                &wrapped_appchain_token.contract_account,
-                STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
-                GAS_FOR_MINT_FUNGIBLE_TOKEN,
-            )
-            .then(ext_self::resolve_wrapped_appchain_token_minting(
-                sender_id.clone(),
-                receiver_id.clone(),
-                amount,
-                appchain_message_nonce,
-                &env::current_account_id(),
-                0,
-                GAS_FOR_RESOLVER_FUNCTION,
-            ));
-            AppchainMessageProcessingResult::Ok {
-                nonce: appchain_message_nonce,
-                message: Some(format!(
-                    "Need to confirm result of 'mint' on account '{}'.",
-                    wrapped_appchain_token.contract_account
-                )),
-            }
+        ext_fungible_token::mint(
+            receiver_id.clone(),
+            amount,
+            &wrapped_appchain_token.contract_account,
+            STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
+            GAS_FOR_MINT_FUNGIBLE_TOKEN,
+        )
+        .then(ext_self::resolve_wrapped_appchain_token_minting(
+            sender_id.clone(),
+            receiver_id.clone(),
+            amount,
+            appchain_message_nonce,
+            &env::current_account_id(),
+            0,
+            GAS_FOR_RESOLVER_FUNCTION,
+        ));
+        AppchainMessageProcessingResult::Ok {
+            nonce: appchain_message_nonce,
+            message: Some(format!(
+                "Need to confirm result of 'mint' on account '{}'.",
+                wrapped_appchain_token.contract_account
+            )),
         }
     }
 }
