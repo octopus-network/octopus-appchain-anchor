@@ -11,4 +11,8 @@ pub enum AppchainChallenge {
         submitter_account: AccountId,
         proof: EquivocationProof,
     },
+    ConspiracyMmr {
+        submitter_account: AccountId,
+        block_number: u32,
+    },
 }
