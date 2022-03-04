@@ -8,7 +8,15 @@ pub type SetId = u32;
 pub type BlockNumber = u32;
 
 #[derive(
-    BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, Decode, Encode,
+    BorshDeserialize,
+    BorshSerialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Debug,
+    Decode,
+    Encode,
+    PartialEq,
 )]
 #[serde(crate = "near_sdk::serde")]
 pub struct Hash(pub [u8; 32]);
@@ -58,17 +66,27 @@ impl EquivocationProof {
     pub fn is_valid(&self) -> bool {
         match &self.equivocation {
             Equivocation::Prevote(equivocation) | Equivocation::Precommit(equivocation) => {
-                self.check_signature(
+                // if both votes have the same target the equivocation is invalid.
+                if equivocation.first.0.target_hash == equivocation.second.0.target_hash
+                    && equivocation.first.0.target_number == equivocation.second.0.target_number
+                {
+                    env::log(b"Votes in equivocation have same targets.");
+                    return false;
+                }
+                // check all signatures are valid
+                let valid_first = self.check_signature(
                     &equivocation.first.0,
                     &equivocation.round_number,
                     &equivocation.first.1,
                     &equivocation.identity,
-                ) && self.check_signature(
+                );
+                let valid_second = self.check_signature(
                     &equivocation.second.0,
                     &equivocation.round_number,
                     &equivocation.second.1,
                     &equivocation.identity,
-                )
+                );
+                valid_first && valid_second
             }
         }
     }
