@@ -1,9 +1,7 @@
 use crate::*;
 
-use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::json_types::I128;
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -84,7 +82,7 @@ pub struct OldAppchainAnchor {
 #[near_bindgen]
 impl AppchainAnchor {
     #[init(ignore_state)]
-    pub fn migrate_state(total_supply: U128) -> Self {
+    pub fn migrate_state() -> Self {
         // Deserialize the state using the old contract structure.
         let mut old_contract: OldAppchainAnchor =
             env::state_read().expect("Old state doesn't exist");

@@ -240,7 +240,12 @@ impl PermissionlessActions for AppchainAnchor {
                             processing_context.set_latest_applied_nonce(processing_nonce);
                         }
                         MultiTxsOperationProcessingResult::NeedMoreGas => (),
-                        MultiTxsOperationProcessingResult::Error(..) => break,
+                        MultiTxsOperationProcessingResult::Error(..) => {
+                            // The loop should continue even if it fails to apply a certain message
+                            processing_context.clear_processing_nonce();
+                            processing_context.set_latest_applied_nonce(processing_nonce);
+                            result = MultiTxsOperationProcessingResult::Ok;
+                        }
                     }
                 } else {
                     result = MultiTxsOperationProcessingResult::Error(format!(

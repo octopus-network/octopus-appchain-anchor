@@ -66,7 +66,6 @@ fn test_anchor_actions() {
         &root,
         &oct_token,
         &wrapped_appchain_token,
-        &registry,
         &anchor,
         &users,
         appchain_message_nonce,
@@ -826,10 +825,7 @@ fn test_migration() {
     //
     let (root, _, _, _, anchor, users, _) = test_normal_actions(true, false);
     common::deploy_new_anchor_contract(&anchor);
-    let result = call!(
-        root,
-        anchor.migrate_state(U128::from(common::to_oct_amount(TOTAL_SUPPLY / 2)))
-    );
+    let result = call!(root, anchor.migrate_state());
     common::print_execution_result("migrate_state", &result);
     //
     //
