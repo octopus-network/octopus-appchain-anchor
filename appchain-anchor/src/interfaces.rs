@@ -377,6 +377,8 @@ pub trait WrappedAppchainTokenManager {
     ///
     fn set_account_of_wrapped_appchain_token(&mut self, contract_account: AccountId);
     ///
+    fn set_total_supply_of_wrapped_appchain_token(&mut self, total_supply: U128);
+    ///
     fn set_price_of_wrapped_appchain_token(&mut self, price: U128);
     ///
     fn burn_wrapped_appchain_token(&self, receiver_id: String, amount: U128);
