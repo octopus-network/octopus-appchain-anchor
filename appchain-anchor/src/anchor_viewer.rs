@@ -62,7 +62,11 @@ impl AnchorViewer for AppchainAnchor {
                 start_index: U64::from(u64::from(appchain_messages.min_nonce())),
                 end_index: U64::from(u64::from(appchain_messages.max_nonce())),
             },
-            index_range_of_appchain_challenges: self.appchain_challenges.get().unwrap().index_range(),
+            index_range_of_appchain_challenges: self
+                .appchain_challenges
+                .get()
+                .unwrap()
+                .index_range(),
             permissionless_actions_status: self.permissionless_actions_status.get().unwrap(),
             asset_transfer_is_paused: self.asset_transfer_is_paused,
             rewards_withdrawal_is_paused: self.rewards_withdrawal_is_paused,

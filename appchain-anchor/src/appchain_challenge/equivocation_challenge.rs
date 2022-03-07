@@ -29,29 +29,20 @@ pub struct PublicKey(pub [u8; 32]);
 #[serde(crate = "near_sdk::serde")]
 pub struct SignatureData(pub Vec<u8>);
 
-#[derive(
-    BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, Decode, Encode,
-)]
-#[serde(crate = "near_sdk::serde")]
-pub struct VoteData {
-    pub target_hash: Hash,
-    pub target_number: BlockNumber,
-}
-
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
-pub struct GrandpaEquivocation {
+pub struct GrandpaEquivocation<V, S> {
     pub round_number: RoundNumber,
     pub identity: PublicKey,
-    pub first: (VoteData, SignatureData),
-    pub second: (VoteData, SignatureData),
+    pub first: (V, S),
+    pub second: (V, S),
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Equivocation {
-    Prevote(GrandpaEquivocation),
-    Precommit(GrandpaEquivocation),
+    Prevote(GrandpaEquivocation<GrandpaPrevote, SignatureData>),
+    Precommit(GrandpaEquivocation<GrandpaPrecommit, SignatureData>),
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug)]
@@ -61,39 +52,77 @@ pub struct EquivocationProof {
     pub equivocation: Equivocation,
 }
 
+#[derive(
+    BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, Decode, Encode,
+)]
+#[serde(crate = "near_sdk::serde")]
+pub struct GrandpaPrevote {
+    pub target_hash: Hash,
+    pub target_number: BlockNumber,
+}
+
+#[derive(
+    BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, Decode, Encode,
+)]
+#[serde(crate = "near_sdk::serde")]
+pub struct GrandpaPrecommit {
+    pub target_hash: Hash,
+    pub target_number: BlockNumber,
+}
+
+#[derive(Clone, Debug, Decode, Encode)]
+pub enum GrandpaMessage {
+    Prevote(GrandpaPrevote),
+    Precommit(GrandpaPrecommit),
+}
+
 impl EquivocationProof {
     ///
     pub fn is_valid(&self) -> bool {
-        match &self.equivocation {
-            Equivocation::Prevote(equivocation) | Equivocation::Precommit(equivocation) => {
+        // NOTE: the bare `Prevote` and `Precommit` types don't share any trait,
+        // this is implemented as a macro to avoid duplication.
+        macro_rules! check {
+            ( $equivocation:expr, $message:expr ) => {
                 // if both votes have the same target the equivocation is invalid.
-                if equivocation.first.0.target_hash == equivocation.second.0.target_hash
-                    && equivocation.first.0.target_number == equivocation.second.0.target_number
+                if $equivocation.first.0.target_hash == $equivocation.second.0.target_hash
+                    && $equivocation.first.0.target_number == $equivocation.second.0.target_number
                 {
-                    env::log(b"Votes in equivocation have same targets.");
+                    log!("Votes in equivocation have same targets.");
                     return false;
                 }
-                // check all signatures are valid
+
+                // check signatures on both votes are valid
                 let valid_first = self.check_signature(
-                    &equivocation.first.0,
-                    &equivocation.round_number,
-                    &equivocation.first.1,
-                    &equivocation.identity,
+                    &$message($equivocation.first.0.clone()),
+                    &$equivocation.round_number,
+                    &$equivocation.first.1,
+                    &$equivocation.identity,
                 );
+
                 let valid_second = self.check_signature(
-                    &equivocation.second.0,
-                    &equivocation.round_number,
-                    &equivocation.second.1,
-                    &equivocation.identity,
+                    &$message($equivocation.second.0.clone()),
+                    &$equivocation.round_number,
+                    &$equivocation.second.1,
+                    &$equivocation.identity,
                 );
-                valid_first && valid_second
+
+                return valid_first && valid_second
+            };
+        }
+
+        match &self.equivocation {
+            Equivocation::Prevote(equivocation) => {
+                check!(equivocation, GrandpaMessage::Prevote);
+            }
+            Equivocation::Precommit(equivocation) => {
+                check!(equivocation, GrandpaMessage::Precommit);
             }
         }
     }
     //
     fn check_signature(
         &self,
-        message: &VoteData,
+        message: &GrandpaMessage,
         round: &RoundNumber,
         signature: &SignatureData,
         pubkey: &PublicKey,
@@ -104,7 +133,7 @@ impl EquivocationProof {
         // signing data in appchain side
         (message, u64::from(*round), u64::from(self.set_id)).encode_to(&mut buffer);
         if signature.0.len() != 64 {
-            env::log(b"Invalid signature data length.");
+            log!("Invalid signature data length.");
             return false;
         }
         let mut sig_data: [u8; 64] = [0; 64];
@@ -116,17 +145,17 @@ impl EquivocationProof {
                 Ok(pubkey) => match pubkey.verify(&buffer, &signature) {
                     Ok(()) => true,
                     Err(err) => {
-                        env::log(format!("Signature verification failed: {}", err).as_bytes());
+                        log!("Signature verification failed: {}", err);
                         false
                     }
                 },
                 Err(err) => {
-                    env::log(format!("Invalid ed25519 pubkey: {}", err).as_bytes());
+                    log!("Invalid ed25519 pubkey: {}", err);
                     false
                 }
             }
         } else {
-            env::log(b"Invalid ed25519 signature data.");
+            log!("Invalid ed25519 signature data.");
             false
         }
     }

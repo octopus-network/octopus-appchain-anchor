@@ -1,3 +1,4 @@
+use appchain_anchor::appchain_challenge::AppchainChallenge;
 use appchain_anchor::types::{
     AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
     AppchainMessageProcessingResult, AppchainNotificationHistory, AppchainSettings, AppchainState,
@@ -341,4 +342,29 @@ pub fn get_appchain_message_processing_results(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Vec<AppchainMessageProcessingResult>>()
+}
+
+pub fn get_appchain_challenge(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    index: u64,
+) -> Option<AppchainChallenge> {
+    let view_result = view!(anchor.get_appchain_challenge(Some(U64::from(index))));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Option<AppchainChallenge>>()
+}
+
+pub fn get_appchain_challenges(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_index: u64,
+    quantity: Option<U64>,
+) -> Vec<AppchainChallenge> {
+    let view_result = view!(anchor.get_appchain_challenges(U64::from(start_index), quantity));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<AppchainChallenge>>()
 }
