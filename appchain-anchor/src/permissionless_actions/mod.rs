@@ -3,7 +3,7 @@ mod switching_era;
 
 use crate::*;
 use crate::{interfaces::PermissionlessActions, message_decoder::AppchainMessage};
-use core::convert::TryInto;
+use core::convert::{TryFrom, TryInto};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -230,6 +230,29 @@ impl AppchainAnchor {
                     let result = AppchainMessageProcessingResult::Error {
                         nonce: appchain_message.nonce,
                         message: format!("Asset transfer is now paused."),
+                    };
+                    self.record_appchain_message_processing_result(&result);
+                    return result;
+                }
+                let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+                if i128::try_from(wrapped_appchain_token.premined_balance.0).unwrap()
+                    + wrapped_appchain_token.changed_balance.0
+                    + i128::try_from(amount.0).unwrap()
+                    > i128::try_from(wrapped_appchain_token.total_supply.0).unwrap()
+                {
+                    let message = format!("Too much wrapped appchain token to mint.");
+                    self.internal_append_anchor_event(
+                        AnchorEvent::FailedToMintWrappedAppchainToken {
+                            sender_id_in_appchain: Some(owner_id_in_appchain),
+                            receiver_id_in_near,
+                            amount,
+                            appchain_message_nonce: appchain_message.nonce,
+                            reason: message.clone(),
+                        },
+                    );
+                    let result = AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message,
                     };
                     self.record_appchain_message_processing_result(&result);
                     return result;

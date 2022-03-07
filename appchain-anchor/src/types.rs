@@ -171,6 +171,7 @@ pub struct WrappedAppchainToken {
     pub premined_balance: U128,
     pub changed_balance: I128,
     pub price_in_usd: U128,
+    pub total_supply: U128,
 }
 
 /// The bridging state of NEP-141 token.

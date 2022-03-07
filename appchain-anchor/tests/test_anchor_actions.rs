@@ -32,16 +32,9 @@ const TOTAL_SUPPLY: u128 = 100_000_000;
 
 #[test]
 fn test_anchor_actions() {
-    let (root, oct_token, wrapped_appchain_token, registry, anchor, users) =
+    let (root, oct_token, wrapped_appchain_token, _registry, anchor, users) =
         test_normal_actions(false, true);
-    test_staking_actions(
-        &root,
-        &oct_token,
-        &wrapped_appchain_token,
-        &registry,
-        &anchor,
-        &users,
-    );
+    test_staking_actions(&root, &oct_token, &wrapped_appchain_token, &anchor, &users);
     //
     // Reset contract status
     //
@@ -74,6 +67,7 @@ fn test_anchor_actions() {
     let result = sudo_actions::reset_validator_set_histories_to(&root, &anchor, U64::from(0));
     result.assert_success();
     common::print_anchor_status(&anchor);
+    common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_list_of(&anchor, Some(0));
     common::print_validator_list_of(&anchor, Some(1));
     common::print_validator_list_of(&anchor, Some(2));
@@ -532,14 +526,11 @@ fn test_staking_actions(
     root: &UserAccount,
     oct_token: &ContractAccount<MockOctTokenContract>,
     wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
-    registry: &ContractAccount<MockAppchainRegistryContract>,
     anchor: &ContractAccount<AppchainAnchorContract>,
     users: &Vec<UserAccount>,
 ) {
     let user0_id_in_appchain =
         "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
-    let user1_id_in_appchain =
-        "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da270".to_string();
     let user4_id_in_appchain =
         "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da273".to_string();
     let mut user0_profile = HashMap::<String, String>::new();
@@ -783,6 +774,7 @@ fn test_staking_actions(
     // Print whole status
     //
     common::print_anchor_status(&anchor);
+    common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_list_of(&anchor, Some(0));
     common::print_validator_list_of(&anchor, Some(1));
     common::print_validator_list_of(&anchor, Some(2));
@@ -828,7 +820,7 @@ fn distribute_reward_of(
     loop {
         let result = permissionless_actions::try_complete_distributing_reward(root, anchor);
         println!(
-            "Try complete switching era: {}",
+            "Try complete distributing reward: {}",
             serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
         );
         let processing_status =
@@ -938,15 +930,19 @@ fn test_migration() {
     let user1_id_in_appchain =
         "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da270".to_string();
     //
-    let (root, _oct_token, _wrapped_appchain_token, _registryy, anchor, users) =
+    let (root, _oct_token, _wrapped_appchain_token, _registry, anchor, users) =
         test_normal_actions(true, false);
     common::deploy_new_anchor_contract(&anchor);
-    let result = call!(root, anchor.migrate_state());
+    let result = call!(
+        root,
+        anchor.migrate_state(U128::from(common::to_oct_amount(TOTAL_SUPPLY / 2)))
+    );
     common::print_execution_result("migrate_state", &result);
     //
     //
     //
     common::print_anchor_status(&anchor);
+    common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_set_info_of(&anchor, U64::from(0));
     common::print_validator_set_info_of(&anchor, U64::from(1));
     common::print_validator_list_of(&anchor, Some(0));
