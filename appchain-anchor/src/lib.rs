@@ -23,8 +23,8 @@ use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
-    PromiseOrValue, PromiseResult, Timestamp,
+    assert_self, env, ext_contract, log, near_bindgen, serde_json, AccountId, Balance, Gas,
+    PanicOnDefault, PromiseOrValue, PromiseResult, Timestamp,
 };
 
 pub use message_decoder::AppchainMessage;
@@ -427,15 +427,38 @@ impl AppchainAnchor {
             &sender_id,
             msg
         );
-        if env::predecessor_account_id().eq(&self.oct_token.get().unwrap().contract_account) {
-            self.internal_process_oct_deposit(sender_id, amount, msg)
-        } else {
-            self.internal_process_near_fungible_token_deposit(
-                env::predecessor_account_id(),
-                sender_id,
-                amount,
-                msg,
-            )
+        let deposit_message: DepositMessage = match serde_json::from_str(msg.as_str()) {
+            Ok(msg) => msg,
+            Err(_) => {
+                log!(
+                    "Invalid msg '{}' attached in `ft_transfer_call`. Return deposit.",
+                    msg
+                );
+                return PromiseOrValue::Value(amount);
+            }
+        };
+        let predecessor_account_id = env::predecessor_account_id();
+        match deposit_message {
+            DepositMessage::RegisterValidator { .. }
+            | DepositMessage::IncreaseStake
+            | DepositMessage::RegisterDelegator { .. }
+            | DepositMessage::IncreaseDelegation { .. } => {
+                assert!(
+                    predecessor_account_id.eq(&self.oct_token.get().unwrap().contract_account),
+                    "Received invalid deposit '{}' in contract '{}' from '{}'. Return deposit.",
+                    &amount.0,
+                    &predecessor_account_id,
+                    &sender_id,
+                );
+                self.internal_process_oct_deposit(sender_id, amount, deposit_message)
+            }
+            DepositMessage::BridgeToAppchain { .. } => self
+                .internal_process_near_fungible_token_deposit(
+                    predecessor_account_id,
+                    sender_id,
+                    amount,
+                    deposit_message,
+                ),
         }
     }
 }

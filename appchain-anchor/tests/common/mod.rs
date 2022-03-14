@@ -2,9 +2,8 @@ use std::convert::TryInto;
 
 use appchain_anchor::{
     types::{
-        AnchorStatus, AppchainCommitment, AppchainMessageProcessingResult, AppchainSettings,
-        MultiTxsOperationProcessingResult, ValidatorProfile, ValidatorSetInfo,
-        ValidatorSetProcessingStatus, WrappedAppchainToken,
+        AnchorStatus, AppchainCommitment, AppchainSettings, MultiTxsOperationProcessingResult,
+        ValidatorProfile, ValidatorSetInfo, WrappedAppchainToken,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -328,6 +327,16 @@ pub fn print_wrapped_appchain_token_info(anchor: &ContractAccount<AppchainAnchor
         "Wrapped appchain token: {}",
         serde_json::to_string::<WrappedAppchainToken>(&wrapped_appchain_token_info).unwrap()
     );
+}
+
+pub fn print_near_fungible_tokens(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let near_fungible_tokens = anchor_viewer::get_near_fungible_tokens(&anchor);
+    near_fungible_tokens.iter().for_each(|record| {
+        println!(
+            "Near fungible token: {}",
+            serde_json::to_string(&record).unwrap()
+        );
+    });
 }
 
 pub fn print_validator_profile(

@@ -590,3 +590,23 @@ pub struct UserStakingHistory {
     pub timestamp: Timestamp,
     pub has_taken_effect: bool,
 }
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum DepositMessage {
+    RegisterValidator {
+        validator_id_in_appchain: Option<String>,
+        can_be_delegated_to: bool,
+        profile: HashMap<String, String>,
+    },
+    IncreaseStake,
+    RegisterDelegator {
+        validator_id: AccountId,
+    },
+    IncreaseDelegation {
+        validator_id: AccountId,
+    },
+    BridgeToAppchain {
+        receiver_id_in_appchain: String,
+    },
+}
