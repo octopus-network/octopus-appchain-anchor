@@ -126,6 +126,7 @@ impl ProtocolSettingsManager for AppchainAnchor {
     //
     fn change_maximum_market_value_percent_of_near_fungible_tokens(&mut self, value: u16) {
         self.assert_owner();
+        assert!(value < 100, "Invalid percent value.");
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             value != protocol_settings.maximum_market_value_percent_of_near_fungible_tokens,
@@ -137,6 +138,7 @@ impl ProtocolSettingsManager for AppchainAnchor {
     //
     fn change_maximum_market_value_percent_of_wrapped_appchain_token(&mut self, value: u16) {
         self.assert_owner();
+        assert!(value < 100, "Invalid percent value.");
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             value != protocol_settings.maximum_market_value_percent_of_wrapped_appchain_token,
@@ -148,6 +150,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
     //
     fn change_minimum_validator_count(&mut self, value: U64) {
         self.assert_owner();
+        assert!(
+            value.0 >= 4,
+            "The minimum validator count can not be set to under 4."
+        );
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             value.0 != protocol_settings.minimum_validator_count.0,
