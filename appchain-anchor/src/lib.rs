@@ -15,12 +15,12 @@ mod user_staking_histories;
 mod validator_profiles;
 mod validator_set;
 
-use core::convert::TryInto;
+use core::convert::{TryFrom, TryInto};
 use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
-use near_sdk::json_types::{U128, U64};
+use near_sdk::json_types::{ValidAccountId, U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, serde_json, AccountId, Balance, Gas,
@@ -401,12 +401,18 @@ impl AppchainAnchor {
 
 #[near_bindgen]
 impl Ownable for AppchainAnchor {
+    //
     fn get_owner(&self) -> AccountId {
         self.owner.clone()
     }
-
+    //
     fn set_owner(&mut self, owner: AccountId) {
         self.assert_owner();
+        assert!(
+            ValidAccountId::try_from(owner.clone()).is_ok(),
+            "Invalid account id: {}",
+            owner
+        );
         self.owner = owner;
     }
 }
