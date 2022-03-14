@@ -126,6 +126,7 @@ impl ProtocolSettingsManager for AppchainAnchor {
     //
     fn change_maximum_market_value_percent_of_near_fungible_tokens(&mut self, value: u16) {
         self.assert_owner();
+        assert!(value < 100, "Invalid percent value.");
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             value != protocol_settings.maximum_market_value_percent_of_near_fungible_tokens,
@@ -137,6 +138,7 @@ impl ProtocolSettingsManager for AppchainAnchor {
     //
     fn change_maximum_market_value_percent_of_wrapped_appchain_token(&mut self, value: u16) {
         self.assert_owner();
+        assert!(value < 100, "Invalid percent value.");
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             value != protocol_settings.maximum_market_value_percent_of_wrapped_appchain_token,
@@ -148,6 +150,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
     //
     fn change_minimum_validator_count(&mut self, value: U64) {
         self.assert_owner();
+        assert!(
+            value.0 >= 4,
+            "The minimum validator count can not be set to under 4."
+        );
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             value.0 != protocol_settings.minimum_validator_count.0,
@@ -228,6 +234,7 @@ impl ProtocolSettingsManager for AppchainAnchor {
     //
     fn change_validator_commission_percent(&mut self, value: u16) {
         self.assert_owner();
+        assert!(value < 100, "Invalid percent value.");
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             value != protocol_settings.validator_commission_percent,
@@ -283,6 +290,15 @@ impl AnchorSettingsManager for AppchainAnchor {
     //
     fn set_token_price_maintainer_account(&mut self, account_id: AccountId) {
         self.assert_owner();
+        assert!(
+            ValidAccountId::try_from(account_id.clone()).is_ok(),
+            "Invalid account id: {}",
+            account_id
+        );
+        assert!(
+            !account_id.eq(&self.owner),
+            "This account should not be the same as the owner account."
+        );
         let mut anchor_settings = self.anchor_settings.get().unwrap();
         anchor_settings.token_price_maintainer_account = account_id;
         self.anchor_settings.set(&anchor_settings);
@@ -290,6 +306,15 @@ impl AnchorSettingsManager for AppchainAnchor {
     //
     fn set_relayer_account(&mut self, account_id: AccountId) {
         self.assert_owner();
+        assert!(
+            ValidAccountId::try_from(account_id.clone()).is_ok(),
+            "Invalid account id: {}",
+            account_id
+        );
+        assert!(
+            !account_id.eq(&self.owner),
+            "This account should not be the same as the owner account."
+        );
         let mut anchor_settings = self.anchor_settings.get().unwrap();
         anchor_settings.relayer_account = account_id;
         self.anchor_settings.set(&anchor_settings);

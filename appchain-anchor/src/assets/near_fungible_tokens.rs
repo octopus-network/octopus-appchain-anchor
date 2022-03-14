@@ -101,11 +101,23 @@ impl NearFungibleTokenManager for AppchainAnchor {
         price: U128,
     ) {
         self.assert_owner();
+        assert!(
+            ValidAccountId::try_from(contract_account.clone()).is_ok(),
+            "Invalid account id: {}",
+            contract_account
+        );
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             !near_fungible_tokens.contains(&symbol),
             "Token '{}' is already registered.",
             &symbol
+        );
+        assert!(
+            near_fungible_tokens
+                .get_by_contract_account(&contract_account)
+                .is_none(),
+            "Token contract '{}' is already registered.",
+            contract_account
         );
         near_fungible_tokens.insert(&NearFungibleToken {
             metadata: FungibleTokenMetadata {
@@ -120,7 +132,7 @@ impl NearFungibleTokenManager for AppchainAnchor {
             contract_account,
             price_in_usd: price,
             locked_balance: U128::from(0),
-            bridging_state: BridgingState::Active,
+            bridging_state: BridgingState::Closed,
         });
         self.near_fungible_tokens.set(&near_fungible_tokens);
     }
