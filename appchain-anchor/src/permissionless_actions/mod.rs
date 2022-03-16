@@ -286,9 +286,6 @@ impl AppchainAnchor {
             .filter(|message| {
                 if message.nonce > processing_status.latest_applied_appchain_message_nonce {
                     match message.appchain_event {
-                        AppchainEvent::EraSwitchPlaned { era_number } => {
-                            !self.era_number_is_too_old(u64::from(era_number), 0)
-                        }
                         AppchainEvent::EraRewardConcluded { era_number, .. } => !self
                             .era_number_is_too_old(
                                 u64::from(era_number),
@@ -392,6 +389,16 @@ impl AppchainAnchor {
                         era_number,
                     )
                 } else {
+                    let index_range = validator_set_histories.index_range();
+                    if u64::from(era_number) <= index_range.end_index.0 {
+                        let message = format!("Switching era number '{}' is too old.", era_number);
+                        let result = AppchainMessageProcessingResult::Error {
+                            nonce: appchain_message.nonce,
+                            message: message.clone(),
+                        };
+                        self.record_appchain_message_processing_result(&result);
+                        return MultiTxsOperationProcessingResult::Error(message);
+                    }
                     self.internal_start_switching_era(
                         processing_context,
                         validator_set_histories,
