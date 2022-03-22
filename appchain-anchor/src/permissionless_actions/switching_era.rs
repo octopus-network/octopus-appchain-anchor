@@ -51,7 +51,7 @@ impl AppchainAnchor {
                     let mut validator_index = copying_validator_index.0;
                     let mut delegator_index = copying_delegator_index.0;
                     while processing_context.used_gas_of_current_function_call()
-                        < GAS_CAP_FOR_MULTI_TXS_PROCESSING
+                        < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
                     {
                         match self.copy_delegator_to_validator_set(
                             &last_validator_set,
@@ -100,7 +100,7 @@ impl AppchainAnchor {
                 let mut validator_index = unbonding_validator_index.0;
                 let mut delegator_index = unbonding_delegator_index.0;
                 while processing_context.used_gas_of_current_function_call()
-                    < GAS_CAP_FOR_MULTI_TXS_PROCESSING
+                    < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
                 {
                     match self
                         .unbond_validator_of_next_validator_set(validator_index, delegator_index)
@@ -141,7 +141,7 @@ impl AppchainAnchor {
                 let mut validator_index = unbonding_validator_index.0;
                 let mut delegator_index = unbonding_delegator_index.0;
                 while processing_context.used_gas_of_current_function_call()
-                    < GAS_CAP_FOR_MULTI_TXS_PROCESSING
+                    < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
                 {
                     match self.auto_unbond_validator_of_next_validator_set(
                         validator_index,
@@ -189,7 +189,7 @@ impl AppchainAnchor {
             }
             ValidatorSetProcessingStatus::ApplyingStakingHistory { mut applying_index } => {
                 while processing_context.used_gas_of_current_function_call()
-                    < GAS_CAP_FOR_MULTI_TXS_PROCESSING
+                    < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
                     && applying_index.0 <= validator_set.staking_history_index()
                 {
                     if let Some(staking_history) =

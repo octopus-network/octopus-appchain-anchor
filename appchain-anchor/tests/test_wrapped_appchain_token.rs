@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use appchain_anchor::{
     types::{
@@ -6,7 +6,7 @@ use appchain_anchor::{
     },
     AppchainEvent, AppchainMessage,
 };
-use near_sdk::{json_types::U128, serde_json};
+use near_sdk::{json_types::U128, serde_json, AccountId};
 
 mod anchor_viewer;
 mod common;
@@ -79,7 +79,7 @@ fn test_wrapped_appchain_token_bridging() {
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
         &root,
         &anchor,
-        "wrapped_appchain_token".to_string(),
+        AccountId::from_str("wrapped_appchain_token").unwrap(),
     );
     result.assert_success();
     let wrapped_appchain_token = common::deploy_wrapped_appchain_token_contract(
@@ -299,13 +299,13 @@ fn test_wrapped_appchain_token_bridging() {
     // Mint wrapped appchain token for user1 (error)
     //
     let user1_wat_balance =
-        token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token);
+        token_viewer::get_wat_balance_of(&users[1].account_id(), &wrapped_appchain_token);
     let mut appchain_messages = Vec::<AppchainMessage>::new();
     appchain_message_nonce += 1;
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: "unknown.testnet".to_string(),
+            receiver_id_in_near: AccountId::from_str("unknown.testnet").unwrap(),
             amount: U128::from(total_supply / 10),
         },
         nonce: appchain_message_nonce,
@@ -316,7 +316,7 @@ fn test_wrapped_appchain_token_bridging() {
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     assert_eq!(
-        token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token).0,
+        token_viewer::get_wat_balance_of(&users[1].account_id(), &wrapped_appchain_token).0,
         user1_wat_balance.0
     );
     //
@@ -336,7 +336,7 @@ fn test_wrapped_appchain_token_bridging() {
     // Mint wrapped appchain token for user1
     //
     let user1_wat_balance =
-        token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token);
+        token_viewer::get_wat_balance_of(&users[1].account_id(), &wrapped_appchain_token);
     let mut appchain_messages = Vec::<AppchainMessage>::new();
     appchain_message_nonce += 1;
     appchain_messages.push(AppchainMessage {
@@ -457,7 +457,7 @@ fn test_wrapped_appchain_token_bridging() {
     common::print_appchain_notifications(&anchor);
     common::print_wrapped_appchain_token_info(&anchor);
     assert_eq!(
-        token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token).0,
+        token_viewer::get_wat_balance_of(&users[1].account_id(), &wrapped_appchain_token).0,
         user1_wat_balance.0 + common::to_oct_amount(515)
     );
     //

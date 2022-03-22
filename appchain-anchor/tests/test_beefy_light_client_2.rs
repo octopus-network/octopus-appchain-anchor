@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryInto};
+use std::{collections::HashMap, convert::TryInto, str::FromStr};
 
 use appchain_anchor::{
     types::{
@@ -9,7 +9,7 @@ use appchain_anchor::{
 };
 use codec::Encode;
 use hex_literal::hex;
-use near_sdk::{json_types::U128, serde_json};
+use near_sdk::{json_types::U128, serde_json, AccountId};
 use near_sdk_sim::{ContractAccount, UserAccount};
 use secp256k1_test::{rand::thread_rng, Message as SecpMessage, Secp256k1};
 
@@ -97,7 +97,7 @@ fn test_beefy_light_client_2() {
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
         &root,
         &anchor,
-        "wrapped_appchain_token".to_string(),
+        AccountId::from_str("wrapped_appchain_token").unwrap(),
     );
     result.assert_success();
     let wrapped_appchain_token = common::deploy_wrapped_appchain_token_contract(

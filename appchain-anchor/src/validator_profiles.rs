@@ -54,7 +54,7 @@ impl ValidatorProfiles {
         }
     }
     ///
-    pub fn get_validator_ids(&self) -> Vec<String> {
+    pub fn get_validator_ids(&self) -> Vec<AccountId> {
         self.validator_id_set.to_vec()
     }
     ///

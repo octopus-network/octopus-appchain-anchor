@@ -98,8 +98,8 @@ pub struct AppchainSettings {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AnchorSettings {
-    pub token_price_maintainer_account: AccountId,
-    pub relayer_account: AccountId,
+    pub token_price_maintainer_account: Option<AccountId>,
+    pub relayer_account: Option<AccountId>,
     pub beefy_light_client_witness_mode: bool,
 }
 
@@ -166,8 +166,8 @@ pub struct OctToken {
 #[serde(crate = "near_sdk::serde")]
 pub struct WrappedAppchainToken {
     pub metadata: FungibleTokenMetadata,
-    pub contract_account: AccountId,
-    pub premined_beneficiary: AccountId,
+    pub contract_account: Option<AccountId>,
+    pub premined_beneficiary: Option<AccountId>,
     pub premined_balance: U128,
     pub changed_balance: I128,
     pub price_in_usd: U128,
@@ -356,7 +356,7 @@ pub struct AnchorEventHistory {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainValidator {
-    pub validator_id: String,
+    pub validator_id: AccountId,
     pub validator_id_in_appchain: String,
     pub deposit_amount: U128,
     pub total_stake: U128,
@@ -507,7 +507,7 @@ pub struct ValidatorProfile {
 pub enum AppchainNotification {
     /// A certain amount of a NEAR fungible token has been locked in appchain anchor.
     NearFungibleTokenLocked {
-        contract_account: String,
+        contract_account: AccountId,
         sender_id_in_near: AccountId,
         receiver_id_in_appchain: String,
         amount: U128,

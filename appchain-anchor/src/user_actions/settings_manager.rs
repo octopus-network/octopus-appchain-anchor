@@ -31,8 +31,8 @@ impl Default for ProtocolSettings {
 impl Default for AnchorSettings {
     fn default() -> Self {
         Self {
-            token_price_maintainer_account: AccountId::new(),
-            relayer_account: AccountId::new(),
+            token_price_maintainer_account: None,
+            relayer_account: None,
             beefy_light_client_witness_mode: false,
         }
     }
@@ -285,32 +285,22 @@ impl AnchorSettingsManager for AppchainAnchor {
     fn set_token_price_maintainer_account(&mut self, account_id: AccountId) {
         self.assert_owner();
         assert!(
-            ValidAccountId::try_from(account_id.clone()).is_ok(),
-            "Invalid account id: {}",
-            account_id
-        );
-        assert!(
             !account_id.eq(&self.owner),
             "This account should not be the same as the owner account."
         );
         let mut anchor_settings = self.anchor_settings.get().unwrap();
-        anchor_settings.token_price_maintainer_account = account_id;
+        anchor_settings.token_price_maintainer_account = Some(account_id);
         self.anchor_settings.set(&anchor_settings);
     }
     //
     fn set_relayer_account(&mut self, account_id: AccountId) {
         self.assert_owner();
         assert!(
-            ValidAccountId::try_from(account_id.clone()).is_ok(),
-            "Invalid account id: {}",
-            account_id
-        );
-        assert!(
             !account_id.eq(&self.owner),
             "This account should not be the same as the owner account."
         );
         let mut anchor_settings = self.anchor_settings.get().unwrap();
-        anchor_settings.relayer_account = account_id;
+        anchor_settings.relayer_account = Some(account_id);
         self.anchor_settings.set(&anchor_settings);
     }
     //

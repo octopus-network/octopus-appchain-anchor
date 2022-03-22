@@ -10,7 +10,7 @@ pub struct RewardDistributionRecords {
     era_number_to_nonces_map: LookupMap<u64, Vec<u32>>,
     /// The record set for reward distribution
     /// The element in set is `(appchain_message_nonce, era_number, account_id_of_delegator, account_id_of_validator)`
-    record_set: LookupSet<(u32, u64, AccountId, AccountId)>,
+    record_set: LookupSet<(u32, u64, String, AccountId)>,
 }
 
 impl RewardDistributionRecords {
@@ -31,13 +31,16 @@ impl RewardDistributionRecords {
         &self,
         appchain_message_nonce: u32,
         era_number: u64,
-        delegator_id: &AccountId,
+        delegator_id: &Option<AccountId>,
         validator_id: &AccountId,
     ) -> bool {
         self.record_set.contains(&(
             appchain_message_nonce,
             era_number,
-            delegator_id.clone(),
+            match delegator_id {
+                Some(delegator_id) => delegator_id.to_string(),
+                None => String::new(),
+            },
             validator_id.clone(),
         ))
     }
@@ -46,7 +49,7 @@ impl RewardDistributionRecords {
         &mut self,
         appchain_message_nonce: u32,
         era_number: u64,
-        delegator_id: &AccountId,
+        delegator_id: &Option<AccountId>,
         validator_id: &AccountId,
     ) {
         self.era_number_set.insert(&era_number);
@@ -61,7 +64,10 @@ impl RewardDistributionRecords {
         self.record_set.insert(&(
             appchain_message_nonce,
             era_number,
-            delegator_id.clone(),
+            match delegator_id {
+                Some(delegator_id) => delegator_id.to_string(),
+                None => String::new(),
+            },
             validator_id.clone(),
         ));
     }
@@ -91,7 +97,7 @@ impl RewardDistributionRecords {
                                 self.record_set.remove(&(
                                     *nonce,
                                     *era_number,
-                                    delegator_id.clone(),
+                                    delegator_id.to_string(),
                                     validator_id.clone(),
                                 ));
                             });

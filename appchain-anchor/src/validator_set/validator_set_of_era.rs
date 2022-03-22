@@ -30,7 +30,7 @@ impl ValidatorSetOfEra {
     ///
     pub fn new(era_number: u64, staking_history_index: u64) -> Self {
         Self {
-            start_block_height: env::block_index(),
+            start_block_height: env::block_height(),
             start_timestamp: env::block_timestamp(),
             staking_history_index,
             unprofitable_validator_id_set: UnorderedSet::new(

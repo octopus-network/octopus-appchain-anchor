@@ -26,7 +26,7 @@ impl SudoActions for AppchainAnchor {
     ) {
         self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-        wrapped_appchain_token.premined_beneficiary = premined_beneficiary;
+        wrapped_appchain_token.premined_beneficiary = Some(premined_beneficiary);
         wrapped_appchain_token.premined_balance = premined_balance;
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }

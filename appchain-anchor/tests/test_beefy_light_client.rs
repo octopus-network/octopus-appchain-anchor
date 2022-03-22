@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use appchain_anchor::{
     types::{
@@ -11,7 +11,7 @@ use codec::Decode;
 use hex_literal::hex;
 use near_sdk::{
     json_types::{U128, U64},
-    serde_json,
+    serde_json, AccountId,
 };
 use near_sdk_sim::{ContractAccount, UserAccount};
 
@@ -98,7 +98,7 @@ fn test_beefy_light_client() {
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
         &root,
         &anchor,
-        "wrapped_appchain_token".to_string(),
+        AccountId::from_str("wrapped_appchain_token").unwrap(),
     );
     result.assert_success();
     let wrapped_appchain_token = common::deploy_wrapped_appchain_token_contract(
@@ -390,7 +390,7 @@ fn test_beefy_light_client() {
     let result = staking_actions::decrease_delegation(
         &users[2],
         &anchor,
-        &users[0].valid_account_id().to_string(),
+        &users[0].account_id(),
         common::to_oct_amount(200),
     );
     result.assert_success();
@@ -442,11 +442,7 @@ fn test_beefy_light_client() {
     //
     // user3 unbond delegation
     //
-    let result = staking_actions::unbond_delegation(
-        &users[2],
-        &anchor,
-        &users[0].valid_account_id().to_string(),
-    );
+    let result = staking_actions::unbond_delegation(&users[2], &anchor, &users[0].account_id());
     result.assert_success();
     common::print_anchor_status(&anchor);
     let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[2]);

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use appchain_anchor::{
     appchain_challenge::AppchainChallenge, types::AppchainState, AppchainAnchorContract,
@@ -8,6 +8,7 @@ use mock_oct_token::MockOctTokenContract;
 use near_sdk::{
     json_types::{U128, U64},
     serde_json::{self, json},
+    AccountId,
 };
 use near_sdk_sim::{call, ContractAccount, UserAccount};
 use wrapped_appchain_token::WrappedAppchainTokenContract;
@@ -176,7 +177,7 @@ fn test_normal_actions(
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
         &root,
         &anchor,
-        "wrapped_appchain_token".to_string(),
+        AccountId::from_str("wrapped_appchain_token").unwrap(),
     );
     result.assert_success();
     let wrapped_appchain_token = common::deploy_wrapped_appchain_token_contract(
@@ -571,7 +572,7 @@ fn test_staking_actions(
     let result = staking_actions::decrease_delegation(
         &users[2],
         &anchor,
-        &users[0].valid_account_id().to_string(),
+        &users[0].account_id(),
         common::to_oct_amount(200),
     );
     result.assert_success();
@@ -624,11 +625,7 @@ fn test_staking_actions(
     //
     // user3 unbond delegation
     //
-    let result = staking_actions::unbond_delegation(
-        &users[2],
-        &anchor,
-        &users[0].valid_account_id().to_string(),
-    );
+    let result = staking_actions::unbond_delegation(&users[2], &anchor, &users[0].account_id());
     result.assert_success();
     common::print_anchor_status(&anchor);
     let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&anchor, &users[2]);
@@ -839,6 +836,7 @@ fn test_migration() {
     common::print_anchor_status(&anchor);
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_appchain_settings(&anchor);
+    common::print_anchor_settings(&anchor);
     common::print_validator_set_info_of(&anchor, U64::from(0));
     common::print_validator_list_of(&anchor, Some(0));
     common::print_validator_list_of(&anchor, Some(1));

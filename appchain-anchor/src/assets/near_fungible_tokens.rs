@@ -101,11 +101,6 @@ impl NearFungibleTokenManager for AppchainAnchor {
         price: U128,
     ) {
         self.assert_owner();
-        assert!(
-            ValidAccountId::try_from(contract_account.clone()).is_ok(),
-            "Invalid account id: {}",
-            contract_account
-        );
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             !near_fungible_tokens.contains(&symbol),
@@ -159,13 +154,7 @@ impl NearFungibleTokenManager for AppchainAnchor {
     }
     //
     fn set_price_of_near_fungible_token(&mut self, symbol: String, price: U128) {
-        let anchor_settings = self.anchor_settings.get().unwrap();
-        assert_eq!(
-            env::predecessor_account_id(),
-            anchor_settings.token_price_maintainer_account,
-            "Only '{}' can call this function.",
-            anchor_settings.token_price_maintainer_account
-        );
+        self.assert_token_price_maintainer();
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             near_fungible_tokens.contains(&symbol),
@@ -287,7 +276,7 @@ impl AppchainAnchor {
     pub fn internal_unlock_near_fungible_token(
         &mut self,
         sender_id_in_appchain: String,
-        contract_account: String,
+        contract_account: AccountId,
         receiver_id_in_near: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
@@ -301,9 +290,9 @@ impl AppchainAnchor {
                 receiver_id_in_near.clone(),
                 amount,
                 None,
-                &near_fungible_token.contract_account,
+                near_fungible_token.contract_account,
                 1,
-                GAS_FOR_FT_TRANSFER,
+                Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER),
             )
             .then(ext_self::resolve_fungible_token_transfer(
                 near_fungible_token.metadata.symbol,
@@ -311,11 +300,12 @@ impl AppchainAnchor {
                 receiver_id_in_near.clone(),
                 amount,
                 appchain_message_nonce,
-                &env::current_account_id(),
+                env::current_account_id(),
                 0,
-                GAS_FOR_RESOLVER_FUNCTION,
+                Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION),
             ));
-            processing_context.add_prepaid_gas(GAS_FOR_FT_TRANSFER + GAS_FOR_RESOLVER_FUNCTION);
+            processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER));
+            processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION));
             MultiTxsOperationProcessingResult::Ok
         } else {
             let message = format!(

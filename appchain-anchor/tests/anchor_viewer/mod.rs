@@ -245,10 +245,9 @@ pub fn get_delegators_of_validator_in_era(
     index: u64,
     validator: &UserAccount,
 ) -> Vec<AppchainDelegator> {
-    let view_result = view!(anchor.get_delegators_of_validator_in_era(
-        Some(U64::from(index)),
-        validator.valid_account_id().to_string()
-    ));
+    let view_result =
+        view!(anchor
+            .get_delegators_of_validator_in_era(Some(U64::from(index)), validator.account_id()));
     if view_result.is_err() {
         println!("{:#?}", view_result);
     }
@@ -260,7 +259,7 @@ pub fn get_unbonded_stakes_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
     account: &UserAccount,
 ) -> Vec<UnbondedStake> {
-    let view_result = view!(anchor.get_unbonded_stakes_of(account.valid_account_id().to_string()));
+    let view_result = view!(anchor.get_unbonded_stakes_of(account.account_id()));
     if view_result.is_err() {
         println!("{:#?}", view_result);
     }
@@ -277,7 +276,7 @@ pub fn get_validator_rewards_of(
     let view_result = view!(anchor.get_validator_rewards_of(
         U64::from(start_era),
         U64::from(end_era),
-        validator.valid_account_id().to_string()
+        validator.account_id()
     ));
     if view_result.is_err() {
         println!("{:#?}", view_result);
@@ -296,8 +295,8 @@ pub fn get_delegator_rewards_of(
     let view_result = view!(anchor.get_delegator_rewards_of(
         U64::from(start_era),
         U64::from(end_era),
-        delegator.valid_account_id().to_string(),
-        validator.valid_account_id().to_string()
+        delegator.account_id(),
+        validator.account_id()
     ));
     if view_result.is_err() {
         println!("{:#?}", view_result);

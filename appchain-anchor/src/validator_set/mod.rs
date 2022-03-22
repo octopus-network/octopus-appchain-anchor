@@ -154,7 +154,7 @@ impl ValidatorSet {
                     &Validator {
                         validator_id: validator_id.clone(),
                         validator_id_in_appchain: validator_id_in_appchain.to_string(),
-                        registered_block_height: env::block_index(),
+                        registered_block_height: env::block_height(),
                         registered_timestamp: env::block_timestamp(),
                         deposit_amount: amount.0,
                         total_stake: amount.0,
@@ -222,7 +222,7 @@ impl ValidatorSet {
                     &Delegator {
                         delegator_id: delegator_id.clone(),
                         validator_id: validator_id.clone(),
-                        registered_block_height: env::block_index(),
+                        registered_block_height: env::block_height(),
                         registered_timestamp: env::block_timestamp(),
                         deposit_amount: amount.0,
                     },

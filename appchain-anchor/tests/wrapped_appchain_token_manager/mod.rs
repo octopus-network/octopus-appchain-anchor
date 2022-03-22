@@ -1,6 +1,9 @@
 use appchain_anchor::AppchainAnchorContract;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
-use near_sdk::json_types::{Base64VecU8, U128};
+use near_sdk::{
+    json_types::{Base64VecU8, U128},
+    AccountId,
+};
 use near_sdk_sim::{call, ContractAccount, ExecutionResult, UserAccount};
 
 use crate::common;
@@ -35,7 +38,7 @@ pub fn set_metadata_of_wrapped_appchain_token(
 pub fn set_premined_balance_of_wrapped_appchain_token(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    premined_beneficiary: String,
+    premined_beneficiary: AccountId,
     premined_balance: u128,
 ) -> ExecutionResult {
     let result = call!(
@@ -65,7 +68,7 @@ pub fn set_price_of_wrapped_appchain_token(
 pub fn set_account_of_wrapped_appchain_token(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    wat_account: String,
+    wat_account: AccountId,
 ) -> ExecutionResult {
     let result = call!(
         signer,

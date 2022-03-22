@@ -1,9 +1,10 @@
-use std::convert::TryInto;
+use std::{convert::TryInto, str::FromStr};
 
 use appchain_anchor::{
     types::{
-        AnchorStatus, AppchainCommitment, AppchainSettings, MultiTxsOperationProcessingResult,
-        ValidatorProfile, ValidatorSetInfo, WrappedAppchainToken,
+        AnchorSettings, AnchorStatus, AppchainCommitment, AppchainSettings,
+        MultiTxsOperationProcessingResult, ValidatorProfile, ValidatorSetInfo,
+        WrappedAppchainToken,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -44,7 +45,7 @@ fn register_user_to_oct_token(
 ) {
     let result = call!(
         account,
-        contract.storage_deposit(Option::from(account.valid_account_id()), Option::None),
+        contract.storage_deposit(Option::from(account.account_id()), Option::None),
         near_sdk::env::storage_byte_cost() * 125,
         near_sdk_sim::DEFAULT_GAS / 2
     );
@@ -58,7 +59,7 @@ fn register_user_to_wat_token(
 ) {
     let result = call!(
         account,
-        contract.storage_deposit(Option::from(account.valid_account_id()), Option::None),
+        contract.storage_deposit(Option::from(account.account_id()), Option::None),
         near_sdk::env::storage_byte_cost() * 125,
         near_sdk_sim::DEFAULT_GAS / 2
     );
@@ -74,11 +75,7 @@ pub fn ft_transfer_oct_token(
 ) {
     let result = call!(
         sender,
-        oct_token.ft_transfer(
-            receiver.valid_account_id(),
-            U128::from(amount),
-            Option::None
-        ),
+        oct_token.ft_transfer(receiver.account_id(), U128::from(amount), Option::None),
         1,
         near_sdk_sim::DEFAULT_GAS
     );
@@ -96,7 +93,7 @@ pub fn ft_transfer_call_oct_token(
     let result = call!(
         sender,
         oct_token.ft_transfer_call(
-            receiver.valid_account_id(),
+            receiver.account_id(),
             U128::from(amount),
             Option::None,
             msg.clone()
@@ -142,14 +139,14 @@ pub fn init(
         contract_id: "oct_token",
         bytes: &TOKEN_WASM_BYTES,
         signer_account: root,
-        init_method: new(root.valid_account_id(), U128::from(total_supply), oct_ft_metadata)
+        init_method: new(root.account_id(), U128::from(total_supply), oct_ft_metadata)
     };
     let registry = deploy! {
         contract: MockAppchainRegistryContract,
         contract_id: "registry",
         bytes: &REGISTRY_WASM_BYTES,
         signer_account: root,
-        init_method: new(oct_token.valid_account_id().to_string())
+        init_method: new(oct_token.account_id())
     };
     let anchor = match with_old_anchor {
         true => deploy! {
@@ -160,8 +157,8 @@ pub fn init(
             deposit: INIT_DEPOSIT_FOR_CONTRACT,
             init_method: new(
                 "test_appchain_id".to_string(),
-                registry.valid_account_id().to_string(),
-                oct_token.valid_account_id().to_string()
+                registry.account_id(),
+                oct_token.account_id()
             )
         },
         false => deploy! {
@@ -172,31 +169,31 @@ pub fn init(
             deposit: INIT_DEPOSIT_FOR_CONTRACT,
             init_method: new(
                 "test_appchain_id".to_string(),
-                registry.valid_account_id().to_string(),
-                oct_token.valid_account_id().to_string()
+                registry.account_id(),
+                oct_token.account_id()
             )
         },
     };
     register_user_to_oct_token(&registry.user_account, &oct_token);
     register_user_to_oct_token(&anchor.user_account, &oct_token);
     // Create users and transfer a certain amount of OCT token to them
-    let alice = root.create_user("alice".to_string(), to_yocto("100"));
+    let alice = root.create_user(AccountId::from_str("alice").unwrap(), to_yocto("100"));
     register_user_to_oct_token(&alice, &oct_token);
     ft_transfer_oct_token(&root, &alice, total_supply / 10, &oct_token);
     users.push(alice);
-    let bob = root.create_user("bob".to_string(), to_yocto("100"));
+    let bob = root.create_user(AccountId::from_str("bob").unwrap(), to_yocto("100"));
     register_user_to_oct_token(&bob, &oct_token);
     ft_transfer_oct_token(&root, &bob, total_supply / 10, &oct_token);
     users.push(bob);
-    let charlie = root.create_user("charlie".to_string(), to_yocto("100"));
+    let charlie = root.create_user(AccountId::from_str("charlie").unwrap(), to_yocto("100"));
     register_user_to_oct_token(&charlie, &oct_token);
     ft_transfer_oct_token(&root, &charlie, total_supply / 10, &oct_token);
     users.push(charlie);
-    let dave = root.create_user("dave".to_string(), to_yocto("100"));
+    let dave = root.create_user(AccountId::from_str("dave").unwrap(), to_yocto("100"));
     register_user_to_oct_token(&dave, &oct_token);
     ft_transfer_oct_token(&root, &dave, total_supply / 10, &oct_token);
     users.push(dave);
-    let eve = root.create_user("eve".to_string(), to_yocto("100"));
+    let eve = root.create_user(AccountId::from_str("eve").unwrap(), to_yocto("100"));
     register_user_to_oct_token(&eve, &oct_token);
     ft_transfer_oct_token(&root, &eve, total_supply / 10, &oct_token);
     users.push(eve);
@@ -235,8 +232,8 @@ pub fn deploy_wrapped_appchain_token_contract(
         bytes: &WAT_WASM_BYTES,
         signer_account: root,
         init_method: new(
-            anchor.valid_account_id(),
-            users[0].valid_account_id(),
+            anchor.account_id(),
+            users[0].account_id(),
             premined_balance,
             wat_ft_metadata
         )
@@ -256,7 +253,7 @@ pub fn print_execution_result(function_name: &str, result: &ExecutionResult) {
     println!(
         "Gas burnt of function '{}': {}",
         function_name,
-        result.gas_burnt().to_formatted_string(&Locale::en)
+        result.gas_burnt().0.to_formatted_string(&Locale::en)
     );
     let results = result.promise_results();
     for sub_result in results {
@@ -304,8 +301,16 @@ pub fn print_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) {
 pub fn print_appchain_settings(anchor: &ContractAccount<AppchainAnchorContract>) {
     let appchain_settings = anchor_viewer::get_appchain_settings(anchor);
     println!(
-        "Anchor status: {}",
+        "Appchain settings: {}",
         serde_json::to_string::<AppchainSettings>(&appchain_settings).unwrap()
+    );
+}
+
+pub fn print_anchor_settings(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let anchor_settings = anchor_viewer::get_anchor_settings(anchor);
+    println!(
+        "Anchor settings: {}",
+        serde_json::to_string::<AnchorSettings>(&anchor_settings).unwrap()
     );
 }
 
@@ -476,7 +481,7 @@ pub fn print_delegator_list_of(
         println!(
             "Delegator {} of {} in era {}: {}",
             index,
-            validator.valid_account_id().to_string(),
+            validator.account_id(),
             era_number,
             serde_json::to_string(&delegator).unwrap()
         );
@@ -533,7 +538,7 @@ pub fn print_unbonded_stakes_of(
         println!(
             "Unbonded stake {} of {}: {}",
             index,
-            user.valid_account_id().to_string(),
+            user.account_id(),
             serde_json::to_string(&unbonded_stake).unwrap()
         );
         index += 1;
@@ -553,7 +558,7 @@ pub fn print_wat_balance_of_anchor(
     wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
 ) {
     let wat_balance_of_anchor =
-        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), wrapped_appchain_token);
+        token_viewer::get_wat_balance_of(&anchor.account_id(), wrapped_appchain_token);
     println!(
         "Wrapped appchain token balance of anchor contract: {}",
         wat_balance_of_anchor.0
@@ -649,7 +654,7 @@ pub fn distribute_reward_of(
     to_confirm_view_result: bool,
 ) {
     let anchor_balance_of_wat =
-        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token);
+        token_viewer::get_wat_balance_of(&anchor.account_id(), &wrapped_appchain_token);
     let mut appchain_messages = Vec::<AppchainMessage>::new();
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::EraRewardConcluded {
@@ -668,7 +673,7 @@ pub fn distribute_reward_of(
     }
     process_appchain_messages(root, anchor);
     assert_eq!(
-        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
+        token_viewer::get_wat_balance_of(&anchor.account_id(), &wrapped_appchain_token).0,
         anchor_balance_of_wat.0 + to_oct_amount(10)
     );
     if to_confirm_view_result {
@@ -697,17 +702,13 @@ pub fn withdraw_validator_rewards_of(
 ) {
     print_wat_balance_of_anchor(anchor, wrapped_appchain_token);
     let wat_balance_before_withdraw =
-        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token);
-    let result = staking_actions::withdraw_validator_rewards(
-        user,
-        anchor,
-        &user.valid_account_id().to_string(),
-    );
+        token_viewer::get_wat_balance_of(&user.account_id(), wrapped_appchain_token);
+    let result = staking_actions::withdraw_validator_rewards(user, anchor, &user.account_id());
     result.assert_success();
     println!(
         "User '{}' withdrawed rewards: {}",
-        &user.valid_account_id().to_string(),
-        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token).0
+        &user.account_id(),
+        token_viewer::get_wat_balance_of(&user.account_id(), wrapped_appchain_token).0
             - wat_balance_before_withdraw.0
     );
     print_validator_reward_histories(anchor, user, end_era);
@@ -722,18 +723,18 @@ pub fn withdraw_delegator_rewards_of(
 ) {
     print_wat_balance_of_anchor(anchor, wrapped_appchain_token);
     let wat_balance_before_withdraw =
-        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token);
+        token_viewer::get_wat_balance_of(&user.account_id(), wrapped_appchain_token);
     let result = staking_actions::withdraw_delegator_rewards(
         user,
         anchor,
-        &user.valid_account_id().to_string(),
-        &validator.valid_account_id().to_string(),
+        &user.account_id(),
+        &validator.account_id(),
     );
     result.assert_success();
     println!(
         "User '{}' withdrawed delegator rewards: {}",
-        &user.valid_account_id().to_string(),
-        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token).0
+        &user.account_id(),
+        token_viewer::get_wat_balance_of(&user.account_id(), wrapped_appchain_token).0
             - wat_balance_before_withdraw.0
     );
     print_delegator_reward_histories(anchor, user, validator, end_era);
@@ -745,12 +746,11 @@ pub fn withdraw_stake_of(
     oct_token: &ContractAccount<MockOctTokenContract>,
 ) {
     let oct_balance_before_withdraw = token_viewer::get_oct_balance_of(&user, oct_token);
-    let result =
-        staking_actions::withdraw_stake(user, anchor, &user.valid_account_id().to_string());
+    let result = staking_actions::withdraw_stake(user, anchor, &user.account_id());
     result.assert_success();
     println!(
         "User '{}' withdrawed stake: {}",
-        &user.valid_account_id().to_string(),
+        &user.account_id(),
         token_viewer::get_oct_balance_of(user, oct_token).0 - oct_balance_before_withdraw.0
     );
     print_unbonded_stakes_of(anchor, user);

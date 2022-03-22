@@ -15,17 +15,18 @@ mod user_staking_histories;
 mod validator_profiles;
 mod validator_set;
 
-use core::convert::{TryFrom, TryInto};
+use core::convert::TryInto;
 use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
-use near_sdk::json_types::{ValidAccountId, U128, U64};
+use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, serde_json, AccountId, Balance, Gas,
     PanicOnDefault, PromiseOrValue, PromiseResult, Timestamp,
 };
+use std::ops::Mul;
 
 pub use message_decoder::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
@@ -49,16 +50,15 @@ use validator_set::ValidatorSetViewer;
 register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v1.3.1";
+const ANCHOR_VERSION: &str = "v2.0.0";
 /// Constants for gas.
-const T_GAS: u64 = 1_000_000_000_000;
-const GAS_FOR_FT_TRANSFER: u64 = 10 * T_GAS;
-const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10 * T_GAS;
-const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 20 * T_GAS;
-const GAS_FOR_RESOLVER_FUNCTION: u64 = 10 * T_GAS;
-const GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 10 * T_GAS;
-const GAS_CAP_FOR_MULTI_TXS_PROCESSING: Gas = 150 * T_GAS;
-const GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES: Gas = 240 * T_GAS;
+const T_GAS_FOR_FT_TRANSFER: u64 = 10;
+const T_GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10;
+const T_GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 20;
+const T_GAS_FOR_RESOLVER_FUNCTION: u64 = 10;
+const T_GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 10;
+const T_GAS_CAP_FOR_MULTI_TXS_PROCESSING: u64 = 150;
+const T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES: u64 = 240;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.
@@ -294,6 +294,37 @@ impl AppchainAnchor {
             "Function can only be called by owner."
         );
     }
+    //
+    fn assert_token_price_maintainer(&self) {
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        assert!(
+            anchor_settings.token_price_maintainer_account.is_some(),
+            "Token price maintainer account is not set."
+        );
+        let token_price_maintainer_account =
+            anchor_settings.token_price_maintainer_account.unwrap();
+        assert_eq!(
+            env::predecessor_account_id(),
+            token_price_maintainer_account,
+            "Only '{}' can call this function.",
+            token_price_maintainer_account
+        );
+    }
+    //
+    fn assert_relayer(&self) {
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        assert!(
+            anchor_settings.relayer_account.is_some(),
+            "Relayer account is not set."
+        );
+        let relayer_account = anchor_settings.relayer_account.unwrap();
+        assert_eq!(
+            env::predecessor_account_id(),
+            relayer_account,
+            "Only '{}' can call this function.",
+            relayer_account
+        );
+    }
     // Assert the given validator is existed in the given validator set.
     fn assert_validator_id<V: ValidatorSetViewer>(
         &self,
@@ -321,14 +352,14 @@ impl AppchainAnchor {
             validator_id
         );
     }
-    ///
+    //
     fn assert_light_client_initialized(&self) {
         assert!(
             self.beefy_light_client_state.is_some(),
             "Beefy light client is not initialized."
         );
     }
-    ///
+    //
     fn assert_light_client_is_ready(&self) {
         self.assert_light_client_initialized();
         assert!(
@@ -340,18 +371,26 @@ impl AppchainAnchor {
             "Beefy light client is updating state."
         );
     }
-    ///
+    //
     fn assert_asset_transfer_is_not_paused(&self) {
         assert!(
             !self.asset_transfer_is_paused,
             "Asset transfer is now paused."
         );
     }
-    ///
+    //
     fn assert_rewards_withdrawal_is_not_paused(&self) {
         assert!(
             !self.rewards_withdrawal_is_paused,
             "Rewards withdrawal is now paused."
+        );
+    }
+    //
+    fn assert_contract_account_of_wrapped_appchain_token_is_set(&self) {
+        let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+        assert!(
+            wrapped_appchain_token.contract_account.is_some(),
+            "Contract account of wrapped appchain token is not set."
         );
     }
     //
@@ -379,13 +418,7 @@ impl AppchainAnchor {
     }
     /// Set the price (in USD) of OCT token
     pub fn set_price_of_oct_token(&mut self, price: U128) {
-        let anchor_settings = self.anchor_settings.get().unwrap();
-        assert_eq!(
-            env::predecessor_account_id(),
-            anchor_settings.token_price_maintainer_account,
-            "Only '{}' can call this function.",
-            anchor_settings.token_price_maintainer_account
-        );
+        self.assert_token_price_maintainer();
         let mut oct_token = self.oct_token.get().unwrap();
         oct_token.price_in_usd = price;
         self.oct_token.set(&oct_token);
@@ -408,11 +441,7 @@ impl Ownable for AppchainAnchor {
     //
     fn set_owner(&mut self, owner: AccountId) {
         self.assert_owner();
-        assert!(
-            ValidAccountId::try_from(owner.clone()).is_ok(),
-            "Invalid account id: {}",
-            owner
-        );
+        assert!(!owner.eq(&self.owner), "Owner is not changed.",);
         self.owner = owner;
     }
 }
@@ -478,7 +507,7 @@ impl AppchainAnchor {
         let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
         let anchor_event_history = anchor_event_histories.append(&mut AnchorEventHistory {
             anchor_event,
-            block_height: env::block_index(),
+            block_height: env::block_height(),
             timestamp: env::block_timestamp(),
             index: U64::from(0),
         });
@@ -495,7 +524,7 @@ impl AppchainAnchor {
         let appchain_notification_history =
             appchain_notification_histories.append(&mut AppchainNotificationHistory {
                 appchain_notification,
-                block_height: env::block_index(),
+                block_height: env::block_height(),
                 timestamp: env::block_timestamp(),
                 index: U64::from(0),
             });
@@ -511,9 +540,9 @@ impl AppchainAnchor {
             self.appchain_state.clone(),
             next_validator_set.validator_count().try_into().unwrap(),
             U128::from(next_validator_set.total_stake()),
-            &self.appchain_registry,
+            self.appchain_registry.clone(),
             0,
-            GAS_FOR_SYNC_STATE_TO_REGISTRY,
+            Gas::ONE_TERA.mul(T_GAS_FOR_SYNC_STATE_TO_REGISTRY),
         );
     }
 }

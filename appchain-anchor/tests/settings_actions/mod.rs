@@ -54,7 +54,7 @@ pub fn set_token_price_maintainer_account(
 ) -> ExecutionResult {
     let result = call!(
         signer,
-        anchor.set_token_price_maintainer_account(operator.valid_account_id().to_string())
+        anchor.set_token_price_maintainer_account(operator.account_id())
     );
     common::print_execution_result("set_token_price_maintainer_account", &result);
     result

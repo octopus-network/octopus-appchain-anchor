@@ -216,7 +216,7 @@ impl AppchainAnchor {
         let mut staking_histories = self.staking_histories.get().unwrap();
         let staking_history = staking_histories.append(&mut StakingHistory {
             staking_fact,
-            block_height: env::block_index(),
+            block_height: env::block_height(),
             timestamp: env::block_timestamp(),
             index: U64::from(0),
         });
@@ -528,9 +528,9 @@ impl StakingManager for AppchainAnchor {
                     account_id,
                     balance_to_withdraw.into(),
                     None,
-                    &self.oct_token.get().unwrap().contract_account,
+                    self.oct_token.get().unwrap().contract_account,
                     1,
-                    GAS_FOR_FT_TRANSFER,
+                    Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER),
                 );
             }
         };
@@ -539,6 +539,7 @@ impl StakingManager for AppchainAnchor {
     fn withdraw_validator_rewards(&mut self, validator_id: AccountId) {
         self.assert_asset_transfer_is_not_paused();
         self.assert_rewards_withdrawal_is_not_paused();
+        self.assert_contract_account_of_wrapped_appchain_token_is_set();
         let end_era = self
             .validator_set_histories
             .get()
@@ -568,9 +569,13 @@ impl StakingManager for AppchainAnchor {
                 validator_id,
                 reward_to_withdraw.into(),
                 None,
-                &self.wrapped_appchain_token.get().unwrap().contract_account,
+                self.wrapped_appchain_token
+                    .get()
+                    .unwrap()
+                    .contract_account
+                    .unwrap(),
                 1,
-                GAS_FOR_FT_TRANSFER,
+                Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER),
             );
         }
     }
@@ -578,6 +583,7 @@ impl StakingManager for AppchainAnchor {
     fn withdraw_delegator_rewards(&mut self, delegator_id: AccountId, validator_id: AccountId) {
         self.assert_asset_transfer_is_not_paused();
         self.assert_rewards_withdrawal_is_not_paused();
+        self.assert_contract_account_of_wrapped_appchain_token_is_set();
         let end_era = self
             .validator_set_histories
             .get()
@@ -611,9 +617,13 @@ impl StakingManager for AppchainAnchor {
                 delegator_id,
                 reward_to_withdraw.into(),
                 None,
-                &self.wrapped_appchain_token.get().unwrap().contract_account,
+                self.wrapped_appchain_token
+                    .get()
+                    .unwrap()
+                    .contract_account
+                    .unwrap(),
                 1,
-                GAS_FOR_FT_TRANSFER,
+                Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER),
             );
         }
     }

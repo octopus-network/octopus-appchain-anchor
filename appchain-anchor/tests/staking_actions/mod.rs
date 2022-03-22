@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use appchain_anchor::AppchainAnchorContract;
 use mock_oct_token::MockOctTokenContract;
-use near_sdk::serde_json::json;
+use near_sdk::{serde_json::json, AccountId};
 use near_sdk_sim::{call, ContractAccount, ExecutionResult, UserAccount};
 
 use crate::common;
@@ -36,7 +36,7 @@ pub fn register_delegator(
     signer: &UserAccount,
     oct_token: &ContractAccount<MockOctTokenContract>,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    validator_id: &String,
+    validator_id: &AccountId,
     amount: u128,
 ) -> ExecutionResult {
     common::ft_transfer_call_oct_token(
@@ -72,7 +72,7 @@ pub fn increase_delegation(
     signer: &UserAccount,
     oct_token: &ContractAccount<MockOctTokenContract>,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    validator_id: &String,
+    validator_id: &AccountId,
     amount: u128,
 ) -> ExecutionResult {
     common::ft_transfer_call_oct_token(
@@ -129,7 +129,7 @@ pub fn disable_delegation(
 pub fn decrease_delegation(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    validator_id: &String,
+    validator_id: &AccountId,
     amount: u128,
 ) -> ExecutionResult {
     let result = call!(
@@ -143,7 +143,7 @@ pub fn decrease_delegation(
 pub fn unbond_delegation(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    validator_id: &String,
+    validator_id: &AccountId,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.unbond_delegation(validator_id.clone()));
     common::print_execution_result("unbond_delegation", &result);
@@ -153,7 +153,7 @@ pub fn unbond_delegation(
 pub fn withdraw_stake(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    account_id: &String,
+    account_id: &AccountId,
 ) -> ExecutionResult {
     let result = call!(signer, anchor.withdraw_stake(account_id.clone()));
     common::print_execution_result("withdraw_stake", &result);
@@ -163,7 +163,7 @@ pub fn withdraw_stake(
 pub fn withdraw_validator_rewards(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    validator_id: &String,
+    validator_id: &AccountId,
 ) -> ExecutionResult {
     let result = call!(
         signer,
@@ -176,8 +176,8 @@ pub fn withdraw_validator_rewards(
 pub fn withdraw_delegator_rewards(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
-    delegator_id: &String,
-    validator_id: &String,
+    delegator_id: &AccountId,
+    validator_id: &AccountId,
 ) -> ExecutionResult {
     let result = call!(
         signer,
