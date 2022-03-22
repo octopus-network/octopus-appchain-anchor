@@ -4,6 +4,8 @@ use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use crate::*;
 
 pub trait AnchorViewer {
+    /// Get version of this contract
+    fn get_anchor_version(&self) -> String;
     /// Get anchor settings detail.
     fn get_anchor_settings(&self) -> AnchorSettings;
     /// Get appchain settings detail.

@@ -3,6 +3,10 @@ use crate::{interfaces::AnchorViewer, validator_set::ValidatorSetViewer, *};
 #[near_bindgen]
 impl AnchorViewer for AppchainAnchor {
     //
+    fn get_anchor_version(&self) -> String {
+        ANCHOR_VERSION.to_string()
+    }
+    //
     fn get_anchor_settings(&self) -> AnchorSettings {
         self.anchor_settings.get().unwrap()
     }
