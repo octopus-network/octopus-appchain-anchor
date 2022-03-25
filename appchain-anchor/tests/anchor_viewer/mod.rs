@@ -1,9 +1,10 @@
+use appchain_anchor::appchain_challenge::AppchainChallenge;
 use appchain_anchor::types::{
     AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
     AppchainMessageProcessingResult, AppchainNotificationHistory, AppchainSettings, AppchainState,
-    AppchainValidator, IndexRange, ProtocolSettings, RewardHistory, StakingHistory, UnbondedStake,
-    UserStakingHistory, ValidatorProfile, ValidatorSetInfo, ValidatorSetProcessingStatus,
-    WrappedAppchainToken,
+    AppchainValidator, IndexRange, NearFungibleToken, ProtocolSettings, RewardHistory,
+    StakingHistory, UnbondedStake, UserStakingHistory, ValidatorProfile, ValidatorSetInfo,
+    ValidatorSetProcessingStatus, WrappedAppchainToken,
 };
 use appchain_anchor::{AppchainAnchorContract, AppchainMessage};
 
@@ -47,6 +48,17 @@ pub fn get_wrapped_appchain_token(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<WrappedAppchainToken>()
+}
+
+pub fn get_near_fungible_tokens(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> Vec<NearFungibleToken> {
+    let view_result = view!(anchor.get_near_fungible_tokens());
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<NearFungibleToken>>()
 }
 
 pub fn get_appchain_state(anchor: &ContractAccount<AppchainAnchorContract>) -> AppchainState {
@@ -341,4 +353,29 @@ pub fn get_appchain_message_processing_results(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Vec<AppchainMessageProcessingResult>>()
+}
+
+pub fn get_appchain_challenge(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    index: u64,
+) -> Option<AppchainChallenge> {
+    let view_result = view!(anchor.get_appchain_challenge(Some(U64::from(index))));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Option<AppchainChallenge>>()
+}
+
+pub fn get_appchain_challenges(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_index: u64,
+    quantity: Option<U64>,
+) -> Vec<AppchainChallenge> {
+    let view_result = view!(anchor.get_appchain_challenges(U64::from(start_index), quantity));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<AppchainChallenge>>()
 }

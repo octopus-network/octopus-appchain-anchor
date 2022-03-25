@@ -42,6 +42,7 @@ impl Default for WrappedAppchainToken {
             premined_balance: U128::from(0),
             changed_balance: I128::from(0),
             price_in_usd: U128::from(0),
+            total_supply: U128::from(0),
         }
     }
 }
@@ -79,6 +80,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         wrapped_appchain_token.metadata = metadata;
         wrapped_appchain_token.premined_beneficiary = premined_beneficiary;
         wrapped_appchain_token.premined_balance = premined_balance;
+        wrapped_appchain_token.total_supply = premined_balance;
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
@@ -86,6 +88,13 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         self.assert_owner();
         let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         wrapped_appchain_token.contract_account = contract_account;
+        self.wrapped_appchain_token.set(&wrapped_appchain_token);
+    }
+    //
+    fn set_total_supply_of_wrapped_appchain_token(&mut self, total_supply: U128) {
+        self.assert_owner();
+        let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+        wrapped_appchain_token.total_supply = total_supply;
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
@@ -136,7 +145,6 @@ impl AppchainAnchor {
         processing_context: &mut AppchainMessagesProcessingContext,
     ) -> MultiTxsOperationProcessingResult {
         let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-        let protocol_settings = self.protocol_settings.get().unwrap();
         if let Some(sender_id) = &sender_id {
             if !AccountIdInAppchain::new(Some(sender_id.clone())).is_valid() {
                 let message = format!("Invalid sender id in appchain: '{}'", sender_id);
@@ -148,49 +156,24 @@ impl AppchainAnchor {
                 return MultiTxsOperationProcessingResult::Error(message);
             }
         }
-        if wrapped_appchain_token.total_market_value()
-            + wrapped_appchain_token.get_market_value_of(amount.0)
-            > self.get_market_value_of_staked_oct_token().0
-                * u128::from(
-                    protocol_settings.maximum_market_value_percent_of_wrapped_appchain_token,
-                )
-                / 100
-        {
-            let message = format!("Too much wrapped appchain token to mint.");
-            self.internal_append_anchor_event(AnchorEvent::FailedToMintWrappedAppchainToken {
-                sender_id_in_appchain: sender_id,
-                receiver_id_in_near: receiver_id,
-                amount,
-                appchain_message_nonce,
-                reason: message.clone(),
-            });
-            let result = AppchainMessageProcessingResult::Error {
-                nonce: appchain_message_nonce,
-                message: message.clone(),
-            };
-            self.record_appchain_message_processing_result(&result);
-            MultiTxsOperationProcessingResult::Error(message)
-        } else {
-            ext_fungible_token::mint(
-                receiver_id.clone(),
-                amount,
-                &wrapped_appchain_token.contract_account,
-                STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
-                GAS_FOR_MINT_FUNGIBLE_TOKEN,
-            )
-            .then(ext_self::resolve_wrapped_appchain_token_minting(
-                sender_id.clone(),
-                receiver_id.clone(),
-                amount,
-                appchain_message_nonce,
-                &env::current_account_id(),
-                0,
-                GAS_FOR_RESOLVER_FUNCTION,
-            ));
-            processing_context
-                .add_prepaid_gas(GAS_FOR_MINT_FUNGIBLE_TOKEN + GAS_FOR_RESOLVER_FUNCTION);
-            MultiTxsOperationProcessingResult::Ok
-        }
+        ext_fungible_token::mint(
+            receiver_id.clone(),
+            amount,
+            &wrapped_appchain_token.contract_account,
+            STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
+            GAS_FOR_MINT_FUNGIBLE_TOKEN,
+        )
+        .then(ext_self::resolve_wrapped_appchain_token_minting(
+            sender_id.clone(),
+            receiver_id.clone(),
+            amount,
+            appchain_message_nonce,
+            &env::current_account_id(),
+            0,
+            GAS_FOR_RESOLVER_FUNCTION,
+        ));
+        processing_context.add_prepaid_gas(GAS_FOR_MINT_FUNGIBLE_TOKEN + GAS_FOR_RESOLVER_FUNCTION);
+        MultiTxsOperationProcessingResult::Ok
     }
 }
 
@@ -204,10 +187,10 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
         amount: U128,
     ) {
         assert_self();
+        let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
                 wrapped_appchain_token.changed_balance = I128::from(
                     wrapped_appchain_token.changed_balance.0 - i128::try_from(amount.0).unwrap(),
                 );
@@ -224,21 +207,22 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                         amount: U128::from(amount),
                     },
                 );
-                env::log(
-                    format!(
-                        "Wrapped appchain token burnt by '{}' for '{}' of appchain. Amount: '{}', Crosschain notification index: '{}'.",
-                        &sender_id_in_near, &receiver_id_in_appchain, &amount.0, &appchain_notification_history.index.0
-                    )
-                    .as_bytes(),
+                log!(
+                    "Wrapped appchain token burnt in contract '{}' by '{}' for '{}' of appchain. Amount: '{}', Crosschain notification index: '{}'.",
+                    &wrapped_appchain_token.contract_account,
+                    &sender_id_in_near,
+                    &receiver_id_in_appchain,
+                    &amount.0,
+                    &appchain_notification_history.index.0
                 );
             }
             PromiseResult::Failed => {
-                env::log(
-                    format!(
-                        "Failed to burn wrapped appchain token owned by '{}' for '{}' in appchain. Amount: '{}'",
-                        &sender_id_in_near, &receiver_id_in_appchain, &amount.0
-                    )
-                    .as_bytes(),
+                log!(
+                    "Failed to burn wrapped appchain token in contract '{}' by '{}' for '{}' in appchain. Amount: '{}'",
+                    &wrapped_appchain_token.contract_account,
+                    &sender_id_in_near,
+                    &receiver_id_in_appchain,
+                    &amount.0
                 );
                 self.internal_append_anchor_event(AnchorEvent::FailedToBurnWrappedAppchainToken {
                     sender_id_in_near: sender_id_in_near.clone(),

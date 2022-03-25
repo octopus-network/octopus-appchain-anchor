@@ -3,7 +3,7 @@ mod switching_era;
 
 use crate::*;
 use crate::{interfaces::PermissionlessActions, message_decoder::AppchainMessage};
-use core::convert::TryInto;
+use core::convert::{TryFrom, TryInto};
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -240,7 +240,12 @@ impl PermissionlessActions for AppchainAnchor {
                             processing_context.set_latest_applied_nonce(processing_nonce);
                         }
                         MultiTxsOperationProcessingResult::NeedMoreGas => (),
-                        MultiTxsOperationProcessingResult::Error(..) => break,
+                        MultiTxsOperationProcessingResult::Error(..) => {
+                            // The loop should continue even if it fails to apply a certain message
+                            processing_context.clear_processing_nonce();
+                            processing_context.set_latest_applied_nonce(processing_nonce);
+                            result = MultiTxsOperationProcessingResult::Ok;
+                        }
                     }
                 } else {
                     result = MultiTxsOperationProcessingResult::Error(format!(
@@ -268,6 +273,21 @@ impl PermissionlessActions for AppchainAnchor {
         }
         result
     }
+    //
+    fn commit_appchain_challenge(&mut self, appchain_challenge: AppchainChallenge) {
+        match &appchain_challenge {
+            AppchainChallenge::EquivocationChallenge {
+                submitter_account: _,
+                proof,
+            } => {
+                assert!(proof.is_valid(), "Invalid equivocation challenge data.");
+            }
+            AppchainChallenge::ConspiracyMmr { .. } => (),
+        }
+        let mut appchain_challenges = self.appchain_challenges.get().unwrap();
+        appchain_challenges.append(&mut appchain_challenge.clone());
+        self.appchain_challenges.set(&appchain_challenges);
+    }
 }
 
 impl AppchainAnchor {
@@ -281,9 +301,6 @@ impl AppchainAnchor {
             .filter(|message| {
                 if message.nonce > processing_status.latest_applied_appchain_message_nonce {
                     match message.appchain_event {
-                        AppchainEvent::EraSwitchPlaned { era_number } => {
-                            !self.era_number_is_too_old(u64::from(era_number), 0)
-                        }
                         AppchainEvent::EraRewardConcluded { era_number, .. } => !self
                             .era_number_is_too_old(
                                 u64::from(era_number),
@@ -348,6 +365,29 @@ impl AppchainAnchor {
                     self.record_appchain_message_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
+                let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+                if i128::try_from(wrapped_appchain_token.premined_balance.0).unwrap()
+                    + wrapped_appchain_token.changed_balance.0
+                    + i128::try_from(amount.0).unwrap()
+                    > i128::try_from(wrapped_appchain_token.total_supply.0).unwrap()
+                {
+                    let message = format!("Too much wrapped appchain token to mint.");
+                    self.internal_append_anchor_event(
+                        AnchorEvent::FailedToMintWrappedAppchainToken {
+                            sender_id_in_appchain: Some(owner_id_in_appchain),
+                            receiver_id_in_near,
+                            amount,
+                            appchain_message_nonce: appchain_message.nonce,
+                            reason: message.clone(),
+                        },
+                    );
+                    let result = AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message: message.clone(),
+                    };
+                    self.record_appchain_message_processing_result(&result);
+                    return MultiTxsOperationProcessingResult::Error(message);
+                }
                 self.internal_mint_wrapped_appchain_token(
                     Some(owner_id_in_appchain),
                     receiver_id_in_near,
@@ -364,6 +404,16 @@ impl AppchainAnchor {
                         era_number,
                     )
                 } else {
+                    let index_range = validator_set_histories.index_range();
+                    if u64::from(era_number) <= index_range.end_index.0 {
+                        let message = format!("Switching era number '{}' is too old.", era_number);
+                        let result = AppchainMessageProcessingResult::Error {
+                            nonce: appchain_message.nonce,
+                            message: message.clone(),
+                        };
+                        self.record_appchain_message_processing_result(&result);
+                        return MultiTxsOperationProcessingResult::Error(message);
+                    }
                     self.internal_start_switching_era(
                         processing_context,
                         validator_set_histories,
