@@ -1,6 +1,8 @@
 mod distributing_rewards;
 mod switching_era;
 
+use near_sdk::serde_json;
+
 use crate::*;
 use crate::{interfaces::PermissionlessActions, message_decoder::AppchainMessage};
 use core::convert::{TryFrom, TryInto};
@@ -446,6 +448,28 @@ impl AppchainAnchor {
         let mut appchain_messages = self.appchain_messages.get().unwrap();
         appchain_messages.insert_processing_result(processing_result.nonce(), processing_result);
         self.appchain_messages.set(&appchain_messages);
+        log!(
+            "Processing result of appchain message '{}': '{}'",
+            serde_json::to_string::<AppchainMessage>(
+                &appchain_messages
+                    .get_message(processing_result.nonce())
+                    .unwrap_or_else(|| {
+                        if processing_result.nonce() > 0 {
+                            panic!(
+                                "Missing staged message with nonce '{}'.",
+                                processing_result.nonce()
+                            )
+                        } else {
+                            AppchainMessage {
+                                appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 0 },
+                                nonce: 0,
+                            }
+                        }
+                    })
+            )
+            .unwrap(),
+            serde_json::to_string::<AppchainMessageProcessingResult>(&processing_result).unwrap(),
+        );
     }
 }
 
