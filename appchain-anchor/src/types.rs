@@ -1,4 +1,5 @@
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
+use near_contract_standards::non_fungible_token::metadata::NFTContractMetadata;
 use near_sdk::borsh::maybestd::collections::HashMap;
 use near_sdk::{json_types::I128, BlockHeight};
 
@@ -175,7 +176,7 @@ pub struct WrappedAppchainToken {
 }
 
 /// The bridging state of NEP-141 token.
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum BridgingState {
     /// The state which this contract is bridging the bridge token to the appchain.
@@ -512,12 +513,26 @@ pub enum AppchainNotification {
         receiver_id_in_appchain: String,
         amount: U128,
     },
-    /// A certain amount of wrapped appchain token is burnt in its contract
-    /// in NEAR protocol.
+    /// A certain amount of wrapped appchain token is burnt in its contract in NEAR protocol.
     WrappedAppchainTokenBurnt {
         sender_id_in_near: AccountId,
         receiver_id_in_appchain: String,
         amount: U128,
+    },
+    /// A certain wrapped non-fungible token is burnt in its contract in NEAR protocol.
+    WrappedNonFungibleTokenBurnt {
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
+        class_id: String,
+        instance_id: String,
+    },
+    /// A certain wrapped appchain NFT is locked in appchain anchor.
+    WrappedAppchainNFTLocked {
+        class_id: String,
+        token_id: String,
+        sender_id_in_near: AccountId,
+        owner_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
     },
 }
 
@@ -593,7 +608,7 @@ pub struct UserStakingHistory {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub enum DepositMessage {
+pub enum FTDepositMessage {
     RegisterValidator {
         validator_id_in_appchain: Option<String>,
         can_be_delegated_to: bool,
@@ -609,4 +624,20 @@ pub enum DepositMessage {
     BridgeToAppchain {
         receiver_id_in_appchain: String,
     },
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum NFTTransferMessage {
+    BridgeToAppchain { receiver_id_in_appchain: String },
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct WrappedAppchainNFT {
+    pub class_id: String,
+    pub metadata: NFTContractMetadata,
+    pub contract_account: AccountId,
+    pub bridging_state: BridgingState,
+    pub count_of_locked_tokens: U64,
 }

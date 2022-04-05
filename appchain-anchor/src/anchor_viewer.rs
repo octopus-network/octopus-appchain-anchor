@@ -7,6 +7,10 @@ impl AnchorViewer for AppchainAnchor {
         ANCHOR_VERSION.to_string()
     }
     //
+    fn get_owner_pk(&self) -> PublicKey {
+        self.owner_pk.clone()
+    }
+    //
     fn get_anchor_settings(&self) -> AnchorSettings {
         self.anchor_settings.get().unwrap()
     }
@@ -29,6 +33,10 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_near_fungible_tokens(&self) -> Vec<NearFungibleToken> {
         self.near_fungible_tokens.get().unwrap().to_vec()
+    }
+    //
+    fn get_wrapped_appchain_nfts(&self) -> Vec<WrappedAppchainNFT> {
+        self.wrapped_appchain_nfts.get().unwrap().to_vec()
     }
     //
     fn get_appchain_state(&self) -> AppchainState {

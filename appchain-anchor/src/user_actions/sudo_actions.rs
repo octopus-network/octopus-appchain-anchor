@@ -7,6 +7,11 @@ use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 #[near_bindgen]
 impl SudoActions for AppchainAnchor {
     //
+    fn set_owner_pk(&mut self, public_key: PublicKey) {
+        self.assert_owner();
+        self.owner_pk = public_key;
+    }
+    //
     fn stage_appchain_messages(&mut self, messages: Vec<AppchainMessage>) {
         self.assert_owner();
         self.internal_stage_appchain_messages(messages);

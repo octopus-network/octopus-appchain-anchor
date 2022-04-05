@@ -1,7 +1,7 @@
 mod distributing_rewards;
 mod switching_era;
 
-use near_sdk::serde_json;
+use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 
 use crate::*;
 use crate::{interfaces::PermissionlessActions, message_decoder::AppchainMessage};
@@ -32,6 +32,14 @@ pub enum AppchainEvent {
     EraRewardConcluded {
         era_number: u32,
         unprofitable_validator_ids: Vec<String>,
+    },
+    /// The fact that a certain non-fungible token is locked in the appchain.
+    NonFungibleTokenLocked {
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        class_id: String,
+        instance_id: String,
+        token_metadata: TokenMetadata,
     },
 }
 
@@ -451,6 +459,32 @@ impl AppchainAnchor {
                         unprofitable_validator_ids,
                     )
                 }
+            }
+            AppchainEvent::NonFungibleTokenLocked {
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                class_id,
+                instance_id,
+                token_metadata,
+            } => {
+                if self.asset_transfer_is_paused {
+                    let message = format!("Asset transfer is now paused.");
+                    let result = AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message: message.clone(),
+                    };
+                    self.record_appchain_message_processing_result(&result);
+                    return MultiTxsOperationProcessingResult::Error(message);
+                }
+                self.internal_process_locked_nft_in_appchain(
+                    processing_context,
+                    appchain_message.nonce,
+                    owner_id_in_appchain,
+                    receiver_id_in_near,
+                    class_id,
+                    instance_id,
+                    token_metadata,
+                )
             }
         }
     }

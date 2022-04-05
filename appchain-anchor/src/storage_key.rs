@@ -44,6 +44,9 @@ pub enum StorageKey {
     AppchainMessageProcessingResultsMap,
     AppchainChallenges,
     AppchainChallengesMap,
+    WrappedAppchainNFTs,
+    WrappedAppchainNFTsClassIds,
+    WrappedAppchainNFTsNFTs,
     ValidatorIdsOfEra(u64),
     ValidatorToDelegatorsMapOfEra(u64),
     DelegatorToValidatorsMapOfEra(u64),
@@ -60,6 +63,7 @@ pub enum StorageKey {
         era_number: u64,
         delegator_id: AccountId,
     },
+    WrappedAppchainNFTsLockedTokenIdSet(String),
 }
 
 impl StorageKey {
@@ -107,6 +111,9 @@ impl StorageKey {
             StorageKey::AppchainMessageProcessingResultsMap => "amprsm".to_string(),
             StorageKey::AppchainChallenges => "acs".to_string(),
             StorageKey::AppchainChallengesMap => "acsm".to_string(),
+            StorageKey::WrappedAppchainNFTs => "wanfts".to_string(),
+            StorageKey::WrappedAppchainNFTsClassIds => "wanftscis".to_string(),
+            StorageKey::WrappedAppchainNFTsNFTs => "wanftsnfts".to_string(),
             StorageKey::ValidatorIdsOfEra(era_number) => format!("{}vis", era_number),
             StorageKey::ValidatorToDelegatorsMapOfEra(era_number) => format!("{}lmvtd", era_number),
             StorageKey::DelegatorToValidatorsMapOfEra(era_number) => format!("{}lmdtv", era_number),
@@ -125,6 +132,9 @@ impl StorageKey {
                 era_number,
                 delegator_id,
             } => format!("{}lmdtv{}", era_number, delegator_id),
+            StorageKey::WrappedAppchainNFTsLockedTokenIdSet(class_id) => {
+                format!("{}wanltis", class_id)
+            }
         }
     }
     pub fn into_bytes(&self) -> Vec<u8> {

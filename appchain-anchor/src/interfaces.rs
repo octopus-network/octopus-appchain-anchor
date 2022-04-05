@@ -1,11 +1,17 @@
 use borsh::maybestd::collections::HashMap;
-use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
+use near_contract_standards::{
+    fungible_token::metadata::FungibleTokenMetadata,
+    non_fungible_token::metadata::NFTContractMetadata,
+};
 
 use crate::*;
 
 pub trait AnchorViewer {
     /// Get version of this contract
     fn get_anchor_version(&self) -> String;
+    /// Get the public key of owner account.
+    /// This key will be used in creation of wrapped appchain NFT contract.
+    fn get_owner_pk(&self) -> PublicKey;
     /// Get anchor settings detail.
     fn get_anchor_settings(&self) -> AnchorSettings;
     /// Get appchain settings detail.
@@ -18,6 +24,8 @@ pub trait AnchorViewer {
     fn get_wrapped_appchain_token(&self) -> WrappedAppchainToken;
     /// Get info of near fungible tokens which has registered in this contract.
     fn get_near_fungible_tokens(&self) -> Vec<NearFungibleToken>;
+    /// Get info of wrapped appchain NFT contracts which has registered in this contract.
+    fn get_wrapped_appchain_nfts(&self) -> Vec<WrappedAppchainNFT>;
     /// Get state of corresponding appchain.
     fn get_appchain_state(&self) -> AppchainState;
     /// Get current status of anchor.
@@ -321,6 +329,8 @@ pub trait StakingManager {
 }
 
 pub trait SudoActions {
+    ///
+    fn set_owner_pk(&mut self, public_key: PublicKey);
     /// Apply a certain `AppchainMessage`
     fn stage_appchain_messages(&mut self, appchain_messages: Vec<AppchainMessage>);
     ///
@@ -408,4 +418,23 @@ pub trait WrappedAppchainTokenManager {
     fn set_price_of_wrapped_appchain_token(&mut self, price: U128);
     ///
     fn burn_wrapped_appchain_token(&self, receiver_id: String, amount: U128);
+}
+
+pub trait WrappedAppchainNFTManager {
+    ///
+    fn register_appchain_non_fungible_token(
+        &mut self,
+        class_id: String,
+        metadata: NFTContractMetadata,
+    );
+    ///
+    fn change_appchain_non_fungible_token_contract_metadata(
+        &mut self,
+        class_id: String,
+        metadata: NFTContractMetadata,
+    );
+    ///
+    fn open_bridging_of_appchain_non_fungible_token(&mut self, class_id: String);
+    ///
+    fn close_bridging_of_appchain_non_fungible_token(&mut self, class_id: String);
 }

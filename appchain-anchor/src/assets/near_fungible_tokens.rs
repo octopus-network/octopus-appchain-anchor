@@ -206,14 +206,14 @@ impl AppchainAnchor {
         predecessor_account_id: AccountId,
         sender_id: AccountId,
         amount: U128,
-        deposit_message: DepositMessage,
+        deposit_message: FTDepositMessage,
     ) -> PromiseOrValue<U128> {
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         if let Some(mut near_fungible_token) =
             near_fungible_tokens.get_by_contract_account(&predecessor_account_id)
         {
             match deposit_message {
-                DepositMessage::BridgeToAppchain {
+                FTDepositMessage::BridgeToAppchain {
                     receiver_id_in_appchain,
                 } => {
                     AccountIdInAppchain::new(Some(receiver_id_in_appchain.clone())).assert_valid();
@@ -286,6 +286,21 @@ impl AppchainAnchor {
         if let Some(near_fungible_token) =
             near_fungible_tokens.get_by_contract_account(&contract_account)
         {
+            if near_fungible_token
+                .bridging_state
+                .eq(&BridgingState::Closed)
+            {
+                let message = format!(
+                    "Bridging for NEAR fungible token in contract '{}' is now closed.",
+                    contract_account
+                );
+                let result = AppchainMessageProcessingResult::Error {
+                    nonce: appchain_message_nonce,
+                    message: message.clone(),
+                };
+                self.record_appchain_message_processing_result(&result);
+                return MultiTxsOperationProcessingResult::Error(message);
+            }
             ext_fungible_token::ft_transfer(
                 receiver_id_in_near.clone(),
                 amount,

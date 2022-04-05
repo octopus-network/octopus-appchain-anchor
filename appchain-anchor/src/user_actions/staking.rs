@@ -8,10 +8,10 @@ impl AppchainAnchor {
         &mut self,
         sender_id: AccountId,
         amount: U128,
-        deposit_message: DepositMessage,
+        deposit_message: FTDepositMessage,
     ) -> PromiseOrValue<U128> {
         match deposit_message {
-            DepositMessage::RegisterValidator {
+            FTDepositMessage::RegisterValidator {
                 validator_id_in_appchain,
                 can_be_delegated_to,
                 profile,
@@ -25,15 +25,15 @@ impl AppchainAnchor {
                 );
                 PromiseOrValue::Value(0.into())
             }
-            DepositMessage::IncreaseStake => {
+            FTDepositMessage::IncreaseStake => {
                 self.increase_stake(sender_id, amount);
                 PromiseOrValue::Value(0.into())
             }
-            DepositMessage::RegisterDelegator { validator_id } => {
+            FTDepositMessage::RegisterDelegator { validator_id } => {
                 self.register_delegator(sender_id, validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
-            DepositMessage::IncreaseDelegation { validator_id } => {
+            FTDepositMessage::IncreaseDelegation { validator_id } => {
                 self.increase_delegation(sender_id, validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
