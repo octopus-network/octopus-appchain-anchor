@@ -8,15 +8,10 @@ use appchain_anchor::{
 };
 use near_sdk::{json_types::U128, serde_json, AccountId};
 
-mod anchor_viewer;
-mod common;
-mod lifecycle_actions;
-mod permissionless_actions;
-mod settings_actions;
-mod staking_actions;
-mod sudo_actions;
-mod token_viewer;
-mod wrapped_appchain_token_manager;
+use crate::{
+    anchor_viewer, common, lifecycle_actions, settings_actions, staking_actions, sudo_actions,
+    token_viewer, wrapped_appchain_token_manager,
+};
 
 const TOTAL_SUPPLY: u128 = 100_000_000;
 
