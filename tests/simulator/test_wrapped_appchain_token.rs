@@ -9,7 +9,7 @@ use appchain_anchor::{
 use near_sdk::{json_types::U128, serde_json, AccountId};
 
 use crate::{
-    anchor_viewer, common, lifecycle_actions, settings_actions, staking_actions, sudo_actions,
+    anchor_viewer, common, lifecycle_actions, settings_manager, staking_actions, sudo_actions,
     token_viewer, wrapped_appchain_token_manager,
 };
 
@@ -57,13 +57,13 @@ fn test_wrapped_appchain_token_bridging() {
     //
     //
     //
-    let result = settings_actions::set_price_of_oct_token(&users[4], &anchor, 2_130_000);
+    let result = settings_manager::set_price_of_oct_token(&users[4], &anchor, 2_130_000);
     assert!(!result.is_ok());
     let result = wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
         &users[4], &anchor, 110_000,
     );
     assert!(!result.is_ok());
-    let result = settings_actions::set_token_price_maintainer_account(&root, &anchor, &users[4]);
+    let result = settings_manager::set_token_price_maintainer_account(&root, &anchor, &users[4]);
     result.assert_success();
     //
     // Initialize wrapped appchain token contract.
@@ -232,32 +232,32 @@ fn test_wrapped_appchain_token_bridging() {
     //
     // Set appchain settings and try go_booting
     //
-    let result = settings_actions::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string());
+    let result = settings_manager::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string());
     result.assert_success();
-    let result = settings_actions::set_subql_endpoint(&root, &anchor, "subql_endpoint".to_string());
+    let result = settings_manager::set_subql_endpoint(&root, &anchor, "subql_endpoint".to_string());
     result.assert_success();
-    let result = settings_actions::set_era_reward(&root, &anchor, common::to_oct_amount(10));
+    let result = settings_manager::set_era_reward(&root, &anchor, common::to_oct_amount(10));
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     assert!(!result.is_ok());
     //
     // Change protocol settings and try go_booting
     //
-    let result = settings_actions::change_minimum_validator_count(&root, &anchor, 2);
+    let result = settings_manager::change_minimum_validator_count(&root, &anchor, 2);
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     assert!(!result.is_ok());
     //
     // Change price of OCT token and try go_booting
     //
-    let result = settings_actions::set_price_of_oct_token(&users[4], &anchor, 2_130_000);
+    let result = settings_manager::set_price_of_oct_token(&users[4], &anchor, 2_130_000);
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     assert!(!result.is_ok());
     //
     // Change total stake price and try go_booting
     //
-    let result = settings_actions::change_minimum_total_stake_price_for_booting(
+    let result = settings_manager::change_minimum_total_stake_price_for_booting(
         &root,
         &anchor,
         63_000_000_000,

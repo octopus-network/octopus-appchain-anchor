@@ -11,7 +11,7 @@ use mock_oct_token::MockOctTokenContract;
 use wrapped_appchain_token::WrappedAppchainTokenContract;
 
 use crate::{
-    anchor_viewer, common, owner_actions, settings_actions, staking_actions, sudo_actions,
+    anchor_viewer, common, owner_actions, settings_manager, staking_actions, sudo_actions,
 };
 
 #[test]
@@ -183,9 +183,9 @@ fn test_staking_actions(
     //
     // Change unlock period for testing
     //
-    let result = settings_actions::change_unlock_period_of_validator_deposit(&root, &anchor, 3);
+    let result = settings_manager::change_unlock_period_of_validator_deposit(&root, &anchor, 3);
     result.assert_success();
-    let result = settings_actions::change_unlock_period_of_delegator_deposit(&root, &anchor, 1);
+    let result = settings_manager::change_unlock_period_of_delegator_deposit(&root, &anchor, 1);
     result.assert_success();
     //
     // user3 unbond delegation

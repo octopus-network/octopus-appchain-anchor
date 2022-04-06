@@ -3,7 +3,7 @@ mod common;
 mod lifecycle_actions;
 mod owner_actions;
 mod permissionless_actions;
-mod settings_actions;
+mod settings_manager;
 mod staking_actions;
 mod sudo_actions;
 mod token_viewer;
