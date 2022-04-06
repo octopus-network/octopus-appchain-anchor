@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use near_contract_standards::non_fungible_token::metadata::NFTContractMetadata;
+use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::Promise;
 
 use crate::interfaces::WrappedAppchainNFTManager;
@@ -158,14 +159,41 @@ impl WrappedAppchainNFTManager for AppchainAnchor {
         metadata: NFTContractMetadata,
     ) {
         self.assert_owner();
+        assert!(
+            env::storage_has_key(&StorageKey::WrappedAppchainNFTContractWasm.into_bytes()),
+            "Wasm file for deployment is not staged yet."
+        );
         let internal_wrapped_appchain_nft =
-            InternalWrappedAppchainNFT::new(class_id.clone(), metadata);
+            InternalWrappedAppchainNFT::new(class_id.clone(), metadata.clone());
         let mut wrapped_appchain_nfts = self.wrapped_appchain_nfts.get().unwrap();
         wrapped_appchain_nfts.insert(&class_id, &internal_wrapped_appchain_nft);
+
+        #[derive(near_sdk::serde::Serialize)]
+        #[serde(crate = "near_sdk::serde")]
+        struct Input {
+            account_id: AccountId,
+            metadata: NFTContractMetadata,
+        }
+        let args = Input {
+            account_id: env::current_account_id(),
+            metadata,
+        };
+        let args = near_sdk::serde_json::to_vec(&args)
+            .expect("Failed to serialize the cross contract args using JSON.");
         Promise::new(internal_wrapped_appchain_nft.contract_account)
             .create_account()
             .transfer(WRAPPED_APPCHAIN_NFT_CONTRACT_INIT_BALANCE)
-            .add_full_access_key(self.owner_pk.clone());
+            .add_full_access_key(self.owner_pk.clone())
+            .deploy_contract(
+                env::storage_read(&StorageKey::WrappedAppchainNFTContractWasm.into_bytes())
+                    .unwrap(),
+            )
+            .function_call(
+                "new".to_string(),
+                args,
+                0,
+                Gas::ONE_TERA.mul(T_GAS_FOR_NFT_CONTRACT_INITIALIZATION),
+            );
     }
     //
     fn change_appchain_non_fungible_token_contract_metadata(
@@ -441,4 +469,35 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
             }
         }
     }
+}
+
+/// Stores attached data into blob store and returns hash of it.
+/// Implemented to avoid loading the data into WASM for optimal gas usage.
+#[no_mangle]
+pub extern "C" fn store_wasm_of_wrapped_appchain_nft_contract() {
+    env::setup_panic_hook();
+    let contract: AppchainAnchor = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+    contract.assert_owner();
+    let input = env::input().expect("ERR_NO_INPUT");
+    let sha256_hash = env::sha256(&input);
+
+    let blob_len = input.len();
+    let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+    assert!(
+        env::attached_deposit() >= storage_cost,
+        "ERR_NOT_ENOUGH_DEPOSIT:{}",
+        storage_cost
+    );
+
+    env::storage_write(
+        &StorageKey::WrappedAppchainNFTContractWasm.into_bytes(),
+        &input,
+    );
+    let mut blob_hash = [0u8; 32];
+    blob_hash.copy_from_slice(&sha256_hash);
+    let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(blob_hash))
+        .unwrap()
+        .into_bytes();
+
+    env::value_return(&blob_hash_str);
 }
