@@ -422,19 +422,15 @@ pub trait WrappedAppchainTokenManager {
 
 pub trait WrappedAppchainNFTManager {
     ///
-    fn register_appchain_non_fungible_token(
+    fn register_wrapped_appchain_nft(&mut self, class_id: String, metadata: NFTContractMetadata);
+    ///
+    fn change_wrapped_appchain_nft_contract_metadata(
         &mut self,
         class_id: String,
         metadata: NFTContractMetadata,
     );
     ///
-    fn change_appchain_non_fungible_token_contract_metadata(
-        &mut self,
-        class_id: String,
-        metadata: NFTContractMetadata,
-    );
+    fn open_bridging_of_wrapped_appchain_nft(&mut self, class_id: String);
     ///
-    fn open_bridging_of_appchain_non_fungible_token(&mut self, class_id: String);
-    ///
-    fn close_bridging_of_appchain_non_fungible_token(&mut self, class_id: String);
+    fn close_bridging_of_wrapped_appchain_nft(&mut self, class_id: String);
 }

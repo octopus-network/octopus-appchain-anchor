@@ -36,7 +36,7 @@ pub use permissionless_actions::AppchainEvent;
 use appchain_challenge::AppchainChallenge;
 use appchain_messages::AppchainMessages;
 use assets::near_fungible_tokens::NearFungibleTokens;
-use assets::wrapped_non_fungible_tokens::WrappedAppchainNFTs;
+use assets::wrapped_appchain_nfts::WrappedAppchainNFTs;
 use beefy_light_client::Hash;
 use beefy_light_client::LightClient;
 use lookup_array::{IndexedAndClearable, LookupArray};
