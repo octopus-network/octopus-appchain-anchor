@@ -13,14 +13,6 @@ pub struct AppchainMessageProcessingResults {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct OldPermissionlessActionsStatus {
-    /// The era number that is switching by permissionless actions
-    pub switching_era_number: Option<U64>,
-    /// The era number that is distributing reward by permissionless actions
-    pub distributing_reward_era_number: Option<U64>,
-}
-
-#[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
     appchain_id: AppchainId,
@@ -64,7 +56,7 @@ pub struct OldAppchainAnchor {
     /// The appchain notification history data.
     appchain_notification_histories: LazyOption<LookupArray<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
-    permissionless_actions_status: LazyOption<OldPermissionlessActionsStatus>,
+    permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
     beefy_light_client_state: LazyOption<LightClient>,
     /// The reward distribution records data
@@ -77,6 +69,8 @@ pub struct OldAppchainAnchor {
     rewards_withdrawal_is_paused: bool,
     /// The processing result of appchain messages
     appchain_message_processing_results: LazyOption<AppchainMessageProcessingResults>,
+    /// The processing result of appchain messages
+    appchain_messages: LazyOption<AppchainMessages>,
 }
 
 #[near_bindgen]
@@ -94,14 +88,7 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
-        let mut old_processing_results = old_contract
-            .appchain_message_processing_results
-            .get()
-            .unwrap();
-        old_processing_results.clear();
         old_contract.appchain_message_processing_results.remove();
-        let old_permissionless_action_status =
-            old_contract.permissionless_actions_status.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -123,49 +110,16 @@ impl AppchainAnchor {
             staking_histories: old_contract.staking_histories,
             anchor_event_histories: old_contract.anchor_event_histories,
             appchain_notification_histories: old_contract.appchain_notification_histories,
-            permissionless_actions_status: LazyOption::new(
-                StorageKey::PermissionlessActionsStatus.into_bytes(),
-                Some(&PermissionlessActionsStatus::from_old_version(
-                    old_permissionless_action_status,
-                )),
-            ),
+            permissionless_actions_status: old_contract.permissionless_actions_status,
             beefy_light_client_state: old_contract.beefy_light_client_state,
             reward_distribution_records: old_contract.reward_distribution_records,
             asset_transfer_is_paused: old_contract.asset_transfer_is_paused,
             user_staking_histories: old_contract.user_staking_histories,
             rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
-            appchain_messages: LazyOption::new(
-                StorageKey::AppchainMessages.into_bytes(),
-                Some(&AppchainMessages::new()),
-            ),
+            appchain_messages: old_contract.appchain_messages,
         };
         //
         //
         new_contract
-    }
-}
-
-impl PermissionlessActionsStatus {
-    pub fn from_old_version(old_version: OldPermissionlessActionsStatus) -> Self {
-        Self {
-            switching_era_number: old_version.switching_era_number,
-            distributing_reward_era_number: old_version.distributing_reward_era_number,
-            processing_appchain_message_nonce: None,
-            max_nonce_of_staged_appchain_messages: 0,
-            latest_applied_appchain_message_nonce: 0,
-        }
-    }
-}
-
-impl AppchainMessageProcessingResults {
-    ///
-    pub fn clear(&mut self) {
-        let index_range = self.message_nonce_histories.index_range();
-        for index in index_range.start_index.0..index_range.end_index.0 + 1 {
-            if let Some(nonce) = self.message_nonce_histories.get(&index) {
-                self.processing_result_map.remove(&nonce);
-            }
-        }
-        self.message_nonce_histories.clear();
     }
 }

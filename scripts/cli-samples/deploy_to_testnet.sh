@@ -13,3 +13,15 @@ near call debionetwork.registry.test_oct.testnet migrate_state '' --accountId de
 #
 near deploy --accountId myriad.registry.test_oct.testnet --wasmFile res/appchain_anchor.wasm
 near call myriad.registry.test_oct.testnet migrate_state '' --accountId myriad.registry.test_oct.testnet --gas 200000000000000
+#
+near deploy --accountId fusotao.registry.test_oct.testnet --wasmFile res/appchain_anchor.wasm
+near call fusotao.registry.test_oct.testnet migrate_state '' --accountId fusotao.registry.test_oct.testnet --gas 200000000000000
+#
+export ANCHOR_ACCOUNT_ID=fusotao.registry.test_oct.testnet
+near view $ANCHOR_ACCOUNT_ID get_anchor_version
+near view $ANCHOR_ACCOUNT_ID get_anchor_status
+near view $ANCHOR_ACCOUNT_ID get_anchor_settings
+near view $ANCHOR_ACCOUNT_ID get_appchain_settings
+near view $ANCHOR_ACCOUNT_ID get_protocol_settings
+near view $ANCHOR_ACCOUNT_ID get_wrapped_appchain_token
+near view $ANCHOR_ACCOUNT_ID get_near_fungible_tokens
