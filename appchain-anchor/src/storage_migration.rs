@@ -1,16 +1,9 @@
+use crate::appchain_message_processing_results::AppchainMessageProcessingResults;
 use crate::*;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
-
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct AppchainMessageProcessingResults {
-    ///
-    message_nonce_histories: LookupArray<u32>,
-    ///
-    processing_result_map: LookupMap<u32, AppchainMessageProcessingResult>,
-}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldPermissionlessActionsStatus {
@@ -84,8 +77,7 @@ impl AppchainAnchor {
     #[init(ignore_state)]
     pub fn migrate_state() -> Self {
         // Deserialize the state using the old contract structure.
-        let mut old_contract: OldAppchainAnchor =
-            env::state_read().expect("Old state doesn't exist");
+        let old_contract: OldAppchainAnchor = env::state_read().expect("Old state doesn't exist");
         // Verify that the migration can only be done by the owner.
         // This is not necessary, if the upgrade is done internally.
         assert_eq!(
@@ -94,12 +86,6 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
-        let mut old_processing_results = old_contract
-            .appchain_message_processing_results
-            .get()
-            .unwrap();
-        old_processing_results.clear();
-        old_contract.appchain_message_processing_results.remove();
         let old_permissionless_action_status =
             old_contract.permissionless_actions_status.get().unwrap();
         // Create the new contract using the data from the old contract.
@@ -134,6 +120,7 @@ impl AppchainAnchor {
             asset_transfer_is_paused: old_contract.asset_transfer_is_paused,
             user_staking_histories: old_contract.user_staking_histories,
             rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
+            appchain_message_processing_results: old_contract.appchain_message_processing_results,
             appchain_messages: LazyOption::new(
                 StorageKey::AppchainMessages.into_bytes(),
                 Some(&AppchainMessages::new()),
@@ -142,6 +129,17 @@ impl AppchainAnchor {
         //
         //
         new_contract
+    }
+    ///
+    pub fn clear_appchain_message_processing_results(
+        &mut self,
+    ) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
+        let mut processing_results = self.appchain_message_processing_results.get().unwrap();
+        let result = processing_results.clear();
+        self.appchain_message_processing_results
+            .set(&processing_results);
+        result
     }
 }
 
@@ -154,18 +152,5 @@ impl PermissionlessActionsStatus {
             max_nonce_of_staged_appchain_messages: 0,
             latest_applied_appchain_message_nonce: 0,
         }
-    }
-}
-
-impl AppchainMessageProcessingResults {
-    ///
-    pub fn clear(&mut self) {
-        let index_range = self.message_nonce_histories.index_range();
-        for index in index_range.start_index.0..index_range.end_index.0 + 1 {
-            if let Some(nonce) = self.message_nonce_histories.get(&index) {
-                self.processing_result_map.remove(&nonce);
-            }
-        }
-        self.message_nonce_histories.clear();
     }
 }

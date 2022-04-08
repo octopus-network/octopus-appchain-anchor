@@ -1,4 +1,5 @@
 mod anchor_viewer;
+mod appchain_message_processing_results;
 mod appchain_messages;
 mod assets;
 pub mod interfaces;
@@ -14,6 +15,7 @@ mod user_staking_histories;
 mod validator_profiles;
 mod validator_set;
 
+use appchain_message_processing_results::AppchainMessageProcessingResults;
 use core::convert::TryInto;
 use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::upgrade::Ownable;
@@ -47,7 +49,7 @@ use validator_set::ValidatorSetViewer;
 register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v1.2.0";
+const ANCHOR_VERSION: &str = "v1.2.0-pre";
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
 const GAS_FOR_FT_TRANSFER: u64 = 10 * T_GAS;
@@ -171,6 +173,8 @@ pub struct AppchainAnchor {
     /// Whether the rewards withdrawal is paused
     rewards_withdrawal_is_paused: bool,
     /// The processing result of appchain messages
+    appchain_message_processing_results: LazyOption<AppchainMessageProcessingResults>,
+    /// The processing result of appchain messages
     appchain_messages: LazyOption<AppchainMessages>,
 }
 
@@ -272,6 +276,10 @@ impl AppchainAnchor {
                 Some(&UserStakingHistories::new()),
             ),
             rewards_withdrawal_is_paused: false,
+            appchain_message_processing_results: LazyOption::new(
+                StorageKey::AppchainMessageProcessingResults.into_bytes(),
+                Some(&AppchainMessageProcessingResults::new()),
+            ),
             appchain_messages: LazyOption::new(
                 StorageKey::AppchainMessages.into_bytes(),
                 Some(&AppchainMessages::new()),
