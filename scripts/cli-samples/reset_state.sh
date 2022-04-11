@@ -7,6 +7,7 @@ export END_ERA=yy
 #
 export END_ERA=24
 #
+export END_ERA=24
 #
 for ((i=$END_ERA;i>=0;i--))
 do

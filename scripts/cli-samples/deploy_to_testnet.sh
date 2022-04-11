@@ -14,16 +14,6 @@ near call oct.beta_oct_relay.testnet storage_deposit '{"account_id":"easydeal.re
 near deploy --accountId $ANCHOR_ACCOUNT_ID --wasmFile res/appchain_anchor.wasm
 near call $ANCHOR_ACCOUNT_ID migrate_state '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
 #
-near deploy --accountId myriad.registry.test_oct.testnet --wasmFile res/appchain_anchor.wasm
-near call myriad.registry.test_oct.testnet migrate_state '' --accountId myriad.registry.test_oct.testnet --gas 200000000000000
-#
-near deploy --accountId fusotao.registry.test_oct.testnet --wasmFile res/appchain_anchor.wasm
-near call fusotao.registry.test_oct.testnet migrate_state '' --accountId fusotao.registry.test_oct.testnet --gas 200000000000000
-#
-near deploy --accountId barnacle-evm.registry.test_oct.testnet --wasmFile res/appchain_anchor.wasm
-near call barnacle-evm.registry.test_oct.testnet migrate_state '' --accountId barnacle-evm.registry.test_oct.testnet --gas 200000000000000
-#
-export ANCHOR_ACCOUNT_ID=barnacle-evm.registry.test_oct.testnet
 near view $ANCHOR_ACCOUNT_ID get_anchor_version
 near view $ANCHOR_ACCOUNT_ID get_anchor_status
 near view $ANCHOR_ACCOUNT_ID get_anchor_settings
