@@ -35,11 +35,11 @@ const INIT_DEPOSIT_FOR_CONTRACT: Balance = 30_000_000_000_000_000_000_000_000;
 const TOTAL_SUPPLY: u128 = 100_000_000;
 
 lazy_static_include::lazy_static_include_bytes! {
-    TOKEN_WASM_BYTES => "./res/mock_oct_token.wasm",
-    REGISTRY_WASM_BYTES => "./res/mock_appchain_registry.wasm",
-    ANCHOR_WASM_BYTES => "./res/appchain_anchor.wasm",
-    WAT_WASM_BYTES => "./res/mock_wrapped_appchain_token.wasm",
-    OLD_ANCHOR_WASM_BYTES => "./res/previous_appchain_anchor.wasm",
+    TOKEN_WASM_BYTES => "res/mock_oct_token.wasm",
+    REGISTRY_WASM_BYTES => "res/mock_appchain_registry.wasm",
+    ANCHOR_WASM_BYTES => "res/appchain_anchor.wasm",
+    WAT_WASM_BYTES => "res/mock_wrapped_appchain_token.wasm",
+    OLD_ANCHOR_WASM_BYTES => "res/previous_appchain_anchor.wasm",
 }
 
 // Register the given `user` to oct_token
@@ -693,14 +693,6 @@ pub fn print_execution_result(function_name: &str, result: &ExecutionResult) {
                 println!("{:#?}", sub_result.outcome());
             }
         }
-    }
-    if result.is_ok() {
-        let logs = result.logs();
-        if logs.len() > 0 {
-            println!("{:#?}", logs);
-        }
-    } else {
-        println!("{:#?}", result.outcome());
     }
 }
 

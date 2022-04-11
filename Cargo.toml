@@ -12,14 +12,15 @@ near-contract-standards = "4.0.0-pre.7"
 hex = "0.4.2"
 num-format = "0.4.0"
 secp256k1-test = { package = "secp256k1", version = "0.20.3", features = ["rand-std", "recovery"] }
-beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client", branch = "v2.0.0" }
+beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client.git", branch = "v2.0.0" }
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 beefy-merkle-tree = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.12", features = ["keccak"], default-features = false }
 # remember to include related mock contracts
 appchain-anchor = { path = "./appchain-anchor" }
 mock-appchain-registry = { path = "./mock-appchain-registry" }
 mock-oct-token = { path = "./mock-oct-token" }
-wrapped-appchain-token = { git = "https://github.com/octopus-network/wrapped-appchain-token", branch = "v2.0.0" }
+wrapped-appchain-token = { git = "https://github.com/octopus-network/wrapped-appchain-token.git", branch = "v2.0.0" }
+wrapped-appchain-nft = { git = "https://github.com/octopus-network/wrapped-appchain-nft.git", branch = "main" }
 
 [profile.release]
 codegen-units = 1

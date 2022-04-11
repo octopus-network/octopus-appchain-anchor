@@ -163,15 +163,16 @@ impl WrappedAppchainNFTManager for AppchainAnchor {
             InternalWrappedAppchainNFT::new(class_id.clone(), metadata.clone());
         let mut wrapped_appchain_nfts = self.wrapped_appchain_nfts.get().unwrap();
         wrapped_appchain_nfts.insert(&class_id, &internal_wrapped_appchain_nft);
-
+        self.wrapped_appchain_nfts.set(&wrapped_appchain_nfts);
+        //
         #[derive(near_sdk::serde::Serialize)]
         #[serde(crate = "near_sdk::serde")]
         struct Input {
-            account_id: AccountId,
+            owner_id: AccountId,
             metadata: NFTContractMetadata,
         }
         let args = Input {
-            account_id: env::current_account_id(),
+            owner_id: env::current_account_id(),
             metadata,
         };
         let args = near_sdk::serde_json::to_vec(&args)
@@ -370,8 +371,8 @@ impl AppchainAnchor {
             }
         }
         panic!(
-            "Received nft in contract '{}' from '{}'. Return it.",
-            predecessor_account_id, sender_id,
+            "Received unregistered token id '{}' of wrapped appchain NFT in contract '{}' from '{}'. Return it.",
+            token_id, predecessor_account_id, sender_id,
         );
     }
 }
@@ -381,11 +382,11 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
     //
     fn resolve_wrapped_appchain_nft_transfer(
         &mut self,
-        _owner_id_in_appchain: String,
+        owner_id_in_appchain: String,
         receiver_id_in_near: AccountId,
         class_id: String,
         instance_id: String,
-        _token_metadata: TokenMetadata,
+        token_metadata: TokenMetadata,
         appchain_message_nonce: u32,
     ) {
         assert_self();
@@ -414,7 +415,12 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
                         .unwrap()
                         .contract_account,
                 );
-                let message = format!("Failed to transfer NFT. {}", reason);
+                let message = format!(
+                    "Failed to transfer NFT from appchain account '{}' with metadata '{}'. {}",
+                    owner_id_in_appchain,
+                    serde_json::to_string(&token_metadata).unwrap(),
+                    reason
+                );
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Error {
                         nonce: appchain_message_nonce,
@@ -427,11 +433,11 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
     //
     fn resolve_wrapped_appchain_nft_mint(
         &mut self,
-        _owner_id_in_appchain: String,
+        owner_id_in_appchain: String,
         receiver_id_in_near: AccountId,
         class_id: String,
-        _instance_id: String,
-        _token_metadata: TokenMetadata,
+        instance_id: String,
+        token_metadata: TokenMetadata,
         appchain_message_nonce: u32,
     ) {
         assert_self();
@@ -455,7 +461,13 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
                         .unwrap()
                         .contract_account,
                 );
-                let message = format!("Failed to mint NFT. {}", reason);
+                let message = format!(
+                    "Failed to mint NFT '{}' from appchain account '{}' with metadata '{}'. {}",
+                    instance_id,
+                    owner_id_in_appchain,
+                    serde_json::to_string(&token_metadata).unwrap(),
+                    reason
+                );
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Error {
                         nonce: appchain_message_nonce,

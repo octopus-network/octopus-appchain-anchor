@@ -108,3 +108,12 @@ pub fn change_unlock_period_of_delegator_deposit(
     common::print_execution_result("change_unlock_period_of_delegator_deposit", &result);
     result
 }
+
+pub fn turn_on_beefy_light_client_witness_mode(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> ExecutionResult {
+    let result = call!(signer, anchor.turn_on_beefy_light_client_witness_mode());
+    common::print_execution_result("turn_on_beefy_light_client_witness_mode", &result);
+    result
+}
