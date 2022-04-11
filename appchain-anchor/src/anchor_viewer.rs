@@ -128,33 +128,6 @@ impl AnchorViewer for AppchainAnchor {
         self.staking_histories.get().unwrap().get(&index.0)
     }
     //
-    fn get_index_range_of_anchor_event_history(&self) -> IndexRange {
-        self.anchor_event_histories.get().unwrap().index_range()
-    }
-    //
-    fn get_anchor_event_history(&self, index: Option<U64>) -> Option<AnchorEventHistory> {
-        let index = match index {
-            Some(index) => index,
-            None => {
-                self.anchor_event_histories
-                    .get()
-                    .unwrap()
-                    .index_range()
-                    .end_index
-            }
-        };
-        self.anchor_event_histories.get().unwrap().get(&index.0)
-    }
-    //
-    fn get_anchor_event_histories(
-        &self,
-        start_index: U64,
-        quantity: Option<U64>,
-    ) -> Vec<AnchorEventHistory> {
-        let anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        anchor_event_histories.get_slice_of(&start_index.0, quantity.map(|q| q.0))
-    }
-    //
     fn get_index_range_of_appchain_notification_history(&self) -> IndexRange {
         self.appchain_notification_histories
             .get()

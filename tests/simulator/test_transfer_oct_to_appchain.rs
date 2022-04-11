@@ -32,6 +32,5 @@ fn test_transfer_oct_to_appchain() {
         &oct_token,
     );
     assert!(execution_result.is_ok());
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
 }

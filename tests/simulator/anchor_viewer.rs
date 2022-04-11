@@ -1,6 +1,6 @@
 use appchain_anchor::appchain_challenge::AppchainChallenge;
 use appchain_anchor::types::{
-    AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
+    AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
     AppchainMessageProcessingResult, AppchainNotificationHistory, AppchainSettings, AppchainState,
     AppchainValidator, IndexRange, NearFungibleToken, ProtocolSettings, RewardHistory,
     StakingHistory, UnbondedStake, UserStakingHistory, ValidatorProfile, ValidatorSetInfo,
@@ -101,42 +101,6 @@ pub fn get_validator_set_info_of(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<ValidatorSetInfo>()
-}
-
-pub fn get_index_range_of_anchor_event_history(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-) -> IndexRange {
-    let view_result = view!(anchor.get_index_range_of_anchor_event_history());
-    if view_result.is_err() {
-        println!("{:#?}", view_result);
-    }
-    assert!(view_result.is_ok());
-    view_result.unwrap_json::<IndexRange>()
-}
-
-pub fn get_anchor_event_history(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    index: u64,
-) -> Option<AnchorEventHistory> {
-    let view_result = view!(anchor.get_anchor_event_history(Some(U64::from(index))));
-    if view_result.is_err() {
-        println!("{:#?}", view_result);
-    }
-    assert!(view_result.is_ok());
-    view_result.unwrap_json::<Option<AnchorEventHistory>>()
-}
-
-pub fn get_anchor_event_histories(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    start_index: u64,
-    max_count: Option<U64>,
-) -> Vec<AnchorEventHistory> {
-    let view_result = view!(anchor.get_anchor_event_histories(U64::from(start_index), max_count));
-    if view_result.is_err() {
-        println!("{:#?}", view_result);
-    }
-    assert!(view_result.is_ok());
-    view_result.unwrap_json::<Vec<AnchorEventHistory>>()
 }
 
 pub fn get_index_range_of_appchain_notification_history(

@@ -391,15 +391,6 @@ impl AppchainAnchor {
                     > i128::try_from(wrapped_appchain_token.total_supply.0).unwrap()
                 {
                     let message = format!("Too much wrapped appchain token to mint.");
-                    self.internal_append_anchor_event(
-                        AnchorEvent::FailedToMintWrappedAppchainToken {
-                            sender_id_in_appchain: Some(owner_id_in_appchain),
-                            receiver_id_in_near,
-                            amount,
-                            appchain_message_nonce: appchain_message.nonce,
-                            reason: message.clone(),
-                        },
-                    );
                     let result = AppchainMessageProcessingResult::Error {
                         nonce: appchain_message.nonce,
                         message: message.clone(),

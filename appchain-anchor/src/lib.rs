@@ -595,21 +595,6 @@ impl AppchainAnchor {
 
 impl AppchainAnchor {
     ///
-    pub fn internal_append_anchor_event(
-        &mut self,
-        anchor_event: AnchorEvent,
-    ) -> AnchorEventHistory {
-        let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        let anchor_event_history = anchor_event_histories.append(&mut AnchorEventHistory {
-            anchor_event,
-            block_height: env::block_height(),
-            timestamp: env::block_timestamp(),
-            index: U64::from(0),
-        });
-        self.anchor_event_histories.set(&anchor_event_histories);
-        anchor_event_history
-    }
-    ///
     pub fn internal_append_appchain_notification(
         &mut self,
         appchain_notification: AppchainNotification,

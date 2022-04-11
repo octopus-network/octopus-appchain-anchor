@@ -308,7 +308,6 @@ fn test_wrapped_appchain_token_bridging() {
     sudo_actions::stage_appchain_messages(&root, &anchor, appchain_messages);
     common::process_appchain_messages(&users[4], &anchor);
     common::print_appchain_messages_processing_results(&anchor);
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     assert_eq!(
         token_viewer::get_wat_balance_of(&users[1].account_id(), &wrapped_appchain_token).0,
@@ -324,7 +323,6 @@ fn test_wrapped_appchain_token_bridging() {
         total_supply / 2 - common::to_oct_amount(50000),
     );
     result.assert_success();
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     common::print_wrapped_appchain_token_info(&anchor);
     //
@@ -448,7 +446,6 @@ fn test_wrapped_appchain_token_bridging() {
     sudo_actions::stage_appchain_messages(&root, &anchor, appchain_messages);
     common::process_appchain_messages(&users[3], &anchor);
     common::print_appchain_messages_processing_results(&anchor);
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     common::print_wrapped_appchain_token_info(&anchor);
     assert_eq!(

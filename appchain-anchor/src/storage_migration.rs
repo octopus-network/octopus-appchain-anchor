@@ -118,4 +118,12 @@ impl AppchainAnchor {
         //
         new_contract
     }
+    ///
+    pub fn clear_anchor_events(&mut self) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
+        let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
+        let result = anchor_event_histories.clear();
+        self.anchor_event_histories.set(&anchor_event_histories);
+        result
+    }
 }

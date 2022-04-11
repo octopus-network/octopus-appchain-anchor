@@ -123,7 +123,6 @@ fn test_transfer_nft_to_near() {
     sudo_actions::stage_appchain_messages(&root, &anchor, appchain_messages);
     common::process_appchain_messages(&users[4], &anchor);
     common::print_appchain_messages_processing_results(&anchor);
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     //
     //
@@ -163,7 +162,6 @@ fn test_transfer_nft_to_near() {
     sudo_actions::stage_appchain_messages(&root, &anchor, appchain_messages);
     common::process_appchain_messages(&users[4], &anchor);
     common::print_appchain_messages_processing_results(&anchor);
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     //
     //
@@ -192,7 +190,6 @@ fn test_transfer_nft_to_near() {
     );
     common::print_execution_result("nft_transfer_call", &result);
     result.assert_success();
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     //
     //
@@ -225,6 +222,5 @@ fn test_transfer_nft_to_near() {
     sudo_actions::stage_appchain_messages(&root, &anchor, appchain_messages);
     common::process_appchain_messages(&users[4], &anchor);
     common::print_appchain_messages_processing_results(&anchor);
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
 }

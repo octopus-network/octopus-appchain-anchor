@@ -203,11 +203,6 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     wrapped_appchain_token.changed_balance.0 - i128::try_from(amount.0).unwrap(),
                 );
                 self.wrapped_appchain_token.set(&wrapped_appchain_token);
-                self.internal_append_anchor_event(AnchorEvent::WrappedAppchainTokenBurnt {
-                    sender_id_in_near: sender_id_in_near.clone(),
-                    receiver_id_in_appchain: receiver_id_in_appchain.clone(),
-                    amount: U128::from(amount),
-                });
                 let appchain_notification_history = self.internal_append_appchain_notification(
                     AppchainNotification::WrappedAppchainTokenBurnt {
                         sender_id_in_near: sender_id_in_near.clone(),
@@ -232,15 +227,6 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     &receiver_id_in_appchain,
                     &amount.0
                 );
-                self.internal_append_anchor_event(AnchorEvent::FailedToBurnWrappedAppchainToken {
-                    sender_id_in_near: sender_id_in_near.clone(),
-                    receiver_id_in_appchain,
-                    amount: U128::from(amount),
-                    reason: format!(
-                        "Maybe the balance of '{}' is not enough.",
-                        &sender_id_in_near
-                    ),
-                });
             }
         }
     }
@@ -256,12 +242,6 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                self.internal_append_anchor_event(AnchorEvent::WrappedAppchainTokenMinted {
-                    sender_id_in_appchain: sender_id_in_appchain.clone(),
-                    receiver_id_in_near: receiver_id_in_near.clone(),
-                    amount: U128::from(amount),
-                    appchain_message_nonce,
-                });
                 let mut wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
                 wrapped_appchain_token.changed_balance = I128::from(
                     wrapped_appchain_token.changed_balance.0 + i128::try_from(amount.0).unwrap(),
@@ -290,13 +270,6 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     "Failed to mint wrapped appchain token for '{}' with amount '{}'. {}",
                     &receiver_id_in_near, &amount.0, &reason
                 );
-                self.internal_append_anchor_event(AnchorEvent::FailedToMintWrappedAppchainToken {
-                    sender_id_in_appchain,
-                    receiver_id_in_near,
-                    amount: U128::from(amount),
-                    appchain_message_nonce,
-                    reason,
-                });
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Error {
                         nonce: appchain_message_nonce,

@@ -784,29 +784,6 @@ pub fn print_validator_profile(
     }
 }
 
-pub fn print_anchor_events(anchor: &ContractAccount<AppchainAnchorContract>) {
-    let index_range = anchor_viewer::get_index_range_of_anchor_event_history(anchor);
-    for i in index_range.start_index.0..index_range.end_index.0 + 1 {
-        if let Some(anchor_event_history) =
-            anchor_viewer::get_anchor_event_history(anchor, i.try_into().unwrap())
-        {
-            println!(
-                "Anchor event history {}: {}",
-                i,
-                serde_json::to_string(&anchor_event_history).unwrap()
-            );
-        }
-    }
-    let records = anchor_viewer::get_anchor_event_histories(anchor, 0, None);
-    records.iter().for_each(|record| {
-        println!(
-            "Anchor event history {}: {}",
-            record.index.0,
-            serde_json::to_string(&record).unwrap()
-        );
-    });
-}
-
 pub fn print_appchain_notifications(anchor: &ContractAccount<AppchainAnchorContract>) {
     let index_range = anchor_viewer::get_index_range_of_appchain_notification_history(anchor);
     for i in index_range.start_index.0..index_range.end_index.0 + 1 {
@@ -1107,7 +1084,6 @@ pub fn distribute_reward_of(
             era_number,
             serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
         );
-        print_anchor_events(&anchor);
         print_appchain_notifications(&anchor);
     }
 }

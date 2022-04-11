@@ -561,7 +561,6 @@ fn test_beefy_light_client() {
     common::print_validator_list_of(&anchor, Some(2));
     common::print_validator_list_of(&anchor, Some(3));
     common::print_staking_histories(&anchor);
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
 }
 

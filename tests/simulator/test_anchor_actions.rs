@@ -96,7 +96,6 @@ fn test_anchor_actions() {
     common::print_validator_list_of(&anchor, Some(2));
     common::print_validator_list_of(&anchor, Some(3));
     common::print_staking_histories(&anchor);
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
 }
 
@@ -374,6 +373,5 @@ fn test_staking_actions(
     common::print_validator_list_of(&anchor, Some(2));
     common::print_validator_list_of(&anchor, Some(3));
     common::print_staking_histories(&anchor);
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
 }

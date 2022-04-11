@@ -238,12 +238,6 @@ impl AppchainAnchor {
                             None => panic!("Locked balance overflow. Return deposit."),
                         };
                     near_fungible_tokens.insert(&near_fungible_token);
-                    self.internal_append_anchor_event(AnchorEvent::NearFungibleTokenLocked {
-                        symbol: near_fungible_token.metadata.symbol.clone(),
-                        sender_id_in_near: sender_id.clone(),
-                        receiver_id_in_appchain: receiver_id_in_appchain.clone(),
-                        amount,
-                    });
                     let appchain_notification_history = self.internal_append_appchain_notification(
                         AppchainNotification::NearFungibleTokenLocked {
                             contract_account: near_fungible_token.contract_account.clone(),
@@ -352,13 +346,6 @@ impl FungibleTokenContractResolver for AppchainAnchor {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                self.internal_append_anchor_event(AnchorEvent::NearFungibleTokenUnlocked {
-                    symbol: symbol.clone(),
-                    sender_id_in_appchain,
-                    receiver_id_in_near,
-                    amount,
-                    appchain_message_nonce,
-                });
                 let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
                 if let Some(mut near_fungible_token) = near_fungible_tokens.get(&symbol) {
                     near_fungible_token.locked_balance =
@@ -380,15 +367,10 @@ impl FungibleTokenContractResolver for AppchainAnchor {
                     "Maybe the receiver account '{}' is not registered in '{}' token contract.",
                     &receiver_id_in_near, &symbol
                 );
-                let message = format!("Failed to unlock near fungible token. {}", reason);
-                self.internal_append_anchor_event(AnchorEvent::FailedToUnlockNearFungibleToken {
-                    symbol: symbol.clone(),
-                    sender_id_in_appchain,
-                    receiver_id_in_near: receiver_id_in_near.clone(),
-                    amount,
-                    appchain_message_nonce,
-                    reason,
-                });
+                let message = format!(
+                    "Failed to unlock near fungible token for appchain account '{}'. {}",
+                    sender_id_in_appchain, reason
+                );
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Error {
                         nonce: appchain_message_nonce,

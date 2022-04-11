@@ -45,20 +45,6 @@ pub trait AnchorViewer {
     /// If the paran `index` is smaller than the start index, or bigger than the end index
     /// stored in anchor, or there is no history in anchor yet, `Option::None` will be returned.
     fn get_staking_history(&self, index: Option<U64>) -> Option<StakingHistory>;
-    /// Get the index range of anchor events stored in anchor.
-    fn get_index_range_of_anchor_event_history(&self) -> IndexRange;
-    /// Get anchor event by index.
-    /// If the param `index `is omitted, the latest event will be returned.
-    /// If the paran `index` is smaller than the start index, or bigger than the end index
-    /// stored in anchor, or there is no event in anchor yet, `Option::None` will be returned.
-    fn get_anchor_event_history(&self, index: Option<U64>) -> Option<AnchorEventHistory>;
-    /// Get anchor event by start index and quantity.
-    /// If the param `quantity` is omitted, up to 50 events will be returned.
-    fn get_anchor_event_histories(
-        &self,
-        start_index: U64,
-        quantity: Option<U64>,
-    ) -> Vec<AnchorEventHistory>;
     /// Get the index range of appchain notification histories stored in anchor.
     fn get_index_range_of_appchain_notification_history(&self) -> IndexRange;
     /// Get appchain notification by index.

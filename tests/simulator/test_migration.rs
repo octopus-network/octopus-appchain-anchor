@@ -34,6 +34,5 @@ fn test_migration() {
     common::print_validator_profile(&anchor, &users[0].account_id(), &user0_id_in_appchain);
     common::print_validator_profile(&anchor, &users[1].account_id(), &user1_id_in_appchain);
     common::print_staking_histories(&anchor);
-    common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
 }

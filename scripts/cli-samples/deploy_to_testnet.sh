@@ -13,9 +13,19 @@ near deploy --accountId $ANCHOR_ACCOUNT_ID --wasmFile res/appchain_anchor.wasm
 ARGS='{"appchain_id":"'$APPCHAIN_ID'","appchain_registry":"'$REGISTRY_ACCOUNT_ID'","oct_token":"oct.beta_oct_relay.testnet"}'
 near call $ANCHOR_ACCOUNT_ID new $ARGS --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
 #
-ARGS='{"account_id":"'$ANCHOR_ACCOUNT_ID'","registration_only":null}'
-near call oct.beta_oct_relay.testnet storage_deposit $ARGS --accountId $ANCHOR_ACCOUNT_ID --deposit 1
+near deploy --accountId myriad.registry.test_oct.testnet --wasmFile res/appchain_anchor.wasm
+near call myriad.registry.test_oct.testnet migrate_state '' --accountId myriad.registry.test_oct.testnet --gas 200000000000000
 #
-near call $ANCHOR_ACCOUNT_ID migrate_state '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
+near deploy --accountId fusotao.registry.test_oct.testnet --wasmFile res/appchain_anchor.wasm
+near call fusotao.registry.test_oct.testnet migrate_state '' --accountId fusotao.registry.test_oct.testnet --gas 200000000000000
 #
-near call $ANCHOR_ACCOUNT_ID change_minimum_delegator_deposit '{"value":"200000000000000000000"}' --accountId $ANCHOR_ACCOUNT_ID
+near deploy --accountId barnacle-evm.registry.test_oct.testnet --wasmFile res/appchain_anchor.wasm
+near call barnacle-evm.registry.test_oct.testnet migrate_state '' --accountId barnacle-evm.registry.test_oct.testnet --gas 200000000000000
+#
+export ANCHOR_ACCOUNT_ID=barnacle-evm.registry.test_oct.testnet
+near view $ANCHOR_ACCOUNT_ID get_anchor_version
+near view $ANCHOR_ACCOUNT_ID get_anchor_status
+near view $ANCHOR_ACCOUNT_ID get_anchor_settings
+near view $ANCHOR_ACCOUNT_ID get_protocol_settings
+near view $ANCHOR_ACCOUNT_ID get_wrapped_appchain_token
+near view $ANCHOR_ACCOUNT_ID get_near_fungible_tokens
