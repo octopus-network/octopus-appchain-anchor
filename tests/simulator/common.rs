@@ -27,11 +27,7 @@ use num_format::{Locale, ToFormattedString};
 use crate::sudo_actions;
 use crate::{anchor_viewer, staking_actions, token_viewer};
 use crate::{
-<<<<<<<< HEAD:tests/simulator/common.rs
     lifecycle_actions, permissionless_actions, settings_manager, validator_actions,
-========
-    lifecycle_actions, permissionless_actions, settings_actions, validator_actions,
->>>>>>>> 8c442a5 (Move testing code to folder `tests/simulator`.):tests/simulator/common/mod.rs
     wrapped_appchain_token_manager,
 };
 
@@ -39,19 +35,11 @@ const INIT_DEPOSIT_FOR_CONTRACT: Balance = 30_000_000_000_000_000_000_000_000;
 const TOTAL_SUPPLY: u128 = 100_000_000;
 
 lazy_static_include::lazy_static_include_bytes! {
-<<<<<<<< HEAD:tests/simulator/common.rs
     TOKEN_WASM_BYTES => "res/mock_oct_token.wasm",
     REGISTRY_WASM_BYTES => "res/mock_appchain_registry.wasm",
     ANCHOR_WASM_BYTES => "res/appchain_anchor.wasm",
     WAT_WASM_BYTES => "res/mock_wrapped_appchain_token.wasm",
     OLD_ANCHOR_WASM_BYTES => "res/previous_appchain_anchor.wasm",
-========
-    TOKEN_WASM_BYTES => "./res/mock_oct_token.wasm",
-    REGISTRY_WASM_BYTES => "./res/mock_appchain_registry.wasm",
-    ANCHOR_WASM_BYTES => "./res/appchain_anchor.wasm",
-    WAT_WASM_BYTES => "./res/mock_wrapped_appchain_token.wasm",
-    OLD_ANCHOR_WASM_BYTES => "./res/previous_appchain_anchor.wasm",
->>>>>>>> 8c442a5 (Move testing code to folder `tests/simulator`.):tests/simulator/common/mod.rs
 }
 
 // Register the given `user` to oct_token
@@ -306,21 +294,13 @@ pub fn test_normal_actions(
     //
     //
     //
-<<<<<<<< HEAD:tests/simulator/common.rs
     let result = settings_manager::set_price_of_oct_token(&users[4], &anchor, 2_130_000);
-========
-    let result = settings_actions::set_price_of_oct_token(&users[4], &anchor, 2_130_000);
->>>>>>>> 8c442a5 (Move testing code to folder `tests/simulator`.):tests/simulator/common/mod.rs
     assert!(!result.is_ok());
     let result = wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
         &users[4], &anchor, 110_000,
     );
     assert!(!result.is_ok());
-<<<<<<<< HEAD:tests/simulator/common.rs
     let result = settings_manager::set_token_price_maintainer_account(&root, &anchor, &users[4]);
-========
-    let result = settings_actions::set_token_price_maintainer_account(&root, &anchor, &users[4]);
->>>>>>>> 8c442a5 (Move testing code to folder `tests/simulator`.):tests/simulator/common/mod.rs
     result.assert_success();
     //
     // Initialize wrapped appchain token contract.
@@ -348,11 +328,7 @@ pub fn test_normal_actions(
     // user0 register validator (error)
     //
     let user0_balance = token_viewer::get_oct_balance_of(&users[0], &oct_token);
-<<<<<<<< HEAD:tests/simulator/common.rs
     let amount0 = to_oct_amount(4999);
-========
-    let amount0 = to_oct_amount(9999);
->>>>>>>> 8c442a5 (Move testing code to folder `tests/simulator`.):tests/simulator/common/mod.rs
     let result = staking_actions::register_validator(
         &users[0],
         &oct_token,
@@ -426,11 +402,7 @@ pub fn test_normal_actions(
     // user2 register delegator to user0 (error)
     //
     let user2_balance = token_viewer::get_oct_balance_of(&users[2], &oct_token);
-<<<<<<<< HEAD:tests/simulator/common.rs
     let amount2 = to_oct_amount(199);
-========
-    let amount2 = to_oct_amount(499);
->>>>>>>> 8c442a5 (Move testing code to folder `tests/simulator`.):tests/simulator/common/mod.rs
     let result = staking_actions::register_delegator(
         &users[2],
         &oct_token,
@@ -584,41 +556,25 @@ pub fn test_normal_actions(
     //
     // Set appchain settings and try go_booting
     //
-<<<<<<<< HEAD:tests/simulator/common.rs
     let result = settings_manager::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string());
     result.assert_success();
     let result = settings_manager::set_subql_endpoint(&root, &anchor, "subql_endpoint".to_string());
     result.assert_success();
     let result = settings_manager::set_era_reward(&root, &anchor, to_oct_amount(10));
-========
-    let result = settings_actions::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string());
-    result.assert_success();
-    let result = settings_actions::set_subql_endpoint(&root, &anchor, "subql_endpoint".to_string());
-    result.assert_success();
-    let result = settings_actions::set_era_reward(&root, &anchor, to_oct_amount(10));
->>>>>>>> 8c442a5 (Move testing code to folder `tests/simulator`.):tests/simulator/common/mod.rs
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     assert!(!result.is_ok());
     //
     // Change protocol settings and try go_booting
     //
-<<<<<<<< HEAD:tests/simulator/common.rs
     let result = settings_manager::change_minimum_validator_count(&root, &anchor, 1);
-========
-    let result = settings_actions::change_minimum_validator_count(&root, &anchor, 1);
->>>>>>>> 8c442a5 (Move testing code to folder `tests/simulator`.):tests/simulator/common/mod.rs
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     assert!(!result.is_ok());
     //
     // Change price of OCT token and try go_booting
     //
-<<<<<<<< HEAD:tests/simulator/common.rs
     let result = settings_manager::set_price_of_oct_token(&users[4], &anchor, 2_130_000);
-========
-    let result = settings_actions::set_price_of_oct_token(&users[4], &anchor, 2_130_000);
->>>>>>>> 8c442a5 (Move testing code to folder `tests/simulator`.):tests/simulator/common/mod.rs
     result.assert_success();
     let result = lifecycle_actions::go_booting(&root, &anchor);
     result.assert_success();
