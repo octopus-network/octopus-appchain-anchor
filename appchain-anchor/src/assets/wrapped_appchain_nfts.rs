@@ -321,10 +321,16 @@ impl AppchainAnchor {
                 MultiTxsOperationProcessingResult::Ok
             }
         } else {
-            MultiTxsOperationProcessingResult::Error(format!(
+            let message = format!(
                 "Unregistered class id of wrapped appchain NFT: '{}'",
                 class_id
-            ))
+            );
+            let result = AppchainMessageProcessingResult::Error {
+                nonce: appchain_message_nonce,
+                message: message.clone(),
+            };
+            self.record_appchain_message_processing_result(&result);
+            return MultiTxsOperationProcessingResult::Error(message);
         }
     }
     //

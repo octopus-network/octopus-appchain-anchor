@@ -131,13 +131,8 @@ impl AppchainMessages {
             self.remove_messages_before(&nonce);
             nonce += 1;
         }
-        if nonce <= self.max_nonce + 1 {
+        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
             self.min_nonce = nonce - 1;
-            log!(
-                "Nonce range of appchain messsages after clear: {} - {}",
-                self.min_nonce,
-                self.max_nonce
-            );
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {
             self.min_nonce = 0;
