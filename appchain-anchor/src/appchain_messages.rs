@@ -39,14 +39,6 @@ impl AppchainMessages {
         }
     }
     ///
-    pub fn index_range(&self) -> IndexRange {
-        self.message_nonces.index_range()
-    }
-    ///
-    pub fn get_nonces(&self, start_index: &u64, quantity: Option<u64>) -> Vec<u32> {
-        self.message_nonces.get_slice_of(start_index, quantity)
-    }
-    ///
     pub fn min_nonce(&self) -> u32 {
         self.min_nonce
     }
@@ -56,9 +48,8 @@ impl AppchainMessages {
     }
     ///
     pub fn insert_message(&mut self, appchain_message: &AppchainMessage) {
-        let mut nonce = appchain_message.nonce;
+        let nonce = appchain_message.nonce;
         if !self.message_map.contains_key(&nonce) {
-            self.message_nonces.append(&mut nonce);
             self.message_map.insert(&nonce, appchain_message);
             if self.min_nonce == 0 && self.max_nonce == 0 {
                 self.min_nonce = nonce;
@@ -104,11 +95,8 @@ impl AppchainMessages {
         results
     }
     ///
-    pub fn get_processing_result(
-        &self,
-        appchain_message_nonce: u32,
-    ) -> Option<AppchainMessageProcessingResult> {
-        self.processing_result_map.get(&appchain_message_nonce)
+    pub fn get_processing_result(&self, nonce: &u32) -> Option<AppchainMessageProcessingResult> {
+        self.processing_result_map.get(nonce)
     }
     ///
     pub fn get_processing_results(
@@ -130,13 +118,33 @@ impl AppchainMessages {
         results
     }
     ///
-    pub fn clear(&mut self) {
-        let index_range = self.message_nonces.index_range();
-        for index in index_range.start_index.0..index_range.end_index.0 + 1 {
-            if let Some(nonce) = self.message_nonces.get(&index) {
-                self.processing_result_map.remove(&nonce);
-            }
+    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
+        log!(
+            "Nonce range of appchain messsages: {} - {}",
+            self.min_nonce,
+            self.max_nonce
+        );
+        let mut nonce = self.min_nonce + 1;
+        while nonce <= self.max_nonce + 1 && env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+            self.remove_messages_before(&nonce);
+            nonce += 1;
         }
-        self.message_nonces.clear();
+        if env::used_gas() > GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+            self.min_nonce = nonce - 1;
+            MultiTxsOperationProcessingResult::NeedMoreGas
+        } else {
+            self.min_nonce = 0;
+            self.max_nonce = 0;
+            MultiTxsOperationProcessingResult::Ok
+        }
+    }
+    ///
+    pub fn remove_messages_before(&mut self, nonce: &u32) {
+        for nonce in self.min_nonce..*nonce {
+            self.message_map.remove_raw(&nonce.try_to_vec().unwrap());
+            self.processing_result_map
+                .remove_raw(&nonce.try_to_vec().unwrap());
+        }
+        self.min_nonce = *nonce;
     }
 }

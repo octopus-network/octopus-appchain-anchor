@@ -579,7 +579,7 @@ impl AnchorViewer for AppchainAnchor {
         nonce: u32,
     ) -> Option<AppchainMessageProcessingResult> {
         let appchain_messages = self.appchain_messages.get().unwrap();
-        appchain_messages.get_processing_result(nonce)
+        appchain_messages.get_processing_result(&nonce)
     }
     //
     fn get_appchain_message_processing_results(

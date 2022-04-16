@@ -272,4 +272,19 @@ impl SudoActions for AppchainAnchor {
         self.reward_distribution_records
             .set(&reward_distribution_records);
     }
+    //
+    fn set_processing_appchain_message_nonce(&mut self, nonce: u32) {
+        self.assert_owner();
+        let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
+        permissionless_actions_status.processing_appchain_message_nonce = Some(nonce);
+        self.permissionless_actions_status
+            .set(&permissionless_actions_status);
+    }
+    //
+    fn remove_appchain_messages_before(&mut self, nonce: u32) {
+        self.assert_owner();
+        let mut appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.remove_messages_before(&nonce);
+        self.appchain_messages.set(&appchain_messages);
+    }
 }
