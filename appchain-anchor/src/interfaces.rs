@@ -363,7 +363,7 @@ pub trait SudoActions {
     ///
     fn remove_duplicated_message_nonces_in_reward_distribution_records(&mut self, era_number: U64);
     ///
-    fn set_processing_appchain_message_nonce(&mut self, nonce: u32);
+    fn set_latest_applied_appchain_message_nonce(&mut self, nonce: u32);
     ///
     fn remove_appchain_messages_before(&mut self, nonce: u32);
 }

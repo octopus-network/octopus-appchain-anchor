@@ -273,10 +273,11 @@ impl SudoActions for AppchainAnchor {
             .set(&reward_distribution_records);
     }
     //
-    fn set_processing_appchain_message_nonce(&mut self, nonce: u32) {
+    fn set_latest_applied_appchain_message_nonce(&mut self, nonce: u32) {
         self.assert_owner();
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
-        permissionless_actions_status.processing_appchain_message_nonce = Some(nonce);
+        permissionless_actions_status.latest_applied_appchain_message_nonce = nonce;
+        permissionless_actions_status.processing_appchain_message_nonce = None;
         self.permissionless_actions_status
             .set(&permissionless_actions_status);
     }
