@@ -129,8 +129,13 @@ where
             self.remove_at(&index);
             index += 1;
         }
-        if env::used_gas() > GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+        if index <= self.end_index {
             self.start_index = index;
+            log!(
+                "Index range of lookup array after clear: {} - {}",
+                self.start_index,
+                self.end_index
+            );
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {
             self.start_index = 0;
