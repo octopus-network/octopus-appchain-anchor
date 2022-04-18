@@ -1,10 +1,11 @@
 use appchain_anchor::types::{
     AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
-    AppchainNotificationHistory, AppchainSettings, AppchainState, AppchainValidator, IndexRange,
-    ProtocolSettings, RewardHistory, StakingHistory, UnbondedStake, UserStakingHistory,
-    ValidatorProfile, ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
+    AppchainMessageProcessingResult, AppchainNotificationHistory, AppchainSettings, AppchainState,
+    AppchainValidator, IndexRange, ProtocolSettings, RewardHistory, StakingHistory, UnbondedStake,
+    UserStakingHistory, ValidatorProfile, ValidatorSetInfo, ValidatorSetProcessingStatus,
+    WrappedAppchainToken,
 };
-use appchain_anchor::AppchainAnchorContract;
+use appchain_anchor::{AppchainAnchorContract, AppchainMessage};
 
 use near_sdk::json_types::U64;
 use near_sdk::AccountId;
@@ -314,4 +315,30 @@ pub fn get_user_staking_histories_of(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Vec<UserStakingHistory>>()
+}
+
+pub fn get_appchain_messages(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_nonce: u32,
+    quantity: Option<u32>,
+) -> Vec<AppchainMessage> {
+    let view_result = view!(anchor.get_appchain_messages(start_nonce, quantity));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<AppchainMessage>>()
+}
+
+pub fn get_appchain_message_processing_results(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_nonce: u32,
+    quantity: Option<u32>,
+) -> Vec<AppchainMessageProcessingResult> {
+    let view_result = view!(anchor.get_appchain_message_processing_results(start_nonce, quantity));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<AppchainMessageProcessingResult>>()
 }

@@ -1,6 +1,6 @@
 [package]
 name = "appchain-anchor"
-version = "1.1.2"
+version = "1.2.0"
 authors = ["Octopus Network"]
 edition = "2018"
 

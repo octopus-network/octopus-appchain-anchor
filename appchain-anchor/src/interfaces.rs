@@ -4,6 +4,8 @@ use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use crate::*;
 
 pub trait AnchorViewer {
+    /// Get version of this contract
+    fn get_anchor_version(&self) -> String;
     /// Get anchor settings detail.
     fn get_anchor_settings(&self) -> AnchorSettings;
     /// Get appchain settings detail.
@@ -124,6 +126,14 @@ pub trait AnchorViewer {
     fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus;
     /// Get staking histories related to the given account id.
     fn get_user_staking_histories_of(&self, account_id: AccountId) -> Vec<UserStakingHistory>;
+    /// Get a certain appchain message.
+    fn get_appchain_message_of(&self, nonce: u32) -> Option<AppchainMessage>;
+    /// Get appchain messages.
+    fn get_appchain_messages(
+        &self,
+        start_nonce: u32,
+        quantity: Option<u32>,
+    ) -> Vec<AppchainMessage>;
     /// Get processing result of a certain appchain message.
     fn get_appchain_message_processing_result_of(
         &self,
@@ -132,8 +142,8 @@ pub trait AnchorViewer {
     /// Get processing result of appchain messages.
     fn get_appchain_message_processing_results(
         &self,
-        start_index: U64,
-        quantity: Option<U64>,
+        start_nonce: u32,
+        quantity: Option<u32>,
     ) -> Vec<AppchainMessageProcessingResult>;
 }
 
@@ -197,17 +207,15 @@ pub trait PermissionlessActions {
         &mut self,
     ) -> MultiTxsOperationProcessingResult;
     ///
-    fn verify_and_apply_appchain_messages(
+    fn verify_and_stage_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
         header: Vec<u8>,
         mmr_leaf: Vec<u8>,
         mmr_proof: Vec<u8>,
-    ) -> Vec<AppchainMessageProcessingResult>;
+    );
     ///
-    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult;
-    ///
-    fn try_complete_distributing_reward(&mut self) -> MultiTxsOperationProcessingResult;
+    fn process_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult;
 }
 
 pub trait ProtocolSettingsManager {
@@ -299,10 +307,7 @@ pub trait StakingManager {
 
 pub trait SudoActions {
     /// Apply a certain `AppchainMessage`
-    fn apply_appchain_messages(
-        &mut self,
-        appchain_messages: Vec<AppchainMessage>,
-    ) -> Vec<AppchainMessageProcessingResult>;
+    fn stage_appchain_messages(&mut self, appchain_messages: Vec<AppchainMessage>);
     ///
     fn set_metadata_of_wrapped_appchain_token(&mut self, metadata: FungibleTokenMetadata);
     ///
@@ -357,6 +362,10 @@ pub trait SudoActions {
     );
     ///
     fn remove_duplicated_message_nonces_in_reward_distribution_records(&mut self, era_number: U64);
+    ///
+    fn set_latest_applied_appchain_message_nonce(&mut self, nonce: u32);
+    ///
+    fn remove_appchain_messages_before(&mut self, nonce: u32);
 }
 
 pub trait ValidatorActions {

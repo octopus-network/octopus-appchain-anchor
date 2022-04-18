@@ -1,5 +1,5 @@
 mod anchor_viewer;
-mod appchain_message_processing_results;
+mod appchain_messages;
 mod assets;
 pub mod interfaces;
 mod lookup_array;
@@ -29,7 +29,7 @@ use near_sdk::{
 pub use message_decoder::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
 
-use appchain_message_processing_results::AppchainMessageProcessingResults;
+use appchain_messages::AppchainMessages;
 use assets::near_fungible_tokens::NearFungibleTokens;
 use beefy_light_client::Hash;
 use beefy_light_client::LightClient;
@@ -46,6 +46,8 @@ use validator_set::ValidatorSetViewer;
 
 register_custom_getrandom!(get_random_in_near);
 
+/// Version of this contract (the same as in Cargo.toml)
+const ANCHOR_VERSION: &str = "v1.2.0";
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
 const GAS_FOR_FT_TRANSFER: u64 = 10 * T_GAS;
@@ -54,6 +56,7 @@ const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 20 * T_GAS;
 const GAS_FOR_RESOLVER_FUNCTION: u64 = 10 * T_GAS;
 const GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 10 * T_GAS;
 const GAS_CAP_FOR_MULTI_TXS_PROCESSING: Gas = 150 * T_GAS;
+const GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES: Gas = 240 * T_GAS;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.
@@ -168,7 +171,7 @@ pub struct AppchainAnchor {
     /// Whether the rewards withdrawal is paused
     rewards_withdrawal_is_paused: bool,
     /// The processing result of appchain messages
-    appchain_message_processing_results: LazyOption<AppchainMessageProcessingResults>,
+    appchain_messages: LazyOption<AppchainMessages>,
 }
 
 #[near_bindgen]
@@ -248,8 +251,11 @@ impl AppchainAnchor {
             permissionless_actions_status: LazyOption::new(
                 StorageKey::PermissionlessActionsStatus.into_bytes(),
                 Some(&PermissionlessActionsStatus {
-                    switching_era_number: Option::None,
-                    distributing_reward_era_number: Option::None,
+                    switching_era_number: None,
+                    distributing_reward_era_number: None,
+                    processing_appchain_message_nonce: None,
+                    max_nonce_of_staged_appchain_messages: 0,
+                    latest_applied_appchain_message_nonce: 0,
                 }),
             ),
             beefy_light_client_state: LazyOption::new(
@@ -266,9 +272,9 @@ impl AppchainAnchor {
                 Some(&UserStakingHistories::new()),
             ),
             rewards_withdrawal_is_paused: false,
-            appchain_message_processing_results: LazyOption::new(
-                StorageKey::AppchainMessageProcessingResults.into_bytes(),
-                Some(&AppchainMessageProcessingResults::new()),
+            appchain_messages: LazyOption::new(
+                StorageKey::AppchainMessages.into_bytes(),
+                Some(&AppchainMessages::new()),
             ),
         }
     }

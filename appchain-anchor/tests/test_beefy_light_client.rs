@@ -1,22 +1,19 @@
-use std::{collections::HashMap, convert::TryInto};
+use std::collections::HashMap;
 
 use appchain_anchor::{
     types::{
-        AnchorSettings, AnchorStatus, AppchainMessageProcessingResult, AppchainSettings,
-        AppchainState, MultiTxsOperationProcessingResult, ProtocolSettings, ValidatorMerkleProof,
-        ValidatorSetInfo, ValidatorSetProcessingStatus,
+        AnchorSettings, AppchainSettings, AppchainState, MultiTxsOperationProcessingResult,
+        ProtocolSettings, ValidatorMerkleProof,
     },
-    AppchainAnchorContract, AppchainEvent, AppchainMessage,
+    AppchainAnchorContract,
 };
 use codec::Decode;
 use hex_literal::hex;
-use mock_oct_token::MockOctTokenContract;
 use near_sdk::{
     json_types::{U128, U64},
     serde_json,
 };
 use near_sdk_sim::{ContractAccount, UserAccount};
-use wrapped_appchain_token::WrappedAppchainTokenContract;
 
 use beefy_light_client::mmr::{MmrLeaf, MmrLeafProof};
 use beefy_light_client::{beefy_ecdsa_to_ethereum, commitment::SignedCommitment};
@@ -284,10 +281,10 @@ fn test_beefy_light_client() {
         anchor_viewer::get_appchain_state(&anchor),
         AppchainState::Booting
     );
+    let mut appchain_message_nonce: u32 = 0;
     //
-    // Try complete switching era0
+    // Print validator set of era0
     //
-    common::switch_era(&root, &anchor, 0, true);
     common::print_validator_list_of(&anchor, Some(0));
     common::print_delegator_list_of(&anchor, 0, &users[0]);
     //
@@ -356,13 +353,23 @@ fn test_beefy_light_client() {
     //
     // Try start and complete switching era1
     //
-    common::switch_era(&root, &anchor, 1, true);
+    appchain_message_nonce += 1;
+    common::switch_era(&root, &anchor, 1, appchain_message_nonce, true);
     common::print_validator_list_of(&anchor, Some(1));
     common::print_delegator_list_of(&anchor, 1, &users[0]);
     //
     // Distribut reward of era0
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 0);
+    appchain_message_nonce += 1;
+    common::distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce,
+        0,
+        Vec::new(),
+        true,
+    );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 0);
     common::print_validator_reward_histories(&anchor, &users[1], 0);
@@ -397,13 +404,23 @@ fn test_beefy_light_client() {
     //
     // Try start and complete switching era2
     //
-    common::switch_era(&root, &anchor, 2, true);
+    appchain_message_nonce += 1;
+    common::switch_era(&root, &anchor, 2, appchain_message_nonce, true);
     common::print_validator_list_of(&anchor, Some(2));
     common::print_delegator_list_of(&anchor, 2, &users[0]);
     //
     // Distribute reward of era1
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 1);
+    appchain_message_nonce += 1;
+    common::distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce,
+        1,
+        Vec::new(),
+        true,
+    );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 1);
     common::print_validator_reward_histories(&anchor, &users[1], 1);
@@ -441,13 +458,23 @@ fn test_beefy_light_client() {
     //
     // Try start and complete switching era3
     //
-    common::switch_era(&root, &anchor, 3, true);
+    appchain_message_nonce += 1;
+    common::switch_era(&root, &anchor, 3, appchain_message_nonce, true);
     common::print_validator_list_of(&anchor, Some(3));
     common::print_delegator_list_of(&anchor, 3, &users[0]);
     //
     // Distribute reward of era2
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 2);
+    appchain_message_nonce += 1;
+    common::distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce,
+        2,
+        Vec::new(),
+        true,
+    );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 2);
     common::print_validator_reward_histories(&anchor, &users[1], 2);
@@ -474,13 +501,23 @@ fn test_beefy_light_client() {
     //
     // Try start and complete switching era3
     //
-    common::switch_era(&root, &anchor, 4, true);
+    appchain_message_nonce += 1;
+    common::switch_era(&root, &anchor, 4, appchain_message_nonce, true);
     common::print_validator_list_of(&anchor, Some(4));
     common::print_delegator_list_of(&anchor, 4, &users[0]);
     //
     // Distribute reward of era3
     //
-    distribute_reward_of(&root, &anchor, &wrapped_appchain_token, 3);
+    appchain_message_nonce += 1;
+    common::distribute_reward_of(
+        &root,
+        &anchor,
+        &wrapped_appchain_token,
+        appchain_message_nonce,
+        3,
+        Vec::new(),
+        true,
+    );
     common::print_wrapped_appchain_token_info(&anchor);
     common::print_validator_reward_histories(&anchor, &users[0], 3);
     common::print_validator_reward_histories(&anchor, &users[1], 3);
@@ -495,22 +532,34 @@ fn test_beefy_light_client() {
     //
     // Withdraw validator rewards
     //
-    withdraw_validator_rewards_of(&anchor, &users[0], &wrapped_appchain_token, 3);
-    withdraw_validator_rewards_of(&anchor, &users[1], &wrapped_appchain_token, 3);
-    withdraw_validator_rewards_of(&anchor, &users[4], &wrapped_appchain_token, 3);
+    common::withdraw_validator_rewards_of(&anchor, &users[0], &wrapped_appchain_token, 3);
+    common::withdraw_validator_rewards_of(&anchor, &users[1], &wrapped_appchain_token, 3);
+    common::withdraw_validator_rewards_of(&anchor, &users[4], &wrapped_appchain_token, 3);
     //
     // Withdraw delegator rewards
     //
-    withdraw_delegator_rewards_of(&anchor, &users[2], &users[0], &wrapped_appchain_token, 3);
-    withdraw_delegator_rewards_of(&anchor, &users[3], &users[0], &wrapped_appchain_token, 3);
+    common::withdraw_delegator_rewards_of(
+        &anchor,
+        &users[2],
+        &users[0],
+        &wrapped_appchain_token,
+        3,
+    );
+    common::withdraw_delegator_rewards_of(
+        &anchor,
+        &users[3],
+        &users[0],
+        &wrapped_appchain_token,
+        3,
+    );
     //
     // Withdraw stake
     //
-    withdraw_stake_of(&anchor, &users[0], &oct_token);
-    withdraw_stake_of(&anchor, &users[1], &oct_token);
-    withdraw_stake_of(&anchor, &users[2], &oct_token);
-    withdraw_stake_of(&anchor, &users[3], &oct_token);
-    withdraw_stake_of(&anchor, &users[4], &oct_token);
+    common::withdraw_stake_of(&anchor, &users[0], &oct_token);
+    common::withdraw_stake_of(&anchor, &users[1], &oct_token);
+    common::withdraw_stake_of(&anchor, &users[2], &oct_token);
+    common::withdraw_stake_of(&anchor, &users[3], &oct_token);
+    common::withdraw_stake_of(&anchor, &users[4], &oct_token);
     //
     // Reset history data
     //
@@ -525,136 +574,6 @@ fn test_beefy_light_client() {
     common::print_staking_histories(&anchor);
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
-}
-
-fn distribute_reward_of(
-    root: &UserAccount,
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
-    era_number: u32,
-) {
-    let anchor_balance_of_wat =
-        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token);
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::EraRewardConcluded {
-            era_number,
-            unprofitable_validator_ids: Vec::new(),
-        },
-        nonce: (era_number + 1).try_into().unwrap(),
-    });
-    let results = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
-    for result in results {
-        println!(
-            "Appchain message processing result: {}",
-            serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
-        )
-    }
-    let anchor_status = anchor_viewer::get_anchor_status(anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
-    loop {
-        let result = permissionless_actions::try_complete_distributing_reward(root, anchor);
-        println!(
-            "Try complete switching era: {}",
-            serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
-        );
-        let processing_status =
-            anchor_viewer::get_processing_status_of(anchor, u64::from(era_number));
-        println!(
-            "Processing status of era {}: {}",
-            era_number,
-            serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
-        );
-        if result.eq(&MultiTxsOperationProcessingResult::Ok) {
-            break;
-        }
-    }
-    assert_eq!(
-        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
-        anchor_balance_of_wat.0 + common::to_oct_amount(10)
-    );
-    let anchor_status = anchor_viewer::get_anchor_status(anchor);
-    println!(
-        "Anchor status: {}",
-        serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
-    );
-    let validator_set_info =
-        anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
-    println!(
-        "Validator set info of era {}: {}",
-        era_number,
-        serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
-    );
-    common::print_anchor_events(&anchor);
-    common::print_appchain_notifications(&anchor);
-}
-
-fn withdraw_validator_rewards_of(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    user: &UserAccount,
-    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
-    end_era: u64,
-) {
-    let wat_balance_before_withdraw =
-        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token);
-    let result = staking_actions::withdraw_validator_rewards(
-        user,
-        anchor,
-        &user.valid_account_id().to_string(),
-    );
-    result.assert_success();
-    println!(
-        "User '{}' withdrawed rewards: {}",
-        &user.valid_account_id().to_string(),
-        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token).0
-            - wat_balance_before_withdraw.0
-    );
-    common::print_validator_reward_histories(anchor, user, end_era);
-}
-
-fn withdraw_delegator_rewards_of(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    user: &UserAccount,
-    validator: &UserAccount,
-    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
-    end_era: u64,
-) {
-    let wat_balance_before_withdraw =
-        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token);
-    let result = staking_actions::withdraw_delegator_rewards(
-        user,
-        anchor,
-        &user.valid_account_id().to_string(),
-        &validator.valid_account_id().to_string(),
-    );
-    result.assert_success();
-    println!(
-        "User '{}' withdrawed delegator rewards: {}",
-        &user.valid_account_id().to_string(),
-        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token).0
-            - wat_balance_before_withdraw.0
-    );
-    common::print_delegator_reward_histories(anchor, user, validator, end_era);
-}
-
-fn withdraw_stake_of(
-    anchor: &ContractAccount<AppchainAnchorContract>,
-    user: &UserAccount,
-    oct_token: &ContractAccount<MockOctTokenContract>,
-) {
-    let oct_balance_before_withdraw = token_viewer::get_oct_balance_of(&user, oct_token);
-    let result =
-        staking_actions::withdraw_stake(user, anchor, &user.valid_account_id().to_string());
-    result.assert_success();
-    println!(
-        "User '{}' withdrawed stake: {}",
-        &user.valid_account_id().to_string(),
-        token_viewer::get_oct_balance_of(user, oct_token).0 - oct_balance_before_withdraw.0
-    );
-    common::print_unbonded_stakes_of(anchor, user);
 }
 
 fn update_state_of_beefy_light_client_1(

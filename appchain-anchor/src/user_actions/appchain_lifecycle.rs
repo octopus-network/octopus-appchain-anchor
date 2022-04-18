@@ -1,4 +1,7 @@
-use crate::{interfaces::AppchainLifecycleManager, *};
+use crate::{
+    interfaces::AppchainLifecycleManager,
+    permissionless_actions::AppchainMessagesProcessingContext, *,
+};
 
 #[near_bindgen]
 impl AppchainLifecycleManager for AppchainAnchor {
@@ -23,7 +26,25 @@ impl AppchainLifecycleManager for AppchainAnchor {
             "Not enough stake deposited in anchor."
         );
         self.appchain_state = AppchainState::Booting;
-        self.internal_start_switching_era(0, 0);
+        let mut processing_context = AppchainMessagesProcessingContext::new(
+            self.permissionless_actions_status.get().unwrap(),
+        );
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        self.internal_start_switching_era(&mut processing_context, &mut validator_set_histories, 0);
+        loop {
+            match self.complete_switching_era(
+                &mut processing_context,
+                &mut validator_set_histories,
+                0,
+            ) {
+                MultiTxsOperationProcessingResult::Ok => break,
+                MultiTxsOperationProcessingResult::NeedMoreGas => (),
+                MultiTxsOperationProcessingResult::Error(message) => {
+                    panic!("Failed to generate validator set 0: '{}'", &message)
+                }
+            }
+        }
+        self.validator_set_histories.set(&validator_set_histories);
         self.sync_state_to_registry();
     }
     //

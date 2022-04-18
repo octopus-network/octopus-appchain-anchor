@@ -1,9 +1,8 @@
-use std::{collections::HashMap, convert::TryInto};
+use std::collections::HashMap;
 
 use appchain_anchor::{
     types::{
-        AnchorSettings, AppchainMessageProcessingResult, AppchainSettings, AppchainState,
-        ProtocolSettings, WrappedAppchainToken,
+        AnchorSettings, AppchainSettings, AppchainState, ProtocolSettings, WrappedAppchainToken,
     },
     AppchainEvent, AppchainMessage,
 };
@@ -74,9 +73,8 @@ fn test_wrapped_appchain_token_bridging() {
     //
     // Initialize wrapped appchain token contract.
     //
-    let result = wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
-        &users[4], &anchor, 110_000,
-    );
+    let result =
+        wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(&users[4], &anchor, 0);
     result.assert_success();
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
         &root,
@@ -276,10 +274,10 @@ fn test_wrapped_appchain_token_bridging() {
         anchor_viewer::get_appchain_state(&anchor),
         AppchainState::Booting
     );
+    let mut appchain_message_nonce: u32 = 0;
     //
-    // Try complete switching era0
+    // Print validator set of era0
     //
-    common::switch_era(&root, &anchor, 0, true);
     common::print_validator_list_of(&anchor, Some(0));
     common::print_delegator_list_of(&anchor, 0, &users[0]);
     //
@@ -302,23 +300,19 @@ fn test_wrapped_appchain_token_bridging() {
     //
     let user1_wat_balance =
         token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token);
-    let era_number = 0;
     let mut appchain_messages = Vec::<AppchainMessage>::new();
+    appchain_message_nonce += 1;
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].account_id(),
+            receiver_id_in_near: "unknown.testnet".to_string(),
             amount: U128::from(total_supply / 10),
         },
-        nonce: (era_number + 1).try_into().unwrap(),
+        nonce: appchain_message_nonce,
     });
-    let results = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
-    for result in results {
-        println!(
-            "Appchain message processing result: {}",
-            serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
-        )
-    }
+    sudo_actions::stage_appchain_messages(&root, &anchor, appchain_messages);
+    common::process_appchain_messages(&users[4], &anchor);
+    common::print_appchain_messages_processing_results(&anchor);
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     assert_eq!(
@@ -343,60 +337,168 @@ fn test_wrapped_appchain_token_bridging() {
     //
     let user1_wat_balance =
         token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token);
-    let era_number = 0;
     let mut appchain_messages = Vec::<AppchainMessage>::new();
+    appchain_message_nonce += 1;
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].account_id(),
             amount: U128::from(common::to_oct_amount(60)),
         },
-        nonce: (era_number + 2).try_into().unwrap(),
+        nonce: appchain_message_nonce,
     });
+    appchain_message_nonce += 1;
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].account_id(),
             amount: U128::from(common::to_oct_amount(40)),
         },
-        nonce: (era_number + 3).try_into().unwrap(),
+        nonce: appchain_message_nonce,
     });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 1 },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].account_id(),
             amount: U128::from(common::to_oct_amount(70)),
         },
-        nonce: (era_number + 4).try_into().unwrap(),
+        nonce: appchain_message_nonce,
     });
+    appchain_message_nonce += 1;
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].account_id(),
             amount: U128::from(common::to_oct_amount(30)),
         },
-        nonce: (era_number + 5).try_into().unwrap(),
+        nonce: appchain_message_nonce,
     });
+    appchain_message_nonce += 1;
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].account_id(),
             amount: U128::from(common::to_oct_amount(45)),
         },
-        nonce: (era_number + 6).try_into().unwrap(),
+        nonce: appchain_message_nonce,
     });
-    let results = sudo_actions::apply_appchain_messages(&root, &anchor, appchain_messages);
-    for result in results {
-        println!(
-            "Appchain message processing result: {}",
-            serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
-        )
-    }
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(45)),
+        },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(45)),
+        },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(45)),
+        },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraRewardConcluded {
+            era_number: 0,
+            unprofitable_validator_ids: Vec::new(),
+        },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(45)),
+        },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(45)),
+        },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::NativeTokenLocked {
+            owner_id_in_appchain: user4_id_in_appchain.clone(),
+            receiver_id_in_near: users[1].account_id(),
+            amount: U128::from(common::to_oct_amount(45)),
+        },
+        nonce: appchain_message_nonce,
+    });
+    sudo_actions::stage_appchain_messages(&root, &anchor, appchain_messages);
+    common::process_appchain_messages(&users[3], &anchor);
+    common::print_appchain_messages_processing_results(&anchor);
     common::print_anchor_events(&anchor);
     common::print_appchain_notifications(&anchor);
     common::print_wrapped_appchain_token_info(&anchor);
     assert_eq!(
         token_viewer::get_wat_balance_of(&users[1].valid_account_id(), &wrapped_appchain_token).0,
-        user1_wat_balance.0 + common::to_oct_amount(245)
+        user1_wat_balance.0 + common::to_oct_amount(515)
     );
+    //
+    //
+    //
+    let mut appchain_messages = Vec::<AppchainMessage>::new();
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 2 },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraRewardConcluded {
+            era_number: 1,
+            unprofitable_validator_ids: Vec::new(),
+        },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 3 },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraRewardConcluded {
+            era_number: 2,
+            unprofitable_validator_ids: Vec::new(),
+        },
+        nonce: appchain_message_nonce,
+    });
+    appchain_message_nonce += 1;
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraRewardConcluded {
+            era_number: 1,
+            unprofitable_validator_ids: Vec::new(),
+        },
+        nonce: appchain_message_nonce,
+    });
+    sudo_actions::stage_appchain_messages(&root, &anchor, appchain_messages);
+    common::process_appchain_messages(&users[3], &anchor);
+    common::print_appchain_messages_processing_results(&anchor);
 }
