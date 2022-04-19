@@ -1,3 +1,4 @@
+use crate::permissionless_actions::AppchainMessagesProcessingContext;
 use crate::*;
 use crate::{interfaces::SudoActions, message_decoder::AppchainMessage};
 
@@ -287,5 +288,24 @@ impl SudoActions for AppchainAnchor {
         let mut appchain_messages = self.appchain_messages.get().unwrap();
         appchain_messages.remove_messages_before(&nonce);
         self.appchain_messages.set(&appchain_messages);
+    }
+    //
+    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
+        let processing_status = self.permissionless_actions_status.get().unwrap();
+        let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        if let Some(era_number) = processing_context.switching_era_number() {
+            let result = self.complete_switching_era(
+                &mut processing_context,
+                &mut validator_set_histories,
+                era_number,
+            );
+            self.permissionless_actions_status
+                .set(processing_context.processing_status());
+            result
+        } else {
+            MultiTxsOperationProcessingResult::Ok
+        }
     }
 }

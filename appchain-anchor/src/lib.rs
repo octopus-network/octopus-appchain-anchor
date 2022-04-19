@@ -47,7 +47,7 @@ use validator_set::ValidatorSetViewer;
 register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v1.2.0";
+const ANCHOR_VERSION: &str = "v1.2.1";
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
 const GAS_FOR_FT_TRANSFER: u64 = 10 * T_GAS;
