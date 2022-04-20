@@ -216,13 +216,15 @@ impl AppchainAnchor {
                             )),
                         },
                     );
+                    validator_set_histories.insert(&era_number, &validator_set);
+                    MultiTxsOperationProcessingResult::Ok
                 } else {
                     validator_set.set_processing_status(
                         ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index },
                     );
+                    validator_set_histories.insert(&era_number, &validator_set);
+                    MultiTxsOperationProcessingResult::NeedMoreGas
                 }
-                validator_set_histories.insert(&era_number, &validator_set);
-                MultiTxsOperationProcessingResult::Ok
             }
             _ => MultiTxsOperationProcessingResult::Error(format!(
                 "Wrong processing status '{:?}' of validator set '{}'.",
