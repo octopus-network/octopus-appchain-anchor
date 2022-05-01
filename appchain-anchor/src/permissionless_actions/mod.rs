@@ -275,6 +275,21 @@ impl PermissionlessActions for AppchainAnchor {
         }
         result
     }
+    //
+    fn commit_appchain_challenge(&mut self, appchain_challenge: AppchainChallenge) {
+        match &appchain_challenge {
+            AppchainChallenge::EquivocationChallenge {
+                submitter_account: _,
+                proof,
+            } => {
+                assert!(proof.is_valid(), "Invalid equivocation challenge data.");
+            }
+            AppchainChallenge::ConspiracyMmr { .. } => (),
+        }
+        let mut appchain_challenges = self.appchain_challenges.get().unwrap();
+        appchain_challenges.append(&mut appchain_challenge.clone());
+        self.appchain_challenges.set(&appchain_challenges);
+    }
 }
 
 impl AppchainAnchor {

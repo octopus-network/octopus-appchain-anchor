@@ -462,6 +462,7 @@ pub struct AnchorStatus {
     pub index_range_of_anchor_event_history: IndexRange,
     pub index_range_of_staking_history: IndexRange,
     pub nonce_range_of_appchain_messages: IndexRange,
+    pub index_range_of_appchain_challenges: IndexRange,
     pub permissionless_actions_status: PermissionlessActionsStatus,
     pub asset_transfer_is_paused: bool,
     pub rewards_withdrawal_is_paused: bool,
@@ -588,4 +589,24 @@ pub struct UserStakingHistory {
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub has_taken_effect: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum DepositMessage {
+    RegisterValidator {
+        validator_id_in_appchain: Option<String>,
+        can_be_delegated_to: bool,
+        profile: HashMap<String, String>,
+    },
+    IncreaseStake,
+    RegisterDelegator {
+        validator_id: AccountId,
+    },
+    IncreaseDelegation {
+        validator_id: AccountId,
+    },
+    BridgeToAppchain {
+        receiver_id_in_appchain: String,
+    },
 }

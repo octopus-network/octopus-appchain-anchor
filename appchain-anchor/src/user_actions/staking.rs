@@ -2,43 +2,16 @@ use crate::{interfaces::StakingManager, *};
 use borsh::maybestd::collections::HashMap;
 use near_sdk::serde_json;
 
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-enum StakingDepositMessage {
-    RegisterValidator {
-        validator_id_in_appchain: Option<String>,
-        can_be_delegated_to: bool,
-        profile: HashMap<String, String>,
-    },
-    IncreaseStake,
-    RegisterDelegator {
-        validator_id: AccountId,
-    },
-    IncreaseDelegation {
-        validator_id: AccountId,
-    },
-}
-
 impl AppchainAnchor {
     //
     pub fn internal_process_oct_deposit(
         &mut self,
         sender_id: AccountId,
         amount: U128,
-        msg: String,
+        deposit_message: DepositMessage,
     ) -> PromiseOrValue<U128> {
-        let deposit_message: StakingDepositMessage = match serde_json::from_str(msg.as_str()) {
-            Ok(msg) => msg,
-            Err(_) => {
-                log!(
-                    "Invalid msg '{}' attached in `ft_transfer_call`. Return deposit.",
-                    msg
-                );
-                return PromiseOrValue::Value(amount);
-            }
-        };
         match deposit_message {
-            StakingDepositMessage::RegisterValidator {
+            DepositMessage::RegisterValidator {
                 validator_id_in_appchain,
                 can_be_delegated_to,
                 profile,
@@ -52,18 +25,21 @@ impl AppchainAnchor {
                 );
                 PromiseOrValue::Value(0.into())
             }
-            StakingDepositMessage::IncreaseStake => {
+            DepositMessage::IncreaseStake => {
                 self.increase_stake(sender_id, amount);
                 PromiseOrValue::Value(0.into())
             }
-            StakingDepositMessage::RegisterDelegator { validator_id } => {
+            DepositMessage::RegisterDelegator { validator_id } => {
                 self.register_delegator(sender_id, validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
-            StakingDepositMessage::IncreaseDelegation { validator_id } => {
+            DepositMessage::IncreaseDelegation { validator_id } => {
                 self.increase_delegation(sender_id, validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
+            _ => panic!(
+                "Internal error: misuse of internal function 'internal_process_oct_deposit'."
+            ),
         }
     }
     //

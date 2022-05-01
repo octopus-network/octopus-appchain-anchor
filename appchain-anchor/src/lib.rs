@@ -1,4 +1,5 @@
 mod anchor_viewer;
+pub mod appchain_challenge;
 mod appchain_messages;
 mod assets;
 pub mod interfaces;
@@ -14,21 +15,22 @@ mod user_staking_histories;
 mod validator_profiles;
 mod validator_set;
 
-use core::convert::TryInto;
+use core::convert::{TryFrom, TryInto};
 use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
-use near_sdk::json_types::{U128, U64};
+use near_sdk::json_types::{ValidAccountId, U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    assert_self, env, ext_contract, log, near_bindgen, AccountId, Balance, Gas, PanicOnDefault,
-    PromiseOrValue, PromiseResult, Timestamp,
+    assert_self, env, ext_contract, log, near_bindgen, serde_json, AccountId, Balance, Gas,
+    PanicOnDefault, PromiseOrValue, PromiseResult, Timestamp,
 };
 
 pub use message_decoder::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
 
+use appchain_challenge::AppchainChallenge;
 use appchain_messages::AppchainMessages;
 use assets::near_fungible_tokens::NearFungibleTokens;
 use beefy_light_client::Hash;
@@ -47,7 +49,7 @@ use validator_set::ValidatorSetViewer;
 register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v1.2.1";
+const ANCHOR_VERSION: &str = "v1.3.0";
 /// Constants for gas.
 const T_GAS: u64 = 1_000_000_000_000;
 const GAS_FOR_FT_TRANSFER: u64 = 10 * T_GAS;
@@ -172,6 +174,8 @@ pub struct AppchainAnchor {
     rewards_withdrawal_is_paused: bool,
     /// The processing result of appchain messages
     appchain_messages: LazyOption<AppchainMessages>,
+    /// The appchain challenges
+    appchain_challenges: LazyOption<LookupArray<AppchainChallenge>>,
 }
 
 #[near_bindgen]
@@ -275,6 +279,10 @@ impl AppchainAnchor {
             appchain_messages: LazyOption::new(
                 StorageKey::AppchainMessages.into_bytes(),
                 Some(&AppchainMessages::new()),
+            ),
+            appchain_challenges: LazyOption::new(
+                StorageKey::AppchainChallenges.into_bytes(),
+                Some(&LookupArray::new(StorageKey::AppchainChallengesMap)),
             ),
         }
     }
@@ -393,12 +401,18 @@ impl AppchainAnchor {
 
 #[near_bindgen]
 impl Ownable for AppchainAnchor {
+    //
     fn get_owner(&self) -> AccountId {
         self.owner.clone()
     }
-
+    //
     fn set_owner(&mut self, owner: AccountId) {
         self.assert_owner();
+        assert!(
+            ValidAccountId::try_from(owner.clone()).is_ok(),
+            "Invalid account id: {}",
+            owner
+        );
         self.owner = owner;
     }
 }
@@ -419,15 +433,38 @@ impl AppchainAnchor {
             &sender_id,
             msg
         );
-        if env::predecessor_account_id().eq(&self.oct_token.get().unwrap().contract_account) {
-            self.internal_process_oct_deposit(sender_id, amount, msg)
-        } else {
-            self.internal_process_near_fungible_token_deposit(
-                env::predecessor_account_id(),
-                sender_id,
-                amount,
-                msg,
-            )
+        let deposit_message: DepositMessage = match serde_json::from_str(msg.as_str()) {
+            Ok(msg) => msg,
+            Err(_) => {
+                log!(
+                    "Invalid msg '{}' attached in `ft_transfer_call`. Return deposit.",
+                    msg
+                );
+                return PromiseOrValue::Value(amount);
+            }
+        };
+        let predecessor_account_id = env::predecessor_account_id();
+        match deposit_message {
+            DepositMessage::RegisterValidator { .. }
+            | DepositMessage::IncreaseStake
+            | DepositMessage::RegisterDelegator { .. }
+            | DepositMessage::IncreaseDelegation { .. } => {
+                assert!(
+                    predecessor_account_id.eq(&self.oct_token.get().unwrap().contract_account),
+                    "Received invalid deposit '{}' in contract '{}' from '{}'. Return deposit.",
+                    &amount.0,
+                    &predecessor_account_id,
+                    &sender_id,
+                );
+                self.internal_process_oct_deposit(sender_id, amount, deposit_message)
+            }
+            DepositMessage::BridgeToAppchain { .. } => self
+                .internal_process_near_fungible_token_deposit(
+                    predecessor_account_id,
+                    sender_id,
+                    amount,
+                    deposit_message,
+                ),
         }
     }
 }
@@ -513,6 +550,17 @@ impl IndexedAndClearable for StakingHistory {
     //
     fn set_index(&mut self, index: &u64) {
         self.index = U64::from(*index);
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        ()
+    }
+}
+
+impl IndexedAndClearable for AppchainChallenge {
+    //
+    fn set_index(&mut self, _index: &u64) {
+        ()
     }
     //
     fn clear_extra_storage(&mut self) {

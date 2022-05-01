@@ -1,5 +1,4 @@
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
-use near_sdk::serde_json;
 
 use crate::{
     interfaces::NearFungibleTokenManager,
@@ -102,11 +101,23 @@ impl NearFungibleTokenManager for AppchainAnchor {
         price: U128,
     ) {
         self.assert_owner();
+        assert!(
+            ValidAccountId::try_from(contract_account.clone()).is_ok(),
+            "Invalid account id: {}",
+            contract_account
+        );
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             !near_fungible_tokens.contains(&symbol),
             "Token '{}' is already registered.",
             &symbol
+        );
+        assert!(
+            near_fungible_tokens
+                .get_by_contract_account(&contract_account)
+                .is_none(),
+            "Token contract '{}' is already registered.",
+            contract_account
         );
         near_fungible_tokens.insert(&NearFungibleToken {
             metadata: FungibleTokenMetadata {
@@ -121,7 +132,7 @@ impl NearFungibleTokenManager for AppchainAnchor {
             contract_account,
             price_in_usd: price,
             locked_balance: U128::from(0),
-            bridging_state: BridgingState::Active,
+            bridging_state: BridgingState::Closed,
         });
         self.near_fungible_tokens.set(&near_fungible_tokens);
     }
@@ -206,25 +217,14 @@ impl AppchainAnchor {
         predecessor_account_id: AccountId,
         sender_id: AccountId,
         amount: U128,
-        msg: String,
+        deposit_message: DepositMessage,
     ) -> PromiseOrValue<U128> {
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         if let Some(mut near_fungible_token) =
             near_fungible_tokens.get_by_contract_account(&predecessor_account_id)
         {
-            let deposit_message: NearFungibleTokenDepositMessage =
-                match serde_json::from_str(msg.as_str()) {
-                    Ok(msg) => msg,
-                    Err(_) => {
-                        log!(
-                            "Invalid msg '{}' attached in `ft_transfer_call`. Return deposit.",
-                            msg
-                        );
-                        return PromiseOrValue::Value(amount);
-                    }
-                };
             match deposit_message {
-                NearFungibleTokenDepositMessage::BridgeToAppchain {
+                DepositMessage::BridgeToAppchain {
                     receiver_id_in_appchain,
                 } => {
                     AccountIdInAppchain::new(Some(receiver_id_in_appchain.clone())).assert_valid();
@@ -273,6 +273,9 @@ impl AppchainAnchor {
                     );
                     return PromiseOrValue::Value(0.into());
                 }
+                _ => panic!(
+                    "Internal error: misuse of internal function 'internal_process_near_fungible_token_deposit'."
+                ),
             }
         }
         panic!(
