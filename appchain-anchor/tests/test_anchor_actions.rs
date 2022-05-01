@@ -169,9 +169,8 @@ fn test_normal_actions(
     //
     // Initialize wrapped appchain token contract.
     //
-    let result = wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
-        &users[4], &anchor, 110,
-    );
+    let result =
+        wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(&users[4], &anchor, 0);
     result.assert_success();
     let result = wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
         &root,
