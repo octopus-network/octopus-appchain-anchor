@@ -391,7 +391,7 @@ pub struct UnbondedStake {
 /// `CopyingFromLastEra` -> `UnbondingValidator`-> `AutoUnbondingValidator`
 /// -> `ApplyingStakingHistory` -> `ReadyForDistributingReward` -> `DistributingReward`
 /// -> `CheckingForAutoUnbondingValidator` -> `Completed`
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum ValidatorSetProcessingStatus {
     CopyingFromLastEra {
@@ -428,6 +428,12 @@ pub struct PermissionlessActionsStatus {
     pub switching_era_number: Option<U64>,
     /// The era number that is distributing reward by permissionless actions
     pub distributing_reward_era_number: Option<U64>,
+    ///
+    pub processing_appchain_message_nonce: Option<u32>,
+    ///
+    pub max_nonce_of_staged_appchain_messages: u32,
+    ///
+    pub latest_applied_appchain_message_nonce: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -455,7 +461,8 @@ pub struct AnchorStatus {
     pub index_range_of_validator_set_history: IndexRange,
     pub index_range_of_anchor_event_history: IndexRange,
     pub index_range_of_staking_history: IndexRange,
-    pub index_range_of_appchain_message_processing_results: IndexRange,
+    pub nonce_range_of_appchain_messages: IndexRange,
+    pub index_range_of_appchain_challenges: IndexRange,
     pub permissionless_actions_status: PermissionlessActionsStatus,
     pub asset_transfer_is_paused: bool,
     pub rewards_withdrawal_is_paused: bool,
@@ -582,4 +589,24 @@ pub struct UserStakingHistory {
     pub block_height: BlockHeight,
     pub timestamp: Timestamp,
     pub has_taken_effect: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum DepositMessage {
+    RegisterValidator {
+        validator_id_in_appchain: Option<String>,
+        can_be_delegated_to: bool,
+        profile: HashMap<String, String>,
+    },
+    IncreaseStake,
+    RegisterDelegator {
+        validator_id: AccountId,
+    },
+    IncreaseDelegation {
+        validator_id: AccountId,
+    },
+    BridgeToAppchain {
+        receiver_id_in_appchain: String,
+    },
 }

@@ -1,6 +1,9 @@
+#!/bin/bash
+set -e
 #
 export NEAR_ENV=testnet
-export ANCHOR_ACCOUNT_ID=debionetwork.registry.test_oct.testnet
+export ANCHOR_ACCOUNT_ID=xxxx
+export END_ERA=yy
 #
 export END_ERA=24
 #

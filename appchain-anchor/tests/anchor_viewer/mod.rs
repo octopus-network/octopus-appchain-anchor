@@ -1,10 +1,12 @@
+use appchain_anchor::appchain_challenge::AppchainChallenge;
 use appchain_anchor::types::{
     AnchorEventHistory, AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
-    AppchainNotificationHistory, AppchainSettings, AppchainState, AppchainValidator, IndexRange,
-    ProtocolSettings, RewardHistory, StakingHistory, UnbondedStake, UserStakingHistory,
-    ValidatorProfile, ValidatorSetInfo, ValidatorSetProcessingStatus, WrappedAppchainToken,
+    AppchainMessageProcessingResult, AppchainNotificationHistory, AppchainSettings, AppchainState,
+    AppchainValidator, IndexRange, NearFungibleToken, ProtocolSettings, RewardHistory,
+    StakingHistory, UnbondedStake, UserStakingHistory, ValidatorProfile, ValidatorSetInfo,
+    ValidatorSetProcessingStatus, WrappedAppchainToken,
 };
-use appchain_anchor::AppchainAnchorContract;
+use appchain_anchor::{AppchainAnchorContract, AppchainMessage};
 
 use near_sdk::json_types::U64;
 use near_sdk::AccountId;
@@ -46,6 +48,17 @@ pub fn get_wrapped_appchain_token(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<WrappedAppchainToken>()
+}
+
+pub fn get_near_fungible_tokens(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) -> Vec<NearFungibleToken> {
+    let view_result = view!(anchor.get_near_fungible_tokens());
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<NearFungibleToken>>()
 }
 
 pub fn get_appchain_state(anchor: &ContractAccount<AppchainAnchorContract>) -> AppchainState {
@@ -314,4 +327,55 @@ pub fn get_user_staking_histories_of(
     }
     assert!(view_result.is_ok());
     view_result.unwrap_json::<Vec<UserStakingHistory>>()
+}
+
+pub fn get_appchain_messages(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_nonce: u32,
+    quantity: Option<u32>,
+) -> Vec<AppchainMessage> {
+    let view_result = view!(anchor.get_appchain_messages(start_nonce, quantity));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<AppchainMessage>>()
+}
+
+pub fn get_appchain_message_processing_results(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_nonce: u32,
+    quantity: Option<u32>,
+) -> Vec<AppchainMessageProcessingResult> {
+    let view_result = view!(anchor.get_appchain_message_processing_results(start_nonce, quantity));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<AppchainMessageProcessingResult>>()
+}
+
+pub fn get_appchain_challenge(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    index: u64,
+) -> Option<AppchainChallenge> {
+    let view_result = view!(anchor.get_appchain_challenge(Some(U64::from(index))));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Option<AppchainChallenge>>()
+}
+
+pub fn get_appchain_challenges(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    start_index: u64,
+    quantity: Option<U64>,
+) -> Vec<AppchainChallenge> {
+    let view_result = view!(anchor.get_appchain_challenges(U64::from(start_index), quantity));
+    if view_result.is_err() {
+        println!("{:#?}", view_result);
+    }
+    assert!(view_result.is_ok());
+    view_result.unwrap_json::<Vec<AppchainChallenge>>()
 }

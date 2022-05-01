@@ -1,7 +1,9 @@
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
-use near_sdk::serde_json;
 
-use crate::{interfaces::NearFungibleTokenManager, *};
+use crate::{
+    interfaces::NearFungibleTokenManager,
+    permissionless_actions::AppchainMessagesProcessingContext, *,
+};
 
 pub trait FungibleTokenContractResolver {
     /// Resolver for transfer NEAR fungible token
@@ -99,11 +101,23 @@ impl NearFungibleTokenManager for AppchainAnchor {
         price: U128,
     ) {
         self.assert_owner();
+        assert!(
+            ValidAccountId::try_from(contract_account.clone()).is_ok(),
+            "Invalid account id: {}",
+            contract_account
+        );
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             !near_fungible_tokens.contains(&symbol),
             "Token '{}' is already registered.",
             &symbol
+        );
+        assert!(
+            near_fungible_tokens
+                .get_by_contract_account(&contract_account)
+                .is_none(),
+            "Token contract '{}' is already registered.",
+            contract_account
         );
         near_fungible_tokens.insert(&NearFungibleToken {
             metadata: FungibleTokenMetadata {
@@ -118,7 +132,7 @@ impl NearFungibleTokenManager for AppchainAnchor {
             contract_account,
             price_in_usd: price,
             locked_balance: U128::from(0),
-            bridging_state: BridgingState::Active,
+            bridging_state: BridgingState::Closed,
         });
         self.near_fungible_tokens.set(&near_fungible_tokens);
     }
@@ -203,25 +217,14 @@ impl AppchainAnchor {
         predecessor_account_id: AccountId,
         sender_id: AccountId,
         amount: U128,
-        msg: String,
+        deposit_message: DepositMessage,
     ) -> PromiseOrValue<U128> {
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         if let Some(mut near_fungible_token) =
             near_fungible_tokens.get_by_contract_account(&predecessor_account_id)
         {
-            let deposit_message: NearFungibleTokenDepositMessage =
-                match serde_json::from_str(msg.as_str()) {
-                    Ok(msg) => msg,
-                    Err(_) => {
-                        log!(
-                            "Invalid msg '{}' attached in `ft_transfer_call`. Return deposit.",
-                            msg
-                        );
-                        return PromiseOrValue::Value(amount);
-                    }
-                };
             match deposit_message {
-                NearFungibleTokenDepositMessage::BridgeToAppchain {
+                DepositMessage::BridgeToAppchain {
                     receiver_id_in_appchain,
                 } => {
                     AccountIdInAppchain::new(Some(receiver_id_in_appchain.clone())).assert_valid();
@@ -270,6 +273,9 @@ impl AppchainAnchor {
                     );
                     return PromiseOrValue::Value(0.into());
                 }
+                _ => panic!(
+                    "Internal error: misuse of internal function 'internal_process_near_fungible_token_deposit'."
+                ),
             }
         }
         panic!(
@@ -285,7 +291,8 @@ impl AppchainAnchor {
         receiver_id_in_near: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
-    ) -> AppchainMessageProcessingResult {
+        processing_context: &mut AppchainMessagesProcessingContext,
+    ) -> MultiTxsOperationProcessingResult {
         let near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         if let Some(near_fungible_token) =
             near_fungible_tokens.get_by_contract_account(&contract_account)
@@ -308,23 +315,19 @@ impl AppchainAnchor {
                 0,
                 GAS_FOR_RESOLVER_FUNCTION,
             ));
-            AppchainMessageProcessingResult::Ok {
-                nonce: appchain_message_nonce,
-                message: Some(format!(
-                    "Need to confirm result of 'ft_transfer' on account '{}'.",
-                    &near_fungible_token.contract_account
-                )),
-            }
+            processing_context.add_prepaid_gas(GAS_FOR_FT_TRANSFER + GAS_FOR_RESOLVER_FUNCTION);
+            MultiTxsOperationProcessingResult::Ok
         } else {
+            let message = format!(
+                "Invalid contract account of NEAR fungible token: {}",
+                contract_account
+            );
             let result = AppchainMessageProcessingResult::Error {
                 nonce: appchain_message_nonce,
-                message: format!(
-                    "Invalid contract account of NEAR fungible token: {}",
-                    &contract_account
-                ),
+                message: message.clone(),
             };
             self.record_appchain_message_processing_result(&result);
-            result
+            MultiTxsOperationProcessingResult::Error(message)
         }
     }
 }

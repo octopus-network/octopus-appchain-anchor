@@ -6,28 +6,12 @@ use near_sdk_sim::{call, ContractAccount, ExecutionResult, UserAccount};
 
 use crate::common;
 
-pub fn try_complete_switching_era(
+pub fn process_appchain_messages(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
 ) -> MultiTxsOperationProcessingResult {
-    let result = call!(signer, anchor.try_complete_switching_era());
-    common::print_execution_result("try_complete_switching_era", &result);
-    if !result.is_ok() {
-        println!("{:#?}", result);
-    }
-    assert!(result.is_ok());
-    result.unwrap_json::<MultiTxsOperationProcessingResult>()
-}
-
-pub fn try_complete_distributing_reward(
-    signer: &UserAccount,
-    anchor: &ContractAccount<AppchainAnchorContract>,
-) -> MultiTxsOperationProcessingResult {
-    let result = call!(signer, anchor.try_complete_distributing_reward());
-    common::print_execution_result("try_complete_distributing_reward", &result);
-    if !result.is_ok() {
-        println!("{:#?}", result);
-    }
+    let result = call!(signer, anchor.process_appchain_messages());
+    common::print_execution_result("process_appchain_messages", &result);
     assert!(result.is_ok());
     result.unwrap_json::<MultiTxsOperationProcessingResult>()
 }
@@ -69,7 +53,7 @@ pub fn try_complete_updating_state_of_beefy_light_client(
     result.unwrap_json::<MultiTxsOperationProcessingResult>()
 }
 
-pub fn verify_and_apply_appchain_messages(
+pub fn verify_and_stage_appchain_messages(
     signer: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
     encoded_messages: Vec<u8>,
@@ -79,7 +63,7 @@ pub fn verify_and_apply_appchain_messages(
 ) -> ExecutionResult {
     let result = call!(
         signer,
-        anchor.verify_and_apply_appchain_messages(encoded_messages, header, mmr_leaf, mmr_proof)
+        anchor.verify_and_stage_appchain_messages(encoded_messages, header, mmr_leaf, mmr_proof)
     );
     common::print_execution_result("verify_and_apply_appchain_messages", &result);
     result

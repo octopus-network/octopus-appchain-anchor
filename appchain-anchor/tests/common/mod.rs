@@ -2,9 +2,8 @@ use std::convert::TryInto;
 
 use appchain_anchor::{
     types::{
-        AnchorStatus, AppchainCommitment, AppchainMessageProcessingResult,
-        MultiTxsOperationProcessingResult, ValidatorProfile, ValidatorSetInfo,
-        ValidatorSetProcessingStatus, WrappedAppchainToken,
+        AnchorStatus, AppchainCommitment, AppchainSettings, MultiTxsOperationProcessingResult,
+        ValidatorProfile, ValidatorSetInfo, WrappedAppchainToken,
     },
     AppchainAnchorContract, AppchainEvent, AppchainMessage,
 };
@@ -26,7 +25,7 @@ use num_format::{Locale, ToFormattedString};
 
 use crate::permissionless_actions;
 use crate::sudo_actions;
-use crate::{anchor_viewer, token_viewer};
+use crate::{anchor_viewer, staking_actions, token_viewer};
 
 const INIT_DEPOSIT_FOR_CONTRACT: Balance = 30_000_000_000_000_000_000_000_000;
 
@@ -302,6 +301,14 @@ pub fn print_anchor_status(anchor: &ContractAccount<AppchainAnchorContract>) {
     );
 }
 
+pub fn print_appchain_settings(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let appchain_settings = anchor_viewer::get_appchain_settings(anchor);
+    println!(
+        "Anchor status: {}",
+        serde_json::to_string::<AppchainSettings>(&appchain_settings).unwrap()
+    );
+}
+
 pub fn print_validator_set_info_of(
     anchor: &ContractAccount<AppchainAnchorContract>,
     era_number: U64,
@@ -320,6 +327,16 @@ pub fn print_wrapped_appchain_token_info(anchor: &ContractAccount<AppchainAnchor
         "Wrapped appchain token: {}",
         serde_json::to_string::<WrappedAppchainToken>(&wrapped_appchain_token_info).unwrap()
     );
+}
+
+pub fn print_near_fungible_tokens(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let near_fungible_tokens = anchor_viewer::get_near_fungible_tokens(&anchor);
+    near_fungible_tokens.iter().for_each(|record| {
+        println!(
+            "Near fungible token: {}",
+            serde_json::to_string(&record).unwrap()
+        );
+    });
 }
 
 pub fn print_validator_profile(
@@ -543,50 +560,69 @@ pub fn print_wat_balance_of_anchor(
     );
 }
 
+pub fn print_appchain_messages(anchor: &ContractAccount<AppchainAnchorContract>) {
+    let appchain_messages = anchor_viewer::get_appchain_messages(anchor, 0, None);
+    for appchain_message in appchain_messages {
+        println!(
+            "Appchain message '{}': {}",
+            appchain_message.nonce,
+            serde_json::to_string(&appchain_message).unwrap()
+        );
+    }
+}
+
+pub fn print_appchain_messages_processing_results(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) {
+    let appchain_messages = anchor_viewer::get_appchain_message_processing_results(anchor, 0, None);
+    let mut index = 1;
+    for appchain_message in appchain_messages {
+        println!(
+            "Appchain message processing result '{}': {}",
+            index,
+            serde_json::to_string(&appchain_message).unwrap()
+        );
+        index += 1;
+    }
+}
+
+pub fn process_appchain_messages(
+    signer: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+) {
+    loop {
+        let result = permissionless_actions::process_appchain_messages(signer, anchor);
+        println!(
+            "Process appchain messages: {}",
+            serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
+        );
+        print_anchor_status(anchor);
+        match result {
+            MultiTxsOperationProcessingResult::Ok => break,
+            MultiTxsOperationProcessingResult::NeedMoreGas => (),
+            MultiTxsOperationProcessingResult::Error(message) => {
+                panic!("Failed to process appchain messages: {}", &message);
+            }
+        }
+    }
+}
+
 pub fn switch_era(
     root: &UserAccount,
     anchor: &ContractAccount<AppchainAnchorContract>,
     era_number: u32,
+    appchain_message_nonce: u32,
     to_confirm_view_result: bool,
 ) {
     if era_number > 0 {
         let mut appchain_messages = Vec::<AppchainMessage>::new();
         appchain_messages.push(AppchainMessage {
             appchain_event: AppchainEvent::EraSwitchPlaned { era_number },
-            nonce: (era_number + 1).try_into().unwrap(),
+            nonce: appchain_message_nonce,
         });
-        let results = sudo_actions::apply_appchain_messages(root, anchor, appchain_messages);
-        for result in results {
-            println!(
-                "Appchain message processing result: {}",
-                serde_json::to_string::<AppchainMessageProcessingResult>(&result).unwrap()
-            )
-        }
-        let processing_status =
-            anchor_viewer::get_processing_status_of(anchor, u64::from(era_number));
-        println!(
-            "Processing status of era {}: {}",
-            era_number,
-            serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
-        );
+        sudo_actions::stage_appchain_messages(root, anchor, appchain_messages);
     }
-    loop {
-        let result = permissionless_actions::try_complete_switching_era(root, &anchor);
-        println!(
-            "Try complete switching era: {}",
-            serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
-        );
-        let processing_status =
-            anchor_viewer::get_processing_status_of(anchor, u64::from(era_number));
-        println!(
-            "Processing status of era {}: {}",
-            era_number,
-            serde_json::to_string::<ValidatorSetProcessingStatus>(&processing_status).unwrap()
-        );
-        if result.eq(&MultiTxsOperationProcessingResult::Ok) {
-            break;
-        }
-    }
+    process_appchain_messages(root, anchor);
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(anchor);
         println!(
@@ -601,4 +637,121 @@ pub fn switch_era(
             serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
         );
     }
+}
+
+pub fn distribute_reward_of(
+    root: &UserAccount,
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
+    nonce: u32,
+    era_number: u32,
+    unprofitable_validator_ids: Vec<String>,
+    to_confirm_view_result: bool,
+) {
+    let anchor_balance_of_wat =
+        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token);
+    let mut appchain_messages = Vec::<AppchainMessage>::new();
+    appchain_messages.push(AppchainMessage {
+        appchain_event: AppchainEvent::EraRewardConcluded {
+            era_number,
+            unprofitable_validator_ids,
+        },
+        nonce,
+    });
+    sudo_actions::stage_appchain_messages(root, anchor, appchain_messages);
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(anchor);
+        println!(
+            "Anchor status: {}",
+            serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+        );
+    }
+    process_appchain_messages(root, anchor);
+    assert_eq!(
+        token_viewer::get_wat_balance_of(&anchor.valid_account_id(), &wrapped_appchain_token).0,
+        anchor_balance_of_wat.0 + to_oct_amount(10)
+    );
+    if to_confirm_view_result {
+        let anchor_status = anchor_viewer::get_anchor_status(anchor);
+        println!(
+            "Anchor status: {}",
+            serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
+        );
+        let validator_set_info =
+            anchor_viewer::get_validator_set_info_of(anchor, U64::from(u64::from(era_number)));
+        println!(
+            "Validator set info of era {}: {}",
+            era_number,
+            serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
+        );
+        print_anchor_events(&anchor);
+        print_appchain_notifications(&anchor);
+    }
+}
+
+pub fn withdraw_validator_rewards_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    user: &UserAccount,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
+    end_era: u64,
+) {
+    print_wat_balance_of_anchor(anchor, wrapped_appchain_token);
+    let wat_balance_before_withdraw =
+        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token);
+    let result = staking_actions::withdraw_validator_rewards(
+        user,
+        anchor,
+        &user.valid_account_id().to_string(),
+    );
+    result.assert_success();
+    println!(
+        "User '{}' withdrawed rewards: {}",
+        &user.valid_account_id().to_string(),
+        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token).0
+            - wat_balance_before_withdraw.0
+    );
+    print_validator_reward_histories(anchor, user, end_era);
+}
+
+pub fn withdraw_delegator_rewards_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    user: &UserAccount,
+    validator: &UserAccount,
+    wrapped_appchain_token: &ContractAccount<WrappedAppchainTokenContract>,
+    end_era: u64,
+) {
+    print_wat_balance_of_anchor(anchor, wrapped_appchain_token);
+    let wat_balance_before_withdraw =
+        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token);
+    let result = staking_actions::withdraw_delegator_rewards(
+        user,
+        anchor,
+        &user.valid_account_id().to_string(),
+        &validator.valid_account_id().to_string(),
+    );
+    result.assert_success();
+    println!(
+        "User '{}' withdrawed delegator rewards: {}",
+        &user.valid_account_id().to_string(),
+        token_viewer::get_wat_balance_of(&user.valid_account_id(), wrapped_appchain_token).0
+            - wat_balance_before_withdraw.0
+    );
+    print_delegator_reward_histories(anchor, user, validator, end_era);
+}
+
+pub fn withdraw_stake_of(
+    anchor: &ContractAccount<AppchainAnchorContract>,
+    user: &UserAccount,
+    oct_token: &ContractAccount<MockOctTokenContract>,
+) {
+    let oct_balance_before_withdraw = token_viewer::get_oct_balance_of(&user, oct_token);
+    let result =
+        staking_actions::withdraw_stake(user, anchor, &user.valid_account_id().to_string());
+    result.assert_success();
+    println!(
+        "User '{}' withdrawed stake: {}",
+        &user.valid_account_id().to_string(),
+        token_viewer::get_oct_balance_of(user, oct_token).0 - oct_balance_before_withdraw.0
+    );
+    print_unbonded_stakes_of(anchor, user);
 }

@@ -118,18 +118,36 @@ where
         self.end_index = *index;
     }
     ///
-    pub fn clear(&mut self) {
-        for index in self.start_index..self.end_index + 1 {
+    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
+        log!(
+            "Index range of lookup array: {} - {}",
+            self.start_index,
+            self.end_index
+        );
+        let mut index = self.start_index;
+        while index <= self.end_index && env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
             self.remove_at(&index);
+            index += 1;
         }
-        self.start_index = 0;
-        self.end_index = 0;
+        if index <= self.end_index {
+            self.start_index = index;
+            log!(
+                "Index range of lookup array after clear: {} - {}",
+                self.start_index,
+                self.end_index
+            );
+            MultiTxsOperationProcessingResult::NeedMoreGas
+        } else {
+            self.start_index = 0;
+            self.end_index = 0;
+            MultiTxsOperationProcessingResult::Ok
+        }
     }
     ///
     pub fn remove_at(&mut self, index: &u64) {
         if let Some(mut record) = self.lookup_map.get(index) {
             record.clear_extra_storage();
-            self.lookup_map.remove(index);
+            self.lookup_map.remove_raw(&index.try_to_vec().unwrap());
         }
     }
 }

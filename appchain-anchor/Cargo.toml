@@ -1,6 +1,6 @@
 [package]
 name = "appchain-anchor"
-version = "1.1.2"
+version = "1.3.0"
 authors = ["Octopus Network"]
 edition = "2018"
 
@@ -14,6 +14,7 @@ near-contract-standards = "3.1.0"
 hex = "0.4.2"
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 getrandom = { version = "0.2", features = ["custom"] }
+ed25519-dalek = { version = "1.0.1", features = ["alloc"] }
 
 [dev-dependencies]
 hex-literal = "0.3.1"

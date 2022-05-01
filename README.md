@@ -14,12 +14,15 @@ Contents
   * [Manage NEAR fungible token](#manage-near-fungible-token)
   * [Manage wrapped appchain token](#manage-wrapped-appchain-token)
   * [Manage staking](#manage-staking)
+  * [Manage beefy light client](#manage-beefy-light-client)
+  * [Process appchain messages](#process-appchain-messages)
   * [Switch validator set](#switch-validator-set)
   * [Distribute reward of era](#distribute-reward-of-era)
   * [Withdraw reward](#withdraw-reward)
   * [Withdraw unbonded stake](#withdraw-unbonded-stake)
   * [Manage appchain lifecycle](#manage-appchain-lifecycle)
   * [Pause or resume asset transfer](#pause-or-resume-asset-transfer)
+  * [Pause or resume rewards withdrawal](#pause-or-resume-rewards-withdrawal)
 * [Initial deployment](#initial-deployment)
 
 ## Terminology
@@ -36,7 +39,9 @@ Contents
 * `OCT token`: The OCT token is used to stake for the validators of corresponding appchain.
 * `NEAR fungible token`: A token which is lived in NEAR protocol. It should be a NEP-141 compatible contract. This contract can bridge the token to the corresponding appchain.
 * `wrapped appchain token`: The wrapped token of the appchain native token, which is managed by a contract in NEAR protocol.
-* `token bridging history`: The token bridging fact happens in this contract. These data will be used to browse or audit all bridging actions happened in this contract.
+* `appchain notification`: The appchain notification generated in this contract. Appchain will query these data to complete cross-chain asset transfer. It has the following types:
+  * Near fungible token is locked in appchain anchor contract.
+  * Wrapped appchain token is burnt in NEAR protocol.
 * `staking history`: The staking history happens in this contract. These data will be used to recover the status of `validator set` at a certain time.
 * `appchain message`: The message which is relayed to this contract by `octopus relayer`.
 * `anchor event`: The events which indicate that the corresponding appchain may need to perform necessary operations.
@@ -57,6 +62,17 @@ Contents
 * `sender`: A NEAR transaction sender, that is the account which perform actions (call functions) in this contract.
 
 ## Function specification
+
+Generally speaking, this contract has the following responsibilities:
+
+* Manage the settings data related to corresponding appchain, this contract itself and the predefined protocol of Octopus Network.
+* Manage the lifecycle of corresponding appchain.
+* Manage the cross-chain assets for corresponding appchain. Including the NEAR fungible token(s) and wrapped appchain token.
+* Handle the staking actions happened in NEAR protocol.
+* Manage the validator set for corresponding appchain.
+* Manage the rewards of validators and delegators of corresponding appchain.
+
+This contract provides a set of view functions for querying the status of the contract and necessary history data related to the above business.
 
 ### Manage appchain settings
 
@@ -81,9 +97,13 @@ This contract should provide the following public interfaces related to NEAR fun
 * Open bridging for a NEAR fungible token.
 * Close bridging for a NEAR fungible token.
 
-When this contract receives a deposit of a certain amount of a registered `NEAR fungible token`, this contract should check the limitation and then generate `token bridging history` for corresponding appchain to mint equivalent amount of the `NEAR fungible token`.
+When this contract receives a deposit of a certain amount of a registered `NEAR fungible token`, this contract should check the limitation and then generate `appchain notification` for corresponding appchain to mint equivalent amount of the `NEAR fungible token`.
+
+![Transfer NEAR fungible token to appchain](/images/sq1-1.png)
 
 When this contract receives an `appchain message` which indicates that the appchain has burnt a certain amount of a registered `NEAR fungible token`, this contract should unlock equivalent amount of the NEAR fungible token and transfer them to the proper account in NEAR protocol.
+
+![Transfer NEAR fungible token back to NEAR protocol](/images/sq1-2.png)
 
 ### Manage wrapped appchain token
 
@@ -97,34 +117,57 @@ This contract should provide the following public interfaces related to wrapped 
 * Set contract account of wrapped appchain token.
 * Set initial balance of wrapped appchain token.
 * Set price of wrapped appchain token. This action can only be performed by `token_price_maintainer_account` which is managed in `anchor settings`.
-* Burn wrapped appchain token. Which will generate `token bridging history` for corresponding appchain to mint equivalent amount of native token.
+* Burn wrapped appchain token. Which will generate `appchain notification` for corresponding appchain to mint equivalent amount of native token.
+
+![Transfer wrapped appchain token back to appchain](/images/sq2-1.png)
 
 When this contract receives an `appchain message` which indicates that the appchain has locked a certain amount of `wrapped appchain token`, this contract should mint equivalent amount of `wrapped appchain token` in the corresponding NEAR fungible token contract.
 
+![Transfer appchain native token to NEAR protocol](/images/sq2-2.png)
+
 ### Manage staking
+
+#### Register validator
 
 Any user in NEAR protocol can deposit a certain amount (not less than `minimum_validator_deposit` of `protocol settings`) of OCT token to this contract to register his/her account as a `validator` of next `era` of corresponding appchain. The user should also specify the validator account id which will be used in the corresponding appchain, and specify the flag which indicates that 'whether the validator wants to be delegated to'.
 
+#### Increase stake of validator
+
 Any user in NEAR protocol can deposit a certain amount of OCT token to this contract to increase his/her stake as a `validator` in next `era` of corresponding appchain. The user must be already a registered `validator` and the `validator` must not be unbonded.
+
+#### Register delegator
 
 Any user in NEAR protocol can deposit a certain amount (not less than `minimum_delegator_deposit` of `protocol settings`) of OCT token to this contract to register his/her account as a `delegator` of next `era` of corresponding appchain. The user should also specify the validator account id (in the corresponding appchain) that he/she want to delegate to.
 
+#### Increase delegation of delegator
+
 Any user in NEAR protocol can deposit a certain amount of OCT token to this contract to increase his/her delegation as a `delegator` in next `era` of corresponding appchain. The user must be already a registered `delegator` of a certain `validator` and the `delegator` must not be unbonded.
 
-A registered `validator` can unbond himself/herself from corresponding appchain. At this case, this contract should:
+#### Unbond validator
 
-* Remove the `validator` from the `validator set` of next `era` of corresponding appchain and move it to `unbonded validator set`. The lock period of the unbonded stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the unbonded stake.
-* Remove all delegators of the `validator` from the `validator set` of next `era` of corresponding appchain. The lock period of the decreased delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the unbonded delegation.
+A registered `validator` can unbond himself/herself from corresponding appchain. The contract will mark this `validator` as `unbonding`, and apply this action while generating validator set for the next era.
+
+#### Unbond delegator
 
 A registered `delegator` can unbond himself/herself from a specific `validator` of corresponding appchain. At this case, this contract should remove the `delegator` from the `validator set` of next `era` of corresponding appchain. The lock period of the unbonded delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the unbonded delegation.
 
+#### Decrease stake of validator
+
 A validator can decrease his/her stake while the validator is still active (not unbonded) in corresponding appchain. The deposit of the validator after the reduction cannot be less than `minimum_validator_deposit` of `protocol settings`, and the total stake of the `validator set` of next `era` after the reduction cannot be less than 2/3 of the total stake of the `validator set` of last `era`. The lock period of the decreased stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the decreased stake.
+
+#### Decrease delegation of delegator
 
 A delegator can decrease his/her delegation while the delegator is still active (not unbonded) in corresponding appchain. The deposit of the delegator after the reduction cannot be less than `minimum_delegator_deposit` of `protocol settings`, and the total stake of the `validator set` of next `era` after the reduction cannot be less than 2/3 of the total stake of the `validator set` of last `era`. The lock period of the decreased delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the decreased delegation.
 
+#### Staking history
+
 Each of the above actions will generate a corresponding `staking history` that is stored in this contract. These staking histories are used to restore the `validator set` of a certain `era`.
 
+#### Enable/disable delegation
+
 A validator can also change the flag which is set at registering time and stored in this contract, the flag indicates that 'whether he/she wants to be delegated to'. After this flag is set to `false`, delegators cannot delegate to this validator any more. But those delegators already delegated to this validator will be kept.
+
+#### Permissions
 
 The staking actions also depend on the state of corresponding appchain:
 
@@ -139,12 +182,36 @@ decrease_delegation |  |  | allowed |  |
 unbond_stake |  |  | allowed |  | allowed
 unbond_delegation |  |  | allowed |  | allowed
 
+### Manage beefy light client
+
+This contract manages a stateful beefy light client for the verification of `appchain message`. The state of the light client is periodically synced by `octopus relayer` (the state data relayed must be verified first, of course). All `appchain message` s relayed by `octopus relayer` must be verified by the light client before they are applied in this contract.
+
+> Refer to the implementation of [octopus beefy light client](https://github.com/octopus-network/beefy-light-client).
+
+### Process appchain messages
+
+This contract can verify (by using beefy light client) and stage `appchain message` s relayed by `octopus relayer`. As the gas consumption of a `appchain message` may exceed the gas limitation in NEAR protocol, the processing of staged `appchain message` s may cost multiple transactions to finish. This contract has a permissionless function to process staged `appchain message` s. This function will be called repeatedly by `octopus relayer` until all staged messages are applied in this contract.
+
+The `appchain message` s which can be applied in this contract have the following types:
+
+* Fungible token burnt in appchain - refer to [Manage NEAR fungible token](#manage-near-fungible-token)
+* Appchain native token locked in appchain - refer to [Manage wrapped appchain token](#manage-wrapped-appchain-token)
+* New era is planed in appchain - refer to [Switch validator set](#switch-validator-set)
+* Reward of era can be distributed - refer to [Distribute reward of era](#distribute-reward-of-era)
+
 ### Switch validator set
 
 When this contract receives an `appchain message` which indicates that the corresponding appchain has switched to a new `era`, this contract should:
 
 * Create a new (empty) `validator set` for the given `era`.
-* Restore the state of the `validator set` by sequentially applying all staking histories happened by the time of this `appchain message` is received.
+* Copy the whole state of the `validator set` of the previous `era` of the given `era`.
+* Unbond the validators who are marked as `unbonding`:
+  * Remove all delegators of the `validator` from the `validator set`. The lock period of the decreased delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the unbonded delegation.
+  * Remove the `validator` from the `validator set`. The lock period of the unbonded stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the unbonded stake.
+* Unbond the validators who are marked as `auto_unbonding` (refer to [Distribute reward of era](#distribute-reward-of-era)):
+  * Remove all delegators of the `validator` from the `validator set`. The lock period of the decreased delegation will start from the start time of next `era` and last for the duration of `unlock_period_of_delegator_deposit` of `protocol settings`, before the delegator can withdraw the unbonded delegation.
+  * Remove the `validator` from the `validator set`. The lock period of the unbonded stake will start from the start time of next `era` and last for the duration of `unlock_period_of_validator_deposit` of `protocol settings`, before the validator can withdraw the unbonded stake.
+* Restore the state of the `validator set` by sequentially applying all staking histories happened by the time of this `appchain message` is received (that is the staking histories happened from the last `era` was switched).
 
 During this process:
 
@@ -155,17 +222,23 @@ During this process:
 
 Notice that, due to the gas limit of a transaction, the whole process may cost more than one transaction to complete.
 
+![Switch validator set](/images/sq3.png)
+
 ### Distribute reward of era
 
 When this contract receives an `appchain message` which indicates that the corresponding appchain has finished an `era` and needs to distribute the reward of the `era`, this contract should:
 
 * Store the `unprofitable validator id list` carried by the `appchain message` in the `validator set` of the given `era`.
 * Mint a certain amount of `wrapped appchain token` in the corresponding token contract. The amount is `era_reward` of `appchain settings`.
-* Distribute the `era_reward` proportionally to all profitable validators and delegators (only calculate the reward amount of each one validator and delegator), and store the results in this contract.
+* Distribute the `era_reward` proportionally to all profitable validators and delegators, and store the results in this contract.
+* Mark validators who should be `auto_unbond`:
+  * If a validator did not receive reward in a certain amount of consecutive `era`s, it will be marked as `auto_unbonding`. The count of consecutive `era`s is `maximum_allowed_unprofitable_era_count` of `protocol_settings`.
 
 > The validator and delegator need to withdraw the rewards manually.
 
 Notice that, due to the gas limit of a transaction, the whole process may cost more than one transaction to complete.
+
+![Distribute reward of era](/images/sq4.png)
 
 ### Withdraw reward
 
@@ -188,6 +261,13 @@ The owner account of this contract can pause or resume asset transfer in this co
 * Burn wrapped appchain token (to transfer back to a certain account in appchain).
 * Mint wrapped appchain token (by a verified cross-chain message to transfer native appchain token to a certain account in NEAR protocol).
 * Withdraw unbonded stake (of a validator or a delegator) with OCT token.
+* Withdraw rewards of a validator with wrapped appchain token.
+* Withdraw rewards of a delegator with wrapped appchain token.
+
+### Pause or resume rewards withdrawal
+
+The owner account of this contract can pause or resume rewards withdrawal in this contract. The actions that will be limited should be:
+
 * Withdraw rewards of a validator with wrapped appchain token.
 * Withdraw rewards of a delegator with wrapped appchain token.
 

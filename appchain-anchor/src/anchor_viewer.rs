@@ -3,6 +3,10 @@ use crate::{interfaces::AnchorViewer, validator_set::ValidatorSetViewer, *};
 #[near_bindgen]
 impl AnchorViewer for AppchainAnchor {
     //
+    fn get_anchor_version(&self) -> String {
+        ANCHOR_VERSION.to_string()
+    }
+    //
     fn get_anchor_settings(&self) -> AnchorSettings {
         self.anchor_settings.get().unwrap()
     }
@@ -33,6 +37,7 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_anchor_status(&self) -> AnchorStatus {
         let next_validator_set = self.next_validator_set.get().unwrap();
+        let appchain_messages = self.appchain_messages.get().unwrap();
         AnchorStatus {
             total_stake_in_next_era: next_validator_set.total_stake().into(),
             validator_count_in_next_era: next_validator_set.validator_count().into(),
@@ -53,8 +58,12 @@ impl AnchorViewer for AppchainAnchor {
                 .unwrap()
                 .index_range(),
             index_range_of_staking_history: self.staking_histories.get().unwrap().index_range(),
-            index_range_of_appchain_message_processing_results: self
-                .appchain_message_processing_results
+            nonce_range_of_appchain_messages: IndexRange {
+                start_index: U64::from(u64::from(appchain_messages.min_nonce())),
+                end_index: U64::from(u64::from(appchain_messages.max_nonce())),
+            },
+            index_range_of_appchain_challenges: self
+                .appchain_challenges
                 .get()
                 .unwrap()
                 .index_range(),
@@ -556,23 +565,59 @@ impl AnchorViewer for AppchainAnchor {
         results
     }
     //
+    fn get_appchain_message_of(&self, nonce: u32) -> Option<AppchainMessage> {
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.get_message(nonce)
+    }
+    //
+    fn get_appchain_messages(
+        &self,
+        start_nonce: u32,
+        quantity: Option<u32>,
+    ) -> Vec<AppchainMessage> {
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.get_messages(&start_nonce, quantity)
+    }
+    //
     fn get_appchain_message_processing_result_of(
         &self,
         nonce: u32,
     ) -> Option<AppchainMessageProcessingResult> {
-        let appchain_message_processing_results =
-            self.appchain_message_processing_results.get().unwrap();
-        appchain_message_processing_results.get_processing_result(nonce)
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.get_processing_result(&nonce)
     }
     //
     fn get_appchain_message_processing_results(
         &self,
+        start_nonce: u32,
+        quantity: Option<u32>,
+    ) -> Vec<AppchainMessageProcessingResult> {
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.get_processing_results(&start_nonce, quantity)
+    }
+    //
+    fn get_appchain_challenge(&self, index: Option<U64>) -> Option<AppchainChallenge> {
+        let index = match index {
+            Some(index) => index,
+            None => {
+                self.appchain_challenges
+                    .get()
+                    .unwrap()
+                    .index_range()
+                    .end_index
+            }
+        };
+        self.appchain_challenges.get().unwrap().get(&index.0)
+    }
+    //
+    fn get_appchain_challenges(
+        &self,
         start_index: U64,
         quantity: Option<U64>,
-    ) -> Vec<AppchainMessageProcessingResult> {
-        let appchain_message_processing_results =
-            self.appchain_message_processing_results.get().unwrap();
-        appchain_message_processing_results
-            .get_processing_results(&start_index.0, quantity.map(|q| q.0))
+    ) -> Vec<AppchainChallenge> {
+        self.appchain_challenges
+            .get()
+            .unwrap()
+            .get_slice_of(&start_index.0, quantity.map(|q| q.0))
     }
 }

@@ -1,21 +1,8 @@
 use crate::*;
 
-use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::json_types::I128;
 use near_sdk::{env, near_bindgen, AccountId, Balance};
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct OldWrappedAppchainToken {
-    pub metadata: FungibleTokenMetadata,
-    pub contract_account: AccountId,
-    pub premined_beneficiary: AccountId,
-    pub premined_balance: U128,
-    pub changed_balance: I128,
-    pub price_in_usd: U128,
-}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
@@ -28,7 +15,7 @@ pub struct OldAppchainAnchor {
     /// The info of OCT token.
     oct_token: LazyOption<OctToken>,
     /// The info of wrapped appchain token in NEAR protocol.
-    wrapped_appchain_token: LazyOption<OldWrappedAppchainToken>,
+    wrapped_appchain_token: LazyOption<WrappedAppchainToken>,
     /// The NEP-141 tokens data.
     near_fungible_tokens: LazyOption<NearFungibleTokens>,
     /// The history data of validator set.
@@ -73,13 +60,13 @@ pub struct OldAppchainAnchor {
     /// Whether the rewards withdrawal is paused
     rewards_withdrawal_is_paused: bool,
     /// The processing result of appchain messages
-    appchain_message_processing_results: LazyOption<AppchainMessageProcessingResults>,
+    appchain_messages: LazyOption<AppchainMessages>,
 }
 
 #[near_bindgen]
 impl AppchainAnchor {
     #[init(ignore_state)]
-    pub fn migrate_state(total_supply: U128) -> Self {
+    pub fn migrate_state() -> Self {
         // Deserialize the state using the old contract structure.
         let old_contract: OldAppchainAnchor = env::state_read().expect("Old state doesn't exist");
         // Verify that the migration can only be done by the owner.
@@ -90,20 +77,14 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
-        let old_wrapped_appchain_token = old_contract.wrapped_appchain_token.get().unwrap();
+        let old_appchain_settings = old_contract.appchain_settings.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
             oct_token: old_contract.oct_token,
-            wrapped_appchain_token: LazyOption::new(
-                StorageKey::WrappedAppchainToken.into_bytes(),
-                Some(&WrappedAppchainToken::from_old_version(
-                    old_wrapped_appchain_token,
-                    total_supply,
-                )),
-            ),
+            wrapped_appchain_token: old_contract.wrapped_appchain_token,
             near_fungible_tokens: old_contract.near_fungible_tokens,
             validator_set_histories: old_contract.validator_set_histories,
             next_validator_set: old_contract.next_validator_set,
@@ -111,7 +92,10 @@ impl AppchainAnchor {
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
             unbonded_stakes: old_contract.unbonded_stakes,
             validator_profiles: old_contract.validator_profiles,
-            appchain_settings: old_contract.appchain_settings,
+            appchain_settings: LazyOption::new(
+                StorageKey::AppchainSettings.into_bytes(),
+                Some(&old_appchain_settings),
+            ),
             anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
@@ -124,25 +108,14 @@ impl AppchainAnchor {
             asset_transfer_is_paused: old_contract.asset_transfer_is_paused,
             user_staking_histories: old_contract.user_staking_histories,
             rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
-            appchain_message_processing_results: old_contract.appchain_message_processing_results,
+            appchain_messages: old_contract.appchain_messages,
+            appchain_challenges: LazyOption::new(
+                StorageKey::AppchainChallenges.into_bytes(),
+                Some(&LookupArray::new(StorageKey::AppchainChallengesMap)),
+            ),
         };
         //
         //
         new_contract
-    }
-}
-
-impl WrappedAppchainToken {
-    ///
-    pub fn from_old_version(old_version: OldWrappedAppchainToken, total_supply: U128) -> Self {
-        Self {
-            metadata: old_version.metadata,
-            contract_account: old_version.contract_account,
-            premined_beneficiary: old_version.premined_beneficiary,
-            premined_balance: old_version.premined_balance,
-            changed_balance: old_version.changed_balance,
-            price_in_usd: old_version.price_in_usd,
-            total_supply,
-        }
     }
 }
