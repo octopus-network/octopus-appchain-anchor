@@ -83,8 +83,23 @@ impl AppchainAnchor {
         let protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             next_validator_set.validator_count() < protocol_settings.maximum_validator_count.0,
-            "Too many validators registered."
+            "The count of registered validators exceeds the upper limit."
         );
+        //
+        if self.appchain_state.eq(&AppchainState::Active) {
+            let validator_set_histories = self.validator_set_histories.get().unwrap();
+            let latest_validator_set = validator_set_histories
+                .get(&validator_set_histories.end_index)
+                .unwrap();
+            if latest_validator_set.validator_count() >= 12 {
+                assert!(
+                    next_validator_set.validator_count()
+                        <= latest_validator_set.validator_count() * 5 / 4,
+                    "Too many new validators in this era. Please try again in the next era."
+                );
+            }
+        }
+        //
         let staking_history = self.record_staking_fact(StakingFact::ValidatorRegistered {
             validator_id: validator_id.clone(),
             validator_id_in_appchain: formatted_validator_id_in_appchain.to_string(),

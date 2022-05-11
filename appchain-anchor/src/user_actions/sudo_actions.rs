@@ -283,11 +283,12 @@ impl SudoActions for AppchainAnchor {
             .set(&permissionless_actions_status);
     }
     //
-    fn remove_appchain_messages_before(&mut self, nonce: u32) {
+    fn clear_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut appchain_messages = self.appchain_messages.get().unwrap();
-        appchain_messages.remove_messages_before(&nonce);
+        let result = appchain_messages.clear();
         self.appchain_messages.set(&appchain_messages);
+        result
     }
     //
     fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult {

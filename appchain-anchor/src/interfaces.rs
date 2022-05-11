@@ -380,7 +380,7 @@ pub trait SudoActions {
     ///
     fn set_latest_applied_appchain_message_nonce(&mut self, nonce: u32);
     ///
-    fn remove_appchain_messages_before(&mut self, nonce: u32);
+    fn clear_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult;
     ///
     fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult;
 }

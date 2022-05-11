@@ -7,7 +7,7 @@ use core::convert::From;
 impl Default for ProtocolSettings {
     fn default() -> Self {
         Self {
-            minimum_validator_deposit: U128::from(10_000 * OCT_DECIMALS_VALUE),
+            minimum_validator_deposit: U128::from(5_000 * OCT_DECIMALS_VALUE),
             minimum_validator_deposit_changing_amount: U128::from(1000 * OCT_DECIMALS_VALUE),
             maximum_validator_stake_percent: 25,
             minimum_delegator_deposit: U128::from(200 * OCT_DECIMALS_VALUE),
