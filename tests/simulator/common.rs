@@ -328,7 +328,7 @@ pub fn test_normal_actions(
     // user0 register validator (error)
     //
     let user0_balance = token_viewer::get_oct_balance_of(&users[0], &oct_token);
-    let amount0 = to_oct_amount(9999);
+    let amount0 = to_oct_amount(4999);
     let result = staking_actions::register_validator(
         &users[0],
         &oct_token,
@@ -402,7 +402,7 @@ pub fn test_normal_actions(
     // user2 register delegator to user0 (error)
     //
     let user2_balance = token_viewer::get_oct_balance_of(&users[2], &oct_token);
-    let amount2 = to_oct_amount(499);
+    let amount2 = to_oct_amount(199);
     let result = staking_actions::register_delegator(
         &users[2],
         &oct_token,
