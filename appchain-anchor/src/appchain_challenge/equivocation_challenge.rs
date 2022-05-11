@@ -61,7 +61,9 @@ pub struct GrandpaPrevote {
     pub target_number: BlockNumber,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug)]
+#[derive(
+    BorshDeserialize, BorshSerialize, Deserialize, Serialize, Clone, Debug, Decode, Encode,
+)]
 #[serde(crate = "near_sdk::serde")]
 pub struct GrandpaPrecommit {
     pub target_hash: Hash,

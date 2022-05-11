@@ -72,7 +72,7 @@ fn test_beefy_light_client() {
     );
     assert_eq!(
         protocol_settings.minimum_validator_deposit.0,
-        common::to_oct_amount(10_000)
+        common::to_oct_amount(5_000)
     );
     let anchor_status = anchor_viewer::get_anchor_status(&anchor);
     assert_eq!(anchor_status.total_stake_in_next_era.0, 0);

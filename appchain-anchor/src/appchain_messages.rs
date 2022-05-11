@@ -125,7 +125,9 @@ impl AppchainMessages {
             self.max_nonce
         );
         let mut nonce = self.min_nonce + 1;
-        while nonce <= self.max_nonce + 1 && env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+        while nonce <= self.max_nonce + 1
+            && env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
+        {
             self.remove_messages_before(&nonce);
             nonce += 1;
         }
