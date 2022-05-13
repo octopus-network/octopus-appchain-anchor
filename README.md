@@ -23,7 +23,9 @@ Contents
   * [Manage appchain lifecycle](#manage-appchain-lifecycle)
   * [Pause or resume asset transfer](#pause-or-resume-asset-transfer)
   * [Pause or resume rewards withdrawal](#pause-or-resume-rewards-withdrawal)
+  * [Stage appchain challenges](#stage-appchain-challenges)
 * [Initial deployment](#initial-deployment)
+* [Auditing](#auditing)
 
 ## Terminology
 
@@ -271,6 +273,13 @@ The owner account of this contract can pause or resume rewards withdrawal in thi
 * Withdraw rewards of a validator with wrapped appchain token.
 * Withdraw rewards of a delegator with wrapped appchain token.
 
+### Stage appchain challenges
+
+This contract can stage 2 kinds of appchain challenges on chain for further process (automatically or manually).
+
+* Equivocation challenge - A certain validator of appchain signed 2 versions of voting data for a block with the same height in appchain. The implementation in this contract refers to the pallet `finality-grandpa` of Substrate primitives.
+* Conspiracy MMR - A certain amount of validators of appchain conspired to forge a new version of MMR. This contract only stage the submitter account and the block height for further manully checking in appchain.
+
 ## Initial deployment
 
 We should take the following steps to initialize this contract and all related contract:
@@ -285,3 +294,9 @@ We should take the following steps to initialize this contract and all related c
 * Determine the account id of wrapped appchain token contract, and store it in this contract. (By calling function `set_account_of_wrapped_appchain_token`.)
 * Determine the `premined beneficiary` and `premined balance`. (Normally decided by the appchain team.)
 * Deploy the wrapped appchain token contract with parameters `premined beneficiary`, `premined balance`, `contract account of appchain anchor (this contract)` and `FungibleTokenMetadata`. (These initial parameters will be synced to this contract by calling function `sync_basedata_of_wrapped_appchain_token` at construction time of wrapped appchain token contract. Refer to [Octopus Wrapped Appchain Token](https://github.com/octopus-network/wrapped-appchain-token).)
+
+## Auditing
+
+This contract has completed auditing by:
+
+* [Halborn](https://halborn.com) - The report is [here](/auditing/Octopus_Network_Anchor_NEAR_Smart_Contract_Security_Audit_Report.pdf).
