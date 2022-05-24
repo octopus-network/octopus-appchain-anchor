@@ -94,7 +94,7 @@ This contract can bridge multiple NEAR fungible tokens to the corresponding appc
 
 This contract should provide the following public interfaces related to NEAR fungible token management:
 
-* Regster NEAR fungible token.
+* Register NEAR fungible token.
 * Set price of a NEAR fungible token. This action can only be performed by `token_price_maintainer_account` which is managed in `anchor settings`.
 * Open bridging for a NEAR fungible token.
 * Close bridging for a NEAR fungible token.
