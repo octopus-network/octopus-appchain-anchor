@@ -1,5 +1,6 @@
 use crate::{interfaces::StakingManager, *};
 use borsh::maybestd::collections::HashMap;
+use near_contract_standards::fungible_token::core::ext_ft_core;
 use near_sdk::serde_json;
 
 impl AppchainAnchor {
@@ -524,14 +525,10 @@ impl StakingManager for AppchainAnchor {
                 self.unbonded_stakes.remove(&account_id);
             }
             if balance_to_withdraw > 0 {
-                ext_fungible_token::ft_transfer(
-                    account_id,
-                    balance_to_withdraw.into(),
-                    None,
-                    self.oct_token.get().unwrap().contract_account,
-                    1,
-                    Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER),
-                );
+                ext_ft_core::ext(self.oct_token.get().unwrap().contract_account)
+                    .with_attached_deposit(1)
+                    .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+                    .ft_transfer(account_id, balance_to_withdraw.into(), None);
             }
         };
     }
@@ -565,18 +562,16 @@ impl StakingManager for AppchainAnchor {
             }
         }
         if reward_to_withdraw > 0 {
-            ext_fungible_token::ft_transfer(
-                validator_id,
-                reward_to_withdraw.into(),
-                None,
+            ext_ft_core::ext(
                 self.wrapped_appchain_token
                     .get()
                     .unwrap()
                     .contract_account
                     .unwrap(),
-                1,
-                Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER),
-            );
+            )
+            .with_attached_deposit(1)
+            .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+            .ft_transfer(validator_id, reward_to_withdraw.into(), None);
         }
     }
     //
@@ -613,18 +608,16 @@ impl StakingManager for AppchainAnchor {
             }
         }
         if reward_to_withdraw > 0 {
-            ext_fungible_token::ft_transfer(
-                delegator_id,
-                reward_to_withdraw.into(),
-                None,
+            ext_ft_core::ext(
                 self.wrapped_appchain_token
                     .get()
                     .unwrap()
                     .contract_account
                     .unwrap(),
-                1,
-                Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER),
-            );
+            )
+            .with_attached_deposit(1)
+            .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+            .ft_transfer(delegator_id, reward_to_withdraw.into(), None);
         }
     }
 }

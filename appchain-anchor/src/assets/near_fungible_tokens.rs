@@ -1,3 +1,4 @@
+use near_contract_standards::fungible_token::core::ext_ft_core;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 
 use crate::{
@@ -295,24 +296,22 @@ impl AppchainAnchor {
                 self.record_appchain_message_processing_result(&result);
                 return MultiTxsOperationProcessingResult::Error(message);
             }
-            ext_fungible_token::ft_transfer(
-                receiver_id_in_near.clone(),
-                amount,
-                None,
-                near_fungible_token.contract_account,
-                1,
-                Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER),
-            )
-            .then(ext_self::resolve_fungible_token_transfer(
-                near_fungible_token.metadata.symbol,
-                sender_id_in_appchain,
-                receiver_id_in_near.clone(),
-                amount,
-                appchain_message_nonce,
-                env::current_account_id(),
-                0,
-                Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION),
-            ));
+            ext_ft_core::ext(near_fungible_token.contract_account)
+                .with_attached_deposit(1)
+                .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+                .ft_transfer(receiver_id_in_near.clone(), amount, None)
+                .then(
+                    ext_self::ext(env::current_account_id())
+                        .with_attached_deposit(0)
+                        .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                        .resolve_fungible_token_transfer(
+                            near_fungible_token.metadata.symbol,
+                            sender_id_in_appchain,
+                            receiver_id_in_near.clone(),
+                            amount,
+                            appchain_message_nonce,
+                        ),
+                );
             processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER));
             processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION));
             MultiTxsOperationProcessingResult::Ok

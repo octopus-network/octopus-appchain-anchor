@@ -2,13 +2,15 @@
 name = "appchain-anchor-wrapper"
 version = "2.1.0"
 authors = ["Octopus Network"]
-edition = "2018"
+edition = "2021"
 
 [dev-dependencies]
+anyhow = "1.0"
 hex-literal = "0.3.1"
-near-sdk = "4.0.0-pre.7"
-near-sdk-sim = "4.0.0-pre.7"
-near-contract-standards = "4.0.0-pre.7"
+near-sdk = "4.0.0"
+near-contract-standards = "4.0.0"
+near-primitives = "0.5.0"
+near-units = "0.2.0"
 hex = "0.4.2"
 num-format = "0.4.0"
 secp256k1-test = { package = "secp256k1", version = "0.20.3", features = ["rand-std", "recovery"] }
@@ -21,6 +23,8 @@ mock-appchain-registry = { path = "./mock-appchain-registry" }
 mock-oct-token = { path = "./mock-oct-token" }
 wrapped-appchain-token = { git = "https://github.com/octopus-network/wrapped-appchain-token.git", branch = "v2.0.0" }
 wrapped-appchain-nft = { git = "https://github.com/octopus-network/wrapped-appchain-nft.git", branch = "main" }
+tokio = { version = "1.14", features = ["full"] }
+workspaces = "0.3"
 
 [profile.release]
 codegen-units = 1

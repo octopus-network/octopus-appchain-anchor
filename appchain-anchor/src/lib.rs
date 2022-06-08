@@ -26,7 +26,7 @@ use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, serde_json, AccountId, Balance, Gas,
-    PanicOnDefault, PromiseOrValue, PromiseResult, PublicKey, Timestamp,
+    PanicOnDefault, Promise, PromiseOrValue, PromiseResult, PublicKey, Timestamp,
 };
 use std::ops::Mul;
 
@@ -79,41 +79,6 @@ const STORAGE_DEPOSIT_FOR_NEP141_TOEKN: Balance = 12_500_000_000_000_000_000_000
 const STORAGE_DEPOSIT_FOR_MINT_NFT: Balance = 100_000_000_000_000_000_000_000;
 /// Storage deposit for wrapped appchain NFT contract (in yocto)
 const WRAPPED_APPCHAIN_NFT_CONTRACT_INIT_BALANCE: Balance = 3_000_000_000_000_000_000_000_000;
-
-#[ext_contract(ext_fungible_token)]
-trait FungibleTokenInterface {
-    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
-    fn mint(&mut self, account_id: AccountId, amount: U128);
-    fn burn(&mut self, account_id: AccountId, amount: U128);
-}
-
-#[ext_contract(ext_nft)]
-trait NFTContractInterface {
-    fn nft_mint(
-        &mut self,
-        token_id: TokenId,
-        token_owner_id: AccountId,
-        token_metadata: TokenMetadata,
-    );
-    fn nft_transfer(
-        &mut self,
-        receiver_id: AccountId,
-        token_id: TokenId,
-        approval_id: Option<u64>,
-        memo: Option<String>,
-    );
-}
-
-#[ext_contract(ext_appchain_registry)]
-trait AppchainRegistryInterface {
-    fn sync_state_of(
-        &mut self,
-        appchain_id: AppchainId,
-        appchain_state: AppchainState,
-        validator_count: u32,
-        total_stake: U128,
-    );
-}
 
 #[ext_contract(ext_self)]
 trait ResolverForSelfCallback {
@@ -615,12 +580,26 @@ impl AppchainAnchor {
     ///
     pub fn sync_state_to_registry(&self) {
         let next_validator_set = self.next_validator_set.get().unwrap();
-        ext_appchain_registry::sync_state_of(
-            self.appchain_id.clone(),
-            self.appchain_state.clone(),
-            next_validator_set.validator_count().try_into().unwrap(),
-            U128::from(next_validator_set.total_stake()),
-            self.appchain_registry.clone(),
+        // sync state to appchain registry contract
+        #[derive(near_sdk::serde::Serialize)]
+        #[serde(crate = "near_sdk::serde")]
+        struct Args {
+            appchain_id: AppchainId,
+            appchain_state: AppchainState,
+            validator_count: u32,
+            total_stake: U128,
+        }
+        let args = Args {
+            appchain_id: self.appchain_id.clone(),
+            appchain_state: self.appchain_state.clone(),
+            validator_count: next_validator_set.validator_count().try_into().unwrap(),
+            total_stake: U128::from(next_validator_set.total_stake()),
+        };
+        let args = near_sdk::serde_json::to_vec(&args)
+            .expect("Failed to serialize the cross contract args using JSON.");
+        Promise::new(self.appchain_registry.clone()).function_call(
+            "sync_state_of".to_string(),
+            args,
             0,
             Gas::ONE_TERA.mul(T_GAS_FOR_SYNC_STATE_TO_REGISTRY),
         );
