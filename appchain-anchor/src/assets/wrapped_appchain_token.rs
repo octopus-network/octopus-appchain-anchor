@@ -138,6 +138,7 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
                 ext_self::ext(env::current_account_id())
                     .with_attached_deposit(0)
                     .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                    .with_unused_gas_weight(0)
                     .resolve_wrapped_appchain_token_burning(
                         sender_id.clone(),
                         receiver_id.clone(),
@@ -202,6 +203,7 @@ impl AppchainAnchor {
                 ext_self::ext(env::current_account_id())
                     .with_attached_deposit(0)
                     .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                    .with_unused_gas_weight(0)
                     .resolve_wrapped_appchain_token_minting(
                         sender_id.clone(),
                         receiver_id.clone(),

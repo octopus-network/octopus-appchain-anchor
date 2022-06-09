@@ -528,6 +528,7 @@ impl StakingManager for AppchainAnchor {
                 ext_ft_core::ext(self.oct_token.get().unwrap().contract_account)
                     .with_attached_deposit(1)
                     .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+                    .with_unused_gas_weight(0)
                     .ft_transfer(account_id, balance_to_withdraw.into(), None);
             }
         };
@@ -571,6 +572,7 @@ impl StakingManager for AppchainAnchor {
             )
             .with_attached_deposit(1)
             .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+            .with_unused_gas_weight(0)
             .ft_transfer(validator_id, reward_to_withdraw.into(), None);
         }
     }
@@ -617,6 +619,7 @@ impl StakingManager for AppchainAnchor {
             )
             .with_attached_deposit(1)
             .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+            .with_unused_gas_weight(0)
             .ft_transfer(delegator_id, reward_to_withdraw.into(), None);
         }
     }

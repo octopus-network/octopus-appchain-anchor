@@ -299,11 +299,13 @@ impl AppchainAnchor {
             ext_ft_core::ext(near_fungible_token.contract_account)
                 .with_attached_deposit(1)
                 .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+                .with_unused_gas_weight(0)
                 .ft_transfer(receiver_id_in_near.clone(), amount, None)
                 .then(
                     ext_self::ext(env::current_account_id())
                         .with_attached_deposit(0)
                         .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                        .with_unused_gas_weight(0)
                         .resolve_fungible_token_transfer(
                             near_fungible_token.metadata.symbol,
                             sender_id_in_appchain,

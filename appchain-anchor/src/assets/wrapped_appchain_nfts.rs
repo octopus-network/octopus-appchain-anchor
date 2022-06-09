@@ -300,6 +300,7 @@ impl AppchainAnchor {
                         ext_self::ext(env::current_account_id())
                             .with_attached_deposit(0)
                             .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                            .with_unused_gas_weight(0)
                             .resolve_wrapped_appchain_nft_transfer(
                                 owner_id_in_appchain,
                                 receiver_id_in_near,
@@ -338,6 +339,7 @@ impl AppchainAnchor {
                         ext_self::ext(env::current_account_id())
                             .with_attached_deposit(0)
                             .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                            .with_unused_gas_weight(0)
                             .resolve_wrapped_appchain_nft_mint(
                                 owner_id_in_appchain,
                                 receiver_id_in_near,
