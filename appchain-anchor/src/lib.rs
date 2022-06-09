@@ -78,7 +78,7 @@ const STORAGE_DEPOSIT_FOR_NEP141_TOEKN: Balance = 12_500_000_000_000_000_000_000
 /// Storage deposit for mint NEP-171 token (in yocto)
 const STORAGE_DEPOSIT_FOR_MINT_NFT: Balance = 100_000_000_000_000_000_000_000;
 /// Storage deposit for wrapped appchain NFT contract (in yocto)
-const WRAPPED_APPCHAIN_NFT_CONTRACT_INIT_BALANCE: Balance = 3_000_000_000_000_000_000_000_000;
+const WRAPPED_APPCHAIN_NFT_CONTRACT_INIT_BALANCE: Balance = 3_200_000_000_000_000_000_000_000;
 
 #[ext_contract(ext_self)]
 trait ResolverForSelfCallback {
