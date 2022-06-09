@@ -26,4 +26,3 @@ beefy-merkle-tree = { git = "https://github.com/paritytech/substrate.git", branc
 # remember to include related mock contracts
 mock-appchain-registry = { path = "../mock-appchain-registry" }
 mock-oct-token = { path = "../mock-oct-token" }
-wrapped-appchain-token = { git = "https://github.com/octopus-network/wrapped-appchain-token", branch = "v2.0.0" }
