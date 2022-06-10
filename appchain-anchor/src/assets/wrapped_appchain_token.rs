@@ -114,21 +114,37 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         let sender_id = env::predecessor_account_id();
         let account_id_in_appchain = AccountIdInAppchain::new(Some(receiver_id.clone()));
         account_id_in_appchain.assert_valid();
-        ext_fungible_token::burn(
-            sender_id.clone(),
+        // burn token in wrapped appchain token contract
+        #[derive(near_sdk::serde::Serialize)]
+        #[serde(crate = "near_sdk::serde")]
+        struct Args {
+            account_id: AccountId,
+            amount: U128,
+        }
+        let args = Args {
+            account_id: sender_id.clone(),
             amount,
-            wrapped_appchain_token.contract_account.unwrap(),
-            1,
-            Gas::ONE_TERA.mul(T_GAS_FOR_BURN_FUNGIBLE_TOKEN),
-        )
-        .then(ext_self::resolve_wrapped_appchain_token_burning(
-            sender_id.clone(),
-            receiver_id.clone(),
-            amount,
-            env::current_account_id(),
-            0,
-            Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION),
-        ));
+        };
+        let args = near_sdk::serde_json::to_vec(&args)
+            .expect("Failed to serialize the cross contract args using JSON.");
+        Promise::new(wrapped_appchain_token.contract_account.unwrap())
+            .function_call(
+                "burn".to_string(),
+                args,
+                1,
+                Gas::ONE_TERA.mul(T_GAS_FOR_BURN_FUNGIBLE_TOKEN),
+            )
+            .then(
+                ext_self::ext(env::current_account_id())
+                    .with_attached_deposit(0)
+                    .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                    .with_unused_gas_weight(0)
+                    .resolve_wrapped_appchain_token_burning(
+                        sender_id.clone(),
+                        receiver_id.clone(),
+                        amount,
+                    ),
+            );
     }
 }
 
@@ -163,22 +179,38 @@ impl AppchainAnchor {
                 return MultiTxsOperationProcessingResult::Error(message);
             }
         }
-        ext_fungible_token::mint(
-            receiver_id.clone(),
+        // mint token in wrapped appchain token contract
+        #[derive(near_sdk::serde::Serialize)]
+        #[serde(crate = "near_sdk::serde")]
+        struct Args {
+            account_id: AccountId,
+            amount: U128,
+        }
+        let args = Args {
+            account_id: receiver_id.clone(),
             amount,
-            wrapped_appchain_token.contract_account.unwrap(),
-            STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
-            Gas::ONE_TERA.mul(T_GAS_FOR_MINT_FUNGIBLE_TOKEN),
-        )
-        .then(ext_self::resolve_wrapped_appchain_token_minting(
-            sender_id.clone(),
-            receiver_id.clone(),
-            amount,
-            appchain_message_nonce,
-            env::current_account_id(),
-            0,
-            Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION),
-        ));
+        };
+        let args = near_sdk::serde_json::to_vec(&args)
+            .expect("Failed to serialize the cross contract args using JSON.");
+        Promise::new(wrapped_appchain_token.contract_account.unwrap())
+            .function_call(
+                "mint".to_string(),
+                args,
+                STORAGE_DEPOSIT_FOR_NEP141_TOEKN,
+                Gas::ONE_TERA.mul(T_GAS_FOR_MINT_FUNGIBLE_TOKEN),
+            )
+            .then(
+                ext_self::ext(env::current_account_id())
+                    .with_attached_deposit(0)
+                    .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                    .with_unused_gas_weight(0)
+                    .resolve_wrapped_appchain_token_minting(
+                        sender_id.clone(),
+                        receiver_id.clone(),
+                        amount,
+                        appchain_message_nonce,
+                    ),
+            );
         processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_MINT_FUNGIBLE_TOKEN));
         processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION));
         MultiTxsOperationProcessingResult::Ok

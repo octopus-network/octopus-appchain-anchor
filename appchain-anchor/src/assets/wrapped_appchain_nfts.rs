@@ -273,49 +273,82 @@ impl AppchainAnchor {
                 return MultiTxsOperationProcessingResult::Error(message);
             }
             if wrapped_appchain_nft.is_nft_locked(&instance_id) {
-                ext_nft::nft_transfer(
-                    receiver_id_in_near.clone(),
-                    instance_id.clone(),
-                    None,
-                    None,
-                    wrapped_appchain_nft.contract_account,
-                    1,
-                    Gas::ONE_TERA.mul(T_GAS_FOR_NFT_TRANSFER),
-                )
-                .then(ext_self::resolve_wrapped_appchain_nft_transfer(
-                    owner_id_in_appchain,
-                    receiver_id_in_near,
-                    class_id.clone(),
-                    instance_id,
-                    token_metadata,
-                    appchain_message_nonce,
-                    env::current_account_id(),
-                    0,
-                    Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION),
-                ));
+                #[derive(near_sdk::serde::Serialize)]
+                #[serde(crate = "near_sdk::serde")]
+                struct Args {
+                    receiver_id: AccountId,
+                    token_id: TokenId,
+                    approval_id: Option<u64>,
+                    memo: Option<String>,
+                }
+                let args = Args {
+                    receiver_id: receiver_id_in_near.clone(),
+                    token_id: instance_id.clone(),
+                    approval_id: None,
+                    memo: None,
+                };
+                let args = near_sdk::serde_json::to_vec(&args)
+                    .expect("Failed to serialize the cross contract args using JSON.");
+                Promise::new(wrapped_appchain_nft.contract_account)
+                    .function_call(
+                        "nft_tranfser".to_string(),
+                        args,
+                        1,
+                        Gas::ONE_TERA.mul(T_GAS_FOR_NFT_TRANSFER),
+                    )
+                    .then(
+                        ext_self::ext(env::current_account_id())
+                            .with_attached_deposit(0)
+                            .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                            .with_unused_gas_weight(0)
+                            .resolve_wrapped_appchain_nft_transfer(
+                                owner_id_in_appchain,
+                                receiver_id_in_near,
+                                class_id.clone(),
+                                instance_id,
+                                token_metadata,
+                                appchain_message_nonce,
+                            ),
+                    );
                 processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER));
                 processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION));
                 MultiTxsOperationProcessingResult::Ok
             } else {
-                ext_nft::nft_mint(
-                    instance_id.clone(),
-                    receiver_id_in_near.clone(),
-                    token_metadata.clone(),
-                    wrapped_appchain_nft.contract_account,
-                    STORAGE_DEPOSIT_FOR_MINT_NFT,
-                    Gas::ONE_TERA.mul(T_GAS_FOR_MINT_NFT),
-                )
-                .then(ext_self::resolve_wrapped_appchain_nft_mint(
-                    owner_id_in_appchain,
-                    receiver_id_in_near,
-                    class_id.clone(),
-                    instance_id,
-                    token_metadata,
-                    appchain_message_nonce,
-                    env::current_account_id(),
-                    0,
-                    Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION),
-                ));
+                #[derive(near_sdk::serde::Serialize)]
+                #[serde(crate = "near_sdk::serde")]
+                struct Args {
+                    token_id: TokenId,
+                    token_owner_id: AccountId,
+                    token_metadata: TokenMetadata,
+                }
+                let args = Args {
+                    token_id: instance_id.clone(),
+                    token_owner_id: receiver_id_in_near.clone(),
+                    token_metadata: token_metadata.clone(),
+                };
+                let args = near_sdk::serde_json::to_vec(&args)
+                    .expect("Failed to serialize the cross contract args using JSON.");
+                Promise::new(wrapped_appchain_nft.contract_account)
+                    .function_call(
+                        "nft_mint".to_string(),
+                        args,
+                        STORAGE_DEPOSIT_FOR_MINT_NFT,
+                        Gas::ONE_TERA.mul(T_GAS_FOR_MINT_NFT),
+                    )
+                    .then(
+                        ext_self::ext(env::current_account_id())
+                            .with_attached_deposit(0)
+                            .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                            .with_unused_gas_weight(0)
+                            .resolve_wrapped_appchain_nft_mint(
+                                owner_id_in_appchain,
+                                receiver_id_in_near,
+                                class_id.clone(),
+                                instance_id,
+                                token_metadata,
+                                appchain_message_nonce,
+                            ),
+                    );
                 processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER));
                 processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION));
                 MultiTxsOperationProcessingResult::Ok

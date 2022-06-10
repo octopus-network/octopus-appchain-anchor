@@ -1,27 +1,31 @@
+use crate::{common, contract_interfaces::near_fungible_token_manager};
 use near_sdk::{json_types::U128, serde_json::json};
 
-use crate::{common, owner_actions};
-
-#[test]
-fn test_transfer_oct_to_appchain() {
+#[tokio::test]
+async fn test_transfer_oct_to_appchain() -> anyhow::Result<()> {
     //
-    let (root, oct_token, _, _, anchor, users, _) = common::test_normal_actions(false, false);
+    let worker = workspaces::sandbox().await?;
+    let (root, oct_token, _, _, anchor, users, _) =
+        common::test_normal_actions(&worker, false, false, vec!["0x00".to_string()]).await?;
     //
-    let execution_result = owner_actions::register_near_fungible_token(
+    near_fungible_token_manager::register_near_fungible_token(
+        &worker,
         &root,
         &anchor,
         "OCT".to_string(),
         "Oct token".to_string(),
         18,
-        oct_token.account_id(),
+        oct_token.id().to_string().parse().unwrap(),
         U128::from(1000000),
-    );
-    assert!(execution_result.is_ok());
-    common::print_near_fungible_tokens(&anchor);
+    )
+    .await
+    .expect("Failed to register NEAR fungible token");
+    common::complex_viewer::print_near_fungible_tokens(&worker, &anchor).await?;
     //
-    let execution_result = common::ft_transfer_call_oct_token(
+    common::call_ft_transfer_call(
+        &worker,
         &users[0],
-        &anchor.user_account,
+        &anchor.as_account(),
         common::to_oct_amount(200),
         json!({
             "BridgeToAppchain": {
@@ -30,7 +34,7 @@ fn test_transfer_oct_to_appchain() {
         })
         .to_string(),
         &oct_token,
-    );
-    assert!(execution_result.is_ok());
-    common::print_appchain_notifications(&anchor);
+    ).await?;
+    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
+    Ok(())
 }

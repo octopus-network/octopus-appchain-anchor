@@ -15,6 +15,6 @@ if [ "$1" == "test" ]; then
     if [ "$2" == "" ]; then
         RUST_BACKTRACE=1 cargo test --tests -- --nocapture
     else
-        RUST_BACKTRACE=1 cargo test --test $2 -- --nocapture
+        RUST_BACKTRACE=1 cargo test $2 -- --nocapture
     fi
 fi
