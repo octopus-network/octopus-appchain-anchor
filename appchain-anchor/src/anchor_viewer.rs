@@ -501,7 +501,6 @@ impl AnchorViewer for AppchainAnchor {
         if let Some(light_client) = self.beefy_light_client_state.get() {
             if let Some(commitment) = light_client.get_latest_commitment() {
                 return Some(AppchainCommitment {
-                    payload: commitment.payload,
                     block_number: commitment.block_number,
                     validator_set_id: U64::from(commitment.validator_set_id),
                 });

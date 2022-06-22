@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client.git", branch = "v2.0.0" }
+beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client.git", branch = "main" }
 near-sdk = "4.0.0"
 near-contract-standards = "4.0.0"
 hex = "0.4.2"

@@ -7,12 +7,13 @@ pub async fn process_appchain_messages(
     signer: &Account,
     anchor: &Contract,
 ) -> anyhow::Result<MultiTxsOperationProcessingResult> {
-    signer
+    let result = signer
         .call(worker, anchor.id(), "process_appchain_messages")
         .gas(300_000_000_000_000)
         .transact()
-        .await?
-        .json::<MultiTxsOperationProcessingResult>()
+        .await?;
+    println!("{:?}", result);
+    result.json::<MultiTxsOperationProcessingResult>()
 }
 
 pub async fn start_updating_state_of_beefy_light_client(
@@ -24,7 +25,7 @@ pub async fn start_updating_state_of_beefy_light_client(
     mmr_leaf: Vec<u8>,
     mmr_proof: Vec<u8>,
 ) -> anyhow::Result<CallExecutionDetails> {
-    signer
+    let result = signer
         .call(
             worker,
             anchor.id(),
@@ -38,7 +39,9 @@ pub async fn start_updating_state_of_beefy_light_client(
         }))?
         .gas(300_000_000_000_000)
         .transact()
-        .await
+        .await;
+    println!("{:?}", result.as_ref().unwrap());
+    result
 }
 
 pub async fn try_complete_updating_state_of_beefy_light_client(
@@ -46,7 +49,7 @@ pub async fn try_complete_updating_state_of_beefy_light_client(
     signer: &Account,
     anchor: &Contract,
 ) -> anyhow::Result<MultiTxsOperationProcessingResult> {
-    signer
+    let result = signer
         .call(
             worker,
             anchor.id(),
@@ -54,6 +57,7 @@ pub async fn try_complete_updating_state_of_beefy_light_client(
         )
         .gas(300_000_000_000_000)
         .transact()
-        .await?
-        .json::<MultiTxsOperationProcessingResult>()
+        .await?;
+    println!("{:?}", result);
+    result.json::<MultiTxsOperationProcessingResult>()
 }

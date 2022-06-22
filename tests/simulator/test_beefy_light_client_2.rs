@@ -1,6 +1,6 @@
 use crate::{common, contract_interfaces::permissionless_actions};
 use appchain_anchor::types::{MultiTxsOperationProcessingResult, ValidatorMerkleProof};
-use beefy_light_client::commitment::{Commitment, Signature};
+use beefy_light_client::commitment::{Commitment, Payload, Signature};
 use beefy_light_client::{beefy_ecdsa_to_ethereum, commitment::SignedCommitment};
 use beefy_merkle_tree::{merkle_proof, Keccak256};
 use codec::Encode;
@@ -8,6 +8,9 @@ use hex_literal::hex;
 use near_sdk::serde_json;
 use secp256k1_test::{rand::thread_rng, Message as SecpMessage, Secp256k1};
 use std::convert::TryInto;
+
+type BeefyPayloadId = [u8; 2];
+const MMR_ROOT_ID: BeefyPayloadId = *b"mh";
 
 #[tokio::test]
 async fn test_beefy_light_client_2() -> anyhow::Result<()> {
@@ -18,8 +21,12 @@ async fn test_beefy_light_client_2() -> anyhow::Result<()> {
 
     let mut initial_public_keys = Vec::new();
     let mut origin_initial_public_keys = Vec::new();
+    let payload = Payload(vec![(
+        MMR_ROOT_ID,
+        hex!("67678b4a811dc055ff865fdfdda11c7464a9c77a988af4fcdea92e38ae6c6320").to_vec(),
+    )]);
     let commitment = Commitment {
-        payload: hex!("f45927644a0b5bc6f1ce667330071fbaea498403c084eb0d4cb747114887345d"),
+        payload,
         block_number: 9,
         validator_set_id: 0,
     };
@@ -52,7 +59,6 @@ async fn test_beefy_light_client_2() -> anyhow::Result<()> {
     for i in 0..initial_public_keys.len() {
         let proof = merkle_proof::<Keccak256, _, _>(initial_public_keys.clone(), i);
         validator_proofs.push(ValidatorMerkleProof {
-            root: proof.root,
             proof: proof.proof,
             number_of_leaves: proof.number_of_leaves.try_into().unwrap(),
             leaf_index: proof.leaf_index.try_into().unwrap(),
@@ -60,8 +66,8 @@ async fn test_beefy_light_client_2() -> anyhow::Result<()> {
         });
     }
 
-    let encoded_mmr_leaf = hex!("c501000800000079f0451c096266bee167393545bafc7b27b7d14810084a843955624588ba29c1010000000000000005000000304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a20000000000000000000000000000000000000000000000000000000000000000");
-    let encoded_mmr_proof = hex!("0800000000000000090000000000000004c2d6348aef1ef52e779c59bcc1d87fa0175b59b4fa2ea8fc322e4ceb2bdd1ea2");
+    let encoded_mmr_leaf = hex!("c5010016000000e961cf2536958785869a8f1892c478ff5f91c5a01ece8a50d7f52cc5d31f96d3010000000000000005000000304803fa5a91d9852caafe04b4b867a4ed27a07a5bee3d1507b4b187a68777a20000000000000000000000000000000000000000000000000000000000000000");
+    let encoded_mmr_proof = hex!("16000000000000001900000000000000143b96661a7161a6a760af588ebdefc79401e1c046d889d59f76d824406f713188c58385673dc5fffca2611dec971872597fa18462ec82f781d44c7f51f888460a927066f988d8d2b5c193a0fca08920bc21c56dfd2ea44fdcd9ceb97acd22e1a5dc8d1b12b23542b45f9e025bc4e611129aae70a08a7180839c8b698becf48e2326479d9be91711c950d8584e9f9dd49b6424e13d590afc8b00a41d5be40c4fb5");
     //
     let initial_public_keys = origin_initial_public_keys
         .iter()
