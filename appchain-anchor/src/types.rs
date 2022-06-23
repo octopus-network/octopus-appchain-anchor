@@ -548,8 +548,6 @@ pub enum MultiTxsOperationProcessingResult {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ValidatorMerkleProof {
-    /// Root hash of generated merkle tree.
-    pub root: Hash,
     /// Proof items (does not contain the leaf hash, nor the root obviously).
     ///
     /// This vec contains all inner node hashes necessary to reconstruct the root hash given the
@@ -577,7 +575,6 @@ pub enum BeefyLightClientStatus {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainCommitment {
-    pub payload: Hash,
     pub block_number: u32,
     pub validator_set_id: U64,
 }
