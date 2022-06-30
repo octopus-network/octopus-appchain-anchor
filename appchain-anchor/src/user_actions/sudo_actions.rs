@@ -14,7 +14,7 @@ impl SudoActions for AppchainAnchor {
     //
     fn stage_appchain_messages(&mut self, messages: Vec<AppchainMessage>) {
         self.assert_owner();
-        self.internal_stage_appchain_messages(messages);
+        self.internal_stage_appchain_messages(&messages);
     }
     //
     fn set_metadata_of_wrapped_appchain_token(&mut self, metadata: FungibleTokenMetadata) {

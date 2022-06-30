@@ -152,9 +152,9 @@ impl AppchainAnchor {
     //
     pub fn internal_mint_wrapped_appchain_token(
         &mut self,
-        sender_id: Option<String>,
-        receiver_id: AccountId,
-        amount: U128,
+        sender_id: Option<&String>,
+        receiver_id: &AccountId,
+        amount: &U128,
         appchain_message_nonce: u32,
         processing_context: &mut AppchainMessagesProcessingContext,
     ) -> MultiTxsOperationProcessingResult {
@@ -168,7 +168,7 @@ impl AppchainAnchor {
             self.record_appchain_message_processing_result(&result);
             return MultiTxsOperationProcessingResult::Error(message);
         }
-        if let Some(sender_id) = &sender_id {
+        if let Some(sender_id) = sender_id {
             if !AccountIdInAppchain::new(Some(sender_id.clone())).is_valid() {
                 let message = format!("Invalid sender id in appchain: '{}'", sender_id);
                 let result = AppchainMessageProcessingResult::Error {
@@ -188,7 +188,7 @@ impl AppchainAnchor {
         }
         let args = Args {
             account_id: receiver_id.clone(),
-            amount,
+            amount: amount.clone(),
         };
         let args = near_sdk::serde_json::to_vec(&args)
             .expect("Failed to serialize the cross contract args using JSON.");
@@ -205,9 +205,9 @@ impl AppchainAnchor {
                     .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
                     .with_unused_gas_weight(0)
                     .resolve_wrapped_appchain_token_minting(
-                        sender_id.clone(),
+                        sender_id.map_or(None, |s| Some(s.clone())),
                         receiver_id.clone(),
-                        amount,
+                        amount.clone(),
                         appchain_message_nonce,
                     ),
             );

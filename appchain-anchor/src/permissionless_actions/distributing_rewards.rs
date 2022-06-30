@@ -21,7 +21,7 @@ impl AppchainAnchor {
         validator_set_histories: &mut LookupArray<ValidatorSetOfEra>,
         appchain_message_nonce: u32,
         era_number: u64,
-        unprofitable_validator_ids: Vec<String>,
+        unprofitable_validator_ids: &Vec<String>,
     ) -> MultiTxsOperationProcessingResult {
         if !validator_set_histories.contains(&era_number) {
             return MultiTxsOperationProcessingResult::Error(format!(
@@ -74,8 +74,8 @@ impl AppchainAnchor {
         let appchain_settings = self.appchain_settings.get().unwrap();
         let mut result = self.internal_mint_wrapped_appchain_token(
             None,
-            env::current_account_id(),
-            appchain_settings.era_reward,
+            &env::current_account_id(),
+            &appchain_settings.era_reward,
             appchain_message_nonce,
             processing_context,
         );
