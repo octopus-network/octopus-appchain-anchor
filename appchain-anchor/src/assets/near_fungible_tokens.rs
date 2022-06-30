@@ -285,10 +285,10 @@ impl AppchainAnchor {
     //
     pub fn internal_unlock_near_fungible_token(
         &mut self,
-        sender_id_in_appchain: String,
-        contract_account: AccountId,
-        receiver_id_in_near: AccountId,
-        amount: U128,
+        sender_id_in_appchain: &String,
+        contract_account: &AccountId,
+        receiver_id_in_near: &AccountId,
+        amount: &U128,
         appchain_message_nonce: u32,
         processing_context: &mut AppchainMessagesProcessingContext,
     ) -> MultiTxsOperationProcessingResult {
@@ -321,7 +321,7 @@ impl AppchainAnchor {
                 .with_attached_deposit(1)
                 .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
                 .with_unused_gas_weight(0)
-                .ft_transfer(receiver_id_in_near.clone(), amount, None)
+                .ft_transfer(receiver_id_in_near.clone(), amount.clone(), None)
                 .then(
                     ext_self::ext(env::current_account_id())
                         .with_attached_deposit(0)
@@ -329,9 +329,9 @@ impl AppchainAnchor {
                         .with_unused_gas_weight(0)
                         .resolve_fungible_token_transfer(
                             near_fungible_token.metadata.symbol,
-                            sender_id_in_appchain,
+                            sender_id_in_appchain.clone(),
                             receiver_id_in_near.clone(),
-                            amount,
+                            amount.clone(),
                             appchain_message_nonce,
                         ),
                 );

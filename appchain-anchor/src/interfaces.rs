@@ -225,6 +225,18 @@ pub trait PermissionlessActions {
     fn process_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult;
     ///
     fn commit_appchain_challenge(&mut self, appchain_challenge: AppchainChallenge);
+    //
+    fn process_appchain_messages_with_all_proofs(
+        &mut self,
+        signed_commitment: Vec<u8>,
+        validator_proofs: Vec<ValidatorMerkleProof>,
+        mmr_leaf_for_mmr_root: Vec<u8>,
+        mmr_proof_for_mmr_root: Vec<u8>,
+        encoded_messages: Vec<u8>,
+        header: Vec<u8>,
+        mmr_leaf_for_header: Vec<u8>,
+        mmr_proof_for_header: Vec<u8>,
+    );
 }
 
 pub trait ProtocolSettingsManager {
