@@ -352,11 +352,17 @@ impl PermissionlessActions for AppchainAnchor {
         let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         messages.iter().for_each(|appchain_message| {
-            self.internal_apply_appchain_message(
-                &mut processing_context,
-                &mut validator_set_histories,
-                appchain_message,
-            );
+            let appchain_messages = self.appchain_messages.get().unwrap();
+            if appchain_messages
+                .get_processing_result(&appchain_message.nonce)
+                .is_none()
+            {
+                self.internal_apply_appchain_message(
+                    &mut processing_context,
+                    &mut validator_set_histories,
+                    appchain_message,
+                );
+            }
         });
     }
 }
