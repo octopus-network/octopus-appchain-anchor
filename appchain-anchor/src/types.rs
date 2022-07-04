@@ -23,8 +23,8 @@ impl AccountIdInAppchain {
             value.push_str(&id_in_appchain);
         }
         Self {
-            origin: id_in_appchain,
-            raw_string: value,
+            origin: id_in_appchain.map(|s| s.to_lowercase()),
+            raw_string: value.to_lowercase(),
         }
     }
     ///

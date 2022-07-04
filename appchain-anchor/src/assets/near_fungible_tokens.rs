@@ -213,6 +213,14 @@ impl AppchainAnchor {
         if let Some(mut near_fungible_token) =
             near_fungible_tokens.get_by_contract_account(&predecessor_account_id)
         {
+            assert!(
+                near_fungible_token
+                    .bridging_state
+                    .eq(&BridgingState::Active),
+                "Bridging for '{}({})' is closed.",
+                near_fungible_token.metadata.symbol,
+                near_fungible_token.metadata.name
+            );
             match deposit_message {
                 FTDepositMessage::BridgeToAppchain {
                     receiver_id_in_appchain,

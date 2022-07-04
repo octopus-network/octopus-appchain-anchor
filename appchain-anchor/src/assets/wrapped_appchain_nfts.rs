@@ -162,6 +162,10 @@ impl WrappedAppchainNFTManager for AppchainAnchor {
         let internal_wrapped_appchain_nft =
             InternalWrappedAppchainNFT::new(class_id.clone(), metadata.clone());
         let mut wrapped_appchain_nfts = self.wrapped_appchain_nfts.get().unwrap();
+        assert!(
+            wrapped_appchain_nfts.get(&class_id).is_none(),
+            "The given class id has already registered."
+        );
         wrapped_appchain_nfts.insert(&class_id, &internal_wrapped_appchain_nft);
         self.wrapped_appchain_nfts.set(&wrapped_appchain_nfts);
         //
@@ -379,6 +383,14 @@ impl AppchainAnchor {
         if let Some(mut wrapped_appchain_nft) =
             wrapped_appchain_nfts.get_by_contract_account(&predecessor_account_id)
         {
+            assert!(
+                wrapped_appchain_nft
+                    .bridging_state
+                    .eq(&BridgingState::Active),
+                "Bridging for '{}({})' is closed.",
+                wrapped_appchain_nft.metadata.symbol,
+                wrapped_appchain_nft.metadata.name
+            );
             match transfer_message {
                 NFTTransferMessage::BridgeToAppchain {
                     receiver_id_in_appchain,
