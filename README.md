@@ -49,7 +49,6 @@ Contents
   * Wrapped appchain token is burnt in NEAR protocol.
 * `staking history`: The staking history happens in this contract. These data will be used to recover the status of `validator set` at a certain time.
 * `appchain message`: The message which is relayed to this contract by `octopus relayer`.
-* `anchor event`: The events which indicate that the corresponding appchain may need to perform necessary operations.
 * `octopus relayer`: A standalone service which will relay the `appchain message` to this contract.
 * `appchain settings`: A set of settings for booting corresponding appchain, which includes `chain_spec`, `raw_chain_spec`, `boot_nodes`, `rpc_endpoint`, `era_reward` and other necessary field(s).
 * `anchor settings`: A set of settings for current appchain anchor, which includes `token_price_maintainer_account` and other necessary field(s).

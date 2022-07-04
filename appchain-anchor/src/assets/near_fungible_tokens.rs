@@ -277,8 +277,8 @@ impl AppchainAnchor {
         appchain_message_nonce: u32,
         processing_context: &mut AppchainMessagesProcessingContext,
     ) -> MultiTxsOperationProcessingResult {
-        let near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
-        if let Some(near_fungible_token) =
+        let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
+        if let Some(mut near_fungible_token) =
             near_fungible_tokens.get_by_contract_account(&contract_account)
         {
             if near_fungible_token
@@ -296,6 +296,12 @@ impl AppchainAnchor {
                 self.record_appchain_message_processing_result(&result);
                 return MultiTxsOperationProcessingResult::Error(message);
             }
+            near_fungible_token.locked_balance =
+                match near_fungible_token.locked_balance.0.checked_sub(amount.0) {
+                    Some(value) => U128::from(value),
+                    None => U128::from(0),
+                };
+            near_fungible_tokens.insert(&near_fungible_token);
             ext_ft_core::ext(near_fungible_token.contract_account)
                 .with_attached_deposit(1)
                 .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
@@ -340,22 +346,13 @@ impl FungibleTokenContractResolver for AppchainAnchor {
         symbol: String,
         sender_id_in_appchain: String,
         receiver_id_in_near: AccountId,
-        amount: U128,
+        _amount: U128,
         appchain_message_nonce: u32,
     ) {
         assert_self();
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
-                if let Some(mut near_fungible_token) = near_fungible_tokens.get(&symbol) {
-                    near_fungible_token.locked_balance =
-                        match near_fungible_token.locked_balance.0.checked_sub(amount.0) {
-                            Some(value) => U128::from(value),
-                            None => U128::from(0),
-                        };
-                    near_fungible_tokens.insert(&near_fungible_token);
-                };
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Ok {
                         nonce: appchain_message_nonce,
