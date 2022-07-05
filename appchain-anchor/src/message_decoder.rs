@@ -45,7 +45,7 @@ pub struct EraPayoutPayload {
 #[serde(crate = "near_sdk::serde")]
 pub struct LockNftPayload {
     pub sender: String,
-    pub receiver_id: String,
+    pub receiver_id: AccountId,
     pub class: u128,
     pub instance: u128,
     pub metadata: TokenMetadata,
@@ -161,7 +161,7 @@ pub fn decode(encoded_message: Vec<u8>) -> Vec<AppchainMessage> {
                     nonce: m.nonce as u32,
                     appchain_event: AppchainEvent::NonFungibleTokenLocked {
                         owner_id_in_appchain: payload.sender,
-                        receiver_id_in_near: AccountId::new_unchecked(payload.receiver_id),
+                        receiver_id_in_near: payload.receiver_id,
                         class_id: payload.class.to_string(),
                         instance_id: payload.instance.to_string(),
                         token_metadata: payload.metadata,
