@@ -58,6 +58,13 @@ impl ProtocolSettingsManager for AppchainAnchor {
             value.0 != protocol_settings.minimum_validator_deposit.0,
             "The value is not changed."
         );
+        assert!(
+            value.0
+                > protocol_settings
+                    .minimum_validator_deposit_changing_amount
+                    .0,
+            "The value should be greater than `minimum_validator_deposit_changing_amount`."
+        );
         protocol_settings.minimum_validator_deposit = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -71,6 +78,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
                     .minimum_validator_deposit_changing_amount
                     .0,
             "The value is not changed."
+        );
+        assert!(
+            value.0 < protocol_settings.minimum_validator_deposit.0,
+            "The value should be less than `minimum_validator_deposit`."
         );
         protocol_settings.minimum_validator_deposit_changing_amount = value;
         self.protocol_settings.set(&protocol_settings);
@@ -95,6 +106,13 @@ impl ProtocolSettingsManager for AppchainAnchor {
             value.0 != protocol_settings.minimum_delegator_deposit.0,
             "The value is not changed."
         );
+        assert!(
+            value.0
+                > protocol_settings
+                    .minimum_delegator_deposit_changing_amount
+                    .0,
+            "The value should be greater than `minimum_delegator_deposit_changing_amount`."
+        );
         protocol_settings.minimum_delegator_deposit = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -108,6 +126,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
                     .minimum_delegator_deposit_changing_amount
                     .0,
             "The value is not changed."
+        );
+        assert!(
+            value.0 < protocol_settings.minimum_delegator_deposit.0,
+            "The value should be less than `minimum_delegator_deposit`."
         );
         protocol_settings.minimum_delegator_deposit_changing_amount = value;
         self.protocol_settings.set(&protocol_settings);
@@ -153,6 +175,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
             value.0 != protocol_settings.minimum_validator_count.0,
             "The value is not changed."
         );
+        assert!(
+            value.0 < protocol_settings.maximum_validator_count.0,
+            "The value should be less than `maximum_validator_count`."
+        );
         protocol_settings.minimum_validator_count = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -163,6 +189,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
         assert!(
             value.0 != protocol_settings.maximum_validator_count.0,
             "The value is not changed."
+        );
+        assert!(
+            value.0 > protocol_settings.minimum_validator_count.0,
+            "The value should be greater than `minimum_validator_count`."
         );
         protocol_settings.maximum_validator_count = value;
         self.protocol_settings.set(&protocol_settings);

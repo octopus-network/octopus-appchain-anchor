@@ -318,12 +318,9 @@ impl AppchainAnchor {
     //
     fn assert_token_price_maintainer(&self) {
         let anchor_settings = self.anchor_settings.get().unwrap();
-        assert!(
-            anchor_settings.token_price_maintainer_account.is_some(),
-            "Token price maintainer account is not set."
-        );
-        let token_price_maintainer_account =
-            anchor_settings.token_price_maintainer_account.unwrap();
+        let token_price_maintainer_account = anchor_settings
+            .token_price_maintainer_account
+            .expect("Token price maintainer account is not set.");
         assert_eq!(
             env::predecessor_account_id(),
             token_price_maintainer_account,

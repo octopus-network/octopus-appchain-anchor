@@ -147,6 +147,13 @@ impl NearFungibleTokenManager for AppchainAnchor {
             "Token '{}' is not registered.",
             &symbol
         );
+        assert!(
+            near_fungible_tokens
+                .get_by_contract_account(&contract_account)
+                .is_none(),
+            "Token contract '{}' is already registered.",
+            contract_account
+        );
         let mut near_fungible_token = near_fungible_tokens.get(&symbol).unwrap();
         near_fungible_token.metadata.name = name;
         near_fungible_token.metadata.decimals = decimals;
