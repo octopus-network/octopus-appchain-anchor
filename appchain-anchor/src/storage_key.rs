@@ -2,6 +2,7 @@ use near_sdk::AccountId;
 
 /// Storage keys for collections of sub-struct in main contract
 pub enum StorageKey {
+    AnchorContractWasm,
     OctToken,
     WrappedAppchainToken,
     NearFungibleTokenSymbols,
@@ -70,6 +71,7 @@ pub enum StorageKey {
 impl StorageKey {
     pub fn to_string(&self) -> String {
         match self {
+            StorageKey::AnchorContractWasm => "acw".to_string(),
             StorageKey::OctToken => "oct".to_string(),
             StorageKey::WrappedAppchainToken => "wat".to_string(),
             StorageKey::NearFungibleTokenSymbols => "fts".to_string(),

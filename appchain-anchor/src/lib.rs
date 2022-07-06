@@ -10,6 +10,7 @@ mod reward_distribution_records;
 mod storage_key;
 mod storage_migration;
 pub mod types;
+mod upgrade;
 mod user_actions;
 mod user_staking_histories;
 mod validator_profiles;
