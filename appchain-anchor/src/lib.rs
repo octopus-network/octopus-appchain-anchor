@@ -332,11 +332,9 @@ impl AppchainAnchor {
     //
     fn assert_relayer(&self) {
         let anchor_settings = self.anchor_settings.get().unwrap();
-        assert!(
-            anchor_settings.relayer_account.is_some(),
-            "Relayer account is not set."
-        );
-        let relayer_account = anchor_settings.relayer_account.unwrap();
+        let relayer_account = anchor_settings
+            .relayer_account
+            .expect("Relayer account is not set.");
         assert_eq!(
             env::predecessor_account_id(),
             relayer_account,
