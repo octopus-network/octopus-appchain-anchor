@@ -36,11 +36,9 @@ pub extern "C" fn store_wasm_of_self() {
 #[no_mangle]
 pub fn update_self() {
     env::setup_panic_hook();
+    let contract: AppchainAnchor = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+    contract.assert_owner();
     let current_id = env::current_account_id();
-    assert!(
-        env::predecessor_account_id().eq(&current_id),
-        "This function can only be called by self"
-    );
     let input = env::storage_read(&StorageKey::AnchorContractWasm.into_bytes())
         .expect("Wasm file for deployment is not staged yet.");
     let promise_id = env::promise_batch_create(&current_id);
