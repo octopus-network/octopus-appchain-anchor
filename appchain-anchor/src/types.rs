@@ -17,13 +17,13 @@ impl AccountIdInAppchain {
     pub fn new(id_in_appchain: Option<String>) -> Self {
         let mut value = String::new();
         if let Some(id_in_appchain) = id_in_appchain.clone() {
-            if !id_in_appchain.starts_with("0x") {
+            if !id_in_appchain.to_lowercase().starts_with("0x") {
                 value.push_str("0x");
             }
             value.push_str(&id_in_appchain);
         }
         Self {
-            origin: id_in_appchain.map(|s| s.to_lowercase()),
+            origin: id_in_appchain,
             raw_string: value.to_lowercase(),
         }
     }
