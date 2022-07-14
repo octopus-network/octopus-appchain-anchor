@@ -114,8 +114,14 @@ pub trait AnchorViewer {
         &self,
         validator_id_in_appchain: String,
     ) -> Option<ValidatorProfile>;
-    /// Get the latest commitment data of appchain state.
-    fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment>;
+    ///
+    fn get_beefy_authority_set_of(&self, set_id: U64) -> Option<BeefyAuthoritySet>;
+    ///
+    fn get_beefy_commitment_at(
+        &self,
+        block_number: u32,
+        validator_set_id: U64,
+    ) -> Option<AppchainCommitment>;
     /// Get status of the beefy light client.
     fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus;
     /// Get staking histories related to the given account id.
@@ -159,8 +165,6 @@ pub trait AppchainLifecycleManager {
     fn go_booting(&mut self);
     /// Verify and change the state of corresponding appchain to `active`.
     fn go_live(&mut self);
-    /// Initialize the beefy light client
-    fn initialize_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
 }
 
 pub trait NearFungibleTokenManager {
@@ -202,26 +206,6 @@ pub trait OwnerActions {
 
 pub trait PermissionlessActions {
     ///
-    fn start_updating_state_of_beefy_light_client(
-        &mut self,
-        signed_commitment: Vec<u8>,
-        validator_proofs: Vec<ValidatorMerkleProof>,
-        mmr_leaf: Vec<u8>,
-        mmr_proof: Vec<u8>,
-    );
-    ///
-    fn try_complete_updating_state_of_beefy_light_client(
-        &mut self,
-    ) -> MultiTxsOperationProcessingResult;
-    ///
-    fn verify_and_stage_appchain_messages(
-        &mut self,
-        encoded_messages: Vec<u8>,
-        header: Vec<u8>,
-        mmr_leaf: Vec<u8>,
-        mmr_proof: Vec<u8>,
-    );
-    ///
     fn process_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult;
     ///
     fn commit_appchain_challenge(&mut self, appchain_challenge: AppchainChallenge);
@@ -236,7 +220,7 @@ pub trait PermissionlessActions {
         header: Vec<u8>,
         mmr_leaf_for_header: Vec<u8>,
         mmr_proof_for_header: Vec<u8>,
-    );
+    ) -> MultiTxsOperationProcessingResult;
 }
 
 pub trait ProtocolSettingsManager {
@@ -329,8 +313,10 @@ pub trait StakingManager {
 pub trait SudoActions {
     ///
     fn set_owner_pk(&mut self, public_key: PublicKey);
-    /// Apply a certain `AppchainMessage`
+    /// Stage a certain `AppchainMessage` in contract
     fn stage_appchain_messages(&mut self, appchain_messages: Vec<AppchainMessage>);
+    /// Apply the `AppchainMessage` with the given `nonce`
+    fn apply_appchain_message(&mut self, nonce: u32) -> Option<AppchainMessageProcessingResult>;
     ///
     fn set_metadata_of_wrapped_appchain_token(&mut self, metadata: FungibleTokenMetadata);
     ///
@@ -352,7 +338,7 @@ pub trait SudoActions {
     ///
     fn clear_appchain_notification_histories(&mut self);
     ///
-    fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
+    fn reset_beefy_light_client(&mut self);
     ///
     fn clear_reward_distribution_records(&mut self, era_number: U64);
     ///
@@ -386,11 +372,9 @@ pub trait SudoActions {
     ///
     fn remove_duplicated_message_nonces_in_reward_distribution_records(&mut self, era_number: U64);
     ///
-    fn set_latest_applied_appchain_message_nonce(&mut self, nonce: u32);
-    ///
     fn clear_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult;
     ///
-    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult;
+    fn initialize_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
 }
 
 pub trait ValidatorActions {

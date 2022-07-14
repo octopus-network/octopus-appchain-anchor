@@ -2,6 +2,7 @@ pub mod basic_actions;
 pub mod complex_actions;
 pub mod complex_viewer;
 
+use crate::contract_interfaces::sudo_actions;
 use crate::contract_interfaces::{
     anchor_viewer, lifecycle_actions, settings_manager, staking_actions, validator_actions,
     wrapped_appchain_token_manager,
@@ -476,7 +477,7 @@ pub async fn test_normal_actions(
     //
     // Initialize beefy light client
     //
-    lifecycle_actions::initialize_beefy_light_client(worker, &root, &anchor, initial_public_keys)
+    sudo_actions::initialize_beefy_light_client(worker, &root, &anchor, initial_public_keys)
         .await
         .expect("Failed in calling 'initialize_beefy_light_client'");
     //

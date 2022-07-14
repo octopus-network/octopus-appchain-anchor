@@ -11,20 +11,16 @@ impl AppchainAnchor {
         validator_set_histories: &mut LookupArray<ValidatorSetOfEra>,
         era_number: u64,
     ) -> MultiTxsOperationProcessingResult {
-        if !validator_set_histories.contains(&era_number) {
-            validator_set_histories.insert(
-                &era_number,
-                &ValidatorSetOfEra::new(
-                    era_number,
-                    self.staking_histories
-                        .get()
-                        .unwrap()
-                        .index_range()
-                        .end_index
-                        .0,
-                ),
-            );
-        }
+        let mut validator_set_of_era = ValidatorSetOfEra::new(
+            era_number,
+            self.staking_histories
+                .get()
+                .unwrap()
+                .index_range()
+                .end_index
+                .0,
+        );
+        validator_set_histories.append(&mut validator_set_of_era);
         processing_context.set_switching_era_number(era_number);
         MultiTxsOperationProcessingResult::NeedMoreGas
     }
@@ -33,6 +29,7 @@ impl AppchainAnchor {
         &mut self,
         processing_context: &mut AppchainMessagesProcessingContext,
         validator_set_histories: &mut LookupArray<ValidatorSetOfEra>,
+        appchain_messages: &mut AppchainMessages,
         era_number: u64,
     ) -> MultiTxsOperationProcessingResult {
         let mut validator_set = validator_set_histories.get(&era_number).unwrap();
@@ -71,7 +68,7 @@ impl AppchainAnchor {
                                         unbonding_delegator_index: U64::from(0),
                                     },
                                 );
-                                validator_set_histories.insert(&era_number, &validator_set);
+                                validator_set_histories.update(&era_number, &validator_set);
                                 return MultiTxsOperationProcessingResult::NeedMoreGas;
                             }
                             ResultOfLoopingValidatorSet::NeedToContinue => delegator_index += 1,
@@ -90,7 +87,7 @@ impl AppchainAnchor {
                         },
                     );
                 }
-                validator_set_histories.insert(&era_number, &validator_set);
+                validator_set_histories.update(&era_number, &validator_set);
                 MultiTxsOperationProcessingResult::NeedMoreGas
             }
             ValidatorSetProcessingStatus::UnbondingValidator {
@@ -119,7 +116,7 @@ impl AppchainAnchor {
                                     unbonding_delegator_index: U64::from(0),
                                 },
                             );
-                            validator_set_histories.insert(&era_number, &validator_set);
+                            validator_set_histories.update(&era_number, &validator_set);
                             return MultiTxsOperationProcessingResult::NeedMoreGas;
                         }
                         ResultOfLoopingValidatorSet::NeedToContinue => delegator_index += 1,
@@ -131,7 +128,7 @@ impl AppchainAnchor {
                         unbonding_delegator_index: U64::from(delegator_index),
                     },
                 );
-                validator_set_histories.insert(&era_number, &validator_set);
+                validator_set_histories.update(&era_number, &validator_set);
                 MultiTxsOperationProcessingResult::NeedMoreGas
             }
             ValidatorSetProcessingStatus::AutoUnbondingValidator {
@@ -172,7 +169,7 @@ impl AppchainAnchor {
                                     .end_index
                                     .0,
                             );
-                            validator_set_histories.insert(&era_number, &validator_set);
+                            validator_set_histories.update(&era_number, &validator_set);
                             return MultiTxsOperationProcessingResult::NeedMoreGas;
                         }
                         ResultOfLoopingValidatorSet::NeedToContinue => delegator_index += 1,
@@ -184,7 +181,7 @@ impl AppchainAnchor {
                         unbonding_delegator_index: U64::from(delegator_index),
                     },
                 );
-                validator_set_histories.insert(&era_number, &validator_set);
+                validator_set_histories.update(&era_number, &validator_set);
                 MultiTxsOperationProcessingResult::NeedMoreGas
             }
             ValidatorSetProcessingStatus::ApplyingStakingHistory { mut applying_index } => {
@@ -207,22 +204,22 @@ impl AppchainAnchor {
                     validator_set.set_processing_status(
                         ValidatorSetProcessingStatus::ReadyForDistributingReward,
                     );
-                    self.record_appchain_message_processing_result(
+                    appchain_messages.insert_processing_result(
                         &AppchainMessageProcessingResult::Ok {
                             nonce: processing_context.processing_nonce().unwrap_or(0),
                             message: Some(format!(
-                                "Validator set '{}' is generated and is ready for distributing reward.",
-                                era_number
-                            )),
+                            "Validator set '{}' is generated and is ready for distributing reward.",
+                            era_number
+                        )),
                         },
                     );
-                    validator_set_histories.insert(&era_number, &validator_set);
+                    validator_set_histories.update(&era_number, &validator_set);
                     MultiTxsOperationProcessingResult::Ok
                 } else {
                     validator_set.set_processing_status(
                         ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index },
                     );
-                    validator_set_histories.insert(&era_number, &validator_set);
+                    validator_set_histories.update(&era_number, &validator_set);
                     MultiTxsOperationProcessingResult::NeedMoreGas
                 }
             }

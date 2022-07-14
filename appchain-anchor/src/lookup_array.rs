@@ -22,11 +22,11 @@ where
     T: BorshDeserialize + BorshSerialize + IndexedAndClearable,
 {
     ///
-    pub fn new(storage_key: StorageKey) -> Self {
+    pub fn new(storage_key: StorageKey, start_index: u64) -> Self {
         Self {
             lookup_map: LookupMap::new(storage_key.into_bytes()),
-            start_index: 0,
-            end_index: 0,
+            start_index,
+            end_index: start_index,
         }
     }
     ///
@@ -38,8 +38,29 @@ where
         }
     }
     ///
+    pub fn len(&self) -> usize {
+        match self.start_index == self.end_index {
+            true => {
+                if self.lookup_map.contains_key(&self.start_index) {
+                    1 as usize
+                } else {
+                    0 as usize
+                }
+            }
+            false => (self.end_index - self.start_index + 1) as usize,
+        }
+    }
+    ///
     pub fn get(&self, index: &u64) -> Option<T> {
         self.lookup_map.get(index)
+    }
+    ///
+    pub fn get_first(&self) -> Option<T> {
+        self.lookup_map.get(&self.start_index)
+    }
+    ///
+    pub fn get_last(&self) -> Option<T> {
+        self.lookup_map.get(&self.end_index)
     }
     ///
     pub fn get_slice_of(&self, start_index: &u64, quantity: Option<u64>) -> Vec<T> {
@@ -68,15 +89,26 @@ where
         results
     }
     ///
+    pub fn to_vec(&self) -> Vec<T> {
+        let mut results = Vec::<T>::new();
+        for index in self.start_index..self.end_index + 1 {
+            if let Some(record) = self.get(&index) {
+                results.push(record);
+            }
+        }
+        results
+    }
+    ///
     pub fn contains(&self, index: &u64) -> bool {
         self.lookup_map.contains_key(index)
     }
     ///
-    pub fn insert(&mut self, index: &u64, record: &T) {
+    pub fn update(&mut self, index: &u64, record: &T) {
+        assert!(
+            *index >= self.start_index && *index <= self.end_index,
+            "Can only update element in current index range."
+        );
         self.lookup_map.insert(index, record);
-        if *index > self.end_index {
-            self.end_index = *index;
-        }
     }
     ///
     pub fn index_range(&self) -> IndexRange {
@@ -87,9 +119,9 @@ where
     }
     ///
     pub fn append(&mut self, record: &mut T) -> T {
-        let index = match self.lookup_map.contains_key(&0) {
+        let index = match self.lookup_map.contains_key(&self.end_index) {
             true => self.end_index + 1,
-            false => 0,
+            false => self.end_index,
         };
         record.set_index(&index);
         self.lookup_map.insert(&index, &record);

@@ -1,9 +1,9 @@
 use appchain_anchor::appchain_challenge::AppchainChallenge;
 use appchain_anchor::types::{
-    AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
-    AppchainMessageProcessingResult, AppchainNotificationHistory, AppchainSettings, AppchainState,
-    AppchainValidator, IndexRange, NearFungibleToken, RewardHistory, StakingHistory, UnbondedStake,
-    UserStakingHistory, ValidatorProfile, ValidatorSetInfo, WrappedAppchainToken,
+    AnchorSettings, AnchorStatus, AppchainDelegator, AppchainMessageProcessingResult,
+    AppchainNotificationHistory, AppchainSettings, AppchainState, AppchainValidator,
+    BeefyLightClientStatus, IndexRange, NearFungibleToken, RewardHistory, StakingHistory,
+    UnbondedStake, UserStakingHistory, ValidatorProfile, ValidatorSetInfo, WrappedAppchainToken,
 };
 use appchain_anchor::AppchainMessage;
 use near_sdk::json_types::U64;
@@ -271,15 +271,15 @@ pub async fn get_delegator_rewards_of(
         .json::<Vec<RewardHistory>>()
 }
 
-pub async fn get_latest_commitment_of_appchain(
+pub async fn get_beefy_light_client_status(
     worker: &Worker<Sandbox>,
     anchor: &Contract,
-) -> anyhow::Result<Option<AppchainCommitment>> {
+) -> anyhow::Result<BeefyLightClientStatus> {
     anchor
-        .call(worker, "get_latest_commitment_of_appchain")
+        .call(worker, "get_beefy_light_client_status")
         .view()
         .await?
-        .json::<Option<AppchainCommitment>>()
+        .json::<BeefyLightClientStatus>()
 }
 
 pub async fn get_user_staking_histories_of(

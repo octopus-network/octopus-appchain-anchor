@@ -2,6 +2,7 @@ mod anchor_viewer;
 pub mod appchain_challenge;
 mod appchain_messages;
 mod assets;
+mod beefy_light_client_state;
 pub mod interfaces;
 mod lookup_array;
 mod message_decoder;
@@ -16,6 +17,8 @@ mod user_staking_histories;
 mod validator_profiles;
 mod validator_set;
 
+use beefy_light_client::verifier_for_external_state_data::LightClientStateData;
+use borsh::maybestd::collections::VecDeque;
 use core::convert::TryInto;
 use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
@@ -40,6 +43,7 @@ use assets::near_fungible_tokens::NearFungibleTokens;
 use assets::wrapped_appchain_nfts::WrappedAppchainNFTs;
 use beefy_light_client::Hash;
 use beefy_light_client::LightClient;
+use beefy_light_client_state::BeefyLightClientState;
 use lookup_array::{IndexedAndClearable, LookupArray};
 use reward_distribution_records::RewardDistributionRecords;
 use storage_key::StorageKey;
@@ -178,7 +182,7 @@ pub struct AppchainAnchor {
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
-    beefy_light_client_state: LazyOption<LightClient>,
+    beefy_light_client_state: LazyOption<BeefyLightClientState>,
     /// The reward distribution records data
     reward_distribution_records: LazyOption<RewardDistributionRecords>,
     /// Whether the asset transfer is paused
@@ -226,7 +230,7 @@ impl AppchainAnchor {
             ),
             validator_set_histories: LazyOption::new(
                 StorageKey::ValidatorSetHistories.into_bytes(),
-                Some(&LookupArray::new(StorageKey::ValidatorSetHistoriesMap)),
+                Some(&LookupArray::new(StorageKey::ValidatorSetHistoriesMap, 0)),
             ),
             next_validator_set: LazyOption::new(
                 StorageKey::NextValidatorSet.into_bytes(),
@@ -258,16 +262,17 @@ impl AppchainAnchor {
             appchain_state: AppchainState::Staging,
             staking_histories: LazyOption::new(
                 StorageKey::StakingHistories.into_bytes(),
-                Some(&LookupArray::new(StorageKey::StakingHistoriesMap)),
+                Some(&LookupArray::new(StorageKey::StakingHistoriesMap, 0)),
             ),
             anchor_event_histories: LazyOption::new(
                 StorageKey::AnchorEventHistories.into_bytes(),
-                Some(&LookupArray::new(StorageKey::AnchorEventHistoriesMap)),
+                Some(&LookupArray::new(StorageKey::AnchorEventHistoriesMap, 0)),
             ),
             appchain_notification_histories: LazyOption::new(
                 StorageKey::AppchainNotificationHistories.into_bytes(),
                 Some(&LookupArray::new(
                     StorageKey::AppchainNotificationHistoriesMap,
+                    0,
                 )),
             ),
             permissionless_actions_status: LazyOption::new(
@@ -276,13 +281,12 @@ impl AppchainAnchor {
                     switching_era_number: None,
                     distributing_reward_era_number: None,
                     processing_appchain_message_nonce: None,
-                    max_nonce_of_staged_appchain_messages: 0,
-                    latest_applied_appchain_message_nonce: 0,
+                    nonces_in_queue: VecDeque::new(),
                 }),
             ),
             beefy_light_client_state: LazyOption::new(
                 StorageKey::BeefyLightClientState.into_bytes(),
-                None,
+                Some(&BeefyLightClientState::new()),
             ),
             reward_distribution_records: LazyOption::new(
                 StorageKey::RewardDistributionRecords.into_bytes(),
@@ -300,7 +304,7 @@ impl AppchainAnchor {
             ),
             appchain_challenges: LazyOption::new(
                 StorageKey::AppchainChallenges.into_bytes(),
-                Some(&LookupArray::new(StorageKey::AppchainChallengesMap)),
+                Some(&LookupArray::new(StorageKey::AppchainChallengesMap, 0)),
             ),
             wrapped_appchain_nfts: LazyOption::new(
                 StorageKey::WrappedAppchainNFTs.into_bytes(),
@@ -371,22 +375,14 @@ impl AppchainAnchor {
     }
     //
     fn assert_light_client_initialized(&self) {
+        let light_client = self
+            .beefy_light_client_state
+            .get()
+            .expect("Beefy light client is not initialized.");
         assert!(
-            self.beefy_light_client_state.is_some(),
-            "Beefy light client is not initialized."
-        );
-    }
-    //
-    fn assert_light_client_is_ready(&self) {
-        self.assert_light_client_initialized();
-        assert!(
-            !self
-                .beefy_light_client_state
-                .get()
-                .unwrap()
-                .is_updating_state(),
-            "Beefy light client is updating state."
-        );
+            light_client.contains_authority_set(&0),
+            "Authority set 0 is not set."
+        )
     }
     //
     fn assert_asset_transfer_is_not_paused(&self) {

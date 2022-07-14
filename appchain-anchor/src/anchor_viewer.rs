@@ -1,4 +1,8 @@
 use crate::{interfaces::AnchorViewer, validator_set::ValidatorSetViewer, *};
+use beefy_light_client::{
+    commitment::known_payload_ids::MMR_ROOT_ID,
+    verifier_for_external_state_data::LightClientStateData,
+};
 
 #[near_bindgen]
 impl AnchorViewer for AppchainAnchor {
@@ -497,28 +501,42 @@ impl AnchorViewer for AppchainAnchor {
             .get_by_id_in_appchain(&formatted_id.to_string())
     }
     //
-    fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment> {
-        if let Some(light_client) = self.beefy_light_client_state.get() {
-            if let Some(commitment) = light_client.get_latest_commitment() {
-                return Some(AppchainCommitment {
+    fn get_beefy_authority_set_of(&self, set_id: U64) -> Option<BeefyAuthoritySet> {
+        let light_client_state = self.beefy_light_client_state.get().unwrap();
+        light_client_state
+            .get_authority_set(&set_id.0)
+            .map_or(None, |set| {
+                Some(BeefyAuthoritySet {
+                    id: U64::from(set.id),
+                    len: set.len,
+                    root: set.root.to_vec(),
+                })
+            })
+    }
+    //
+    fn get_beefy_commitment_at(
+        &self,
+        block_number: u32,
+        validator_set_id: U64,
+    ) -> Option<AppchainCommitment> {
+        let light_client_state = self.beefy_light_client_state.get().unwrap();
+        light_client_state
+            .get_commitment(&block_number, &validator_set_id.0)
+            .map_or(None, |commitment| {
+                Some(AppchainCommitment {
+                    payload: commitment
+                        .payload
+                        .get_decoded::<[u8; 32]>(&MMR_ROOT_ID)
+                        .unwrap()
+                        .to_vec(),
                     block_number: commitment.block_number,
                     validator_set_id: U64::from(commitment.validator_set_id),
-                });
-            }
-        }
-        None
+                })
+            })
     }
     //
     fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus {
-        if let Some(light_client) = self.beefy_light_client_state.get() {
-            if light_client.is_updating_state() {
-                BeefyLightClientStatus::UpdatingState
-            } else {
-                BeefyLightClientStatus::Ready
-            }
-        } else {
-            BeefyLightClientStatus::Uninitialized
-        }
+        self.beefy_light_client_state.get().unwrap().status()
     }
     //
     fn get_user_staking_histories_of(&self, account_id: AccountId) -> Vec<UserStakingHistory> {

@@ -18,7 +18,9 @@ impl ValidatorActions for AppchainAnchor {
         let next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_validator_id(&validator_id, &next_validator_set);
         let mut validator_profiles = self.validator_profiles.get().unwrap();
-        let mut validator_profile = validator_profiles.get(&validator_id).unwrap();
+        let mut validator_profile = validator_profiles
+            .get(&validator_id)
+            .expect("Missing validator profile of current account.");
         validator_profile.profile = profile;
         validator_profiles.insert(validator_profile);
         self.validator_profiles.set(&validator_profiles);

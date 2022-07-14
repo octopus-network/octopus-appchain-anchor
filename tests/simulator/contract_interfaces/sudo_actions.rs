@@ -1,4 +1,4 @@
-use appchain_anchor::AppchainMessage;
+use appchain_anchor::{types::AppchainMessageProcessingResult, AppchainMessage};
 use near_sdk::{
     json_types::U64,
     serde_json::{self, json},
@@ -16,6 +16,7 @@ pub async fn stage_appchain_messages(
             "Appchain message: {}",
             serde_json::to_string::<AppchainMessage>(&message).unwrap()
         );
+        println!();
     });
     signer
         .call(worker, anchor.id(), "stage_appchain_messages")
@@ -23,6 +24,23 @@ pub async fn stage_appchain_messages(
         .gas(200_000_000_000_000)
         .transact()
         .await
+}
+
+pub async fn apply_appchain_message(
+    worker: &Worker<Sandbox>,
+    signer: &Account,
+    anchor: &Contract,
+    nonce: u32,
+) -> anyhow::Result<Option<AppchainMessageProcessingResult>> {
+    let result = signer
+        .call(worker, anchor.id(), "apply_appchain_message")
+        .args_json(json!({ "nonce": nonce }))?
+        .gas(200_000_000_000_000)
+        .transact()
+        .await?;
+    println!("{:?}", result);
+    println!();
+    result.json::<Option<AppchainMessageProcessingResult>>()
 }
 
 pub async fn reset_validator_set_histories_to(
@@ -98,6 +116,20 @@ pub async fn clear_unwithdrawn_rewards(
     signer
         .call(worker, anchor.id(), "clear_unwithdrawn_rewards")
         .args_json(json!({ "era_number": era_number }))?
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+}
+
+pub async fn initialize_beefy_light_client(
+    worker: &Worker<Sandbox>,
+    signer: &Account,
+    anchor: &Contract,
+    initial_public_keys: Vec<String>,
+) -> anyhow::Result<CallExecutionDetails> {
+    signer
+        .call(worker, anchor.id(), "initialize_beefy_light_client")
+        .args_json(json!({ "initial_public_keys": initial_public_keys }))?
         .gas(200_000_000_000_000)
         .transact()
         .await

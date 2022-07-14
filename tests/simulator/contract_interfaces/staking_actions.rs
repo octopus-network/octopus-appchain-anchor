@@ -8,7 +8,7 @@ pub async fn register_validator(
     signer: &Account,
     oct_token: &Contract,
     anchor: &Contract,
-    account_id_in_appchain: &Option<String>,
+    validator_id_in_appchain: &Option<String>,
     amount: u128,
     can_be_delegated_to: bool,
     profile: HashMap<String, String>,
@@ -20,7 +20,7 @@ pub async fn register_validator(
         amount,
         json!({
             "RegisterValidator": {
-                "validator_id_in_appchain": account_id_in_appchain,
+                "validator_id_in_appchain": validator_id_in_appchain,
                 "can_be_delegated_to": can_be_delegated_to,
                 "profile": profile
             }

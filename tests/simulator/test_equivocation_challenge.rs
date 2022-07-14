@@ -25,6 +25,7 @@ async fn test_equivocation_challenge() -> anyhow::Result<()> {
             "Appchain challenge 0: {}",
             serde_json::to_string(&appchain_challenge).unwrap()
         );
+        println!();
     //
         let appchain_challenges = anchor_viewer::get_appchain_challenges(&worker, &anchor, 0, None).await?;
         let mut index = 0;
@@ -34,6 +35,7 @@ async fn test_equivocation_challenge() -> anyhow::Result<()> {
                 index,
                 serde_json::to_string(&appchain_challenge).unwrap()
             );
+            println!();
             index += 1;
         }
     } else {

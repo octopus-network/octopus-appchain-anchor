@@ -29,7 +29,7 @@ impl AppchainMessages {
     ///
     pub fn new() -> Self {
         Self {
-            message_nonces: LookupArray::new(StorageKey::AppchainMessageNonces),
+            message_nonces: LookupArray::new(StorageKey::AppchainMessageNonces, 0),
             message_map: LookupMap::new(StorageKey::AppchainMessageMap.into_bytes()),
             processing_result_map: LookupMap::new(
                 StorageKey::AppchainMessageProcessingResultMap.into_bytes(),
@@ -67,13 +67,35 @@ impl AppchainMessages {
     ///
     pub fn insert_processing_result(
         &mut self,
-        appchain_message_nonce: u32,
         processing_result: &AppchainMessageProcessingResult,
     ) {
-        if self.message_map.contains_key(&appchain_message_nonce) {
+        if self.message_map.contains_key(&processing_result.nonce()) {
             self.processing_result_map
-                .insert(&appchain_message_nonce, &processing_result);
+                .insert(&processing_result.nonce(), &processing_result);
         }
+        log!(
+            "Processing result of appchain message '{}': '{}'",
+            serde_json::to_string::<AppchainMessage>(
+                &self
+                    .message_map
+                    .get(&processing_result.nonce())
+                    .unwrap_or_else(|| {
+                        if processing_result.nonce() > 0 {
+                            panic!(
+                                "Missing staged message with nonce '{}'.",
+                                processing_result.nonce()
+                            )
+                        } else {
+                            AppchainMessage {
+                                appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 0 },
+                                nonce: 0,
+                            }
+                        }
+                    })
+            )
+            .unwrap(),
+            serde_json::to_string::<AppchainMessageProcessingResult>(&processing_result).unwrap(),
+        );
     }
     ///
     pub fn get_message(&self, appchain_message_nonce: u32) -> Option<AppchainMessage> {

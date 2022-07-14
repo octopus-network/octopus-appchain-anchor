@@ -3,12 +3,12 @@ use crate::*;
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct ValidatorProfiles {
     /// The set of all validator id in NEAR protocol
-    validator_id_set: UnorderedSet<AccountId>,
+    pub validator_id_set: UnorderedSet<AccountId>,
     /// The mapping for validator profiles, from account id in NEAR protocol to his/her profile
-    profiles: LookupMap<AccountId, ValidatorProfile>,
+    pub profiles: LookupMap<AccountId, ValidatorProfile>,
     /// The mapping for validators' accounts, from account id in the appchain to
     /// account id in NEAR protocol.
-    map_by_id_in_appchain: LookupMap<String, AccountId>,
+    pub map_by_id_in_appchain: LookupMap<String, AccountId>,
 }
 
 impl ValidatorProfiles {

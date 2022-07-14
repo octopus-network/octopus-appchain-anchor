@@ -1,7 +1,9 @@
-use crate::permissionless_actions::AppchainMessagesProcessingContext;
-use crate::*;
-use crate::{interfaces::SudoActions, message_decoder::AppchainMessage};
-
+use crate::{
+    interfaces::SudoActions, message_decoder::AppchainMessage,
+    permissionless_actions::AppchainMessagesProcessingContext, *,
+};
+use beefy_light_client::validator_set::BeefyNextAuthoritySet;
+use beefy_light_client::verifier_for_external_state_data::LightClientStateData;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 
 #[near_bindgen]
@@ -15,6 +17,27 @@ impl SudoActions for AppchainAnchor {
     fn stage_appchain_messages(&mut self, messages: Vec<AppchainMessage>) {
         self.assert_owner();
         self.internal_stage_appchain_messages(&messages);
+    }
+    //
+    fn apply_appchain_message(&mut self, nonce: u32) -> Option<AppchainMessageProcessingResult> {
+        self.assert_owner();
+        let mut appchain_messages = self.appchain_messages.get().unwrap();
+        let appchain_message = appchain_messages
+            .get_message(nonce)
+            .expect("Invalid message nonce.");
+        if let Some(processing_result) = appchain_messages.get_processing_result(&nonce) {
+            return Some(processing_result);
+        }
+        let processing_status = self.permissionless_actions_status.get().unwrap();
+        let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        self.internal_apply_appchain_message(
+            &mut processing_context,
+            &mut validator_set_histories,
+            &mut appchain_messages,
+            &appchain_message,
+        );
+        appchain_messages.get_processing_result(&nonce)
     }
     //
     fn set_metadata_of_wrapped_appchain_token(&mut self, metadata: FungibleTokenMetadata) {
@@ -100,10 +123,11 @@ impl SudoActions for AppchainAnchor {
             .set(&appchain_notification_histories);
     }
     //
-    fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>) {
+    fn reset_beefy_light_client(&mut self) {
         self.assert_owner();
-        self.beefy_light_client_state
-            .set(&beefy_light_client::new(initial_public_keys));
+        let mut light_client_state = self.beefy_light_client_state.get().unwrap();
+        light_client_state.clear();
+        self.beefy_light_client_state.set(&light_client_state);
     }
     //
     fn clear_reward_distribution_records(&mut self, era_number: U64) {
@@ -115,7 +139,7 @@ impl SudoActions for AppchainAnchor {
             self.reward_distribution_records
                 .set(&reward_distribution_records);
             validator_set_of_era.clear_reward_distribution_records();
-            validator_set_histories.insert(&era_number.0, &validator_set_of_era);
+            validator_set_histories.update(&era_number.0, &validator_set_of_era);
         }
     }
     //
@@ -263,7 +287,7 @@ impl SudoActions for AppchainAnchor {
                         amount,
                         can_be_delegated_to,
                     };
-                    staking_histories.insert(&index.0, &staking_history);
+                    staking_histories.update(&index.0, &staking_history);
                     self.staking_histories.set(&staking_histories);
                 }
                 _ => (),
@@ -279,15 +303,6 @@ impl SudoActions for AppchainAnchor {
             .set(&reward_distribution_records);
     }
     //
-    fn set_latest_applied_appchain_message_nonce(&mut self, nonce: u32) {
-        self.assert_owner();
-        let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
-        permissionless_actions_status.latest_applied_appchain_message_nonce = nonce;
-        permissionless_actions_status.processing_appchain_message_nonce = None;
-        self.permissionless_actions_status
-            .set(&permissionless_actions_status);
-    }
-    //
     fn clear_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut appchain_messages = self.appchain_messages.get().unwrap();
@@ -296,22 +311,25 @@ impl SudoActions for AppchainAnchor {
         result
     }
     //
-    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult {
+    fn initialize_beefy_light_client(&mut self, initial_public_keys: Vec<String>) {
         self.assert_owner();
-        let processing_status = self.permissionless_actions_status.get().unwrap();
-        let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
-        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        if let Some(era_number) = processing_context.switching_era_number() {
-            let result = self.complete_switching_era(
-                &mut processing_context,
-                &mut validator_set_histories,
-                era_number,
-            );
-            self.permissionless_actions_status
-                .set(processing_context.processing_status());
-            result
-        } else {
-            MultiTxsOperationProcessingResult::Ok
-        }
+        assert_eq!(
+            self.appchain_state,
+            AppchainState::Booting,
+            "Appchain state must be 'booting'."
+        );
+        let mut light_client = self.beefy_light_client_state.get().unwrap();
+        assert!(
+            light_client.status().authority_set_ids.len() == 0,
+            "Beefy light client has already been initialized."
+        );
+        light_client.store_authority_set(&BeefyNextAuthoritySet {
+            id: 0,
+            len: initial_public_keys.len() as u32,
+            root: beefy_light_client::verifier_for_external_state_data::calculate_merkle_root_of(
+                initial_public_keys,
+            ),
+        });
+        self.beefy_light_client_state.set(&light_client);
     }
 }

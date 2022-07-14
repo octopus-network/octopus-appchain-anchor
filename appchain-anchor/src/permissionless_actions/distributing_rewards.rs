@@ -19,6 +19,7 @@ impl AppchainAnchor {
         &mut self,
         processing_context: &mut AppchainMessagesProcessingContext,
         validator_set_histories: &mut LookupArray<ValidatorSetOfEra>,
+        appchain_messages: &mut AppchainMessages,
         appchain_message_nonce: u32,
         era_number: u64,
         unprofitable_validator_ids: &Vec<String>,
@@ -68,7 +69,7 @@ impl AppchainAnchor {
             distributing_validator_index: U64::from(0),
             distributing_delegator_index: U64::from(0),
         });
-        validator_set_histories.insert(&era_number, &validator_set);
+        validator_set_histories.update(&era_number, &validator_set);
         processing_context.set_distributing_reward_era_number(era_number);
         // Mint `total_reward` in the contract of wrapped appchain token.
         let appchain_settings = self.appchain_settings.get().unwrap();
@@ -78,6 +79,7 @@ impl AppchainAnchor {
             &appchain_settings.era_reward,
             appchain_message_nonce,
             processing_context,
+            appchain_messages,
         );
         if result.eq(&MultiTxsOperationProcessingResult::Ok) {
             result = MultiTxsOperationProcessingResult::NeedMoreGas;
@@ -139,7 +141,7 @@ impl AppchainAnchor {
                                     unprofitable_validator_index: U64::from(0),
                                 },
                             );
-                            validator_set_histories.insert(&era_number, &validator_set);
+                            validator_set_histories.update(&era_number, &validator_set);
                             return MultiTxsOperationProcessingResult::NeedMoreGas;
                         }
                         ResultOfLoopingValidatorSet::NeedToContinue => delegator_index += 1,
@@ -152,7 +154,7 @@ impl AppchainAnchor {
                         distributing_delegator_index: U64::from(delegator_index),
                     },
                 );
-                validator_set_histories.insert(&era_number, &validator_set);
+                validator_set_histories.update(&era_number, &validator_set);
                 MultiTxsOperationProcessingResult::NeedMoreGas
             }
             ValidatorSetProcessingStatus::CheckingForAutoUnbondingValidator {
@@ -170,7 +172,7 @@ impl AppchainAnchor {
                         processing_context.clear_distributing_reward_era_number();
                         validator_set
                             .set_processing_status(ValidatorSetProcessingStatus::Completed);
-                        validator_set_histories.insert(&era_number, &validator_set);
+                        validator_set_histories.update(&era_number, &validator_set);
                         return MultiTxsOperationProcessingResult::Ok;
                     }
                     let validator_id = unprofitable_validators
@@ -218,7 +220,7 @@ impl AppchainAnchor {
                         unprofitable_validator_index,
                     },
                 );
-                validator_set_histories.insert(&era_number, &validator_set);
+                validator_set_histories.update(&era_number, &validator_set);
                 MultiTxsOperationProcessingResult::NeedMoreGas
             }
             ValidatorSetProcessingStatus::Completed => MultiTxsOperationProcessingResult::Ok,

@@ -42,7 +42,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         nonce: appchain_message_nonce,
     });
     sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
-    common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
+    sudo_actions::apply_appchain_message(&worker, &root, &anchor, appchain_message_nonce).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
@@ -72,6 +72,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     let user1_wat_balance =
         common::get_ft_balance_of(&worker, &users[1], &wrapped_appchain_token).await?;
     let mut appchain_messages = Vec::<AppchainMessage>::new();
+    let start_nonce = appchain_message_nonce + 1;
     appchain_message_nonce += 1;
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::NativeTokenLocked {
@@ -184,8 +185,11 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         },
         nonce: appchain_message_nonce,
     });
+    let end_nonce = appchain_message_nonce;
     sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
-    common::complex_actions::process_appchain_messages(&worker, &users[3], &anchor).await?;
+    for nonce in start_nonce..end_nonce + 1 {
+        sudo_actions::apply_appchain_message(&worker, &root, &anchor, nonce).await?;
+    }
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
@@ -200,6 +204,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     //
     //
     let mut appchain_messages = Vec::<AppchainMessage>::new();
+    let start_nonce = appchain_message_nonce + 1;
     appchain_message_nonce += 1;
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 2 },
@@ -234,9 +239,15 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         },
         nonce: appchain_message_nonce,
     });
+    let end_nonce = appchain_message_nonce;
     sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
-    common::complex_actions::process_appchain_messages(&worker, &users[3], &anchor).await?;
+    for nonce in start_nonce..end_nonce + 1 {
+        sudo_actions::apply_appchain_message(&worker, &root, &anchor, nonce).await?;
+    }
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
+    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
+    common::complex_viewer::print_wrapped_appchain_token_info(&worker, &anchor).await?;
+    //
     Ok(())
 }

@@ -129,7 +129,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
         nonce: appchain_message_nonce,
     });
     sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
-    common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
+    sudo_actions::apply_appchain_message(&worker, &root, &anchor, appchain_message_nonce).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
@@ -171,7 +171,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
         nonce: appchain_message_nonce,
     });
     sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
-    common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
+    sudo_actions::apply_appchain_message(&worker, &root, &anchor, appchain_message_nonce).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
@@ -231,7 +231,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
         nonce: appchain_message_nonce,
     });
     sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
-    common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
+    sudo_actions::apply_appchain_message(&worker, &root, &anchor, appchain_message_nonce).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;

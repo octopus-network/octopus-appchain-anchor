@@ -291,6 +291,7 @@ impl AppchainAnchor {
         amount: &U128,
         appchain_message_nonce: u32,
         processing_context: &mut AppchainMessagesProcessingContext,
+        appchain_messages: &mut AppchainMessages,
     ) -> MultiTxsOperationProcessingResult {
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         if let Some(mut near_fungible_token) =
@@ -308,7 +309,7 @@ impl AppchainAnchor {
                     nonce: appchain_message_nonce,
                     message: message.clone(),
                 };
-                self.record_appchain_message_processing_result(&result);
+                appchain_messages.insert_processing_result(&result);
                 return MultiTxsOperationProcessingResult::Error(message);
             }
             near_fungible_token.locked_balance =
@@ -347,7 +348,7 @@ impl AppchainAnchor {
                 nonce: appchain_message_nonce,
                 message: message.clone(),
             };
-            self.record_appchain_message_processing_result(&result);
+            appchain_messages.insert_processing_result(&result);
             MultiTxsOperationProcessingResult::Error(message)
         }
     }
@@ -368,12 +369,11 @@ impl FungibleTokenContractResolver for AppchainAnchor {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                self.record_appchain_message_processing_result(
-                    &AppchainMessageProcessingResult::Ok {
-                        nonce: appchain_message_nonce,
-                        message: None,
-                    },
-                );
+                let mut appchain_messages = self.appchain_messages.get().unwrap();
+                appchain_messages.insert_processing_result(&AppchainMessageProcessingResult::Ok {
+                    nonce: appchain_message_nonce,
+                    message: None,
+                });
             }
             PromiseResult::Failed => {
                 let reason = format!(
@@ -384,7 +384,8 @@ impl FungibleTokenContractResolver for AppchainAnchor {
                     "Failed to unlock near fungible token for appchain account '{}'. {}",
                     sender_id_in_appchain, reason
                 );
-                self.record_appchain_message_processing_result(
+                let mut appchain_messages = self.appchain_messages.get().unwrap();
+                appchain_messages.insert_processing_result(
                     &AppchainMessageProcessingResult::Error {
                         nonce: appchain_message_nonce,
                         message,

@@ -4,7 +4,7 @@ use crate::{
         anchor_viewer, permissionless_actions, settings_manager, staking_actions, sudo_actions,
     },
 };
-use appchain_anchor::types::{MultiTxsOperationProcessingResult, ValidatorMerkleProof};
+use appchain_anchor::types::ValidatorMerkleProof;
 use beefy_light_client::mmr::{MmrLeaf, MmrLeafProof};
 use beefy_light_client::{beefy_ecdsa_to_ethereum, commitment::SignedCommitment};
 use codec::Decode;
@@ -13,8 +13,9 @@ use near_sdk::{json_types::U64, serde_json};
 use workspaces::{network::Sandbox, Account, Contract, Worker};
 
 #[tokio::test]
-async fn test_beefy_light_client() -> anyhow::Result<()> {
+async fn test_beefy_light_client_1() -> anyhow::Result<()> {
     let worker = workspaces::sandbox().await?;
+    //
     let initial_public_keys = vec![
         "0x020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1".to_string(), // Alice
         "0x0390084fdbf27d2b79d26a4f13f0ccd982cb755a661969143c37cbc49ef5b91f27".to_string(), // Bob
@@ -35,9 +36,9 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     // Update state of beefy light client
     //
     update_state_of_beefy_light_client_1(&worker, &anchor, &users[4]).await?;
-    common::complex_viewer::print_latest_appchain_commitment(&worker, &anchor).await?;
+    common::complex_viewer::print_beefy_light_client_status(&worker, &anchor).await?;
     update_state_of_beefy_light_client_2(&worker, &anchor, &users[1]).await?;
-    common::complex_viewer::print_latest_appchain_commitment(&worker, &anchor).await?;
+    common::complex_viewer::print_beefy_light_client_status(&worker, &anchor).await?;
     //
     // Try start and complete switching era1
     //
@@ -435,11 +436,11 @@ async fn update_state_of_beefy_light_client_1(
     let mmr_leaf_1: MmrLeaf = Decode::decode(&mut &*leaf).unwrap();
     println!("mmr_leaf_1: {:?}", mmr_leaf_1);
 
-    let encoded_mmr_proof_1 =  hex!("0800000000000000090000000000000004effbabd0a9fcade34208684b3d5d69a52b2c9bc9265d872c2590636acd6342a0");
+    let encoded_mmr_proof_1 = hex!("0800000000000000090000000000000004effbabd0a9fcade34208684b3d5d69a52b2c9bc9265d872c2590636acd6342a0");
     let mmr_proof_1 = MmrLeafProof::decode(&mut &encoded_mmr_proof_1[..]);
     println!("mmr_proof_1: {:?}", mmr_proof_1);
     //
-    let result = permissionless_actions::start_updating_state_of_beefy_light_client(
+    let result = permissionless_actions::process_appchain_messages_with_all_proofs(
         &worker,
         &user,
         &anchor,
@@ -447,17 +448,18 @@ async fn update_state_of_beefy_light_client_1(
         validator_proofs_1,
         encoded_mmr_leaf_1.to_vec(),
         encoded_mmr_proof_1.to_vec(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
     )
-    .await?;
-    assert!(result.is_success());
-    let result = permissionless_actions::try_complete_updating_state_of_beefy_light_client(
-        &worker, &user, &anchor,
-    )
-    .await?;
+    .await
+    .expect("Failed in calling 'process_appchain_messages_with_all_proofs'");
     println!(
-        "Result of 'try_complete_updating_state_of_beefy_light_client': {}",
-        serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
+        "Result of 'process_appchain_messages_with_all_proofs': {}",
+        serde_json::to_string(&result).unwrap()
     );
+    //
     Ok(())
 }
 
@@ -547,7 +549,7 @@ async fn update_state_of_beefy_light_client_2(
     let mmr_proof_2 = MmrLeafProof::decode(&mut &encoded_mmr_proof_2[..]);
     println!("mmr_proof_2: {:?}", mmr_proof_2);
     //
-    let result = permissionless_actions::start_updating_state_of_beefy_light_client(
+    let result = permissionless_actions::process_appchain_messages_with_all_proofs(
         &worker,
         &user,
         &anchor,
@@ -555,16 +557,17 @@ async fn update_state_of_beefy_light_client_2(
         validator_proofs_2,
         encoded_mmr_leaf_2.to_vec(),
         encoded_mmr_proof_2.to_vec(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
     )
-    .await?;
-    assert!(result.is_success());
-    let result = permissionless_actions::try_complete_updating_state_of_beefy_light_client(
-        &worker, &user, &anchor,
-    )
-    .await?;
+    .await
+    .expect("Failed in calling 'process_appchain_messages_with_all_proofs'");
     println!(
-        "Result of 'try_complete_updating_state_of_beefy_light_client': {}",
-        serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
+        "Result of 'process_appchain_messages_with_all_proofs': {}",
+        serde_json::to_string(&result).unwrap()
     );
+    //
     Ok(())
 }

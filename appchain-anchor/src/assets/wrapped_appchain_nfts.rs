@@ -252,6 +252,7 @@ impl AppchainAnchor {
     pub fn internal_process_locked_nft_in_appchain(
         &mut self,
         processing_context: &mut AppchainMessagesProcessingContext,
+        appchain_messages: &mut AppchainMessages,
         appchain_message_nonce: u32,
         owner_id_in_appchain: &String,
         receiver_id_in_near: &AccountId,
@@ -273,7 +274,7 @@ impl AppchainAnchor {
                     nonce: appchain_message_nonce,
                     message: message.clone(),
                 };
-                self.record_appchain_message_processing_result(&result);
+                appchain_messages.insert_processing_result(&result);
                 return MultiTxsOperationProcessingResult::Error(message);
             }
             if wrapped_appchain_nft.is_nft_locked(&instance_id) {
@@ -366,7 +367,7 @@ impl AppchainAnchor {
                 nonce: appchain_message_nonce,
                 message: message.clone(),
             };
-            self.record_appchain_message_processing_result(&result);
+            appchain_messages.insert_processing_result(&result);
             return MultiTxsOperationProcessingResult::Error(message);
         }
     }
@@ -449,12 +450,11 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
                     wrapped_appchain_nft.remove_locked_nft(&instance_id);
                     wrapped_appchain_nfts.insert(&class_id, &wrapped_appchain_nft);
                 };
-                self.record_appchain_message_processing_result(
-                    &AppchainMessageProcessingResult::Ok {
-                        nonce: appchain_message_nonce,
-                        message: None,
-                    },
-                );
+                let mut appchain_messages = self.appchain_messages.get().unwrap();
+                appchain_messages.insert_processing_result(&AppchainMessageProcessingResult::Ok {
+                    nonce: appchain_message_nonce,
+                    message: None,
+                });
             }
             PromiseResult::Failed => {
                 let wrapped_appchain_nfts = self.wrapped_appchain_nfts.get().unwrap();
@@ -472,7 +472,8 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
                     serde_json::to_string(&token_metadata).unwrap(),
                     reason
                 );
-                self.record_appchain_message_processing_result(
+                let mut appchain_messages = self.appchain_messages.get().unwrap();
+                appchain_messages.insert_processing_result(
                     &AppchainMessageProcessingResult::Error {
                         nonce: appchain_message_nonce,
                         message,
@@ -495,12 +496,11 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                self.record_appchain_message_processing_result(
-                    &AppchainMessageProcessingResult::Ok {
-                        nonce: appchain_message_nonce,
-                        message: None,
-                    },
-                );
+                let mut appchain_messages = self.appchain_messages.get().unwrap();
+                appchain_messages.insert_processing_result(&AppchainMessageProcessingResult::Ok {
+                    nonce: appchain_message_nonce,
+                    message: None,
+                });
             }
             PromiseResult::Failed => {
                 let wrapped_appchain_nfts = self.wrapped_appchain_nfts.get().unwrap();
@@ -519,7 +519,8 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
                     serde_json::to_string(&token_metadata).unwrap(),
                     reason
                 );
-                self.record_appchain_message_processing_result(
+                let mut appchain_messages = self.appchain_messages.get().unwrap();
+                appchain_messages.insert_processing_result(
                     &AppchainMessageProcessingResult::Error {
                         nonce: appchain_message_nonce,
                         message,

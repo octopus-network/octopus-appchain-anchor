@@ -1,6 +1,6 @@
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_contract_standards::non_fungible_token::metadata::NFTContractMetadata;
-use near_sdk::borsh::maybestd::collections::HashMap;
+use near_sdk::borsh::maybestd::collections::{HashMap, VecDeque};
 use near_sdk::{json_types::I128, BlockHeight};
 
 use crate::*;
@@ -432,9 +432,7 @@ pub struct PermissionlessActionsStatus {
     ///
     pub processing_appchain_message_nonce: Option<u32>,
     ///
-    pub max_nonce_of_staged_appchain_messages: u32,
-    ///
-    pub latest_applied_appchain_message_nonce: u32,
+    pub nonces_in_queue: VecDeque<u32>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -581,15 +579,38 @@ pub struct ValidatorMerkleProof {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub enum BeefyLightClientStatus {
-    Uninitialized,
-    UpdatingState,
-    Ready,
+pub struct BeefyLightClientStatus {
+    pub authority_set_ids: Vec<U64>,
+    pub commitment_keys: Vec<(u32, U64)>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct BeefyAuthoritySet {
+    /// Id of the next set.
+    ///
+    /// Id is required to correlate BEEFY signed commitments with the validator set.
+    /// Light Client can easily verify that the commitment witness it is getting is
+    /// produced by the latest validator set.
+    pub id: U64,
+    /// Number of validators in the set.
+    ///
+    /// Some BEEFY Light Clients may use an interactive protocol to verify only subset
+    /// of signatures. We put set length here, so that these clients can verify the minimal
+    /// number of required signatures.
+    pub len: u32,
+    /// Merkle Root Hash build from BEEFY AuthorityIds.
+    ///
+    /// This is used by Light Clients to confirm that the commitments are signed by the correct
+    /// validator set. Light Clients using interactive protocol, might verify only subset of
+    /// signatures, hence don't require the full list here (will receive inclusion proofs).
+    pub root: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainCommitment {
+    pub payload: Vec<u8>,
     pub block_number: u32,
     pub validator_set_id: U64,
 }

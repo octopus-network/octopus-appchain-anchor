@@ -1,8 +1,22 @@
 use crate::*;
-
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OldPermissionlessActionsStatus {
+    /// The era number that is switching by permissionless actions
+    pub switching_era_number: Option<U64>,
+    /// The era number that is distributing reward by permissionless actions
+    pub distributing_reward_era_number: Option<U64>,
+    ///
+    pub processing_appchain_message_nonce: Option<u32>,
+    ///
+    pub max_nonce_of_staged_appchain_messages: u32,
+    ///
+    pub latest_applied_appchain_message_nonce: u32,
+}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
@@ -48,7 +62,7 @@ pub struct OldAppchainAnchor {
     /// The appchain notification history data.
     appchain_notification_histories: LazyOption<LookupArray<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
-    permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
+    permissionless_actions_status: LazyOption<OldPermissionlessActionsStatus>,
     /// The state of beefy light client
     beefy_light_client_state: LazyOption<LightClient>,
     /// The reward distribution records data
@@ -79,6 +93,8 @@ impl AppchainAnchor {
             "Can only be called by the owner"
         );
         //
+        let old_permissionless_actions_status =
+            old_contract.permissionless_actions_status.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
@@ -101,8 +117,16 @@ impl AppchainAnchor {
             staking_histories: old_contract.staking_histories,
             anchor_event_histories: old_contract.anchor_event_histories,
             appchain_notification_histories: old_contract.appchain_notification_histories,
-            permissionless_actions_status: old_contract.permissionless_actions_status,
-            beefy_light_client_state: old_contract.beefy_light_client_state,
+            permissionless_actions_status: LazyOption::new(
+                StorageKey::PermissionlessActionsStatus.into_bytes(),
+                Some(&PermissionlessActionsStatus::from_old_version(
+                    old_permissionless_actions_status,
+                )),
+            ),
+            beefy_light_client_state: LazyOption::new(
+                StorageKey::BeefyLightClientState.into_bytes(),
+                Some(&BeefyLightClientState::new()),
+            ),
             reward_distribution_records: old_contract.reward_distribution_records,
             asset_transfer_is_paused: old_contract.asset_transfer_is_paused,
             user_staking_histories: old_contract.user_staking_histories,
@@ -118,7 +142,7 @@ impl AppchainAnchor {
         //
         new_contract
     }
-    ///
+    //
     pub fn clear_anchor_events(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
@@ -126,19 +150,30 @@ impl AppchainAnchor {
         self.anchor_event_histories.set(&anchor_event_histories);
         result
     }
-    ///
+    //
     pub fn remove_appchain_messages_before(&mut self, nonce: u32) {
         self.assert_owner();
         let mut appchain_messages = self.appchain_messages.get().unwrap();
         appchain_messages.remove_messages_before(&nonce);
         self.appchain_messages.set(&appchain_messages);
     }
-    ///
+    //
     pub fn set_processing_appchain_message_nonce(&mut self, nonce: u32) {
         self.assert_owner();
         let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
         permissionless_actions_status.processing_appchain_message_nonce = Some(nonce);
         self.permissionless_actions_status
             .set(&permissionless_actions_status);
+    }
+}
+
+impl PermissionlessActionsStatus {
+    pub fn from_old_version(old_version: OldPermissionlessActionsStatus) -> Self {
+        PermissionlessActionsStatus {
+            switching_era_number: old_version.switching_era_number,
+            distributing_reward_era_number: old_version.distributing_reward_era_number,
+            processing_appchain_message_nonce: old_version.processing_appchain_message_nonce,
+            nonces_in_queue: VecDeque::new(),
+        }
     }
 }

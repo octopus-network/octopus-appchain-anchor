@@ -157,6 +157,7 @@ impl AppchainAnchor {
         amount: &U128,
         appchain_message_nonce: u32,
         processing_context: &mut AppchainMessagesProcessingContext,
+        appchain_messages: &mut AppchainMessages,
     ) -> MultiTxsOperationProcessingResult {
         let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         if wrapped_appchain_token.contract_account.is_none() {
@@ -165,7 +166,7 @@ impl AppchainAnchor {
                 nonce: appchain_message_nonce,
                 message: message.clone(),
             };
-            self.record_appchain_message_processing_result(&result);
+            appchain_messages.insert_processing_result(&result);
             return MultiTxsOperationProcessingResult::Error(message);
         }
         if let Some(sender_id) = sender_id {
@@ -175,7 +176,7 @@ impl AppchainAnchor {
                     nonce: appchain_message_nonce,
                     message: message.clone(),
                 };
-                self.record_appchain_message_processing_result(&result);
+                appchain_messages.insert_processing_result(&result);
                 return MultiTxsOperationProcessingResult::Error(message);
             }
         }
@@ -289,12 +290,11 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                         &receiver_id_in_near, &amount.0
                     ),
                 };
-                self.record_appchain_message_processing_result(
-                    &AppchainMessageProcessingResult::Ok {
-                        nonce: appchain_message_nonce,
-                        message: Some(message),
-                    },
-                );
+                let mut appchain_messages = self.appchain_messages.get().unwrap();
+                appchain_messages.insert_processing_result(&AppchainMessageProcessingResult::Ok {
+                    nonce: appchain_message_nonce,
+                    message: Some(message),
+                });
             }
             PromiseResult::Failed => {
                 let reason = format!("Maybe the total supply will overflow.");
@@ -302,7 +302,8 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     "Failed to mint wrapped appchain token for '{}' with amount '{}'. {}",
                     &receiver_id_in_near, &amount.0, &reason
                 );
-                self.record_appchain_message_processing_result(
+                let mut appchain_messages = self.appchain_messages.get().unwrap();
+                appchain_messages.insert_processing_result(
                     &AppchainMessageProcessingResult::Error {
                         nonce: appchain_message_nonce,
                         message,

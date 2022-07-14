@@ -1,11 +1,10 @@
 mod distributing_rewards;
 mod switching_era;
 
-use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
-
 use crate::*;
 use crate::{interfaces::PermissionlessActions, message_decoder::AppchainMessage};
-use core::convert::{TryFrom, TryInto};
+use core::convert::TryFrom;
+use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use std::ops::Add;
 use std::str::FromStr;
 
@@ -69,10 +68,6 @@ impl AppchainMessagesProcessingContext {
         self.processing_status.processing_appchain_message_nonce = None;
     }
     ///
-    pub fn set_latest_applied_nonce(&mut self, nonce: u32) {
-        self.processing_status.latest_applied_appchain_message_nonce = nonce;
-    }
-    ///
     pub fn set_switching_era_number(&mut self, era_number: u64) {
         self.processing_status.switching_era_number = Some(U64::from(era_number));
     }
@@ -89,20 +84,16 @@ impl AppchainMessagesProcessingContext {
         self.processing_status.distributing_reward_era_number = None;
     }
     ///
+    pub fn pop_nonce_in_queue(&mut self) -> Option<u32> {
+        self.processing_status.nonces_in_queue.pop_front()
+    }
+    ///
     pub fn processing_status(&self) -> &PermissionlessActionsStatus {
         &self.processing_status
     }
     ///
     pub fn processing_nonce(&self) -> Option<u32> {
         self.processing_status.processing_appchain_message_nonce
-    }
-    ///
-    pub fn max_nonce(&self) -> u32 {
-        self.processing_status.max_nonce_of_staged_appchain_messages
-    }
-    ///
-    pub fn latest_applied_nonce(&self) -> u32 {
-        self.processing_status.latest_applied_appchain_message_nonce
     }
     ///
     pub fn switching_era_number(&self) -> Option<u64> {
@@ -120,6 +111,24 @@ impl AppchainMessagesProcessingContext {
     }
 }
 
+impl PermissionlessActionsStatus {
+    //
+    pub fn add_nonce_to_queue(&mut self, nonce: u32) {
+        self.nonces_in_queue.push_back(nonce);
+    }
+    //
+    pub fn sort_nonces_in_queue(&mut self) {
+        if self.nonces_in_queue.len() > 0 {
+            let mut nonces: Vec<u32> = self.nonces_in_queue.iter().map(|f| *f).collect();
+            nonces.sort_by(|a, b| a.cmp(b));
+            self.nonces_in_queue.clear();
+            nonces
+                .iter()
+                .for_each(|f| self.nonces_in_queue.push_back(*f));
+        }
+    }
+}
+
 enum ResultOfLoopingValidatorSet {
     NoMoreDelegator,
     NoMoreValidator,
@@ -128,107 +137,10 @@ enum ResultOfLoopingValidatorSet {
 
 #[near_bindgen]
 impl PermissionlessActions for AppchainAnchor {
-    ///
-    fn start_updating_state_of_beefy_light_client(
-        &mut self,
-        signed_commitment: Vec<u8>,
-        validator_proofs: Vec<ValidatorMerkleProof>,
-        mmr_leaf: Vec<u8>,
-        mmr_proof: Vec<u8>,
-    ) {
-        let anchor_settings = self.anchor_settings.get().unwrap();
-        assert!(
-            !anchor_settings.beefy_light_client_witness_mode,
-            "Beefy light client is in witness mode."
-        );
-        self.assert_light_client_is_ready();
-        let mut light_client = self.beefy_light_client_state.get().unwrap();
-        if let Err(err) = light_client.start_updating_state(
-            &signed_commitment,
-            &validator_proofs
-                .iter()
-                .map(|proof| beefy_light_client::ValidatorMerkleProof {
-                    proof: proof.proof.clone(),
-                    number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
-                    leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
-                    leaf: proof.leaf.clone(),
-                })
-                .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
-            &mmr_leaf,
-            &mmr_proof,
-        ) {
-            panic!(
-                "Failed to start updating state of beefy light client: {:?}",
-                err
-            );
-        }
-        self.beefy_light_client_state.set(&light_client);
-    }
-    //
-    fn try_complete_updating_state_of_beefy_light_client(
-        &mut self,
-    ) -> MultiTxsOperationProcessingResult {
-        let anchor_settings = self.anchor_settings.get().unwrap();
-        assert!(
-            !anchor_settings.beefy_light_client_witness_mode,
-            "Beefy light client is in witness mode."
-        );
-        self.assert_light_client_initialized();
-        let mut light_client = self.beefy_light_client_state.get().unwrap();
-        if !light_client.is_updating_state() {
-            return MultiTxsOperationProcessingResult::Ok;
-        }
-        loop {
-            match light_client.complete_updating_state(1) {
-                Ok(flag) => match flag {
-                    true => {
-                        self.beefy_light_client_state.set(&light_client);
-                        return MultiTxsOperationProcessingResult::Ok;
-                    }
-                    false => (),
-                },
-                Err(err) => {
-                    self.beefy_light_client_state.set(&light_client);
-                    return MultiTxsOperationProcessingResult::Error(format!("{:?}", err));
-                }
-            }
-            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
-                break;
-            }
-        }
-        self.beefy_light_client_state.set(&light_client);
-        MultiTxsOperationProcessingResult::NeedMoreGas
-    }
-    //
-    fn verify_and_stage_appchain_messages(
-        &mut self,
-        encoded_messages: Vec<u8>,
-        header: Vec<u8>,
-        mmr_leaf: Vec<u8>,
-        mmr_proof: Vec<u8>,
-    ) {
-        let anchor_settings = self.anchor_settings.get().unwrap();
-        if anchor_settings.beefy_light_client_witness_mode {
-            self.assert_relayer();
-        } else {
-            self.assert_light_client_is_ready();
-            let light_client = self.beefy_light_client_state.get().unwrap();
-            if let Err(err) = light_client.verify_solochain_messages(
-                &encoded_messages,
-                &header,
-                &mmr_leaf,
-                &mmr_proof,
-            ) {
-                panic!("Failed in verifying appchain messages: {:?}", err);
-            }
-        }
-        let messages = message_decoder::decode(encoded_messages);
-        self.internal_stage_appchain_messages(&messages);
-    }
     //
     fn process_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult {
         let processing_status = self.permissionless_actions_status.get().unwrap();
-        let appchain_messages = self.appchain_messages.get().unwrap();
+        let mut appchain_messages = self.appchain_messages.get().unwrap();
         let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         let mut result = MultiTxsOperationProcessingResult::Ok;
@@ -250,18 +162,17 @@ impl PermissionlessActions for AppchainAnchor {
                     result = self.internal_apply_appchain_message(
                         &mut processing_context,
                         &mut validator_set_histories,
+                        &mut appchain_messages,
                         &appchain_message,
                     );
                     match result {
                         MultiTxsOperationProcessingResult::Ok => {
                             processing_context.clear_processing_nonce();
-                            processing_context.set_latest_applied_nonce(processing_nonce);
                         }
                         MultiTxsOperationProcessingResult::NeedMoreGas => (),
                         MultiTxsOperationProcessingResult::Error(..) => {
                             // The loop should continue even if it fails to apply a certain message
                             processing_context.clear_processing_nonce();
-                            processing_context.set_latest_applied_nonce(processing_nonce);
                             result = MultiTxsOperationProcessingResult::Ok;
                         }
                     }
@@ -273,9 +184,9 @@ impl PermissionlessActions for AppchainAnchor {
                     break;
                 }
             } else {
-                if processing_context.latest_applied_nonce() < processing_context.max_nonce() {
-                    processing_context
-                        .set_processing_nonce(processing_context.latest_applied_nonce() + 1);
+                if processing_context.processing_status().nonces_in_queue.len() > 0 {
+                    let nonce = processing_context.pop_nonce_in_queue().unwrap();
+                    processing_context.set_processing_nonce(nonce);
                 } else {
                     break;
                 }
@@ -285,7 +196,7 @@ impl PermissionlessActions for AppchainAnchor {
             .set(processing_context.processing_status());
         self.validator_set_histories.set(&validator_set_histories);
         if result.eq(&MultiTxsOperationProcessingResult::Ok)
-            && processing_context.latest_applied_nonce() < processing_context.max_nonce()
+            && processing_context.processing_status().nonces_in_queue.len() > 0
         {
             result = MultiTxsOperationProcessingResult::NeedMoreGas;
         }
@@ -317,55 +228,88 @@ impl PermissionlessActions for AppchainAnchor {
         header: Vec<u8>,
         mmr_leaf_for_header: Vec<u8>,
         mmr_proof_for_header: Vec<u8>,
-    ) {
-        self.assert_light_client_is_ready();
-        let mut light_client = self.beefy_light_client_state.get().unwrap();
-        match light_client.update_state(
-            &signed_commitment,
-            &validator_proofs
-                .iter()
-                .map(|proof| beefy_light_client::ValidatorMerkleProof {
-                    proof: proof.proof.clone(),
-                    number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
-                    leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
-                    leaf: proof.leaf.clone(),
-                })
-                .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
-            &mmr_leaf_for_mmr_root,
-            &mmr_proof_for_mmr_root,
-        ) {
-            Ok(()) => {
-                self.beefy_light_client_state.set(&light_client);
+    ) -> MultiTxsOperationProcessingResult {
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        if anchor_settings.beefy_light_client_witness_mode {
+            self.assert_relayer();
+        } else {
+            self.assert_light_client_initialized();
+            let mut light_client_state = self.beefy_light_client_state.get().unwrap();
+            match beefy_light_client::verifier_for_external_state_data::verify_signed_commitment(
+                &signed_commitment,
+                &validator_proofs
+                    .iter()
+                    .map(|proof| beefy_light_client::ValidatorMerkleProof {
+                        proof: proof.proof.clone(),
+                        number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
+                        leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
+                        leaf: proof.leaf.clone(),
+                    })
+                    .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
+                &mmr_leaf_for_mmr_root,
+                &mmr_proof_for_mmr_root,
+                &mut light_client_state,
+            ) {
+                Ok(commitment) => {
+                    self.beefy_light_client_state.set(&light_client_state);
+                    if let Err(err) =
+                        beefy_light_client::verifier_for_external_state_data::verify_solochain_messages(
+                            &encoded_messages,
+                            &header,
+                            &commitment,
+                            &mmr_leaf_for_header,
+                            &mmr_proof_for_header,
+                        )
+                    {
+                        return MultiTxsOperationProcessingResult::Error(format!(
+                            "Successfully verified the signed commitment, but failed to verify messages: {:?}",
+                            err
+                        ));
+                    }
+                }
+                Err(err) => {
+                    return MultiTxsOperationProcessingResult::Error(format!(
+                        "Failed to verify signed commitment: {:?}",
+                        err
+                    ))
+                }
             }
-            Err(beefy_light_client::Error::CommitmentAlreadyUpdated) => {}
-            Err(err) => panic!("Failed to update state of beefy light client: {:?}", err),
-        }
-        if let Err(err) = light_client.verify_solochain_messages(
-            &encoded_messages,
-            &header,
-            &mmr_leaf_for_header,
-            &mmr_proof_for_header,
-        ) {
-            panic!("Failed in verifying appchain messages: {:?}", err);
         }
         let messages = message_decoder::decode(encoded_messages);
         self.internal_stage_appchain_messages(&messages);
         let processing_status = self.permissionless_actions_status.get().unwrap();
         let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        messages.iter().for_each(|appchain_message| {
-            let appchain_messages = self.appchain_messages.get().unwrap();
-            if appchain_messages
-                .get_processing_result(&appchain_message.nonce)
-                .is_none()
-            {
-                self.internal_apply_appchain_message(
-                    &mut processing_context,
-                    &mut validator_set_histories,
-                    appchain_message,
-                );
+        let mut appchain_messages = self.appchain_messages.get().unwrap();
+        for message in messages {
+            if env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES) {
+                if appchain_messages
+                    .get_processing_result(&message.nonce)
+                    .is_none()
+                {
+                    self.internal_apply_appchain_message(
+                        &mut processing_context,
+                        &mut validator_set_histories,
+                        &mut appchain_messages,
+                        &message,
+                    );
+                }
+            } else {
+                processing_context
+                    .processing_status
+                    .add_nonce_to_queue(message.nonce);
             }
-        });
+        }
+        self.validator_set_histories.set(&validator_set_histories);
+        self.appchain_messages.set(&appchain_messages);
+        processing_context.processing_status.sort_nonces_in_queue();
+        self.permissionless_actions_status
+            .set(&processing_context.processing_status);
+        if env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES) {
+            MultiTxsOperationProcessingResult::Ok
+        } else {
+            MultiTxsOperationProcessingResult::NeedMoreGas
+        }
     }
 }
 
@@ -377,25 +321,28 @@ impl AppchainAnchor {
         let protocol_settings = self.protocol_settings.get().unwrap();
         messages
             .iter()
-            .filter(|message| {
-                if message.nonce > processing_status.latest_applied_appchain_message_nonce {
-                    match message.appchain_event {
-                        AppchainEvent::EraRewardConcluded { era_number, .. } => !self
-                            .era_number_is_too_old(
-                                u64::from(era_number),
-                                protocol_settings
-                                    .maximum_era_count_of_valid_appchain_message
-                                    .0,
-                            ),
-                        _ => true,
-                    }
-                } else {
-                    false
-                }
+            .filter(|message| match message.appchain_event {
+                AppchainEvent::EraRewardConcluded { era_number, .. } => !self
+                    .era_number_is_too_old(
+                        u64::from(era_number),
+                        protocol_settings
+                            .maximum_era_count_of_valid_appchain_message
+                            .0,
+                    ),
+                _ => true,
             })
-            .for_each(|message| appchain_messages.insert_message(message));
+            .for_each(|message| {
+                appchain_messages.insert_message(message);
+                match message.appchain_event {
+                    AppchainEvent::EraSwitchPlaned { .. }
+                    | AppchainEvent::EraRewardConcluded { .. } => {
+                        processing_status.add_nonce_to_queue(message.nonce)
+                    }
+                    _ => (),
+                }
+            });
         self.appchain_messages.set(&appchain_messages);
-        processing_status.max_nonce_of_staged_appchain_messages = appchain_messages.max_nonce();
+        processing_status.sort_nonces_in_queue();
         self.permissionless_actions_status.set(&processing_status);
     }
     /// Apply a certain `AppchainMessage`
@@ -403,6 +350,7 @@ impl AppchainAnchor {
         &mut self,
         processing_context: &mut AppchainMessagesProcessingContext,
         validator_set_histories: &mut LookupArray<ValidatorSetOfEra>,
+        appchain_messages: &mut AppchainMessages,
         appchain_message: &AppchainMessage,
     ) -> MultiTxsOperationProcessingResult {
         match &appchain_message.appchain_event {
@@ -418,7 +366,7 @@ impl AppchainAnchor {
                         nonce: appchain_message.nonce,
                         message: message.clone(),
                     };
-                    self.record_appchain_message_processing_result(&result);
+                    appchain_messages.insert_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
                 let contract_account_id = AccountId::from_str(&contract_account);
@@ -428,7 +376,7 @@ impl AppchainAnchor {
                         nonce: appchain_message.nonce,
                         message: message.clone(),
                     };
-                    self.record_appchain_message_processing_result(&result);
+                    appchain_messages.insert_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
                 self.internal_unlock_near_fungible_token(
@@ -438,6 +386,7 @@ impl AppchainAnchor {
                     amount,
                     appchain_message.nonce,
                     processing_context,
+                    appchain_messages,
                 )
             }
             AppchainEvent::NativeTokenLocked {
@@ -451,7 +400,7 @@ impl AppchainAnchor {
                         nonce: appchain_message.nonce,
                         message: message.clone(),
                     };
-                    self.record_appchain_message_processing_result(&result);
+                    appchain_messages.insert_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
                 let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
@@ -465,7 +414,7 @@ impl AppchainAnchor {
                         nonce: appchain_message.nonce,
                         message: message.clone(),
                     };
-                    self.record_appchain_message_processing_result(&result);
+                    appchain_messages.insert_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
                 self.internal_mint_wrapped_appchain_token(
@@ -474,6 +423,7 @@ impl AppchainAnchor {
                     amount,
                     appchain_message.nonce,
                     processing_context,
+                    appchain_messages,
                 )
             }
             AppchainEvent::EraSwitchPlaned { era_number } => {
@@ -481,17 +431,22 @@ impl AppchainAnchor {
                     self.complete_switching_era(
                         processing_context,
                         validator_set_histories,
+                        appchain_messages,
                         era_number,
                     )
                 } else {
                     let index_range = validator_set_histories.index_range();
-                    if u64::from(*era_number) <= index_range.end_index.0 {
-                        let message = format!("Switching era number '{}' is too old.", era_number);
+                    if u64::from(*era_number) != index_range.end_index.0 + 1 {
+                        let message = format!(
+                            "Invalid era number '{}': it must be '{}'.",
+                            era_number,
+                            index_range.end_index.0 + 1
+                        );
                         let result = AppchainMessageProcessingResult::Error {
                             nonce: appchain_message.nonce,
                             message: message.clone(),
                         };
-                        self.record_appchain_message_processing_result(&result);
+                        appchain_messages.insert_processing_result(&result);
                         return MultiTxsOperationProcessingResult::Error(message);
                     }
                     self.internal_start_switching_era(
@@ -515,6 +470,7 @@ impl AppchainAnchor {
                     self.internal_start_distributing_reward_of_era(
                         processing_context,
                         validator_set_histories,
+                        appchain_messages,
                         appchain_message.nonce,
                         u64::from(*era_number),
                         unprofitable_validator_ids,
@@ -534,11 +490,12 @@ impl AppchainAnchor {
                         nonce: appchain_message.nonce,
                         message: message.clone(),
                     };
-                    self.record_appchain_message_processing_result(&result);
+                    appchain_messages.insert_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
                 self.internal_process_locked_nft_in_appchain(
                     processing_context,
+                    appchain_messages,
                     appchain_message.nonce,
                     owner_id_in_appchain,
                     receiver_id_in_near,
@@ -558,37 +515,6 @@ impl AppchainAnchor {
         } else {
             era_number < index_range.start_index.0
         }
-    }
-    ///
-    pub fn record_appchain_message_processing_result(
-        &mut self,
-        processing_result: &AppchainMessageProcessingResult,
-    ) {
-        let mut appchain_messages = self.appchain_messages.get().unwrap();
-        appchain_messages.insert_processing_result(processing_result.nonce(), processing_result);
-        self.appchain_messages.set(&appchain_messages);
-        log!(
-            "Processing result of appchain message '{}': '{}'",
-            serde_json::to_string::<AppchainMessage>(
-                &appchain_messages
-                    .get_message(processing_result.nonce())
-                    .unwrap_or_else(|| {
-                        if processing_result.nonce() > 0 {
-                            panic!(
-                                "Missing staged message with nonce '{}'.",
-                                processing_result.nonce()
-                            )
-                        } else {
-                            AppchainMessage {
-                                appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 0 },
-                                nonce: 0,
-                            }
-                        }
-                    })
-            )
-            .unwrap(),
-            serde_json::to_string::<AppchainMessageProcessingResult>(&processing_result).unwrap(),
-        );
     }
 }
 
