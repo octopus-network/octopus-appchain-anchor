@@ -155,7 +155,6 @@ impl PermissionlessActions for AppchainAnchor {
                         .is_some()
                     {
                         processing_context.clear_processing_nonce();
-                        processing_context.set_latest_applied_nonce(processing_nonce);
                         result = MultiTxsOperationProcessingResult::Ok;
                         continue;
                     }

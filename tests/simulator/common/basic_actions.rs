@@ -160,17 +160,6 @@ pub async fn initialize_contracts_and_users(
     Ok((root, oct_token, appchain_registry, appchain_anchor, users))
 }
 
-pub async fn deploy_new_anchor_contract(
-    worker: &Worker<Sandbox>,
-    anchor: &Contract,
-) -> anyhow::Result<()> {
-    anchor
-        .as_account()
-        .deploy(worker, &std::fs::read(format!("res/appchain_anchor.wasm"))?)
-        .await?;
-    Ok(())
-}
-
 pub async fn deploy_wrapped_appchain_token_contract(
     worker: &Worker<Sandbox>,
     root: &Account,

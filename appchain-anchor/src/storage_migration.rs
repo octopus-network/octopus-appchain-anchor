@@ -26,6 +26,8 @@ pub struct OldAppchainAnchor {
     appchain_registry: AccountId,
     /// The owner account id.
     owner: AccountId,
+    /// A certain public key of owner account
+    owner_pk: PublicKey,
     /// The info of OCT token.
     oct_token: LazyOption<OctToken>,
     /// The info of wrapped appchain token in NEAR protocol.
@@ -77,6 +79,8 @@ pub struct OldAppchainAnchor {
     appchain_messages: LazyOption<AppchainMessages>,
     /// The appchain challenges
     appchain_challenges: LazyOption<LookupArray<AppchainChallenge>>,
+    /// The wrapped appchain NFT data
+    wrapped_appchain_nfts: LazyOption<WrappedAppchainNFTs>,
 }
 
 #[near_bindgen]
@@ -90,7 +94,7 @@ impl AppchainAnchor {
         assert_eq!(
             &env::predecessor_account_id(),
             &env::current_account_id(),
-            "Can only be called by the owner"
+            "Can only be called by self"
         );
         //
         let old_permissionless_actions_status =
@@ -100,7 +104,7 @@ impl AppchainAnchor {
             appchain_id: old_contract.appchain_id,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
-            owner_pk: env::signer_account_pk(),
+            owner_pk: old_contract.owner_pk,
             oct_token: old_contract.oct_token,
             wrapped_appchain_token: old_contract.wrapped_appchain_token,
             near_fungible_tokens: old_contract.near_fungible_tokens,
@@ -133,10 +137,7 @@ impl AppchainAnchor {
             rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
             appchain_messages: old_contract.appchain_messages,
             appchain_challenges: old_contract.appchain_challenges,
-            wrapped_appchain_nfts: LazyOption::new(
-                StorageKey::WrappedAppchainNFTs.into_bytes(),
-                Some(&WrappedAppchainNFTs::new()),
-            ),
+            wrapped_appchain_nfts: old_contract.wrapped_appchain_nfts,
         };
         //
         //
