@@ -31,7 +31,7 @@ impl AccountIdInAppchain {
     pub fn is_valid(&self) -> bool {
         if self.raw_string.len() > 2 {
             match hex::decode(&self.raw_string.as_str()[2..self.raw_string.len()]) {
-                Ok(bytes) => bytes.len() == 32,
+                Ok(bytes) => (bytes.len() == 32 || bytes.len() == 20),
                 Err(_) => false,
             }
         } else {
