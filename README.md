@@ -319,6 +319,7 @@ We should take the following steps to initialize this contract and all related c
 This contract has completed auditing by:
 
 * [Halborn](https://halborn.com) - The report is [here](/auditing/Octopus_Network_Anchor_NEAR_Smart_Contract_Security_Audit_Report.pdf).
+* [Blocksec](https://blocksec.com) - The report is [here](/auditing/Appchain_Anchor_Audit_Report_Blocksec.pdf).
 
 ## Testing
 
