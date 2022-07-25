@@ -330,7 +330,9 @@ pub trait SudoActions {
     ///
     fn set_owner_pk(&mut self, public_key: PublicKey);
     /// Apply a certain `AppchainMessage`
-    fn stage_appchain_messages(&mut self, appchain_messages: Vec<AppchainMessage>);
+    fn stage_appchain_message(&mut self, appchain_message: AppchainMessage);
+    ///
+    fn stage_appchain_encoded_messages(&mut self, encoded_messages: Vec<u8>);
     ///
     fn set_metadata_of_wrapped_appchain_token(&mut self, metadata: FungibleTokenMetadata);
     ///
