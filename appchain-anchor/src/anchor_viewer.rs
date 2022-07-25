@@ -547,7 +547,7 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_appchain_message_of(&self, nonce: u32) -> Option<AppchainMessage> {
         let appchain_messages = self.appchain_messages.get().unwrap();
-        appchain_messages.get_message(nonce)
+        appchain_messages.get_message(&nonce)
     }
     //
     fn get_appchain_messages(

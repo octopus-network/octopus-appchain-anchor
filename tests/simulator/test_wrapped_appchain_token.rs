@@ -32,17 +32,16 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     //
     let user1_wat_balance =
         common::get_ft_balance_of(&worker, &users[1], &wrapped_appchain_token).await?;
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
+    let appchain_message = AppchainMessage {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: AccountId::from_str("unknown.testnet").unwrap(),
             amount: U128::from(total_supply / 10),
         },
         nonce: appchain_message_nonce,
-    });
-    sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
+    };
+    sudo_actions::stage_appchain_message(&worker, &root, &anchor, appchain_message).await?;
     common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
@@ -185,7 +184,9 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         },
         nonce: appchain_message_nonce,
     });
-    sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
+    for appchain_message in appchain_messages {
+        sudo_actions::stage_appchain_message(&worker, &root, &anchor, appchain_message).await?;
+    }
     common::complex_actions::process_appchain_messages(&worker, &users[3], &anchor).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
@@ -235,7 +236,9 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         },
         nonce: appchain_message_nonce,
     });
-    sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
+    for appchain_message in appchain_messages {
+        sudo_actions::stage_appchain_message(&worker, &root, &anchor, appchain_message).await?;
+    }
     common::complex_actions::process_appchain_messages(&worker, &users[3], &anchor).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;

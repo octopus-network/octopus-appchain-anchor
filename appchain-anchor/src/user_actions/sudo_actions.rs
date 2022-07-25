@@ -1,7 +1,7 @@
 use crate::permissionless_actions::AppchainMessagesProcessingContext;
 use crate::*;
-use crate::{interfaces::SudoActions, message_decoder::AppchainMessage};
-
+use crate::{appchain_messages::AppchainMessage, interfaces::SudoActions};
+use codec::Decode;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 
 #[near_bindgen]
@@ -12,8 +12,19 @@ impl SudoActions for AppchainAnchor {
         self.owner_pk = public_key;
     }
     //
-    fn stage_appchain_messages(&mut self, messages: Vec<AppchainMessage>) {
+    fn stage_appchain_message(&mut self, appchain_message: AppchainMessage) {
         self.assert_owner();
+        let mut processing_status = self.permissionless_actions_status.get().unwrap();
+        let mut appchain_messages = self.appchain_messages.get().unwrap();
+        appchain_messages.insert_message(&appchain_message);
+        self.appchain_messages.set(&appchain_messages);
+        processing_status.max_nonce_of_staged_appchain_messages = appchain_messages.max_nonce();
+        self.permissionless_actions_status.set(&processing_status);
+    }
+    //
+    fn stage_appchain_encoded_messages(&mut self, encoded_messages: Vec<u8>) {
+        self.assert_owner();
+        let messages = Decode::decode(&mut &encoded_messages[..]).unwrap();
         self.internal_stage_appchain_messages(&messages);
     }
     //

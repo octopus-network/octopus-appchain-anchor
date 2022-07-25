@@ -5,21 +5,19 @@ use near_sdk::{
 };
 use workspaces::{network::Sandbox, result::CallExecutionDetails, Account, Contract, Worker};
 
-pub async fn stage_appchain_messages(
+pub async fn stage_appchain_message(
     worker: &Worker<Sandbox>,
     signer: &Account,
     anchor: &Contract,
-    messages: Vec<AppchainMessage>,
+    message: AppchainMessage,
 ) -> anyhow::Result<CallExecutionDetails> {
-    messages.iter().for_each(|message| {
-        println!(
-            "Appchain message: {}",
-            serde_json::to_string::<AppchainMessage>(&message).unwrap()
-        );
-    });
+    println!(
+        "Appchain message: {}",
+        serde_json::to_string::<AppchainMessage>(&message).unwrap()
+    );
     signer
-        .call(worker, anchor.id(), "stage_appchain_messages")
-        .args_json(json!({ "messages": messages }))?
+        .call(worker, anchor.id(), "stage_appchain_message")
+        .args_json(json!({ "appchain_message": message }))?
         .gas(200_000_000_000_000)
         .transact()
         .await

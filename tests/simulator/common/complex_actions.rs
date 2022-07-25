@@ -50,12 +50,11 @@ pub async fn switch_era(
     to_confirm_view_result: bool,
 ) -> anyhow::Result<()> {
     if era_number > 0 {
-        let mut appchain_messages = Vec::<AppchainMessage>::new();
-        appchain_messages.push(AppchainMessage {
+        let appchain_message = AppchainMessage {
             appchain_event: AppchainEvent::EraSwitchPlaned { era_number },
             nonce: appchain_message_nonce,
-        });
-        sudo_actions::stage_appchain_messages(worker, root, anchor, appchain_messages).await?;
+        };
+        sudo_actions::stage_appchain_message(worker, root, anchor, appchain_message).await?;
     }
     process_appchain_messages(worker, root, anchor).await?;
     if to_confirm_view_result {
@@ -91,15 +90,14 @@ pub async fn distribute_reward_of(
 ) -> anyhow::Result<()> {
     let anchor_balance_of_wat =
         common::get_ft_balance_of(worker, &anchor.as_account(), &wrapped_appchain_token).await?;
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
-    appchain_messages.push(AppchainMessage {
+    let appchain_message = AppchainMessage {
         appchain_event: AppchainEvent::EraRewardConcluded {
             era_number,
             unprofitable_validator_ids,
         },
         nonce,
-    });
-    sudo_actions::stage_appchain_messages(worker, root, anchor, appchain_messages).await?;
+    };
+    sudo_actions::stage_appchain_message(worker, root, anchor, appchain_message).await?;
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(worker, anchor).await?;
         println!(

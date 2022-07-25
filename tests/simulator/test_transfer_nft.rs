@@ -104,9 +104,8 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
     //
     //
     //
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
+    let appchain_message = AppchainMessage {
         appchain_event: AppchainEvent::NonFungibleTokenLocked {
             owner_id_in_appchain: user0_id_in_appchain.clone(),
             receiver_id_in_near: users[0].id().to_string().parse().unwrap(),
@@ -128,8 +127,8 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
             },
         },
         nonce: appchain_message_nonce,
-    });
-    sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
+    };
+    sudo_actions::stage_appchain_message(&worker, &root, &anchor, appchain_message).await?;
     common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
@@ -146,9 +145,8 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
     .await?;
     assert!(result.is_success());
     let token_id = "token_id1".to_string();
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
+    let appchain_message = AppchainMessage {
         appchain_event: AppchainEvent::NonFungibleTokenLocked {
             owner_id_in_appchain: user0_id_in_appchain.clone(),
             receiver_id_in_near: users[0].id().to_string().parse().unwrap(),
@@ -170,8 +168,8 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
             },
         },
         nonce: appchain_message_nonce,
-    });
-    sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
+    };
+    sudo_actions::stage_appchain_message(&worker, &root, &anchor, appchain_message).await?;
     common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
@@ -206,9 +204,8 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
     //
     //
     //
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
+    let appchain_message = AppchainMessage {
         appchain_event: AppchainEvent::NonFungibleTokenLocked {
             owner_id_in_appchain: user0_id_in_appchain.clone(),
             receiver_id_in_near: users[0].id().to_string().parse().unwrap(),
@@ -230,8 +227,8 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
             },
         },
         nonce: appchain_message_nonce,
-    });
-    sudo_actions::stage_appchain_messages(&worker, &root, &anchor, appchain_messages).await?;
+    };
+    sudo_actions::stage_appchain_message(&worker, &root, &anchor, appchain_message).await?;
     common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;

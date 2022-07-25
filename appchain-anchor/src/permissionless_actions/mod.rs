@@ -1,11 +1,11 @@
 mod distributing_rewards;
 mod switching_era;
 
-use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
-
+use crate::interfaces::PermissionlessActions;
 use crate::*;
-use crate::{interfaces::PermissionlessActions, message_decoder::AppchainMessage};
+use codec::Decode;
 use core::convert::{TryFrom, TryInto};
+use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use std::ops::Add;
 use std::str::FromStr;
 
@@ -222,7 +222,7 @@ impl PermissionlessActions for AppchainAnchor {
                 panic!("Failed in verifying appchain messages: {:?}", err);
             }
         }
-        let messages = message_decoder::decode(encoded_messages);
+        let messages = Decode::decode(&mut &encoded_messages[..]).unwrap();
         self.internal_stage_appchain_messages(&messages);
     }
     //
@@ -237,16 +237,16 @@ impl PermissionlessActions for AppchainAnchor {
             && env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES)
         {
             if let Some(processing_nonce) = processing_context.processing_nonce() {
-                if let Some(appchain_message) = appchain_messages.get_message(processing_nonce) {
-                    if appchain_messages
-                        .get_processing_result(&processing_nonce)
-                        .is_some()
-                    {
-                        processing_context.clear_processing_nonce();
-                        processing_context.set_latest_applied_nonce(processing_nonce);
-                        result = MultiTxsOperationProcessingResult::Ok;
-                        continue;
-                    }
+                if appchain_messages
+                    .get_processing_result(&processing_nonce)
+                    .is_some()
+                {
+                    processing_context.clear_processing_nonce();
+                    processing_context.set_latest_applied_nonce(processing_nonce);
+                    result = MultiTxsOperationProcessingResult::Ok;
+                    continue;
+                }
+                if let Some(appchain_message) = appchain_messages.get_message(&processing_nonce) {
                     result = self.internal_apply_appchain_message(
                         &mut processing_context,
                         &mut validator_set_histories,
@@ -348,21 +348,21 @@ impl PermissionlessActions for AppchainAnchor {
         ) {
             panic!("Failed in verifying appchain messages: {:?}", err);
         }
-        let messages = message_decoder::decode(encoded_messages);
+        let messages = Decode::decode(&mut &encoded_messages[..]).unwrap();
         self.internal_stage_appchain_messages(&messages);
         let processing_status = self.permissionless_actions_status.get().unwrap();
         let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        messages.iter().for_each(|appchain_message| {
+        messages.iter().for_each(|raw_message| {
             let appchain_messages = self.appchain_messages.get().unwrap();
             if appchain_messages
-                .get_processing_result(&appchain_message.nonce)
+                .get_processing_result(&raw_message.nonce())
                 .is_none()
             {
                 self.internal_apply_appchain_message(
                     &mut processing_context,
                     &mut validator_set_histories,
-                    appchain_message,
+                    &appchain_messages.get_message(&raw_message.nonce()).unwrap(),
                 );
             }
         });
@@ -370,34 +370,6 @@ impl PermissionlessActions for AppchainAnchor {
 }
 
 impl AppchainAnchor {
-    ///
-    pub fn internal_stage_appchain_messages(&mut self, messages: &Vec<AppchainMessage>) {
-        let mut processing_status = self.permissionless_actions_status.get().unwrap();
-        let mut appchain_messages = self.appchain_messages.get().unwrap();
-        let protocol_settings = self.protocol_settings.get().unwrap();
-        messages
-            .iter()
-            .filter(|message| {
-                if message.nonce > processing_status.latest_applied_appchain_message_nonce {
-                    match message.appchain_event {
-                        AppchainEvent::EraRewardConcluded { era_number, .. } => !self
-                            .era_number_is_too_old(
-                                u64::from(era_number),
-                                protocol_settings
-                                    .maximum_era_count_of_valid_appchain_message
-                                    .0,
-                            ),
-                        _ => true,
-                    }
-                } else {
-                    false
-                }
-            })
-            .for_each(|message| appchain_messages.insert_message(message));
-        self.appchain_messages.set(&appchain_messages);
-        processing_status.max_nonce_of_staged_appchain_messages = appchain_messages.max_nonce();
-        self.permissionless_actions_status.set(&processing_status);
-    }
     /// Apply a certain `AppchainMessage`
     pub fn internal_apply_appchain_message(
         &mut self,
@@ -549,16 +521,6 @@ impl AppchainAnchor {
             }
         }
     }
-    //
-    fn era_number_is_too_old(&self, era_number: u64, range: u64) -> bool {
-        let validator_set_histories = self.validator_set_histories.get().unwrap();
-        let index_range = validator_set_histories.index_range();
-        if index_range.end_index.0 > range {
-            era_number <= index_range.end_index.0 - range
-        } else {
-            era_number < index_range.start_index.0
-        }
-    }
     ///
     pub fn record_appchain_message_processing_result(
         &mut self,
@@ -571,7 +533,7 @@ impl AppchainAnchor {
             "Processing result of appchain message '{}': '{}'",
             serde_json::to_string::<AppchainMessage>(
                 &appchain_messages
-                    .get_message(processing_result.nonce())
+                    .get_message(&processing_result.nonce())
                     .unwrap_or_else(|| {
                         if processing_result.nonce() > 0 {
                             panic!(

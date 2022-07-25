@@ -4,7 +4,6 @@ mod appchain_messages;
 mod assets;
 pub mod interfaces;
 mod lookup_array;
-mod message_decoder;
 mod permissionless_actions;
 mod reward_distribution_records;
 mod storage_key;
@@ -31,7 +30,7 @@ use near_sdk::{
 };
 use std::ops::Mul;
 
-pub use message_decoder::AppchainMessage;
+pub use appchain_messages::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
 
 use appchain_challenge::AppchainChallenge;
