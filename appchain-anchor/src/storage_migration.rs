@@ -180,6 +180,10 @@ impl AppchainAnchor {
             appchain_messages: old_contract.appchain_messages,
             appchain_challenges: old_contract.appchain_challenges,
             wrapped_appchain_nfts: old_contract.wrapped_appchain_nfts,
+            native_near_token: LazyOption::new(
+                StorageKey::NativeNearToken.into_bytes(),
+                Some(&NativeNearToken::default()),
+            ),
         };
         //
         //

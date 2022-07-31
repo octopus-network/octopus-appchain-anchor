@@ -1,6 +1,6 @@
 [package]
 name = "appchain-anchor-wrapper"
-version = "2.2.0"
+version = "2.3.0"
 authors = ["Octopus Network"]
 edition = "2021"
 
@@ -42,4 +42,5 @@ members = [
     "mock-appchain-registry",
     "mock-oct-token",
     "wat-faucet",
+    "native-near-token-receiver",
 ]

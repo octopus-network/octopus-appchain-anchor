@@ -213,6 +213,14 @@ pub struct NearFungibleToken {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub struct NativeNearToken {
+    pub locked_balance: U128,
+    pub bridging_state: BridgingState,
+    pub price_in_usd: U128,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub enum StakingFact {
     /// A new validator is registered in appchain anchor
     ValidatorRegistered {
@@ -538,6 +546,11 @@ pub enum AppchainNotification {
         sender_id_in_near: AccountId,
         owner_id_in_near: AccountId,
         receiver_id_in_appchain: String,
+    },
+    /// A certain amount of native NEAR token is locked in the receiver contract of anchor.
+    NativeNearTokenLocked {
+        receiver_id_in_appchain: String,
+        amount: U128,
     },
 }
 
