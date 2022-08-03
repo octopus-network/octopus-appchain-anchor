@@ -1,5 +1,6 @@
 use crate::common;
 use near_sdk::json_types::U64;
+use near_units::parse_near;
 
 #[tokio::test]
 async fn test_migration() -> anyhow::Result<()> {
@@ -9,15 +10,41 @@ async fn test_migration() -> anyhow::Result<()> {
         "d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da270".to_string();
     //
     let worker = workspaces::sandbox().await?;
-    let (_, _, _, _, anchor, users, _) =
+    let (root, _, _, _, anchor, users, _) =
         common::test_normal_actions(&worker, true, false, vec!["0x00".to_string()]).await?;
-    common::basic_actions::deploy_new_anchor_contract(&worker, &anchor).await?;
-    // let result = anchor
-    //     .call(&worker, "migrate_state")
-    //     .gas(300_000_000_000_000)
-    //     .transact()
-    //     .await?;
-    // assert!(result.is_success());
+    //
+    root.call(&worker, anchor.id(), "store_wasm_of_self")
+        .args(std::fs::read(format!("res/appchain_anchor.wasm"))?)
+        .gas(300_000_000_000_000)
+        .deposit(parse_near!("30 N"))
+        .transact()
+        .await
+        .expect("Failed in calling 'store_wasm_of_self'");
+    //
+    let result = root
+        .call(&worker, anchor.id(), "update_self")
+        .gas(300_000_000_000_000)
+        .transact()
+        .await?;
+    println!("Result of calling 'update_self': {:?}", result);
+    println!();
+    assert!(result.is_success());
+    //
+    anchor
+        .call(&worker, "migrate_staking_histories")
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+        .expect("Failed to call 'migrate_staking_histories'");
+    common::complex_viewer::print_staking_histories(&worker, &anchor).await?;
+    //
+    anchor
+        .call(&worker, "migrate_appchain_notification_histories")
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+        .expect("Failed to call 'migrate_appchain_notification_histories'");
+    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
     //
     //
     //

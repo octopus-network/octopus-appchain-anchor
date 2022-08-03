@@ -60,11 +60,6 @@ impl AnchorViewer for AppchainAnchor {
                 .get()
                 .unwrap()
                 .index_range(),
-            index_range_of_anchor_event_history: self
-                .anchor_event_histories
-                .get()
-                .unwrap()
-                .index_range(),
             index_range_of_staking_history: self.staking_histories.get().unwrap().index_range(),
             nonce_range_of_appchain_messages: IndexRange {
                 start_index: U64::from(u64::from(appchain_messages.min_nonce())),

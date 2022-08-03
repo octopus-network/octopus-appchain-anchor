@@ -1,8 +1,34 @@
 use crate::*;
-
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::{env, near_bindgen, AccountId, Balance};
+use near_sdk::{env, near_bindgen, AccountId, Balance, BlockHeight};
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OldAnchorEventHistory {
+    pub anchor_event: AnchorEvent,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub index: U64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OldAppchainNotificationHistory {
+    pub appchain_notification: AppchainNotification,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub index: U64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OldStakingHistory {
+    pub staking_fact: StakingFact,
+    pub block_height: BlockHeight,
+    pub timestamp: Timestamp,
+    pub index: U64,
+}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
@@ -12,6 +38,8 @@ pub struct OldAppchainAnchor {
     appchain_registry: AccountId,
     /// The owner account id.
     owner: AccountId,
+    /// A certain public key of owner account
+    owner_pk: PublicKey,
     /// The info of OCT token.
     oct_token: LazyOption<OctToken>,
     /// The info of wrapped appchain token in NEAR protocol.
@@ -42,11 +70,11 @@ pub struct OldAppchainAnchor {
     /// The state of the corresponding appchain.
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
-    staking_histories: LazyOption<LookupArray<StakingHistory>>,
+    staking_histories: LazyOption<LookupArray<OldStakingHistory>>,
     /// The anchor event history data.
-    anchor_event_histories: LazyOption<LookupArray<AnchorEventHistory>>,
+    anchor_event_histories: LazyOption<LookupArray<OldAnchorEventHistory>>,
     /// The appchain notification history data.
-    appchain_notification_histories: LazyOption<LookupArray<AppchainNotificationHistory>>,
+    appchain_notification_histories: LazyOption<LookupArray<OldAppchainNotificationHistory>>,
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
     /// The state of beefy light client
@@ -63,6 +91,8 @@ pub struct OldAppchainAnchor {
     appchain_messages: LazyOption<AppchainMessages>,
     /// The appchain challenges
     appchain_challenges: LazyOption<LookupArray<AppchainChallenge>>,
+    /// The wrapped appchain NFT data
+    wrapped_appchain_nfts: LazyOption<WrappedAppchainNFTs>,
 }
 
 #[near_bindgen]
@@ -70,21 +100,23 @@ impl AppchainAnchor {
     #[init(ignore_state)]
     pub fn migrate_state() -> Self {
         // Deserialize the state using the old contract structure.
-        let old_contract: OldAppchainAnchor = env::state_read().expect("Old state doesn't exist");
+        let mut old_contract: OldAppchainAnchor =
+            env::state_read().expect("Old state doesn't exist");
         // Verify that the migration can only be done by the owner.
         // This is not necessary, if the upgrade is done internally.
         assert_eq!(
             &env::predecessor_account_id(),
             &env::current_account_id(),
-            "Can only be called by the owner"
+            "Can only be called by self"
         );
         //
+        old_contract.clear_anchor_events();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
-            owner_pk: env::signer_account_pk(),
+            owner_pk: old_contract.owner_pk,
             oct_token: old_contract.oct_token,
             wrapped_appchain_token: old_contract.wrapped_appchain_token,
             near_fungible_tokens: old_contract.near_fungible_tokens,
@@ -98,9 +130,16 @@ impl AppchainAnchor {
             anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
-            staking_histories: old_contract.staking_histories,
-            anchor_event_histories: old_contract.anchor_event_histories,
-            appchain_notification_histories: old_contract.appchain_notification_histories,
+            staking_histories: LazyOption::new(
+                StorageKey::StakingHistories.into_bytes(),
+                Some(&LookupArray::new(StorageKey::StakingHistoriesMap)),
+            ),
+            appchain_notification_histories: LazyOption::new(
+                StorageKey::AppchainNotificationHistories.into_bytes(),
+                Some(&LookupArray::new(
+                    StorageKey::AppchainNotificationHistoriesMap,
+                )),
+            ),
             permissionless_actions_status: old_contract.permissionless_actions_status,
             beefy_light_client_state: old_contract.beefy_light_client_state,
             reward_distribution_records: old_contract.reward_distribution_records,
@@ -109,36 +148,127 @@ impl AppchainAnchor {
             rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
             appchain_messages: old_contract.appchain_messages,
             appchain_challenges: old_contract.appchain_challenges,
-            wrapped_appchain_nfts: LazyOption::new(
-                StorageKey::WrappedAppchainNFTs.into_bytes(),
-                Some(&WrappedAppchainNFTs::new()),
-            ),
+            wrapped_appchain_nfts: old_contract.wrapped_appchain_nfts,
         };
         //
         //
         new_contract
     }
     ///
-    pub fn clear_anchor_events(&mut self) -> MultiTxsOperationProcessingResult {
-        self.assert_owner();
+    pub fn migrate_staking_histories(&mut self) {
+        let staking_histories = self.staking_histories.get().unwrap();
+        let index_range = staking_histories.index_range();
+        for index in index_range.start_index.0..index_range.end_index.0 + 1 {
+            if let Some(old_data) = env::storage_read(&get_storage_key_in_lookup_array(
+                &StorageKey::StakingHistoriesMap,
+                &index,
+            )) {
+                let old_version = OldStakingHistory::try_from_slice(&old_data).unwrap();
+                env::storage_write(
+                    &get_storage_key_in_lookup_array(&StorageKey::StakingHistoriesMap, &index),
+                    &StakingHistory::from_old_version(old_version)
+                        .try_to_vec()
+                        .unwrap(),
+                );
+            }
+        }
+    }
+    ///
+    pub fn migrate_appchain_notification_histories(&mut self) {
+        let appchain_notification_histories = self.appchain_notification_histories.get().unwrap();
+        let index_range = appchain_notification_histories.index_range();
+        for index in index_range.start_index.0..index_range.end_index.0 + 1 {
+            if let Some(old_data) = env::storage_read(&get_storage_key_in_lookup_array(
+                &StorageKey::AppchainNotificationHistoriesMap,
+                &index,
+            )) {
+                let old_version =
+                    OldAppchainNotificationHistory::try_from_slice(&old_data).unwrap();
+                env::storage_write(
+                    &get_storage_key_in_lookup_array(
+                        &StorageKey::AppchainNotificationHistoriesMap,
+                        &index,
+                    ),
+                    &AppchainNotificationHistory::from_old_version(old_version)
+                        .try_to_vec()
+                        .unwrap(),
+                );
+            }
+        }
+    }
+}
+
+fn get_storage_key_in_lookup_array(prefix: &StorageKey, index: &u64) -> Vec<u8> {
+    [prefix.into_bytes(), index.try_to_vec().unwrap()].concat()
+}
+
+impl OldAppchainAnchor {
+    ///
+    pub fn clear_anchor_events(&mut self) {
         let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
         let result = anchor_event_histories.clear();
         self.anchor_event_histories.set(&anchor_event_histories);
-        result
+        if result.eq(&MultiTxsOperationProcessingResult::Ok) {
+            self.anchor_event_histories.remove();
+        } else {
+            panic!("Should clear old anchor events first.");
+        }
     }
-    ///
-    pub fn remove_appchain_messages_before(&mut self, nonce: u32) {
-        self.assert_owner();
-        let mut appchain_messages = self.appchain_messages.get().unwrap();
-        appchain_messages.remove_messages_before(&nonce);
-        self.appchain_messages.set(&appchain_messages);
+}
+
+impl IndexedAndClearable for OldAnchorEventHistory {
+    //
+    fn set_index(&mut self, index: &u64) {
+        self.index = U64::from(*index);
     }
-    ///
-    pub fn set_processing_appchain_message_nonce(&mut self, nonce: u32) {
-        self.assert_owner();
-        let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
-        permissionless_actions_status.processing_appchain_message_nonce = Some(nonce);
-        self.permissionless_actions_status
-            .set(&permissionless_actions_status);
+    //
+    fn clear_extra_storage(&mut self) {
+        ()
+    }
+}
+
+impl IndexedAndClearable for OldAppchainNotificationHistory {
+    //
+    fn set_index(&mut self, index: &u64) {
+        self.index = U64::from(*index);
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        ()
+    }
+}
+
+impl IndexedAndClearable for OldStakingHistory {
+    //
+    fn set_index(&mut self, index: &u64) {
+        self.index = U64::from(*index);
+    }
+    //
+    fn clear_extra_storage(&mut self) {
+        ()
+    }
+}
+
+impl StakingHistory {
+    //
+    pub fn from_old_version(old_version: OldStakingHistory) -> Self {
+        Self {
+            staking_fact: old_version.staking_fact,
+            block_height: U64::from(old_version.block_height),
+            timestamp: U64::from(old_version.timestamp),
+            index: old_version.index,
+        }
+    }
+}
+
+impl AppchainNotificationHistory {
+    //
+    pub fn from_old_version(old_version: OldAppchainNotificationHistory) -> Self {
+        Self {
+            appchain_notification: old_version.appchain_notification,
+            block_height: U64::from(old_version.block_height),
+            timestamp: U64::from(old_version.timestamp),
+            index: old_version.index,
+        }
     }
 }

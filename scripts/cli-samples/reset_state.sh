@@ -21,8 +21,6 @@ do
     near call $ANCHOR_ACCOUNT_ID clear_unwithdrawn_rewards $param --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
 done
 #
-near call $ANCHOR_ACCOUNT_ID clear_anchor_event_histories '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
-#
 near call $ANCHOR_ACCOUNT_ID clear_appchain_notification_histories '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
 #
 for ((i=$END_ERA-1;i>=0;i--))

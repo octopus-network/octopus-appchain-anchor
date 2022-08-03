@@ -17,13 +17,6 @@ impl OwnerActions for AppchainAnchor {
         self.staking_histories.set(&staking_histories);
     }
     //
-    fn remove_anchor_event_history_before(&mut self, index: U64) {
-        self.assert_owner();
-        let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        anchor_event_histories.remove_before(&index.0);
-        self.anchor_event_histories.set(&anchor_event_histories);
-    }
-    //
     fn remove_appchain_notification_history_before(&mut self, index: U64) {
         self.assert_owner();
         let mut appchain_notification_histories =
