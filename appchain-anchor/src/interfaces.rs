@@ -195,8 +195,6 @@ pub trait OwnerActions {
     ///
     fn remove_staking_history_before(&mut self, index: U64);
     ///
-    fn remove_anchor_event_history_before(&mut self, index: U64);
-    ///
     fn remove_appchain_notification_history_before(&mut self, index: U64);
 }
 
@@ -351,8 +349,6 @@ pub trait SudoActions {
     fn refresh_user_staking_histories(&mut self);
     ///
     fn reset_next_validator_set_to(&mut self, era_number: U64);
-    ///
-    fn clear_anchor_event_histories(&mut self);
     ///
     fn clear_appchain_notification_histories(&mut self);
     ///

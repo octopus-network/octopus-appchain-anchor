@@ -252,8 +252,8 @@ impl AppchainAnchor {
         let mut staking_histories = self.staking_histories.get().unwrap();
         let staking_history = staking_histories.append(&mut StakingHistory {
             staking_fact,
-            block_height: env::block_height(),
-            timestamp: env::block_timestamp(),
+            block_height: U64::from(env::block_height()),
+            timestamp: U64::from(env::block_timestamp()),
             index: U64::from(0),
         });
         self.staking_histories.set(&staking_histories);

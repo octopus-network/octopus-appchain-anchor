@@ -347,8 +347,6 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
         sudo_actions::reset_validator_set_histories_to(&worker, &root, &anchor, U64::from(0))
             .await?;
     assert!(result.is_success());
-    let result = sudo_actions::clear_anchor_event_histories(&worker, &root, &anchor).await?;
-    assert!(result.is_success());
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(0)).await?;
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(1)).await?;
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(2)).await?;

@@ -95,13 +95,6 @@ impl SudoActions for AppchainAnchor {
         }
     }
     //
-    fn clear_anchor_event_histories(&mut self) {
-        self.assert_owner();
-        let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        anchor_event_histories.clear();
-        self.anchor_event_histories.set(&anchor_event_histories);
-    }
-    //
     fn clear_appchain_notification_histories(&mut self) {
         self.assert_owner();
         let mut appchain_notification_histories =

@@ -37,18 +37,6 @@ pub async fn reset_validator_set_histories_to(
         .await
 }
 
-pub async fn clear_anchor_event_histories(
-    worker: &Worker<Sandbox>,
-    signer: &Account,
-    anchor: &Contract,
-) -> anyhow::Result<CallExecutionDetails> {
-    signer
-        .call(worker, anchor.id(), "clear_anchor_event_histories")
-        .gas(200_000_000_000_000)
-        .transact()
-        .await
-}
-
 pub async fn clear_appchain_notification_histories(
     worker: &Worker<Sandbox>,
     signer: &Account,

@@ -44,8 +44,6 @@ async fn test_migration() -> anyhow::Result<()> {
     .await
     .expect("Failed to distribute rewards of era 0");
     //
-    // update deployed wasm
-    //
     root.call(&worker, anchor.id(), "store_wasm_of_self")
         .args(std::fs::read(format!("res/appchain_anchor.wasm"))?)
         .gas(300_000_000_000_000)
@@ -62,6 +60,22 @@ async fn test_migration() -> anyhow::Result<()> {
     println!("Result of calling 'update_self': {:?}", result);
     println!();
     assert!(result.is_success());
+    //
+    anchor
+        .call(&worker, "migrate_staking_histories")
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+        .expect("Failed to call 'migrate_staking_histories'");
+    common::complex_viewer::print_staking_histories(&worker, &anchor).await?;
+    //
+    anchor
+        .call(&worker, "migrate_appchain_notification_histories")
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+        .expect("Failed to call 'migrate_appchain_notification_histories'");
+    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
     //
     // confirm result of view functions
     //

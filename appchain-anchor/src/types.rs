@@ -1,9 +1,8 @@
+use crate::*;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_contract_standards::non_fungible_token::metadata::NFTContractMetadata;
 use near_sdk::borsh::maybestd::collections::HashMap;
-use near_sdk::{json_types::I128, BlockHeight};
-
-use crate::*;
+use near_sdk::json_types::I128;
 
 pub type AppchainId = String;
 
@@ -272,8 +271,8 @@ pub enum StakingFact {
 #[serde(crate = "near_sdk::serde")]
 pub struct StakingHistory {
     pub staking_fact: StakingFact,
-    pub block_height: BlockHeight,
-    pub timestamp: Timestamp,
+    pub block_height: U64,
+    pub timestamp: U64,
     pub index: U64,
 }
 
@@ -344,15 +343,6 @@ pub enum AnchorEvent {
         appchain_message_nonce: u32,
         reason: String,
     },
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct AnchorEventHistory {
-    pub anchor_event: AnchorEvent,
-    pub block_height: BlockHeight,
-    pub timestamp: Timestamp,
-    pub index: U64,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -461,7 +451,6 @@ pub struct AnchorStatus {
     pub delegator_count_in_next_era: U64,
     pub index_range_of_appchain_notification_history: IndexRange,
     pub index_range_of_validator_set_history: IndexRange,
-    pub index_range_of_anchor_event_history: IndexRange,
     pub index_range_of_staking_history: IndexRange,
     pub nonce_range_of_appchain_messages: IndexRange,
     pub index_range_of_appchain_challenges: IndexRange,
@@ -541,8 +530,8 @@ pub enum AppchainNotification {
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainNotificationHistory {
     pub appchain_notification: AppchainNotification,
-    pub block_height: BlockHeight,
-    pub timestamp: Timestamp,
+    pub block_height: U64,
+    pub timestamp: U64,
     pub index: U64,
 }
 
@@ -599,8 +588,8 @@ pub struct AppchainCommitment {
 #[serde(crate = "near_sdk::serde")]
 pub struct UserStakingHistory {
     pub staking_fact: StakingFact,
-    pub block_height: BlockHeight,
-    pub timestamp: Timestamp,
+    pub block_height: U64,
+    pub timestamp: U64,
     pub has_taken_effect: bool,
 }
 

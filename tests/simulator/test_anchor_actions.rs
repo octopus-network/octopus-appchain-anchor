@@ -106,8 +106,6 @@ async fn test_anchor_actions() -> anyhow::Result<()> {
     let result =
         sudo_actions::clear_unwithdrawn_rewards(&worker, &root, &anchor, U64::from(0)).await?;
     assert!(result.is_success());
-    let result = sudo_actions::clear_anchor_event_histories(&worker, &root, &anchor).await?;
-    assert!(result.is_success());
     let result =
         sudo_actions::clear_appchain_notification_histories(&worker, &root, &anchor).await?;
     assert!(result.is_success());

@@ -172,8 +172,6 @@ pub struct AppchainAnchor {
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
     staking_histories: LazyOption<LookupArray<StakingHistory>>,
-    /// The anchor event history data.
-    anchor_event_histories: LazyOption<LookupArray<AnchorEventHistory>>,
     /// The appchain notification history data.
     appchain_notification_histories: LazyOption<LookupArray<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
@@ -260,10 +258,6 @@ impl AppchainAnchor {
             staking_histories: LazyOption::new(
                 StorageKey::StakingHistories.into_bytes(),
                 Some(&LookupArray::new(StorageKey::StakingHistoriesMap)),
-            ),
-            anchor_event_histories: LazyOption::new(
-                StorageKey::AnchorEventHistories.into_bytes(),
-                Some(&LookupArray::new(StorageKey::AnchorEventHistoriesMap)),
             ),
             appchain_notification_histories: LazyOption::new(
                 StorageKey::AppchainNotificationHistories.into_bytes(),
@@ -566,8 +560,8 @@ impl AppchainAnchor {
         let appchain_notification_history =
             appchain_notification_histories.append(&mut AppchainNotificationHistory {
                 appchain_notification,
-                block_height: env::block_height(),
-                timestamp: env::block_timestamp(),
+                block_height: U64::from(env::block_height()),
+                timestamp: U64::from(env::block_timestamp()),
                 index: U64::from(0),
             });
         self.appchain_notification_histories
@@ -607,17 +601,6 @@ pub fn get_random_in_near(buf: &mut [u8]) -> Result<(), Error> {
     let random = env::random_seed();
     buf.copy_from_slice(&random);
     Ok(())
-}
-
-impl IndexedAndClearable for AnchorEventHistory {
-    //
-    fn set_index(&mut self, index: &u64) {
-        self.index = U64::from(*index);
-    }
-    //
-    fn clear_extra_storage(&mut self) {
-        ()
-    }
 }
 
 impl IndexedAndClearable for AppchainNotificationHistory {
