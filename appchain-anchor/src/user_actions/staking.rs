@@ -660,6 +660,33 @@ impl StakingManager for AppchainAnchor {
             .ft_transfer(delegator_id, reward_to_withdraw.into(), None);
         }
     }
+    //
+    fn change_delegated_validator(
+        &mut self,
+        old_validator_id: AccountId,
+        new_validator_id: AccountId,
+    ) {
+        match self.appchain_state {
+            AppchainState::Active | AppchainState::Broken => (),
+            _ => panic!(
+                "Cannot change delegated validator while appchain state is '{}'.",
+                serde_json::to_string(&self.appchain_state).unwrap()
+            ),
+        };
+        let mut next_validator_set = self.next_validator_set.get().unwrap();
+        let delegator_id = env::predecessor_account_id();
+        self.assert_delegator_id(&delegator_id, &old_validator_id, &next_validator_set);
+        self.assert_validator_id(&new_validator_id, &next_validator_set);
+        //
+        let staking_history = self.record_staking_fact(StakingFact::DelegatedValidatorChanged {
+            delegator_id,
+            old_validator_id,
+            new_validator_id,
+        });
+        //
+        next_validator_set.apply_staking_fact(&staking_history.staking_fact);
+        self.next_validator_set.set(&next_validator_set);
+    }
 }
 
 impl AppchainAnchor {

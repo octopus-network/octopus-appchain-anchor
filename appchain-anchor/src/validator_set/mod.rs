@@ -366,6 +366,72 @@ impl ValidatorSet {
                 validator.validator_id_in_appchain = validator_id_in_appchain.to_string();
                 self.validators.insert(validator_id, &validator);
             }
+            StakingFact::DelegatedValidatorChanged {
+                delegator_id,
+                old_validator_id,
+                new_validator_id,
+            } => {
+                //
+                let delegator = self
+                    .delegators
+                    .remove(&(delegator_id.clone(), old_validator_id.clone()))
+                    .unwrap();
+                self.delegators.insert(
+                    &(delegator_id.clone(), new_validator_id.clone()),
+                    &Delegator {
+                        delegator_id: delegator_id.clone(),
+                        validator_id: new_validator_id.clone(),
+                        registered_block_height: env::block_height(),
+                        registered_timestamp: env::block_timestamp(),
+                        deposit_amount: delegator.deposit_amount,
+                    },
+                );
+                //
+                let mut delegator_id_set = self
+                    .validator_id_to_delegator_id_set
+                    .get(old_validator_id)
+                    .unwrap();
+                delegator_id_set.remove(delegator_id);
+                if delegator_id_set.len() > 0 {
+                    self.validator_id_to_delegator_id_set
+                        .insert(old_validator_id, &delegator_id_set);
+                } else {
+                    self.validator_id_to_delegator_id_set
+                        .remove(old_validator_id);
+                }
+                //
+                if !self
+                    .validator_id_to_delegator_id_set
+                    .contains_key(new_validator_id)
+                {
+                    self.validator_id_to_delegator_id_set.insert(
+                        new_validator_id,
+                        &UnorderedSet::new(
+                            StorageKey::DelegatorIdsInMapOfVToDOfEra {
+                                era_number: self.era_number,
+                                validator_id: new_validator_id.clone(),
+                            }
+                            .into_bytes(),
+                        ),
+                    );
+                }
+                let mut delegator_id_set = self
+                    .validator_id_to_delegator_id_set
+                    .get(new_validator_id)
+                    .unwrap();
+                delegator_id_set.insert(delegator_id);
+                self.validator_id_to_delegator_id_set
+                    .insert(new_validator_id, &delegator_id_set);
+                //
+                let mut validator_id_set = self
+                    .delegator_id_to_validator_id_set
+                    .get(delegator_id)
+                    .unwrap();
+                validator_id_set.remove(old_validator_id);
+                validator_id_set.insert(new_validator_id);
+                self.delegator_id_to_validator_id_set
+                    .insert(delegator_id, &validator_id_set);
+            }
         }
     }
 }

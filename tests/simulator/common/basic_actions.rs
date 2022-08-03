@@ -90,7 +90,7 @@ pub async fn initialize_contracts_and_users(
         true => appchain_anchor
             .deploy(
                 worker,
-                &std::fs::read(format!("res/appchain_anchor_v2.1.1.wasm"))?,
+                &std::fs::read(format!("res/appchain_anchor_v2.2.0.wasm"))?,
             )
             .await?
             .unwrap(),

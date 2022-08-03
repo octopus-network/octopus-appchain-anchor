@@ -328,6 +328,13 @@ pub trait StakingManager {
     /// Withdraw rewards of a certain delegator to a validator.
     /// This function can be called by any account.
     fn withdraw_delegator_rewards(&mut self, delegator_id: AccountId, validator_id: AccountId);
+    /// Change the validator which the caller is delegated to.
+    /// This function can only be called by a delegator.
+    fn change_delegated_validator(
+        &mut self,
+        old_validator_id: AccountId,
+        new_validator_id: AccountId,
+    );
 }
 
 pub trait SudoActions {

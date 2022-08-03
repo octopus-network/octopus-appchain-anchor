@@ -288,6 +288,12 @@ pub enum StakingFact {
         validator_id: AccountId,
         validator_id_in_appchain: String,
     },
+    /// A delegator changed his/her validator
+    DelegatedValidatorChanged {
+        delegator_id: AccountId,
+        old_validator_id: AccountId,
+        new_validator_id: AccountId,
+    },
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
