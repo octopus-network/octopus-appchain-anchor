@@ -36,9 +36,18 @@ pub struct PlanNewEraPayload {
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
+pub struct Offender {
+    pub kind: String,
+    pub who: String,
+    pub offences: u32,
+}
+
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct EraPayoutPayload {
     pub end_era: u32,
     pub excluded_validators: Vec<String>,
+    pub offenders: Vec<Offender>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
@@ -373,6 +382,7 @@ impl AppchainAnchor {
                             appchain_event: AppchainEvent::EraRewardConcluded {
                                 era_number: payload.end_era,
                                 unprofitable_validator_ids: payload.excluded_validators,
+                                offenders: payload.offenders,
                             },
                         });
                     }

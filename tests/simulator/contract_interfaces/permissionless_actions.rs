@@ -13,6 +13,7 @@ pub async fn process_appchain_messages(
         .transact()
         .await?;
     println!("{:?}", result);
+    println!();
     result.json::<MultiTxsOperationProcessingResult>()
 }
 

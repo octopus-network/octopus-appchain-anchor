@@ -1,6 +1,7 @@
 mod distributing_rewards;
 mod switching_era;
 
+use crate::appchain_messages::Offender;
 use crate::interfaces::PermissionlessActions;
 use crate::*;
 use codec::Decode;
@@ -32,6 +33,7 @@ pub enum AppchainEvent {
     EraRewardConcluded {
         era_number: u32,
         unprofitable_validator_ids: Vec<String>,
+        offenders: Vec<Offender>,
     },
     /// The fact that a certain non-fungible token is locked in the appchain.
     NonFungibleTokenLocked {
@@ -476,6 +478,7 @@ impl AppchainAnchor {
             AppchainEvent::EraRewardConcluded {
                 era_number,
                 unprofitable_validator_ids,
+                offenders: _,
             } => {
                 if let Some(era_number) = processing_context.distributing_reward_era_number() {
                     self.complete_distributing_reward_of_era(

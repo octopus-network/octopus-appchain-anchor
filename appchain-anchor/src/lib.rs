@@ -7,7 +7,7 @@ mod lookup_array;
 mod permissionless_actions;
 mod reward_distribution_records;
 mod storage_key;
-mod storage_migration;
+pub mod storage_migration;
 pub mod types;
 mod upgrade;
 mod user_actions;

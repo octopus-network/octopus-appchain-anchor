@@ -15,6 +15,7 @@ pub async fn stage_appchain_message(
         "Appchain message: {}",
         serde_json::to_string::<AppchainMessage>(&message).unwrap()
     );
+    println!();
     signer
         .call(worker, anchor.id(), "stage_appchain_message")
         .args_json(json!({ "appchain_message": message }))?

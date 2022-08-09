@@ -29,6 +29,7 @@ pub async fn process_appchain_messages(
             "Process appchain messages: {}",
             serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
         );
+        println!();
         print_anchor_status(worker, anchor).await?;
         match result {
             MultiTxsOperationProcessingResult::Ok => break,
@@ -54,7 +55,9 @@ pub async fn switch_era(
             appchain_event: AppchainEvent::EraSwitchPlaned { era_number },
             nonce: appchain_message_nonce,
         };
-        sudo_actions::stage_appchain_message(worker, root, anchor, appchain_message).await?;
+        sudo_actions::stage_appchain_message(worker, root, anchor, appchain_message)
+            .await
+            .expect("Failed to call 'stage_appchain_message'");
     }
     process_appchain_messages(worker, root, anchor).await?;
     if to_confirm_view_result {
@@ -63,6 +66,7 @@ pub async fn switch_era(
             "Anchor status: {}",
             serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
         );
+        println!();
         let validator_set_info = anchor_viewer::get_validator_set_info_of(
             worker,
             anchor,
@@ -74,6 +78,7 @@ pub async fn switch_era(
             era_number,
             serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
         );
+        println!();
     }
     Ok(())
 }
@@ -94,6 +99,7 @@ pub async fn distribute_reward_of(
         appchain_event: AppchainEvent::EraRewardConcluded {
             era_number,
             unprofitable_validator_ids,
+            offenders: Vec::new(),
         },
         nonce,
     };
@@ -104,6 +110,7 @@ pub async fn distribute_reward_of(
             "Anchor status: {}",
             serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
         );
+        println!();
     }
     process_appchain_messages(worker, root, anchor).await?;
     assert_eq!(
@@ -118,6 +125,7 @@ pub async fn distribute_reward_of(
             "Anchor status: {}",
             serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
         );
+        println!();
         let validator_set_info = anchor_viewer::get_validator_set_info_of(
             worker,
             anchor,
@@ -129,6 +137,7 @@ pub async fn distribute_reward_of(
             era_number,
             serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
         );
+        println!();
         print_appchain_notifications(worker, &anchor).await?;
     }
     Ok(())
@@ -159,6 +168,7 @@ pub async fn withdraw_validator_rewards_of(
             .0
             - wat_balance_before_withdraw.0
     );
+    println!();
     print_validator_reward_histories(worker, anchor, user, end_era).await?;
     Ok(())
 }
@@ -190,6 +200,7 @@ pub async fn withdraw_delegator_rewards_of(
             .0
             - wat_balance_before_withdraw.0
     );
+    println!();
     print_delegator_reward_histories(worker, anchor, user, validator, end_era).await?;
     Ok(())
 }
@@ -213,6 +224,7 @@ pub async fn withdraw_stake_of(
         &user.id(),
         get_ft_balance_of(worker, user, oct_token).await?.0 - oct_balance_before_withdraw.0
     );
+    println!();
     print_unbonded_stakes_of(worker, anchor, user).await?;
     Ok(())
 }

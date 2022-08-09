@@ -153,6 +153,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::EraRewardConcluded {
             era_number: 0,
             unprofitable_validator_ids: Vec::new(),
+            offenders: Vec::new(),
         },
         nonce: appchain_message_nonce,
     });
@@ -211,6 +212,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::EraRewardConcluded {
             era_number: 1,
             unprofitable_validator_ids: Vec::new(),
+            offenders: Vec::new(),
         },
         nonce: appchain_message_nonce,
     });
@@ -224,6 +226,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::EraRewardConcluded {
             era_number: 2,
             unprofitable_validator_ids: Vec::new(),
+            offenders: Vec::new(),
         },
         nonce: appchain_message_nonce,
     });
@@ -232,6 +235,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::EraRewardConcluded {
             era_number: 1,
             unprofitable_validator_ids: Vec::new(),
+            offenders: Vec::new(),
         },
         nonce: appchain_message_nonce,
     });
