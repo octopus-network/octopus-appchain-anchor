@@ -1,5 +1,9 @@
-use crate::common::{self, complex_actions};
-use near_sdk::json_types::U64;
+use crate::common;
+use appchain_anchor::{
+    storage_migration::{OldAppchainEvent, OldAppchainMessage},
+    AppchainEvent, AppchainMessage,
+};
+use near_sdk::{json_types::U64, serde_json::json};
 use near_units::parse_near;
 
 #[tokio::test]
@@ -13,7 +17,7 @@ async fn test_migration() -> anyhow::Result<()> {
     let (
         root,
         _,
-        wrapped_appchain_token,
+        _wrapped_appchain_token,
         _,
         anchor,
         _wat_faucet,
@@ -24,25 +28,35 @@ async fn test_migration() -> anyhow::Result<()> {
     // Try start and complete switching era1
     //
     appchain_message_nonce += 1;
-    complex_actions::switch_era(&worker, &root, &anchor, 1, appchain_message_nonce, false)
+    let appchain_messages = [AppchainMessage {
+        appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 1 },
+        nonce: appchain_message_nonce,
+    }];
+    root.call(&worker, anchor.id(), "stage_appchain_messages")
+        .args_json(json!({ "messages": appchain_messages }))?
+        .gas(200_000_000_000_000)
+        .transact()
         .await
-        .expect("Failed to switch era 1.");
+        .expect("Failed to call 'stage_appchain_messages'");
+    common::complex_actions::process_appchain_messages(&worker, &root, &anchor).await?;
     //
     // Distribut reward of era0
     //
     appchain_message_nonce += 1;
-    complex_actions::distribute_reward_of(
-        &worker,
-        &root,
-        &anchor,
-        &wrapped_appchain_token,
-        appchain_message_nonce,
-        0,
-        Vec::new(),
-        false,
-    )
-    .await
-    .expect("Failed to distribute rewards of era 0");
+    let appchain_messages = [OldAppchainMessage {
+        appchain_event: OldAppchainEvent::EraRewardConcluded {
+            era_number: 0,
+            unprofitable_validator_ids: Vec::new(),
+        },
+        nonce: appchain_message_nonce,
+    }];
+    root.call(&worker, anchor.id(), "stage_appchain_messages")
+        .args_json(json!({ "messages": appchain_messages }))?
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+        .expect("Failed to call 'stage_appchain_messages'");
+    common::complex_actions::process_appchain_messages(&worker, &root, &anchor).await?;
     //
     root.call(&worker, anchor.id(), "store_wasm_of_self")
         .args(std::fs::read(format!("res/appchain_anchor.wasm"))?)
@@ -63,6 +77,9 @@ async fn test_migration() -> anyhow::Result<()> {
     //
     anchor
         .call(&worker, "migrate_staking_histories")
+        .args_json(json!({
+            "start_index": "0"
+        }))?
         .gas(200_000_000_000_000)
         .transact()
         .await
@@ -71,13 +88,27 @@ async fn test_migration() -> anyhow::Result<()> {
     //
     anchor
         .call(&worker, "migrate_appchain_notification_histories")
+        .args_json(json!({
+            "start_index": "0"
+        }))?
         .gas(200_000_000_000_000)
         .transact()
         .await
         .expect("Failed to call 'migrate_appchain_notification_histories'");
     common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
     //
-    // confirm result of view functions
+    anchor
+        .call(&worker, "migrate_appchain_messages")
+        .args_json(json!({
+            "start_nonce": 0
+        }))?
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+        .expect("Failed to call 'migrate_appchain_messages'");
+    common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
+    //
+    //
     //
     common::complex_viewer::print_anchor_status(&worker, &anchor).await?;
     common::complex_viewer::print_wrapped_appchain_token_info(&worker, &anchor).await?;
@@ -107,7 +138,5 @@ async fn test_migration() -> anyhow::Result<()> {
         &user1_id_in_appchain,
     )
     .await?;
-    common::complex_viewer::print_staking_histories(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
     Ok(())
 }
