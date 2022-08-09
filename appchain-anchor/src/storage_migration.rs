@@ -210,6 +210,7 @@ impl AppchainAnchor {
         &mut self,
         start_index: U64,
     ) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
         let staking_histories = self.staking_histories.get().unwrap();
         let index_range = staking_histories.index_range();
         for index in start_index.0..index_range.end_index.0 + 1 {
@@ -239,6 +240,7 @@ impl AppchainAnchor {
         &mut self,
         start_index: U64,
     ) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
         let appchain_notification_histories = self.appchain_notification_histories.get().unwrap();
         let index_range = appchain_notification_histories.index_range();
         for index in start_index.0..index_range.end_index.0 + 1 {
@@ -272,6 +274,7 @@ impl AppchainAnchor {
         &mut self,
         start_nonce: u32,
     ) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
         let appchain_messages = self.appchain_messages.get().unwrap();
         for nonce in start_nonce..appchain_messages.max_nonce() + 1 {
             if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
