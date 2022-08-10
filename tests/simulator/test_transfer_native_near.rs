@@ -54,8 +54,7 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
     let user0_id_in_appchain =
         "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
     let receiver_account =
-        AccountId::from_str(format!("native-near-token-receiver.{}", anchor.id()).as_str())
-            .unwrap();
+        AccountId::from_str(format!("near-receiver.{}", anchor.id()).as_str()).unwrap();
     let old_balance = users[0].view_account(&worker).await?.balance;
     println!("Balance of users[0]: {}", old_balance);
     users[0]
@@ -103,7 +102,8 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
     //
     appchain_message_nonce += 1;
     let appchain_message = AppchainMessage {
-        appchain_event: AppchainEvent::NativeNearTokenBurnt {
+        appchain_event: AppchainEvent::NearFungibleTokenBurnt {
+            contract_account: "NEAR".to_string(),
             owner_id_in_appchain: user0_id_in_appchain.clone(),
             receiver_id_in_near: users[0].id().to_string().parse().unwrap(),
             amount: U128::from(parse_near!("1 N")),

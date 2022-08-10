@@ -2,6 +2,7 @@ mod distributing_rewards;
 mod switching_era;
 
 use crate::appchain_messages::Offender;
+use crate::assets::native_near_token::CONTRACT_ACCOUNT_FOR_NATIVE_NEAR_TOKEN;
 use crate::interfaces::PermissionlessActions;
 use crate::*;
 use codec::Decode;
@@ -403,6 +404,20 @@ impl AppchainAnchor {
                     self.record_appchain_message_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
+                //
+                if contract_account
+                    .eq(&String::from_str(CONTRACT_ACCOUNT_FOR_NATIVE_NEAR_TOKEN).unwrap())
+                {
+                    let mut native_near_token = self.native_near_token.get().unwrap();
+                    let result = native_near_token.unlock_near(
+                        receiver_id_in_near,
+                        amount,
+                        processing_context,
+                    );
+                    self.native_near_token.set(&native_near_token);
+                    return result;
+                }
+                //
                 let contract_account_id = AccountId::from_str(&contract_account);
                 if contract_account_id.is_err() {
                     let message = format!("Invalid contract account: '{}'.", contract_account);

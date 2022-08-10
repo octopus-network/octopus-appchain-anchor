@@ -50,10 +50,12 @@ impl NativeNearTokenReceiver {
         #[derive(near_sdk::serde::Serialize)]
         #[serde(crate = "near_sdk::serde")]
         struct Input {
+            sender_id_in_near: AccountId,
             receiver_id_in_appchain: String,
             amount: U128,
         }
         let args = Input {
+            sender_id_in_near: env::predecessor_account_id(),
             receiver_id_in_appchain,
             amount: near_amount,
         };

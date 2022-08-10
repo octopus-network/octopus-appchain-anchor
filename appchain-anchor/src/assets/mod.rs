@@ -1,10 +1,10 @@
 use crate::{types::NearFungibleToken, AppchainAnchor};
 use near_sdk::json_types::U128;
 
-mod native_near_token;
+pub mod native_near_token;
 pub mod near_fungible_tokens;
 pub mod wrapped_appchain_nfts;
-mod wrapped_appchain_token;
+pub mod wrapped_appchain_token;
 
 impl AppchainAnchor {
     ///

@@ -429,6 +429,7 @@ pub trait NativeNearTokenManager {
     ///
     fn generate_appchain_notification_for_near_deposit(
         &mut self,
+        sender_id_in_near: AccountId,
         receiver_id_in_appchain: String,
         amount: U128,
     );

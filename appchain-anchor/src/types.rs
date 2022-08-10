@@ -527,7 +527,7 @@ pub struct ValidatorProfile {
 pub enum AppchainNotification {
     /// A certain amount of a NEAR fungible token has been locked in appchain anchor.
     NearFungibleTokenLocked {
-        contract_account: AccountId,
+        contract_account: String,
         sender_id_in_near: AccountId,
         receiver_id_in_appchain: String,
         amount: U128,
@@ -552,11 +552,6 @@ pub enum AppchainNotification {
         sender_id_in_near: AccountId,
         owner_id_in_near: AccountId,
         receiver_id_in_appchain: String,
-    },
-    /// A certain amount of native NEAR token is locked in the receiver contract of anchor.
-    NativeNearTokenLocked {
-        receiver_id_in_appchain: String,
-        amount: U128,
     },
 }
 

@@ -242,7 +242,7 @@ impl AppchainAnchor {
                     near_fungible_tokens.insert(&near_fungible_token);
                     let appchain_notification_history = self.internal_append_appchain_notification(
                         AppchainNotification::NearFungibleTokenLocked {
-                            contract_account: near_fungible_token.contract_account.clone(),
+                            contract_account: near_fungible_token.contract_account.to_string(),
                             sender_id_in_near: sender_id.clone(),
                             receiver_id_in_appchain: receiver_id_in_appchain.clone(),
                             amount,

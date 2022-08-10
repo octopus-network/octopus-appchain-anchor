@@ -1,12 +1,12 @@
-use near_sdk::json_types::Base58CryptoHash;
-
 use crate::{
     interfaces::NativeNearTokenManager, permissionless_actions::AppchainMessagesProcessingContext,
     *,
 };
+use near_sdk::json_types::Base58CryptoHash;
 use std::str::FromStr;
 
-const PREFIX_OF_RECEIVER_SUB_ACCOUNT: &str = "native-near-token-receiver";
+pub const PREFIX_OF_RECEIVER_SUB_ACCOUNT: &str = "near-receiver";
+pub const CONTRACT_ACCOUNT_FOR_NATIVE_NEAR_TOKEN: &str = "NEAR";
 
 impl Default for NativeNearToken {
     fn default() -> Self {
@@ -87,6 +87,7 @@ impl NativeNearTokenManager for AppchainAnchor {
     ///
     fn generate_appchain_notification_for_near_deposit(
         &mut self,
+        sender_id_in_near: AccountId,
         receiver_id_in_appchain: String,
         amount: U128,
     ) {
@@ -113,7 +114,9 @@ impl NativeNearTokenManager for AppchainAnchor {
             U128::from(native_near_token.locked_balance.0 + amount.0);
         self.native_near_token.set(&native_near_token);
         let appchain_notification_history = self.internal_append_appchain_notification(
-            AppchainNotification::NativeNearTokenLocked {
+            AppchainNotification::NearFungibleTokenLocked {
+                contract_account: String::from_str(CONTRACT_ACCOUNT_FOR_NATIVE_NEAR_TOKEN).unwrap(),
+                sender_id_in_near,
                 receiver_id_in_appchain: receiver_id_in_appchain.clone(),
                 amount,
             },
