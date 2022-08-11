@@ -66,8 +66,10 @@ impl AppchainAnchor {
             &validator_id
         );
         let mut validator_profiles = self.validator_profiles.get().unwrap();
-        let formatted_validator_id_in_appchain =
-            AccountIdInAppchain::new(validator_id_in_appchain.clone());
+        let formatted_validator_id_in_appchain = AccountIdInAppchain::new(
+            validator_id_in_appchain.clone(),
+            &self.appchain_template_type,
+        );
         if validator_id_in_appchain.is_some() {
             formatted_validator_id_in_appchain.assert_valid();
             if let Some(validator_profile) = validator_profiles

@@ -6,14 +6,25 @@ use near_sdk::json_types::I128;
 
 pub type AppchainId = String;
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub enum AppchainTemplateType {
+    Barnacle,
+    BarnacleEvm,
+}
+
 pub struct AccountIdInAppchain {
+    appchain_template_type: AppchainTemplateType,
     origin: Option<String>,
     raw_string: String,
 }
 
 impl AccountIdInAppchain {
     ///
-    pub fn new(id_in_appchain: Option<String>) -> Self {
+    pub fn new(
+        id_in_appchain: Option<String>,
+        appchain_template_type: &AppchainTemplateType,
+    ) -> Self {
         let mut value = String::new();
         if let Some(id_in_appchain) = id_in_appchain.clone() {
             if !id_in_appchain.to_lowercase().starts_with("0x") {
@@ -22,6 +33,7 @@ impl AccountIdInAppchain {
             value.push_str(&id_in_appchain);
         }
         Self {
+            appchain_template_type: appchain_template_type.clone(),
             origin: id_in_appchain,
             raw_string: value.to_lowercase(),
         }
@@ -30,7 +42,10 @@ impl AccountIdInAppchain {
     pub fn is_valid(&self) -> bool {
         if self.raw_string.len() > 2 {
             match hex::decode(&self.raw_string.as_str()[2..self.raw_string.len()]) {
-                Ok(bytes) => (bytes.len() == 32 || bytes.len() == 20),
+                Ok(bytes) => match self.appchain_template_type {
+                    AppchainTemplateType::Barnacle => bytes.len() == 32,
+                    AppchainTemplateType::BarnacleEvm => bytes.len() == 20,
+                },
                 Err(_) => false,
             }
         } else {

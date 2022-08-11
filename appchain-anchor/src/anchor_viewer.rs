@@ -7,6 +7,10 @@ impl AnchorViewer for AppchainAnchor {
         ANCHOR_VERSION.to_string()
     }
     //
+    fn get_appchain_template_type(&self) -> AppchainTemplateType {
+        self.appchain_template_type.clone()
+    }
+    //
     fn get_owner_pk(&self) -> PublicKey {
         self.owner_pk.clone()
     }
@@ -484,7 +488,10 @@ impl AnchorViewer for AppchainAnchor {
         &self,
         validator_id_in_appchain: String,
     ) -> Option<ValidatorProfile> {
-        let formatted_id = AccountIdInAppchain::new(Some(validator_id_in_appchain.clone()));
+        let formatted_id = AccountIdInAppchain::new(
+            Some(validator_id_in_appchain.clone()),
+            &self.appchain_template_type,
+        );
         formatted_id.assert_valid();
         self.validator_profiles
             .get()

@@ -1,3 +1,4 @@
+use appchain_anchor::types::AppchainTemplateType;
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FT_METADATA_SPEC};
 use near_sdk::json_types::Base64VecU8;
 use near_sdk::json_types::U128;
@@ -91,15 +92,31 @@ pub async fn initialize_contracts_and_users(
             .await?
             .unwrap(),
     };
-    root.call(worker, appchain_anchor.id(), "new")
-        .args_json(json!({
-            "appchain_id": "test_appchain_id".to_string(),
-            "appchain_registry": appchain_registry.id(),
-            "oct_token": oct_token.id(),
-        }))?
-        .gas(300_000_000_000_000)
-        .transact()
-        .await?;
+    match with_old_anchor {
+        true => {
+            root.call(worker, appchain_anchor.id(), "new")
+                .args_json(json!({
+                    "appchain_id": "test_appchain_id".to_string(),
+                    "appchain_registry": appchain_registry.id(),
+                    "oct_token": oct_token.id(),
+                }))?
+                .gas(300_000_000_000_000)
+                .transact()
+                .await?
+        }
+        false => {
+            root.call(worker, appchain_anchor.id(), "new")
+                .args_json(json!({
+                    "appchain_id": "test_appchain_id".to_string(),
+                    "appchain_template_type": AppchainTemplateType::Barnacle,
+                    "appchain_registry": appchain_registry.id(),
+                    "oct_token": oct_token.id(),
+                }))?
+                .gas(300_000_000_000_000)
+                .transact()
+                .await?
+        }
+    };
     //
     // initialize users' accounts
     //

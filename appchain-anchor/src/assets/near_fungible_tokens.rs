@@ -232,7 +232,11 @@ impl AppchainAnchor {
                 FTDepositMessage::BridgeToAppchain {
                     receiver_id_in_appchain,
                 } => {
-                    AccountIdInAppchain::new(Some(receiver_id_in_appchain.clone())).assert_valid();
+                    AccountIdInAppchain::new(
+                        Some(receiver_id_in_appchain.clone()),
+                        &self.appchain_template_type
+                    )
+                    .assert_valid();
                     let protocol_settings = self.protocol_settings.get().unwrap();
                     assert!(
                         near_fungible_tokens.total_market_value()

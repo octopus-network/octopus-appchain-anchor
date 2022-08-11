@@ -395,7 +395,11 @@ impl AppchainAnchor {
                 NFTTransferMessage::BridgeToAppchain {
                     receiver_id_in_appchain,
                 } => {
-                    AccountIdInAppchain::new(Some(receiver_id_in_appchain.clone())).assert_valid();
+                    AccountIdInAppchain::new(
+                        Some(receiver_id_in_appchain.clone()),
+                        &self.appchain_template_type,
+                    )
+                    .assert_valid();
                     wrapped_appchain_nft.add_locked_nft(&token_id);
                     let class_id = wrapped_appchain_nfts
                         .get_class_id_by_contract_account(&predecessor_account_id)

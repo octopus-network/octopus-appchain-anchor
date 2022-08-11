@@ -34,8 +34,10 @@ impl AppchainAnchor {
     ) {
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_validator_id(validator_id, &next_validator_set);
-        let validator_id_in_appchain =
-            AccountIdInAppchain::new(Some(account_id_in_appchain.clone()));
+        let validator_id_in_appchain = AccountIdInAppchain::new(
+            Some(account_id_in_appchain.clone()),
+            &self.appchain_template_type,
+        );
         validator_id_in_appchain.assert_valid();
         //
         let mut validator_profiles = self.validator_profiles.get().unwrap();

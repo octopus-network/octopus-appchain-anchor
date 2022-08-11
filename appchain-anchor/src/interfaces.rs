@@ -7,8 +7,10 @@ use near_contract_standards::{
 use crate::*;
 
 pub trait AnchorViewer {
-    /// Get version of this contract
+    /// Get version of this contract.
     fn get_anchor_version(&self) -> String;
+    /// Get the template type of corresponding appchain.
+    fn get_appchain_template_type(&self) -> AppchainTemplateType;
     /// Get the public key of owner account.
     /// This key will be used in creation of wrapped appchain NFT contract.
     fn get_owner_pk(&self) -> PublicKey;

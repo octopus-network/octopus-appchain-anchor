@@ -145,18 +145,14 @@ impl AppchainAnchor {
         // Deserialize the state using the old contract structure.
         let mut old_contract: OldAppchainAnchor =
             env::state_read().expect("Old state doesn't exist");
-        // Verify that the migration can only be done by the owner.
-        // This is not necessary, if the upgrade is done internally.
-        assert_eq!(
-            &env::predecessor_account_id(),
-            &env::current_account_id(),
-            "Can only be called by self"
-        );
+        //
+        near_sdk::assert_self();
         //
         old_contract.clear_anchor_events();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
+            appchain_template_type: AppchainTemplateType::Barnacle,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
             owner_pk: old_contract.owner_pk,
@@ -202,7 +198,7 @@ impl AppchainAnchor {
         &mut self,
         start_index: U64,
     ) -> MultiTxsOperationProcessingResult {
-        self.assert_owner();
+        near_sdk::assert_self();
         let staking_histories = self.staking_histories.get().unwrap();
         let index_range = staking_histories.index_range();
         for index in start_index.0..index_range.end_index.0 + 1 {
@@ -232,7 +228,7 @@ impl AppchainAnchor {
         &mut self,
         start_index: U64,
     ) -> MultiTxsOperationProcessingResult {
-        self.assert_owner();
+        near_sdk::assert_self();
         let appchain_notification_histories = self.appchain_notification_histories.get().unwrap();
         let index_range = appchain_notification_histories.index_range();
         for index in start_index.0..index_range.end_index.0 + 1 {
@@ -266,7 +262,7 @@ impl AppchainAnchor {
         &mut self,
         start_nonce: u32,
     ) -> MultiTxsOperationProcessingResult {
-        self.assert_owner();
+        near_sdk::assert_self();
         let appchain_messages = self.appchain_messages.get().unwrap();
         for nonce in start_nonce..appchain_messages.max_nonce() + 1 {
             if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
