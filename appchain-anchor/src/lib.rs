@@ -135,6 +135,8 @@ trait ResolverForSelfCallback {
 pub struct AppchainAnchor {
     /// The id of corresponding appchain.
     appchain_id: AppchainId,
+    /// The type of appchain template of corresponding appchain.
+    appchain_template_type: AppchainTemplateType,
     /// The account id of appchain registry contract.
     appchain_registry: AccountId,
     /// The owner account id.
@@ -199,12 +201,14 @@ impl AppchainAnchor {
     #[init]
     pub fn new(
         appchain_id: AppchainId,
+        appchain_template_type: AppchainTemplateType,
         appchain_registry: AccountId,
         oct_token: AccountId,
     ) -> Self {
         assert!(!env::state_exists(), "The contract is already initialized.");
         Self {
             appchain_id,
+            appchain_template_type,
             appchain_registry,
             owner: env::predecessor_account_id(),
             owner_pk: env::signer_account_pk(),

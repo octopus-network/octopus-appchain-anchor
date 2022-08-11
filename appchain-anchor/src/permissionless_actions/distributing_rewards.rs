@@ -37,7 +37,10 @@ impl AppchainAnchor {
         let mut unprofitable_validator_ids_in_near = Vec::<AccountId>::new();
         let validator_profiles = self.validator_profiles.get().unwrap();
         for id_in_appchain in unprofitable_validator_ids {
-            let account_id_in_appchain = AccountIdInAppchain::new(Some(id_in_appchain.clone()));
+            let account_id_in_appchain = AccountIdInAppchain::new(
+                Some(id_in_appchain.clone()),
+                &self.appchain_template_type,
+            );
             match validator_profiles.get_by_id_in_appchain(&account_id_in_appchain.to_string()) {
                 Some(validator_profile) => {
                     if validator_set.contains_validator(&validator_profile.validator_id) {

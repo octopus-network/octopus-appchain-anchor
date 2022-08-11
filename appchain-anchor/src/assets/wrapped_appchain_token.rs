@@ -112,7 +112,8 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         self.assert_contract_account_of_wrapped_appchain_token_is_set();
         let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         let sender_id = env::predecessor_account_id();
-        let account_id_in_appchain = AccountIdInAppchain::new(Some(receiver_id.clone()));
+        let account_id_in_appchain =
+            AccountIdInAppchain::new(Some(receiver_id.clone()), &self.appchain_template_type);
         account_id_in_appchain.assert_valid();
         // burn token in wrapped appchain token contract
         #[derive(near_sdk::serde::Serialize)]
@@ -169,7 +170,9 @@ impl AppchainAnchor {
             return MultiTxsOperationProcessingResult::Error(message);
         }
         if let Some(sender_id) = sender_id {
-            if !AccountIdInAppchain::new(Some(sender_id.clone())).is_valid() {
+            if !AccountIdInAppchain::new(Some(sender_id.clone()), &self.appchain_template_type)
+                .is_valid()
+            {
                 let message = format!("Invalid sender id in appchain: '{}'", sender_id);
                 let result = AppchainMessageProcessingResult::Error {
                     nonce: appchain_message_nonce,
