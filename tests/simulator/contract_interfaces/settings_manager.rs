@@ -60,6 +60,20 @@ pub async fn set_era_reward(
         .await
 }
 
+pub async fn set_bonus_for_new_validator(
+    worker: &Worker<Sandbox>,
+    signer: &Account,
+    anchor: &Contract,
+    value: u128,
+) -> anyhow::Result<CallExecutionDetails> {
+    signer
+        .call(worker, anchor.id(), "set_bonus_for_new_validator")
+        .args_json(json!({ "bonus_amount": U128::from(value) }))?
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+}
+
 pub async fn set_token_price_maintainer_account(
     worker: &Worker<Sandbox>,
     signer: &Account,

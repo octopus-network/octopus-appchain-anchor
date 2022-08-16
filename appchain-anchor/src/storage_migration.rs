@@ -140,7 +140,7 @@ impl AppchainSettings {
             rpc_endpoint: old_version.rpc_endpoint,
             subql_endpoint: old_version.subql_endpoint,
             era_reward: old_version.era_reward,
-            bonus_for_new_validator: 1,
+            bonus_for_new_validator: U128::from(0),
         }
     }
 }

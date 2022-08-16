@@ -44,7 +44,7 @@ impl Default for AppchainSettings {
             rpc_endpoint: String::new(),
             subql_endpoint: String::new(),
             era_reward: U128::from(0),
-            bonus_for_new_validator: 1,
+            bonus_for_new_validator: U128::from(0),
         }
     }
 }
@@ -309,7 +309,7 @@ impl AppchainSettingsManager for AppchainAnchor {
         self.appchain_settings.set(&appchain_settings);
     }
     //
-    fn set_bonus_for_new_validator(&mut self, bonus_amount: u32) {
+    fn set_bonus_for_new_validator(&mut self, bonus_amount: U128) {
         self.assert_owner();
         let mut appchain_settings = self.appchain_settings.get().unwrap();
         appchain_settings.bonus_for_new_validator = bonus_amount;

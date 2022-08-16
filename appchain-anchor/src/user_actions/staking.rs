@@ -134,8 +134,7 @@ impl AppchainAnchor {
                 .as_str(),
             )
             .unwrap();
-            let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
-            let wat_amount = u128::pow(10, u32::from(wrapped_appchain_token.metadata.decimals));
+            let appchain_settings = self.appchain_settings.get().unwrap();
             #[derive(near_sdk::serde::Serialize)]
             #[serde(crate = "near_sdk::serde")]
             struct Input {
@@ -144,7 +143,7 @@ impl AppchainAnchor {
             }
             let args = Input {
                 receiver_id: formatted_validator_id_in_appchain.to_string(),
-                amount: U128::from(wat_amount),
+                amount: appchain_settings.bonus_for_new_validator,
             };
             let args = near_sdk::serde_json::to_vec(&args)
                 .expect("Failed to serialize the cross contract args using JSON.");

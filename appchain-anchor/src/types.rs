@@ -94,7 +94,7 @@ pub struct AppchainSettings {
     pub rpc_endpoint: String,
     pub subql_endpoint: String,
     pub era_reward: U128,
-    pub bonus_for_new_validator: u32,
+    pub bonus_for_new_validator: U128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

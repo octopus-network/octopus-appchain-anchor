@@ -179,6 +179,17 @@ pub async fn test_normal_actions(
     .await
     .expect("Failed to call 'ft_transfer' of wrapped appchain token contract.");
     //
+    if !with_old_anchor {
+        settings_manager::set_bonus_for_new_validator(
+            &worker,
+            &root,
+            &anchor,
+            to_actual_amount(1, 18),
+        )
+        .await
+        .expect("Failed to call 'set_bonus_for_new_validator'.");
+    }
+    //
     // user0 register validator (error)
     //
     let user0_balance = get_ft_balance_of(worker, &users[0], &oct_token).await?;
