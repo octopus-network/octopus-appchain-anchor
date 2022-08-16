@@ -17,11 +17,12 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         wrapped_appchain_token,
         _registry,
         anchor,
+        _wat_faucet,
         users,
         mut appchain_message_nonce,
     ) = common::test_normal_actions(&worker, false, true, vec!["0x00".to_string()]).await?;
     //
-    let total_supply = common::to_oct_amount(TOTAL_SUPPLY);
+    let total_supply = common::to_actual_amount(TOTAL_SUPPLY, 18);
     let user0_id_in_appchain =
         "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
     let user4_id_in_appchain =
@@ -60,7 +61,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         &users[0],
         &anchor,
         user0_id_in_appchain,
-        total_supply / 2 - common::to_oct_amount(50000),
+        total_supply / 2 - common::to_actual_amount(50000, 18),
     )
     .await?;
     assert!(result.is_success());
@@ -77,7 +78,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(60)),
+            amount: U128::from(common::to_actual_amount(60, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -86,7 +87,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(40)),
+            amount: U128::from(common::to_actual_amount(40, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -100,7 +101,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(70)),
+            amount: U128::from(common::to_actual_amount(70, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -109,7 +110,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(30)),
+            amount: U128::from(common::to_actual_amount(30, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -118,7 +119,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(45)),
+            amount: U128::from(common::to_actual_amount(45, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -127,7 +128,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(45)),
+            amount: U128::from(common::to_actual_amount(45, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -136,7 +137,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(45)),
+            amount: U128::from(common::to_actual_amount(45, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -145,7 +146,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(45)),
+            amount: U128::from(common::to_actual_amount(45, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -162,7 +163,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(45)),
+            amount: U128::from(common::to_actual_amount(45, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -171,7 +172,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(45)),
+            amount: U128::from(common::to_actual_amount(45, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -180,7 +181,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         appchain_event: AppchainEvent::NativeTokenLocked {
             owner_id_in_appchain: user4_id_in_appchain.clone(),
             receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_oct_amount(45)),
+            amount: U128::from(common::to_actual_amount(45, 18)),
         },
         nonce: appchain_message_nonce,
     });
@@ -194,7 +195,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         common::get_ft_balance_of(&worker, &users[1], &wrapped_appchain_token)
             .await?
             .0,
-        user1_wat_balance.0 + common::to_oct_amount(515)
+        user1_wat_balance.0 + common::to_actual_amount(515, 18)
     );
     //
     //

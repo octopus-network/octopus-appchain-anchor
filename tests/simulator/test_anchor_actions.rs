@@ -15,6 +15,7 @@ async fn test_anchor_actions() -> anyhow::Result<()> {
         wrapped_appchain_token,
         _registry,
         anchor,
+        _wat_faucet,
         users,
         mut appchain_message_nonce,
     ) = common::test_normal_actions(&worker, false, true, vec!["0x00".to_string()]).await?;
@@ -155,9 +156,14 @@ async fn test_staking_actions(
     //
     // user1 decrease stake
     //
-    staking_actions::decrease_stake(&worker, &users[1], &anchor, common::to_oct_amount(1000))
-        .await
-        .expect("Failed to decrease stake");
+    staking_actions::decrease_stake(
+        &worker,
+        &users[1],
+        &anchor,
+        common::to_actual_amount(1000, 18),
+    )
+    .await
+    .expect("Failed to decrease stake");
     common::complex_viewer::print_anchor_status(&worker, &anchor).await?;
     let unbonded_stakes = anchor_viewer::get_unbonded_stakes_of(&worker, &anchor, &users[1])
         .await
@@ -171,7 +177,7 @@ async fn test_staking_actions(
         &users[2],
         &anchor,
         &users[0].id().to_string().parse().unwrap(),
-        common::to_oct_amount(200),
+        common::to_actual_amount(200, 18),
     )
     .await
     .expect("Failed to decrease delegation");

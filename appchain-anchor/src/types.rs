@@ -94,6 +94,7 @@ pub struct AppchainSettings {
     pub rpc_endpoint: String,
     pub subql_endpoint: String,
     pub era_reward: U128,
+    pub bonus_for_new_validator: u32,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -607,7 +608,7 @@ pub struct UserStakingHistory {
 #[serde(crate = "near_sdk::serde")]
 pub enum FTDepositMessage {
     RegisterValidator {
-        validator_id_in_appchain: Option<String>,
+        validator_id_in_appchain: String,
         can_be_delegated_to: bool,
         profile: HashMap<String, String>,
     },

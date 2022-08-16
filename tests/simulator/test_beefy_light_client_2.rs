@@ -79,6 +79,7 @@ async fn test_beefy_light_client_2() -> anyhow::Result<()> {
         _wrapped_appchain_token,
         _registry,
         anchor,
+        _wat_faucet,
         _users,
         _appchain_message_nonce,
     ) = common::test_normal_actions(&worker, false, true, initial_public_keys).await?;

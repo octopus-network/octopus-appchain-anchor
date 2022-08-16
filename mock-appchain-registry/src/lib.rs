@@ -59,7 +59,7 @@ impl MockAppchainRegistry {
         total_stake: U128,
     ) {
         log!(
-            "Appchain state sync received from anchor of appchain '{}': {:#?}, {}, {}",
+            "Appchain state sync received from anchor of appchain '{}': {:?}, {}, {}",
             &appchain_id,
             &appchain_state,
             &validator_count,

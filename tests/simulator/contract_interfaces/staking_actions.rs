@@ -8,12 +8,12 @@ pub async fn register_validator(
     signer: &Account,
     oct_token: &Contract,
     anchor: &Contract,
-    account_id_in_appchain: &Option<String>,
+    account_id_in_appchain: &String,
     amount: u128,
     can_be_delegated_to: bool,
     profile: HashMap<String, String>,
 ) -> anyhow::Result<CallExecutionDetails> {
-    common::call_ft_transfer_call(
+    let result = common::call_ft_transfer_call(
         worker,
         signer,
         &anchor.as_account(),
@@ -28,7 +28,10 @@ pub async fn register_validator(
         .to_string(),
         oct_token,
     )
-    .await
+    .await;
+    println!("Result of 'register_validator': {:?}", result);
+    println!();
+    result
 }
 
 pub async fn register_delegator(

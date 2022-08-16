@@ -5,7 +5,7 @@ use near_sdk::{json_types::U128, serde_json::json};
 async fn test_transfer_oct_to_appchain() -> anyhow::Result<()> {
     //
     let worker = workspaces::sandbox().await?;
-    let (root, oct_token, _, _, anchor, users, _) =
+    let (root, oct_token, _, _, anchor, _wat_faucet, users, _) =
         common::test_normal_actions(&worker, false, false, vec!["0x00".to_string()]).await?;
     //
     near_fungible_token_manager::register_near_fungible_token(
@@ -26,7 +26,7 @@ async fn test_transfer_oct_to_appchain() -> anyhow::Result<()> {
         &worker,
         &users[0],
         &anchor.as_account(),
-        common::to_oct_amount(200),
+        common::to_actual_amount(200, 18),
         json!({
             "BridgeToAppchain": {
                 "receiver_id_in_appchain": "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string(),

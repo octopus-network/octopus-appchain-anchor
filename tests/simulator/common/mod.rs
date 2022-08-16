@@ -77,8 +77,8 @@ pub async fn get_ft_balance_of(
         .json::<U128>()
 }
 
-pub fn to_oct_amount(amount: u128) -> u128 {
-    let bt_decimals_base = (10 as u128).pow(18);
+pub fn to_actual_amount(amount: u128, decimals: u32) -> u128 {
+    let bt_decimals_base = (10 as u128).pow(decimals);
     amount * bt_decimals_base
 }
 
@@ -93,11 +93,12 @@ pub async fn test_normal_actions(
     Contract,
     Contract,
     Contract,
+    Contract,
     Vec<Account>,
     u32,
 )> {
-    let total_supply = to_oct_amount(TOTAL_SUPPLY);
-    let (root, oct_token, registry, anchor, users) =
+    let total_supply = to_actual_amount(TOTAL_SUPPLY, 18);
+    let (root, oct_token, registry, anchor, wat_faucet, users) =
         basic_actions::initialize_contracts_and_users(worker, total_supply, with_old_anchor)
             .await?;
     let user0_id_in_appchain =
@@ -158,7 +159,8 @@ pub async fn test_normal_actions(
         worker,
         &root,
         &anchor,
-        U128::from(total_supply / 2),
+        &wat_faucet.as_account(),
+        &U128::from(total_supply / 2 + to_actual_amount(10, 18)),
         &users,
     )
     .await
@@ -167,16 +169,26 @@ pub async fn test_normal_actions(
         complex_viewer::print_wrapped_appchain_token_info(worker, &anchor).await?;
     }
     //
+    call_ft_transfer(
+        &worker,
+        &wat_faucet.as_account(),
+        &users[0],
+        to_actual_amount(TOTAL_SUPPLY / 2, 18),
+        &wrapped_appchain_token,
+    )
+    .await
+    .expect("Failed to call 'ft_transfer' of wrapped appchain token contract.");
+    //
     // user0 register validator (error)
     //
     let user0_balance = get_ft_balance_of(worker, &users[0], &oct_token).await?;
-    let amount0 = to_oct_amount(4999);
+    let amount0 = to_actual_amount(4999, 18);
     staking_actions::register_validator(
         worker,
         &users[0],
         &oct_token,
         &anchor,
-        &None,
+        &String::new(),
         amount0,
         true,
         HashMap::new(),
@@ -196,13 +208,15 @@ pub async fn test_normal_actions(
     // user0 register validator
     //
     let user0_balance = get_ft_balance_of(worker, &users[0], &oct_token).await?;
-    let amount0 = to_oct_amount(23_000);
+    let wat_faucet_balance =
+        get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token).await?;
+    let amount0 = to_actual_amount(23_000, 18);
     staking_actions::register_validator(
         worker,
         &users[0],
         &oct_token,
         &anchor,
-        &None,
+        &user0_id_in_appchain,
         amount0,
         true,
         HashMap::new(),
@@ -213,6 +227,14 @@ pub async fn test_normal_actions(
         get_ft_balance_of(worker, &users[0], &oct_token).await?.0,
         user0_balance.0 - amount0
     );
+    if !with_old_anchor {
+        assert_eq!(
+            get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token)
+                .await?
+                .0,
+            wat_faucet_balance.0
+        );
+    }
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
         assert_eq!(anchor_status.total_stake_in_next_era.0, amount0);
@@ -229,13 +251,15 @@ pub async fn test_normal_actions(
     // user1 register validator
     //
     let user1_balance = get_ft_balance_of(worker, &users[1], &oct_token).await?;
-    let amount1 = to_oct_amount(25_000);
+    let wat_faucet_balance =
+        get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token).await?;
+    let amount1 = to_actual_amount(25_000, 18);
     staking_actions::register_validator(
         worker,
         &users[1],
         &oct_token,
         &anchor,
-        &None,
+        &user1_id_in_appchain,
         amount1,
         false,
         HashMap::new(),
@@ -246,6 +270,14 @@ pub async fn test_normal_actions(
         get_ft_balance_of(worker, &users[1], &oct_token).await?.0,
         user1_balance.0 - amount1
     );
+    if !with_old_anchor {
+        assert_eq!(
+            get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token)
+                .await?
+                .0,
+            wat_faucet_balance.0
+        );
+    }
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
         assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
@@ -262,7 +294,7 @@ pub async fn test_normal_actions(
     // user2 register delegator to user0 (error)
     //
     let user2_balance = get_ft_balance_of(worker, &users[2], &oct_token).await?;
-    let amount2 = to_oct_amount(199);
+    let amount2 = to_actual_amount(199, 18);
     staking_actions::register_delegator(
         worker,
         &users[2],
@@ -286,7 +318,7 @@ pub async fn test_normal_actions(
     // user2 register delegator to user0
     //
     let user2_balance = get_ft_balance_of(worker, &users[2], &oct_token).await?;
-    let amount2_0 = to_oct_amount(1000);
+    let amount2_0 = to_actual_amount(1000, 18);
     staking_actions::register_delegator(
         worker,
         &users[2],
@@ -313,7 +345,7 @@ pub async fn test_normal_actions(
     // user2 register delegator to user1 (error)
     //
     let user2_balance = get_ft_balance_of(worker, &users[2], &oct_token).await?;
-    let amount2_1 = to_oct_amount(1000);
+    let amount2_1 = to_actual_amount(1000, 18);
     staking_actions::register_delegator(
         worker,
         &users[2],
@@ -340,7 +372,7 @@ pub async fn test_normal_actions(
     // user3 register delegator to user0
     //
     let user3_balance = get_ft_balance_of(worker, &users[3], &oct_token).await?;
-    let amount3_0 = to_oct_amount(2000);
+    let amount3_0 = to_actual_amount(2000, 18);
     staking_actions::register_delegator(
         worker,
         &users[3],
@@ -367,7 +399,7 @@ pub async fn test_normal_actions(
     // user0 increase stake
     //
     let user0_balance = get_ft_balance_of(worker, &users[0], &oct_token).await?;
-    let amount0_p = to_oct_amount(1_200);
+    let amount0_p = to_actual_amount(1_200, 18);
     staking_actions::increase_stake(worker, &users[0], &oct_token, &anchor, amount0_p)
         .await
         .expect("Failed in calling 'increase_stake'");
@@ -387,7 +419,7 @@ pub async fn test_normal_actions(
     // user2 increase delegation to user0
     //
     let user2_balance = get_ft_balance_of(worker, &users[2], &oct_token).await?;
-    let amount2_0_p = to_oct_amount(500);
+    let amount2_0_p = to_actual_amount(500, 18);
     staking_actions::increase_delegation(
         worker,
         &users[2],
@@ -434,7 +466,7 @@ pub async fn test_normal_actions(
     settings_manager::set_subql_endpoint(worker, &root, &anchor, "subql_endpoint".to_string())
         .await
         .expect("Failed in calling 'set_subql_endpoint'");
-    settings_manager::set_era_reward(worker, &root, &anchor, to_oct_amount(10))
+    settings_manager::set_era_reward(worker, &root, &anchor, to_actual_amount(10, 18))
         .await
         .expect("Failed in calling 'set_era_reward'");
     lifecycle_actions::go_booting(worker, &root, &anchor)
@@ -536,13 +568,15 @@ pub async fn test_normal_actions(
     // user4 register validator
     //
     let user4_balance = get_ft_balance_of(worker, &users[4], &oct_token).await?;
-    let amount4 = to_oct_amount(13_000);
+    let wat_faucet_balance =
+        get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token).await?;
+    let amount4 = to_actual_amount(13_000, 18);
     staking_actions::register_validator(
         worker,
         &users[4],
         &oct_token,
         &anchor,
-        &Some(user4_id_in_appchain.clone()),
+        &user4_id_in_appchain,
         amount4,
         true,
         user4_profile,
@@ -553,6 +587,14 @@ pub async fn test_normal_actions(
         get_ft_balance_of(worker, &users[4], &oct_token).await?.0,
         user4_balance.0 - amount4
     );
+    if !with_old_anchor {
+        assert_eq!(
+            get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token)
+                .await?
+                .0,
+            wat_faucet_balance.0 - to_actual_amount(1, 18)
+        );
+    }
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
         assert_eq!(
@@ -583,6 +625,7 @@ pub async fn test_normal_actions(
         wrapped_appchain_token,
         registry,
         anchor,
+        wat_faucet,
         users,
         appchain_message_nonce,
     ))

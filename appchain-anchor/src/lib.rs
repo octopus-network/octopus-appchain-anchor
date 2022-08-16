@@ -54,7 +54,7 @@ use validator_set::ValidatorSetViewer;
 register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v2.1.0";
+const ANCHOR_VERSION: &str = "v2.1.1";
 /// Constants for gas.
 const T_GAS_FOR_FT_TRANSFER: u64 = 10;
 const T_GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10;
@@ -66,6 +66,8 @@ const T_GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 10;
 const T_GAS_CAP_FOR_MULTI_TXS_PROCESSING: u64 = 150;
 const T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES: u64 = 240;
 const T_GAS_FOR_NFT_CONTRACT_INITIALIZATION: u64 = 50;
+const T_GAS_FOR_REGISTER_VALIDATOR: u64 = 100;
+const T_GAS_FOR_BURN_WRAPPED_APPCHAIN_TOKEN: u64 = 50;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.

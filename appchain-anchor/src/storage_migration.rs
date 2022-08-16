@@ -4,6 +4,14 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OldAppchainSettings {
+    pub rpc_endpoint: String,
+    pub subql_endpoint: String,
+    pub era_reward: U128,
+}
+
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
@@ -12,6 +20,8 @@ pub struct OldAppchainAnchor {
     appchain_registry: AccountId,
     /// The owner account id.
     owner: AccountId,
+    /// A certain public key of owner account
+    owner_pk: PublicKey,
     /// The info of OCT token.
     oct_token: LazyOption<OctToken>,
     /// The info of wrapped appchain token in NEAR protocol.
@@ -34,7 +44,7 @@ pub struct OldAppchainAnchor {
     /// The validators' profiles data.
     validator_profiles: LazyOption<ValidatorProfiles>,
     /// The custom settings for appchain.
-    appchain_settings: LazyOption<AppchainSettings>,
+    appchain_settings: LazyOption<OldAppchainSettings>,
     /// The anchor settings for appchain.
     anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
@@ -63,6 +73,8 @@ pub struct OldAppchainAnchor {
     appchain_messages: LazyOption<AppchainMessages>,
     /// The appchain challenges
     appchain_challenges: LazyOption<LookupArray<AppchainChallenge>>,
+    /// The wrapped appchain NFT data
+    wrapped_appchain_nfts: LazyOption<WrappedAppchainNFTs>,
 }
 
 #[near_bindgen]
@@ -76,15 +88,16 @@ impl AppchainAnchor {
         assert_eq!(
             &env::predecessor_account_id(),
             &env::current_account_id(),
-            "Can only be called by the owner"
+            "Can only be called by self"
         );
         //
+        let old_appchain_settings = old_contract.appchain_settings.get().unwrap();
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
-            owner_pk: env::signer_account_pk(),
+            owner_pk: old_contract.owner_pk,
             oct_token: old_contract.oct_token,
             wrapped_appchain_token: old_contract.wrapped_appchain_token,
             near_fungible_tokens: old_contract.near_fungible_tokens,
@@ -94,7 +107,10 @@ impl AppchainAnchor {
             unwithdrawn_delegator_rewards: old_contract.unwithdrawn_delegator_rewards,
             unbonded_stakes: old_contract.unbonded_stakes,
             validator_profiles: old_contract.validator_profiles,
-            appchain_settings: old_contract.appchain_settings,
+            appchain_settings: LazyOption::new(
+                StorageKey::AppchainSettings.into_bytes(),
+                Some(&AppchainSettings::from_old_version(old_appchain_settings)),
+            ),
             anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
@@ -109,36 +125,22 @@ impl AppchainAnchor {
             rewards_withdrawal_is_paused: old_contract.rewards_withdrawal_is_paused,
             appchain_messages: old_contract.appchain_messages,
             appchain_challenges: old_contract.appchain_challenges,
-            wrapped_appchain_nfts: LazyOption::new(
-                StorageKey::WrappedAppchainNFTs.into_bytes(),
-                Some(&WrappedAppchainNFTs::new()),
-            ),
+            wrapped_appchain_nfts: old_contract.wrapped_appchain_nfts,
         };
         //
         //
         new_contract
     }
-    ///
-    pub fn clear_anchor_events(&mut self) -> MultiTxsOperationProcessingResult {
-        self.assert_owner();
-        let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        let result = anchor_event_histories.clear();
-        self.anchor_event_histories.set(&anchor_event_histories);
-        result
-    }
-    ///
-    pub fn remove_appchain_messages_before(&mut self, nonce: u32) {
-        self.assert_owner();
-        let mut appchain_messages = self.appchain_messages.get().unwrap();
-        appchain_messages.remove_messages_before(&nonce);
-        self.appchain_messages.set(&appchain_messages);
-    }
-    ///
-    pub fn set_processing_appchain_message_nonce(&mut self, nonce: u32) {
-        self.assert_owner();
-        let mut permissionless_actions_status = self.permissionless_actions_status.get().unwrap();
-        permissionless_actions_status.processing_appchain_message_nonce = Some(nonce);
-        self.permissionless_actions_status
-            .set(&permissionless_actions_status);
+}
+
+impl AppchainSettings {
+    //
+    pub fn from_old_version(old_version: OldAppchainSettings) -> Self {
+        Self {
+            rpc_endpoint: old_version.rpc_endpoint,
+            subql_endpoint: old_version.subql_endpoint,
+            era_reward: old_version.era_reward,
+            bonus_for_new_validator: 1,
+        }
     }
 }

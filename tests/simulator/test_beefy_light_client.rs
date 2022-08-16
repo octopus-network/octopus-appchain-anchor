@@ -28,6 +28,7 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
         wrapped_appchain_token,
         _registry,
         anchor,
+        _wat_faucet,
         users,
         mut appchain_message_nonce,
     ) = common::test_normal_actions(&worker, false, true, initial_public_keys).await?;
@@ -79,9 +80,13 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     //
     // user1 decrease stake
     //
-    let result =
-        staking_actions::decrease_stake(&worker, &users[1], &anchor, common::to_oct_amount(1000))
-            .await?;
+    let result = staking_actions::decrease_stake(
+        &worker,
+        &users[1],
+        &anchor,
+        common::to_actual_amount(1000, 18),
+    )
+    .await?;
     assert!(result.is_success());
     common::complex_viewer::print_anchor_status(&worker, &anchor).await?;
     let unbonded_stakes =
@@ -95,7 +100,7 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
         &users[2],
         &anchor,
         &users[0].id().to_string().parse().unwrap(),
-        common::to_oct_amount(200),
+        common::to_actual_amount(200, 18),
     )
     .await?;
     assert!(result.is_success());

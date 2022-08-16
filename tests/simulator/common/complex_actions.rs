@@ -1,11 +1,11 @@
 use crate::{
     common::{
+        self,
         complex_viewer::{
             print_anchor_status, print_appchain_notifications, print_delegator_reward_histories,
             print_unbonded_stakes_of, print_validator_reward_histories,
             print_wat_balance_of_anchor,
         },
-        get_ft_balance_of, to_oct_amount,
     },
     contract_interfaces::{anchor_viewer, permissionless_actions, staking_actions, sudo_actions},
 };
@@ -90,7 +90,7 @@ pub async fn distribute_reward_of(
     to_confirm_view_result: bool,
 ) -> anyhow::Result<()> {
     let anchor_balance_of_wat =
-        get_ft_balance_of(worker, &anchor.as_account(), &wrapped_appchain_token).await?;
+        common::get_ft_balance_of(worker, &anchor.as_account(), &wrapped_appchain_token).await?;
     let mut appchain_messages = Vec::<AppchainMessage>::new();
     appchain_messages.push(AppchainMessage {
         appchain_event: AppchainEvent::EraRewardConcluded {
@@ -109,10 +109,10 @@ pub async fn distribute_reward_of(
     }
     process_appchain_messages(worker, root, anchor).await?;
     assert_eq!(
-        get_ft_balance_of(worker, &anchor.as_account(), &wrapped_appchain_token)
+        common::get_ft_balance_of(worker, &anchor.as_account(), &wrapped_appchain_token)
             .await?
             .0,
-        anchor_balance_of_wat.0 + to_oct_amount(10)
+        anchor_balance_of_wat.0 + common::to_actual_amount(10, 18)
     );
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(worker, anchor).await?;
@@ -145,7 +145,7 @@ pub async fn withdraw_validator_rewards_of(
 ) -> anyhow::Result<()> {
     print_wat_balance_of_anchor(worker, anchor, wrapped_appchain_token).await?;
     let wat_balance_before_withdraw =
-        get_ft_balance_of(worker, user, wrapped_appchain_token).await?;
+        common::get_ft_balance_of(worker, user, wrapped_appchain_token).await?;
     staking_actions::withdraw_validator_rewards(
         worker,
         user,
@@ -156,7 +156,7 @@ pub async fn withdraw_validator_rewards_of(
     println!(
         "User '{}' withdrawed rewards: {}",
         &user.id(),
-        get_ft_balance_of(worker, user, wrapped_appchain_token)
+        common::get_ft_balance_of(worker, user, wrapped_appchain_token)
             .await?
             .0
             - wat_balance_before_withdraw.0
@@ -175,7 +175,7 @@ pub async fn withdraw_delegator_rewards_of(
 ) -> anyhow::Result<()> {
     print_wat_balance_of_anchor(worker, anchor, wrapped_appchain_token).await?;
     let wat_balance_before_withdraw =
-        get_ft_balance_of(worker, user, wrapped_appchain_token).await?;
+        common::get_ft_balance_of(worker, user, wrapped_appchain_token).await?;
     staking_actions::withdraw_delegator_rewards(
         worker,
         user,
@@ -187,7 +187,7 @@ pub async fn withdraw_delegator_rewards_of(
     println!(
         "User '{}' withdrawed delegator rewards: {}",
         &user.id(),
-        get_ft_balance_of(worker, user, wrapped_appchain_token)
+        common::get_ft_balance_of(worker, user, wrapped_appchain_token)
             .await?
             .0
             - wat_balance_before_withdraw.0
@@ -202,7 +202,7 @@ pub async fn withdraw_stake_of(
     user: &Account,
     oct_token: &Contract,
 ) -> anyhow::Result<()> {
-    let oct_balance_before_withdraw = get_ft_balance_of(worker, user, oct_token).await?;
+    let oct_balance_before_withdraw = common::get_ft_balance_of(worker, user, oct_token).await?;
     staking_actions::withdraw_stake(
         worker,
         user,
@@ -213,7 +213,7 @@ pub async fn withdraw_stake_of(
     println!(
         "User '{}' withdrawed stake: {}",
         &user.id(),
-        get_ft_balance_of(worker, user, oct_token).await?.0 - oct_balance_before_withdraw.0
+        common::get_ft_balance_of(worker, user, oct_token).await?.0 - oct_balance_before_withdraw.0
     );
     print_unbonded_stakes_of(worker, anchor, user).await?;
     Ok(())

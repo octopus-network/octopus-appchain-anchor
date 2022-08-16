@@ -95,7 +95,7 @@ checksum = "bb07d2053ccdbe10e2af2995a2f116c1330396493dc1269f6a91d0ae82e19704"
 
 [[package]]
 name = "appchain-anchor"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "beefy-light-client",
  "ed25519-dalek",
@@ -108,7 +108,7 @@ dependencies = [
 
 [[package]]
 name = "appchain-anchor-wrapper"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "appchain-anchor",
@@ -3560,6 +3560,14 @@ name = "wasm-bindgen-shared"
 version = "0.2.81"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a89911bd99e5f3659ec4acf9c4d93b0a90fe4a2a11f15328472058edc5261be"
+
+[[package]]
+name = "wat-faucet"
+version = "1.0.0"
+dependencies = [
+ "near-contract-standards",
+ "near-sdk",
+]
 
 [[package]]
 name = "web-sys"

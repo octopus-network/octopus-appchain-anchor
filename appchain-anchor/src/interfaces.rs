@@ -271,6 +271,8 @@ pub trait AppchainSettingsManager {
     fn set_subql_endpoint(&mut self, subql_endpoint: String);
     ///
     fn set_era_reward(&mut self, era_reward: U128);
+    ///
+    fn set_bonus_for_new_validator(&mut self, bonus_amount: u32);
 }
 
 pub trait AnchorSettingsManager {

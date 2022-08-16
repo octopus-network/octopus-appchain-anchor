@@ -10,7 +10,14 @@ pub async fn initialize_contracts_and_users(
     worker: &Worker<Sandbox>,
     total_supply: u128,
     with_old_anchor: bool,
-) -> anyhow::Result<(Account, Contract, Contract, Contract, Vec<Account>)> {
+) -> anyhow::Result<(
+    Account,
+    Contract,
+    Contract,
+    Contract,
+    Contract,
+    Vec<Account>,
+)> {
     let root = worker.root_account();
     let mut users: Vec<Account> = Vec::new();
     //
@@ -82,7 +89,7 @@ pub async fn initialize_contracts_and_users(
         true => appchain_anchor
             .deploy(
                 worker,
-                &std::fs::read(format!("res/previous_appchain_anchor.wasm"))?,
+                &std::fs::read(format!("res/appchain_anchor_v2.1.0.wasm"))?,
             )
             .await?
             .unwrap(),
@@ -97,6 +104,25 @@ pub async fn initialize_contracts_and_users(
             "appchain_registry": appchain_registry.id(),
             "oct_token": oct_token.id(),
         }))?
+        .gas(300_000_000_000_000)
+        .transact()
+        .await?;
+    //
+    // deploy wrapped appchain token faucet contract
+    //
+    let wat_faucet = appchain_anchor
+        .as_account()
+        .create_subaccount(worker, "wat-faucet")
+        .initial_balance(parse_near!("50 N"))
+        .transact()
+        .await?
+        .unwrap();
+    let wat_faucet = wat_faucet
+        .deploy(worker, &std::fs::read(format!("res/wat_faucet.wasm"))?)
+        .await?
+        .unwrap();
+    wat_faucet
+        .call(worker, "new")
         .gas(300_000_000_000_000)
         .transact()
         .await?;
@@ -157,25 +183,22 @@ pub async fn initialize_contracts_and_users(
     super::call_ft_transfer(worker, &root, &eve, total_supply / 10, &oct_token).await?;
     users.push(eve);
     // Return initialized UserAccounts
-    Ok((root, oct_token, appchain_registry, appchain_anchor, users))
-}
-
-pub async fn deploy_new_anchor_contract(
-    worker: &Worker<Sandbox>,
-    anchor: &Contract,
-) -> anyhow::Result<()> {
-    anchor
-        .as_account()
-        .deploy(worker, &std::fs::read(format!("res/appchain_anchor.wasm"))?)
-        .await?;
-    Ok(())
+    Ok((
+        root,
+        oct_token,
+        appchain_registry,
+        appchain_anchor,
+        wat_faucet,
+        users,
+    ))
 }
 
 pub async fn deploy_wrapped_appchain_token_contract(
     worker: &Worker<Sandbox>,
     root: &Account,
     anchor: &Contract,
-    premined_balance: U128,
+    premined_beneficiary: &Account,
+    premined_balance: &U128,
     users: &Vec<Account>,
 ) -> anyhow::Result<Contract> {
     let wat_ft_metadata = FungibleTokenMetadata {
@@ -204,7 +227,7 @@ pub async fn deploy_wrapped_appchain_token_contract(
         .call(worker, "new")
         .args_json(json!({
             "owner_id": anchor.id(),
-            "premined_beneficiary": users[0].id(),
+            "premined_beneficiary": premined_beneficiary.id(),
             "premined_balance": premined_balance,
             "metadata": wat_ft_metadata,
         }))?
