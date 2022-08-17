@@ -73,14 +73,6 @@ pub struct OldStakingHistory {
     pub index: U64,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct OldAppchainSettings {
-    pub rpc_endpoint: String,
-    pub subql_endpoint: String,
-    pub era_reward: U128,
-}
-
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
