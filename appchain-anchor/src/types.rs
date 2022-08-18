@@ -1,4 +1,5 @@
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
+use near_contract_standards::non_fungible_token::metadata::NFTContractMetadata;
 use near_sdk::borsh::maybestd::collections::HashMap;
 use near_sdk::{json_types::I128, BlockHeight};
 
@@ -16,14 +17,14 @@ impl AccountIdInAppchain {
     pub fn new(id_in_appchain: Option<String>) -> Self {
         let mut value = String::new();
         if let Some(id_in_appchain) = id_in_appchain.clone() {
-            if !id_in_appchain.starts_with("0x") {
+            if !id_in_appchain.to_lowercase().starts_with("0x") {
                 value.push_str("0x");
             }
             value.push_str(&id_in_appchain);
         }
         Self {
             origin: id_in_appchain,
-            raw_string: value,
+            raw_string: value.to_lowercase(),
         }
     }
     ///
@@ -93,13 +94,14 @@ pub struct AppchainSettings {
     pub rpc_endpoint: String,
     pub subql_endpoint: String,
     pub era_reward: U128,
+    pub bonus_for_new_validator: U128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AnchorSettings {
-    pub token_price_maintainer_account: AccountId,
-    pub relayer_account: AccountId,
+    pub token_price_maintainer_account: Option<AccountId>,
+    pub relayer_account: Option<AccountId>,
     pub beefy_light_client_witness_mode: bool,
 }
 
@@ -166,8 +168,8 @@ pub struct OctToken {
 #[serde(crate = "near_sdk::serde")]
 pub struct WrappedAppchainToken {
     pub metadata: FungibleTokenMetadata,
-    pub contract_account: AccountId,
-    pub premined_beneficiary: AccountId,
+    pub contract_account: Option<AccountId>,
+    pub premined_beneficiary: Option<AccountId>,
     pub premined_balance: U128,
     pub changed_balance: I128,
     pub price_in_usd: U128,
@@ -175,7 +177,7 @@ pub struct WrappedAppchainToken {
 }
 
 /// The bridging state of NEP-141 token.
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub enum BridgingState {
     /// The state which this contract is bridging the bridge token to the appchain.
@@ -356,7 +358,7 @@ pub struct AnchorEventHistory {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainValidator {
-    pub validator_id: String,
+    pub validator_id: AccountId,
     pub validator_id_in_appchain: String,
     pub deposit_amount: U128,
     pub total_stake: U128,
@@ -507,17 +509,31 @@ pub struct ValidatorProfile {
 pub enum AppchainNotification {
     /// A certain amount of a NEAR fungible token has been locked in appchain anchor.
     NearFungibleTokenLocked {
-        contract_account: String,
+        contract_account: AccountId,
         sender_id_in_near: AccountId,
         receiver_id_in_appchain: String,
         amount: U128,
     },
-    /// A certain amount of wrapped appchain token is burnt in its contract
-    /// in NEAR protocol.
+    /// A certain amount of wrapped appchain token is burnt in its contract in NEAR protocol.
     WrappedAppchainTokenBurnt {
         sender_id_in_near: AccountId,
         receiver_id_in_appchain: String,
         amount: U128,
+    },
+    /// A certain wrapped non-fungible token is burnt in its contract in NEAR protocol.
+    WrappedNonFungibleTokenBurnt {
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
+        class_id: String,
+        instance_id: String,
+    },
+    /// A certain wrapped appchain NFT is locked in appchain anchor.
+    WrappedAppchainNFTLocked {
+        class_id: String,
+        token_id: String,
+        sender_id_in_near: AccountId,
+        owner_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
     },
 }
 
@@ -548,8 +564,6 @@ pub enum MultiTxsOperationProcessingResult {
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ValidatorMerkleProof {
-    /// Root hash of generated merkle tree.
-    pub root: Hash,
     /// Proof items (does not contain the leaf hash, nor the root obviously).
     ///
     /// This vec contains all inner node hashes necessary to reconstruct the root hash given the
@@ -577,7 +591,6 @@ pub enum BeefyLightClientStatus {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainCommitment {
-    pub payload: Hash,
     pub block_number: u32,
     pub validator_set_id: U64,
 }
@@ -593,9 +606,9 @@ pub struct UserStakingHistory {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
-pub enum DepositMessage {
+pub enum FTDepositMessage {
     RegisterValidator {
-        validator_id_in_appchain: Option<String>,
+        validator_id_in_appchain: String,
         can_be_delegated_to: bool,
         profile: HashMap<String, String>,
     },
@@ -609,4 +622,20 @@ pub enum DepositMessage {
     BridgeToAppchain {
         receiver_id_in_appchain: String,
     },
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum NFTTransferMessage {
+    BridgeToAppchain { receiver_id_in_appchain: String },
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct WrappedAppchainNFT {
+    pub class_id: String,
+    pub metadata: NFTContractMetadata,
+    pub contract_account: AccountId,
+    pub bridging_state: BridgingState,
+    pub count_of_locked_tokens: U64,
 }

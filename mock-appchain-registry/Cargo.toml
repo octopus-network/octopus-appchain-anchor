@@ -2,11 +2,11 @@
 name = "mock-appchain-registry"
 version = "0.1.0"
 authors = ["Octopus Network"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "3.1.0"
-near-contract-standards = "3.1.0"
+near-sdk = "4.0.0"
+near-contract-standards = "4.0.0"

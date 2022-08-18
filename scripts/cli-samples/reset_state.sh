@@ -30,7 +30,15 @@ do
     param="'{\"era_number\":\"${i}\"}'"
     near call $ANCHOR_ACCOUNT_ID reset_validator_set_histories_to $param --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
 done
+#
 near call $ANCHOR_ACCOUNT_ID reset_next_validator_set_to '{"era_number":"0"}' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
+#
 near call $ANCHOR_ACCOUNT_ID reset_staking_histories_to '{"era_number":"0"}' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
+#
 near call $ANCHOR_ACCOUNT_ID refresh_user_staking_histories '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
+#
 near call $ANCHOR_ACCOUNT_ID reset_validator_profiles_to '{"era_number":"0"}' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
+#
+near call $ANCHOR_ACCOUNT_ID clear_appchain_messages '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
+#
+near call $ANCHOR_ACCOUNT_ID set_latest_applied_appchain_message_nonce '{"nonce":0}' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000

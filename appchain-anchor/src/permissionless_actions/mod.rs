@@ -1,11 +1,13 @@
 mod distributing_rewards;
 mod switching_era;
 
-use near_sdk::serde_json;
+use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 
 use crate::*;
 use crate::{interfaces::PermissionlessActions, message_decoder::AppchainMessage};
 use core::convert::{TryFrom, TryInto};
+use std::ops::Add;
+use std::str::FromStr;
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -31,6 +33,14 @@ pub enum AppchainEvent {
         era_number: u32,
         unprofitable_validator_ids: Vec<String>,
     },
+    /// The fact that a certain non-fungible token is locked in the appchain.
+    NonFungibleTokenLocked {
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        class_id: String,
+        instance_id: String,
+        token_metadata: TokenMetadata,
+    },
 }
 
 pub struct AppchainMessagesProcessingContext {
@@ -43,12 +53,12 @@ impl AppchainMessagesProcessingContext {
     pub fn new(status: PermissionlessActionsStatus) -> Self {
         Self {
             processing_status: status,
-            prepaid_gas_for_extra_actions: 0,
+            prepaid_gas_for_extra_actions: Gas::from(0),
         }
     }
     ///
     pub fn add_prepaid_gas(&mut self, gas: Gas) {
-        self.prepaid_gas_for_extra_actions += gas;
+        self.prepaid_gas_for_extra_actions = self.prepaid_gas_for_extra_actions.add(gas);
     }
     ///
     pub fn set_processing_nonce(&mut self, nonce: u32) {
@@ -182,7 +192,7 @@ impl PermissionlessActions for AppchainAnchor {
                     return MultiTxsOperationProcessingResult::Error(format!("{:?}", err));
                 }
             }
-            if env::used_gas() > GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
                 break;
             }
         }
@@ -199,10 +209,7 @@ impl PermissionlessActions for AppchainAnchor {
     ) {
         let anchor_settings = self.anchor_settings.get().unwrap();
         if anchor_settings.beefy_light_client_witness_mode {
-            assert!(
-                env::predecessor_account_id().eq(&anchor_settings.relayer_account),
-                "Only relayer account can perform this action while beefy light client is in witness mode."
-            );
+            self.assert_relayer();
         } else {
             self.assert_light_client_is_ready();
             let light_client = self.beefy_light_client_state.get().unwrap();
@@ -226,8 +233,8 @@ impl PermissionlessActions for AppchainAnchor {
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
         let mut result = MultiTxsOperationProcessingResult::Ok;
         while processing_context.used_gas_of_current_function_call()
-            < GAS_CAP_FOR_MULTI_TXS_PROCESSING
-            && env::used_gas() < GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES
+            < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
+            && env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES)
         {
             if let Some(processing_nonce) = processing_context.processing_nonce() {
                 if let Some(appchain_message) = appchain_messages.get_message(processing_nonce) {
@@ -344,9 +351,19 @@ impl AppchainAnchor {
                     self.record_appchain_message_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
+                let contract_account_id = AccountId::from_str(&contract_account);
+                if contract_account_id.is_err() {
+                    let message = format!("Invalid contract account: '{}'.", contract_account);
+                    let result = AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message: message.clone(),
+                    };
+                    self.record_appchain_message_processing_result(&result);
+                    return MultiTxsOperationProcessingResult::Error(message);
+                }
                 self.internal_unlock_near_fungible_token(
                     owner_id_in_appchain,
-                    contract_account,
+                    contract_account_id.unwrap(),
                     receiver_id_in_near,
                     amount,
                     appchain_message.nonce,
@@ -374,15 +391,6 @@ impl AppchainAnchor {
                     > i128::try_from(wrapped_appchain_token.total_supply.0).unwrap()
                 {
                     let message = format!("Too much wrapped appchain token to mint.");
-                    self.internal_append_anchor_event(
-                        AnchorEvent::FailedToMintWrappedAppchainToken {
-                            sender_id_in_appchain: Some(owner_id_in_appchain),
-                            receiver_id_in_near,
-                            amount,
-                            appchain_message_nonce: appchain_message.nonce,
-                            reason: message.clone(),
-                        },
-                    );
                     let result = AppchainMessageProcessingResult::Error {
                         nonce: appchain_message.nonce,
                         message: message.clone(),
@@ -442,6 +450,32 @@ impl AppchainAnchor {
                         unprofitable_validator_ids,
                     )
                 }
+            }
+            AppchainEvent::NonFungibleTokenLocked {
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                class_id,
+                instance_id,
+                token_metadata,
+            } => {
+                if self.asset_transfer_is_paused {
+                    let message = format!("Asset transfer is now paused.");
+                    let result = AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message: message.clone(),
+                    };
+                    self.record_appchain_message_processing_result(&result);
+                    return MultiTxsOperationProcessingResult::Error(message);
+                }
+                self.internal_process_locked_nft_in_appchain(
+                    processing_context,
+                    appchain_message.nonce,
+                    owner_id_in_appchain,
+                    receiver_id_in_near,
+                    class_id,
+                    instance_id,
+                    token_metadata,
+                )
             }
         }
     }

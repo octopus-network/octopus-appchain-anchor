@@ -1,7 +1,44 @@
+[package]
+name = "appchain-anchor-wrapper"
+version = "2.1.1"
+authors = ["Octopus Network"]
+edition = "2021"
+
+[dev-dependencies]
+anyhow = "1.0"
+hex-literal = "0.3.1"
+near-sdk = "4.0.0"
+near-contract-standards = "4.0.0"
+near-primitives = "0.5.0"
+near-units = "0.2.0"
+hex = "0.4.2"
+num-format = "0.4.0"
+secp256k1-test = { package = "secp256k1", version = "0.20.3", features = ["rand-std", "recovery"] }
+beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client.git", branch = "main" }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
+beefy-merkle-tree = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.12", features = ["keccak"], default-features = false }
+# remember to include related mock contracts
+appchain-anchor = { path = "./appchain-anchor" }
+mock-appchain-registry = { path = "./mock-appchain-registry" }
+mock-oct-token = { path = "./mock-oct-token" }
+wrapped-appchain-token = { git = "https://github.com/octopus-network/wrapped-appchain-token.git", branch = "v2.0.0" }
+wrapped-appchain-nft = { git = "https://github.com/octopus-network/wrapped-appchain-nft.git", branch = "main" }
+tokio = { version = "1.14", features = ["full"] }
+workspaces = "0.3"
+
+[profile.release]
+codegen-units = 1
+# Tell `rustc` to optimize for small code size.
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
+
 [workspace]
 members = [
     "appchain-anchor",
     "mock-appchain-registry",
     "mock-oct-token",
-    "mock-wrapped-appchain-token"
+    "wat-faucet",
 ]

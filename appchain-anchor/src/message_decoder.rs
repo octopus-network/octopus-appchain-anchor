@@ -8,6 +8,7 @@ pub enum PayloadType {
     BurnAsset,
     PlanNewEra,
     EraPayout,
+    LockNft,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
@@ -40,6 +41,16 @@ pub struct EraPayoutPayload {
     pub excluded_validators: Vec<String>,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct LockNftPayload {
+    pub sender: String,
+    pub receiver_id: AccountId,
+    pub class: u128,
+    pub instance: u128,
+    pub metadata: TokenMetadata,
+}
+
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainMessage {
@@ -56,6 +67,7 @@ pub enum MessagePayload {
     Lock(LockPayload),
     PlanNewEra(PlanNewEraPayload),
     EraPayout(EraPayoutPayload),
+    LockNft(LockNftPayload),
 }
 
 #[derive(Encode, Decode, Clone)]
@@ -75,6 +87,10 @@ pub fn decode(encoded_message: Vec<u8>) -> Vec<AppchainMessage> {
                 let payload_result: Result<BurnAssetPayload, std::io::Error> =
                     BorshDeserialize::deserialize(&mut &m.payload[..]);
                 let payload = payload_result.unwrap();
+                log!(
+                    "Origin appchain message: '{}'",
+                    serde_json::to_string(&payload).unwrap()
+                );
                 AppchainMessage {
                     nonce: m.nonce as u32,
                     appchain_event: AppchainEvent::NearFungibleTokenBurnt {
@@ -89,6 +105,10 @@ pub fn decode(encoded_message: Vec<u8>) -> Vec<AppchainMessage> {
                 let payload_result: Result<LockPayload, std::io::Error> =
                     BorshDeserialize::deserialize(&mut &m.payload[..]);
                 let payload = payload_result.unwrap();
+                log!(
+                    "Origin appchain message: '{}'",
+                    serde_json::to_string(&payload).unwrap()
+                );
                 AppchainMessage {
                     nonce: m.nonce as u32,
                     appchain_event: AppchainEvent::NativeTokenLocked {
@@ -102,6 +122,10 @@ pub fn decode(encoded_message: Vec<u8>) -> Vec<AppchainMessage> {
                 let payload_result: Result<PlanNewEraPayload, std::io::Error> =
                     BorshDeserialize::deserialize(&mut &m.payload[..]);
                 let payload = payload_result.unwrap();
+                log!(
+                    "Origin appchain message: '{}'",
+                    serde_json::to_string(&payload).unwrap()
+                );
                 AppchainMessage {
                     nonce: m.nonce as u32,
                     appchain_event: AppchainEvent::EraSwitchPlaned {
@@ -113,11 +137,34 @@ pub fn decode(encoded_message: Vec<u8>) -> Vec<AppchainMessage> {
                 let payload_result: Result<EraPayoutPayload, std::io::Error> =
                     BorshDeserialize::deserialize(&mut &m.payload[..]);
                 let payload = payload_result.unwrap();
+                log!(
+                    "Origin appchain message: '{}'",
+                    serde_json::to_string(&payload).unwrap()
+                );
                 AppchainMessage {
                     nonce: m.nonce as u32,
                     appchain_event: AppchainEvent::EraRewardConcluded {
                         era_number: payload.end_era,
                         unprofitable_validator_ids: payload.excluded_validators,
+                    },
+                }
+            }
+            PayloadType::LockNft => {
+                let payload_result: Result<LockNftPayload, std::io::Error> =
+                    BorshDeserialize::deserialize(&mut &m.payload[..]);
+                let payload = payload_result.unwrap();
+                log!(
+                    "Origin appchain message: '{}'",
+                    serde_json::to_string(&payload).unwrap()
+                );
+                AppchainMessage {
+                    nonce: m.nonce as u32,
+                    appchain_event: AppchainEvent::NonFungibleTokenLocked {
+                        owner_id_in_appchain: payload.sender,
+                        receiver_id_in_near: payload.receiver_id,
+                        class_id: payload.class.to_string(),
+                        instance_id: payload.instance.to_string(),
+                        token_metadata: payload.metadata,
                     },
                 }
             }

@@ -2,6 +2,7 @@ use near_sdk::AccountId;
 
 /// Storage keys for collections of sub-struct in main contract
 pub enum StorageKey {
+    AnchorContractWasm,
     OctToken,
     WrappedAppchainToken,
     NearFungibleTokenSymbols,
@@ -44,6 +45,10 @@ pub enum StorageKey {
     AppchainMessageProcessingResultsMap,
     AppchainChallenges,
     AppchainChallengesMap,
+    WrappedAppchainNFTs,
+    WrappedAppchainNFTsClassIds,
+    WrappedAppchainNFTsNFTs,
+    WrappedAppchainNFTContractWasm,
     ValidatorIdsOfEra(u64),
     ValidatorToDelegatorsMapOfEra(u64),
     DelegatorToValidatorsMapOfEra(u64),
@@ -60,11 +65,13 @@ pub enum StorageKey {
         era_number: u64,
         delegator_id: AccountId,
     },
+    WrappedAppchainNFTsLockedTokenIdSet(String),
 }
 
 impl StorageKey {
     pub fn to_string(&self) -> String {
         match self {
+            StorageKey::AnchorContractWasm => "acw".to_string(),
             StorageKey::OctToken => "oct".to_string(),
             StorageKey::WrappedAppchainToken => "wat".to_string(),
             StorageKey::NearFungibleTokenSymbols => "fts".to_string(),
@@ -107,6 +114,10 @@ impl StorageKey {
             StorageKey::AppchainMessageProcessingResultsMap => "amprsm".to_string(),
             StorageKey::AppchainChallenges => "acs".to_string(),
             StorageKey::AppchainChallengesMap => "acsm".to_string(),
+            StorageKey::WrappedAppchainNFTs => "wanfts".to_string(),
+            StorageKey::WrappedAppchainNFTsClassIds => "wanftscis".to_string(),
+            StorageKey::WrappedAppchainNFTsNFTs => "wanftsnfts".to_string(),
+            StorageKey::WrappedAppchainNFTContractWasm => "wanftwasm".to_string(),
             StorageKey::ValidatorIdsOfEra(era_number) => format!("{}vis", era_number),
             StorageKey::ValidatorToDelegatorsMapOfEra(era_number) => format!("{}lmvtd", era_number),
             StorageKey::DelegatorToValidatorsMapOfEra(era_number) => format!("{}lmdtv", era_number),
@@ -125,6 +136,9 @@ impl StorageKey {
                 era_number,
                 delegator_id,
             } => format!("{}lmdtv{}", era_number, delegator_id),
+            StorageKey::WrappedAppchainNFTsLockedTokenIdSet(class_id) => {
+                format!("{}wanltis", class_id)
+            }
         }
     }
     pub fn into_bytes(&self) -> Vec<u8> {

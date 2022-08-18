@@ -10,22 +10,26 @@ mod reward_distribution_records;
 mod storage_key;
 mod storage_migration;
 pub mod types;
+mod upgrade;
 mod user_actions;
 mod user_staking_histories;
 mod validator_profiles;
 mod validator_set;
 
-use core::convert::{TryFrom, TryInto};
+use core::convert::TryInto;
 use getrandom::{register_custom_getrandom, Error};
+use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
+use near_contract_standards::non_fungible_token::TokenId;
 use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
-use near_sdk::json_types::{ValidAccountId, U128, U64};
+use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     assert_self, env, ext_contract, log, near_bindgen, serde_json, AccountId, Balance, Gas,
-    PanicOnDefault, PromiseOrValue, PromiseResult, Timestamp,
+    PanicOnDefault, Promise, PromiseOrValue, PromiseResult, PublicKey, Timestamp,
 };
+use std::ops::Mul;
 
 pub use message_decoder::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
@@ -33,6 +37,7 @@ pub use permissionless_actions::AppchainEvent;
 use appchain_challenge::AppchainChallenge;
 use appchain_messages::AppchainMessages;
 use assets::near_fungible_tokens::NearFungibleTokens;
+use assets::wrapped_appchain_nfts::WrappedAppchainNFTs;
 use beefy_light_client::Hash;
 use beefy_light_client::LightClient;
 use lookup_array::{IndexedAndClearable, LookupArray};
@@ -49,16 +54,20 @@ use validator_set::ValidatorSetViewer;
 register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v1.3.1";
+const ANCHOR_VERSION: &str = "v2.1.1";
 /// Constants for gas.
-const T_GAS: u64 = 1_000_000_000_000;
-const GAS_FOR_FT_TRANSFER: u64 = 10 * T_GAS;
-const GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10 * T_GAS;
-const GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 20 * T_GAS;
-const GAS_FOR_RESOLVER_FUNCTION: u64 = 10 * T_GAS;
-const GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 10 * T_GAS;
-const GAS_CAP_FOR_MULTI_TXS_PROCESSING: Gas = 150 * T_GAS;
-const GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES: Gas = 240 * T_GAS;
+const T_GAS_FOR_FT_TRANSFER: u64 = 10;
+const T_GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10;
+const T_GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 20;
+const T_GAS_FOR_NFT_TRANSFER: u64 = 10;
+const T_GAS_FOR_MINT_NFT: u64 = 10;
+const T_GAS_FOR_RESOLVER_FUNCTION: u64 = 10;
+const T_GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 10;
+const T_GAS_CAP_FOR_MULTI_TXS_PROCESSING: u64 = 150;
+const T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES: u64 = 240;
+const T_GAS_FOR_NFT_CONTRACT_INITIALIZATION: u64 = 50;
+const T_GAS_FOR_REGISTER_VALIDATOR: u64 = 100;
+const T_GAS_FOR_BURN_WRAPPED_APPCHAIN_TOKEN: u64 = 50;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.
@@ -69,24 +78,10 @@ const SECONDS_OF_A_DAY: u64 = 86400;
 const NANO_SECONDS_MULTIPLE: u64 = 1_000_000_000;
 /// Storage deposit for NEP-141 token (in yocto)
 const STORAGE_DEPOSIT_FOR_NEP141_TOEKN: Balance = 12_500_000_000_000_000_000_000;
-
-#[ext_contract(ext_fungible_token)]
-trait FungibleTokenInterface {
-    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
-    fn mint(&mut self, account_id: AccountId, amount: U128);
-    fn burn(&mut self, account_id: AccountId, amount: U128);
-}
-
-#[ext_contract(ext_appchain_registry)]
-trait AppchainRegistryInterface {
-    fn sync_state_of(
-        &mut self,
-        appchain_id: AppchainId,
-        appchain_state: AppchainState,
-        validator_count: u32,
-        total_stake: U128,
-    );
-}
+/// Storage deposit for mint NEP-171 token (in yocto)
+const STORAGE_DEPOSIT_FOR_MINT_NFT: Balance = 100_000_000_000_000_000_000_000;
+/// Storage deposit for wrapped appchain NFT contract (in yocto)
+const WRAPPED_APPCHAIN_NFT_CONTRACT_INIT_BALANCE: Balance = 3_200_000_000_000_000_000_000_000;
 
 #[ext_contract(ext_self)]
 trait ResolverForSelfCallback {
@@ -114,6 +109,26 @@ trait ResolverForSelfCallback {
         amount: U128,
         appchain_message_nonce: u32,
     );
+    /// Resolver for transfer wrapped appchain NFT
+    fn resolve_wrapped_appchain_nft_transfer(
+        &mut self,
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        class_id: String,
+        instance_id: String,
+        token_metadata: TokenMetadata,
+        appchain_message_nonce: u32,
+    );
+    /// Resolver for mint wrapped appchain NFT
+    fn resolve_wrapped_appchain_nft_mint(
+        &mut self,
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        class_id: String,
+        instance_id: String,
+        token_metadata: TokenMetadata,
+        appchain_message_nonce: u32,
+    );
 }
 
 #[near_bindgen]
@@ -125,6 +140,8 @@ pub struct AppchainAnchor {
     appchain_registry: AccountId,
     /// The owner account id.
     owner: AccountId,
+    /// A certain public key of owner account
+    owner_pk: PublicKey,
     /// The info of OCT token.
     oct_token: LazyOption<OctToken>,
     /// The info of wrapped appchain token in NEAR protocol.
@@ -176,6 +193,8 @@ pub struct AppchainAnchor {
     appchain_messages: LazyOption<AppchainMessages>,
     /// The appchain challenges
     appchain_challenges: LazyOption<LookupArray<AppchainChallenge>>,
+    /// The wrapped appchain NFT data
+    wrapped_appchain_nfts: LazyOption<WrappedAppchainNFTs>,
 }
 
 #[near_bindgen]
@@ -191,6 +210,7 @@ impl AppchainAnchor {
             appchain_id,
             appchain_registry,
             owner: env::predecessor_account_id(),
+            owner_pk: env::signer_account_pk(),
             oct_token: LazyOption::new(
                 StorageKey::OctToken.into_bytes(),
                 Some(&OctToken {
@@ -284,6 +304,10 @@ impl AppchainAnchor {
                 StorageKey::AppchainChallenges.into_bytes(),
                 Some(&LookupArray::new(StorageKey::AppchainChallengesMap)),
             ),
+            wrapped_appchain_nfts: LazyOption::new(
+                StorageKey::WrappedAppchainNFTs.into_bytes(),
+                Some(&WrappedAppchainNFTs::new()),
+            ),
         }
     }
     // Assert that the contract called by the owner.
@@ -292,6 +316,32 @@ impl AppchainAnchor {
             env::predecessor_account_id(),
             self.owner,
             "Function can only be called by owner."
+        );
+    }
+    //
+    fn assert_token_price_maintainer(&self) {
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        let token_price_maintainer_account = anchor_settings
+            .token_price_maintainer_account
+            .expect("Token price maintainer account is not set.");
+        assert_eq!(
+            env::predecessor_account_id(),
+            token_price_maintainer_account,
+            "Only '{}' can call this function.",
+            token_price_maintainer_account
+        );
+    }
+    //
+    fn assert_relayer(&self) {
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        let relayer_account = anchor_settings
+            .relayer_account
+            .expect("Relayer account is not set.");
+        assert_eq!(
+            env::predecessor_account_id(),
+            relayer_account,
+            "Only '{}' can call this function.",
+            relayer_account
         );
     }
     // Assert the given validator is existed in the given validator set.
@@ -321,14 +371,14 @@ impl AppchainAnchor {
             validator_id
         );
     }
-    ///
+    //
     fn assert_light_client_initialized(&self) {
         assert!(
             self.beefy_light_client_state.is_some(),
             "Beefy light client is not initialized."
         );
     }
-    ///
+    //
     fn assert_light_client_is_ready(&self) {
         self.assert_light_client_initialized();
         assert!(
@@ -340,18 +390,26 @@ impl AppchainAnchor {
             "Beefy light client is updating state."
         );
     }
-    ///
+    //
     fn assert_asset_transfer_is_not_paused(&self) {
         assert!(
             !self.asset_transfer_is_paused,
             "Asset transfer is now paused."
         );
     }
-    ///
+    //
     fn assert_rewards_withdrawal_is_not_paused(&self) {
         assert!(
             !self.rewards_withdrawal_is_paused,
             "Rewards withdrawal is now paused."
+        );
+    }
+    //
+    fn assert_contract_account_of_wrapped_appchain_token_is_set(&self) {
+        let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
+        assert!(
+            wrapped_appchain_token.contract_account.is_some(),
+            "Contract account of wrapped appchain token is not set."
         );
     }
     //
@@ -379,13 +437,7 @@ impl AppchainAnchor {
     }
     /// Set the price (in USD) of OCT token
     pub fn set_price_of_oct_token(&mut self, price: U128) {
-        let anchor_settings = self.anchor_settings.get().unwrap();
-        assert_eq!(
-            env::predecessor_account_id(),
-            anchor_settings.token_price_maintainer_account,
-            "Only '{}' can call this function.",
-            anchor_settings.token_price_maintainer_account
-        );
+        self.assert_token_price_maintainer();
         let mut oct_token = self.oct_token.get().unwrap();
         oct_token.price_in_usd = price;
         self.oct_token.set(&oct_token);
@@ -408,11 +460,7 @@ impl Ownable for AppchainAnchor {
     //
     fn set_owner(&mut self, owner: AccountId) {
         self.assert_owner();
-        assert!(
-            ValidAccountId::try_from(owner.clone()).is_ok(),
-            "Invalid account id: {}",
-            owner
-        );
+        assert!(!owner.eq(&self.owner), "Owner is not changed.",);
         self.owner = owner;
     }
 }
@@ -433,7 +481,7 @@ impl AppchainAnchor {
             &sender_id,
             msg
         );
-        let deposit_message: DepositMessage = match serde_json::from_str(msg.as_str()) {
+        let deposit_message: FTDepositMessage = match serde_json::from_str(msg.as_str()) {
             Ok(msg) => msg,
             Err(_) => {
                 log!(
@@ -445,10 +493,10 @@ impl AppchainAnchor {
         };
         let predecessor_account_id = env::predecessor_account_id();
         match deposit_message {
-            DepositMessage::RegisterValidator { .. }
-            | DepositMessage::IncreaseStake
-            | DepositMessage::RegisterDelegator { .. }
-            | DepositMessage::IncreaseDelegation { .. } => {
+            FTDepositMessage::RegisterValidator { .. }
+            | FTDepositMessage::IncreaseStake
+            | FTDepositMessage::RegisterDelegator { .. }
+            | FTDepositMessage::IncreaseDelegation { .. } => {
                 assert!(
                     predecessor_account_id.eq(&self.oct_token.get().unwrap().contract_account),
                     "Received invalid deposit '{}' in contract '{}' from '{}'. Return deposit.",
@@ -458,7 +506,7 @@ impl AppchainAnchor {
                 );
                 self.internal_process_oct_deposit(sender_id, amount, deposit_message)
             }
-            DepositMessage::BridgeToAppchain { .. } => self
+            FTDepositMessage::BridgeToAppchain { .. } => self
                 .internal_process_near_fungible_token_deposit(
                     predecessor_account_id,
                     sender_id,
@@ -469,22 +517,46 @@ impl AppchainAnchor {
     }
 }
 
+#[near_bindgen]
 impl AppchainAnchor {
-    ///
-    pub fn internal_append_anchor_event(
+    /// Callback function for `nft_transfer_call` of NEP-171 compatible contracts
+    pub fn nft_on_transfer(
         &mut self,
-        anchor_event: AnchorEvent,
-    ) -> AnchorEventHistory {
-        let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        let anchor_event_history = anchor_event_histories.append(&mut AnchorEventHistory {
-            anchor_event,
-            block_height: env::block_index(),
-            timestamp: env::block_timestamp(),
-            index: U64::from(0),
-        });
-        self.anchor_event_histories.set(&anchor_event_histories);
-        anchor_event_history
+        sender_id: AccountId,
+        previous_owner_id: AccountId,
+        token_id: TokenId,
+        msg: String,
+    ) -> PromiseOrValue<bool> {
+        self.assert_asset_transfer_is_not_paused();
+        log!(
+            "NFT transfer from '@{}' received. msg: '{}'",
+            sender_id,
+            msg
+        );
+        let transfer_message: NFTTransferMessage = match serde_json::from_str(msg.as_str()) {
+            Ok(msg) => msg,
+            Err(_) => {
+                log!(
+                    "Invalid msg '{}' attached in `nft_transfer_call`. Return nft.",
+                    msg
+                );
+                return PromiseOrValue::Value(true);
+            }
+        };
+        let predecessor_account_id = env::predecessor_account_id();
+        match transfer_message {
+            NFTTransferMessage::BridgeToAppchain { .. } => self.internal_process_nft_transfer(
+                predecessor_account_id,
+                sender_id,
+                previous_owner_id,
+                token_id,
+                transfer_message,
+            ),
+        }
     }
+}
+
+impl AppchainAnchor {
     ///
     pub fn internal_append_appchain_notification(
         &mut self,
@@ -495,7 +567,7 @@ impl AppchainAnchor {
         let appchain_notification_history =
             appchain_notification_histories.append(&mut AppchainNotificationHistory {
                 appchain_notification,
-                block_height: env::block_index(),
+                block_height: env::block_height(),
                 timestamp: env::block_timestamp(),
                 index: U64::from(0),
             });
@@ -506,14 +578,28 @@ impl AppchainAnchor {
     ///
     pub fn sync_state_to_registry(&self) {
         let next_validator_set = self.next_validator_set.get().unwrap();
-        ext_appchain_registry::sync_state_of(
-            self.appchain_id.clone(),
-            self.appchain_state.clone(),
-            next_validator_set.validator_count().try_into().unwrap(),
-            U128::from(next_validator_set.total_stake()),
-            &self.appchain_registry,
+        // sync state to appchain registry contract
+        #[derive(near_sdk::serde::Serialize)]
+        #[serde(crate = "near_sdk::serde")]
+        struct Args {
+            appchain_id: AppchainId,
+            appchain_state: AppchainState,
+            validator_count: u32,
+            total_stake: U128,
+        }
+        let args = Args {
+            appchain_id: self.appchain_id.clone(),
+            appchain_state: self.appchain_state.clone(),
+            validator_count: next_validator_set.validator_count().try_into().unwrap(),
+            total_stake: U128::from(next_validator_set.total_stake()),
+        };
+        let args = near_sdk::serde_json::to_vec(&args)
+            .expect("Failed to serialize the cross contract args using JSON.");
+        Promise::new(self.appchain_registry.clone()).function_call(
+            "sync_state_of".to_string(),
+            args,
             0,
-            GAS_FOR_SYNC_STATE_TO_REGISTRY,
+            Gas::ONE_TERA.mul(T_GAS_FOR_SYNC_STATE_TO_REGISTRY),
         );
     }
 }

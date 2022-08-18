@@ -1,3 +1,4 @@
+use near_contract_standards::fungible_token::core::ext_ft_core;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 
 use crate::{
@@ -101,11 +102,6 @@ impl NearFungibleTokenManager for AppchainAnchor {
         price: U128,
     ) {
         self.assert_owner();
-        assert!(
-            ValidAccountId::try_from(contract_account.clone()).is_ok(),
-            "Invalid account id: {}",
-            contract_account
-        );
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             !near_fungible_tokens.contains(&symbol),
@@ -151,6 +147,13 @@ impl NearFungibleTokenManager for AppchainAnchor {
             "Token '{}' is not registered.",
             &symbol
         );
+        assert!(
+            near_fungible_tokens
+                .get_by_contract_account(&contract_account)
+                .is_none(),
+            "Token contract '{}' is already registered.",
+            contract_account
+        );
         let mut near_fungible_token = near_fungible_tokens.get(&symbol).unwrap();
         near_fungible_token.metadata.name = name;
         near_fungible_token.metadata.decimals = decimals;
@@ -159,13 +162,7 @@ impl NearFungibleTokenManager for AppchainAnchor {
     }
     //
     fn set_price_of_near_fungible_token(&mut self, symbol: String, price: U128) {
-        let anchor_settings = self.anchor_settings.get().unwrap();
-        assert_eq!(
-            env::predecessor_account_id(),
-            anchor_settings.token_price_maintainer_account,
-            "Only '{}' can call this function.",
-            anchor_settings.token_price_maintainer_account
-        );
+        self.assert_token_price_maintainer();
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         assert!(
             near_fungible_tokens.contains(&symbol),
@@ -217,14 +214,22 @@ impl AppchainAnchor {
         predecessor_account_id: AccountId,
         sender_id: AccountId,
         amount: U128,
-        deposit_message: DepositMessage,
+        deposit_message: FTDepositMessage,
     ) -> PromiseOrValue<U128> {
         let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
         if let Some(mut near_fungible_token) =
             near_fungible_tokens.get_by_contract_account(&predecessor_account_id)
         {
+            assert!(
+                near_fungible_token
+                    .bridging_state
+                    .eq(&BridgingState::Active),
+                "Bridging for '{}({})' is closed.",
+                near_fungible_token.metadata.symbol,
+                near_fungible_token.metadata.name
+            );
             match deposit_message {
-                DepositMessage::BridgeToAppchain {
+                FTDepositMessage::BridgeToAppchain {
                     receiver_id_in_appchain,
                 } => {
                     AccountIdInAppchain::new(Some(receiver_id_in_appchain.clone())).assert_valid();
@@ -249,12 +254,6 @@ impl AppchainAnchor {
                             None => panic!("Locked balance overflow. Return deposit."),
                         };
                     near_fungible_tokens.insert(&near_fungible_token);
-                    self.internal_append_anchor_event(AnchorEvent::NearFungibleTokenLocked {
-                        symbol: near_fungible_token.metadata.symbol.clone(),
-                        sender_id_in_near: sender_id.clone(),
-                        receiver_id_in_appchain: receiver_id_in_appchain.clone(),
-                        amount,
-                    });
                     let appchain_notification_history = self.internal_append_appchain_notification(
                         AppchainNotification::NearFungibleTokenLocked {
                             contract_account: near_fungible_token.contract_account.clone(),
@@ -287,35 +286,57 @@ impl AppchainAnchor {
     pub fn internal_unlock_near_fungible_token(
         &mut self,
         sender_id_in_appchain: String,
-        contract_account: String,
+        contract_account: AccountId,
         receiver_id_in_near: AccountId,
         amount: U128,
         appchain_message_nonce: u32,
         processing_context: &mut AppchainMessagesProcessingContext,
     ) -> MultiTxsOperationProcessingResult {
-        let near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
-        if let Some(near_fungible_token) =
+        let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
+        if let Some(mut near_fungible_token) =
             near_fungible_tokens.get_by_contract_account(&contract_account)
         {
-            ext_fungible_token::ft_transfer(
-                receiver_id_in_near.clone(),
-                amount,
-                None,
-                &near_fungible_token.contract_account,
-                1,
-                GAS_FOR_FT_TRANSFER,
-            )
-            .then(ext_self::resolve_fungible_token_transfer(
-                near_fungible_token.metadata.symbol,
-                sender_id_in_appchain,
-                receiver_id_in_near.clone(),
-                amount,
-                appchain_message_nonce,
-                &env::current_account_id(),
-                0,
-                GAS_FOR_RESOLVER_FUNCTION,
-            ));
-            processing_context.add_prepaid_gas(GAS_FOR_FT_TRANSFER + GAS_FOR_RESOLVER_FUNCTION);
+            if near_fungible_token
+                .bridging_state
+                .eq(&BridgingState::Closed)
+            {
+                let message = format!(
+                    "Bridging for NEAR fungible token in contract '{}' is now closed.",
+                    contract_account
+                );
+                let result = AppchainMessageProcessingResult::Error {
+                    nonce: appchain_message_nonce,
+                    message: message.clone(),
+                };
+                self.record_appchain_message_processing_result(&result);
+                return MultiTxsOperationProcessingResult::Error(message);
+            }
+            near_fungible_token.locked_balance =
+                match near_fungible_token.locked_balance.0.checked_sub(amount.0) {
+                    Some(value) => U128::from(value),
+                    None => U128::from(0),
+                };
+            near_fungible_tokens.insert(&near_fungible_token);
+            ext_ft_core::ext(near_fungible_token.contract_account)
+                .with_attached_deposit(1)
+                .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+                .with_unused_gas_weight(0)
+                .ft_transfer(receiver_id_in_near.clone(), amount, None)
+                .then(
+                    ext_self::ext(env::current_account_id())
+                        .with_attached_deposit(0)
+                        .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
+                        .with_unused_gas_weight(0)
+                        .resolve_fungible_token_transfer(
+                            near_fungible_token.metadata.symbol,
+                            sender_id_in_appchain,
+                            receiver_id_in_near.clone(),
+                            amount,
+                            appchain_message_nonce,
+                        ),
+                );
+            processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER));
+            processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION));
             MultiTxsOperationProcessingResult::Ok
         } else {
             let message = format!(
@@ -340,29 +361,13 @@ impl FungibleTokenContractResolver for AppchainAnchor {
         symbol: String,
         sender_id_in_appchain: String,
         receiver_id_in_near: AccountId,
-        amount: U128,
+        _amount: U128,
         appchain_message_nonce: u32,
     ) {
         assert_self();
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
-                self.internal_append_anchor_event(AnchorEvent::NearFungibleTokenUnlocked {
-                    symbol: symbol.clone(),
-                    sender_id_in_appchain,
-                    receiver_id_in_near,
-                    amount,
-                    appchain_message_nonce,
-                });
-                let mut near_fungible_tokens = self.near_fungible_tokens.get().unwrap();
-                if let Some(mut near_fungible_token) = near_fungible_tokens.get(&symbol) {
-                    near_fungible_token.locked_balance =
-                        match near_fungible_token.locked_balance.0.checked_sub(amount.0) {
-                            Some(value) => U128::from(value),
-                            None => U128::from(0),
-                        };
-                    near_fungible_tokens.insert(&near_fungible_token);
-                };
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Ok {
                         nonce: appchain_message_nonce,
@@ -375,15 +380,10 @@ impl FungibleTokenContractResolver for AppchainAnchor {
                     "Maybe the receiver account '{}' is not registered in '{}' token contract.",
                     &receiver_id_in_near, &symbol
                 );
-                let message = format!("Failed to unlock near fungible token. {}", reason);
-                self.internal_append_anchor_event(AnchorEvent::FailedToUnlockNearFungibleToken {
-                    symbol: symbol.clone(),
-                    sender_id_in_appchain,
-                    receiver_id_in_near: receiver_id_in_near.clone(),
-                    amount,
-                    appchain_message_nonce,
-                    reason,
-                });
+                let message = format!(
+                    "Failed to unlock near fungible token for appchain account '{}'. {}",
+                    sender_id_in_appchain, reason
+                );
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Error {
                         nonce: appchain_message_nonce,

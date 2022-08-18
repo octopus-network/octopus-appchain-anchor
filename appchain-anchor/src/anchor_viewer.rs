@@ -7,6 +7,10 @@ impl AnchorViewer for AppchainAnchor {
         ANCHOR_VERSION.to_string()
     }
     //
+    fn get_owner_pk(&self) -> PublicKey {
+        self.owner_pk.clone()
+    }
+    //
     fn get_anchor_settings(&self) -> AnchorSettings {
         self.anchor_settings.get().unwrap()
     }
@@ -29,6 +33,10 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_near_fungible_tokens(&self) -> Vec<NearFungibleToken> {
         self.near_fungible_tokens.get().unwrap().to_vec()
+    }
+    //
+    fn get_wrapped_appchain_nfts(&self) -> Vec<WrappedAppchainNFT> {
+        self.wrapped_appchain_nfts.get().unwrap().to_vec()
     }
     //
     fn get_appchain_state(&self) -> AppchainState {
@@ -118,33 +126,6 @@ impl AnchorViewer for AppchainAnchor {
             }
         };
         self.staking_histories.get().unwrap().get(&index.0)
-    }
-    //
-    fn get_index_range_of_anchor_event_history(&self) -> IndexRange {
-        self.anchor_event_histories.get().unwrap().index_range()
-    }
-    //
-    fn get_anchor_event_history(&self, index: Option<U64>) -> Option<AnchorEventHistory> {
-        let index = match index {
-            Some(index) => index,
-            None => {
-                self.anchor_event_histories
-                    .get()
-                    .unwrap()
-                    .index_range()
-                    .end_index
-            }
-        };
-        self.anchor_event_histories.get().unwrap().get(&index.0)
-    }
-    //
-    fn get_anchor_event_histories(
-        &self,
-        start_index: U64,
-        quantity: Option<U64>,
-    ) -> Vec<AnchorEventHistory> {
-        let anchor_event_histories = self.anchor_event_histories.get().unwrap();
-        anchor_event_histories.get_slice_of(&start_index.0, quantity.map(|q| q.0))
     }
     //
     fn get_index_range_of_appchain_notification_history(&self) -> IndexRange {
@@ -520,7 +501,6 @@ impl AnchorViewer for AppchainAnchor {
         if let Some(light_client) = self.beefy_light_client_state.get() {
             if let Some(commitment) = light_client.get_latest_commitment() {
                 return Some(AppchainCommitment {
-                    payload: commitment.payload,
                     block_number: commitment.block_number,
                     validator_set_id: U64::from(commitment.validator_set_id),
                 });

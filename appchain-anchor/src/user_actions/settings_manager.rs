@@ -31,8 +31,8 @@ impl Default for ProtocolSettings {
 impl Default for AnchorSettings {
     fn default() -> Self {
         Self {
-            token_price_maintainer_account: AccountId::new(),
-            relayer_account: AccountId::new(),
+            token_price_maintainer_account: None,
+            relayer_account: None,
             beefy_light_client_witness_mode: false,
         }
     }
@@ -44,6 +44,7 @@ impl Default for AppchainSettings {
             rpc_endpoint: String::new(),
             subql_endpoint: String::new(),
             era_reward: U128::from(0),
+            bonus_for_new_validator: U128::from(0),
         }
     }
 }
@@ -58,6 +59,13 @@ impl ProtocolSettingsManager for AppchainAnchor {
             value.0 != protocol_settings.minimum_validator_deposit.0,
             "The value is not changed."
         );
+        assert!(
+            value.0
+                > protocol_settings
+                    .minimum_validator_deposit_changing_amount
+                    .0,
+            "The value should be greater than `minimum_validator_deposit_changing_amount`."
+        );
         protocol_settings.minimum_validator_deposit = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -71,6 +79,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
                     .minimum_validator_deposit_changing_amount
                     .0,
             "The value is not changed."
+        );
+        assert!(
+            value.0 < protocol_settings.minimum_validator_deposit.0,
+            "The value should be less than `minimum_validator_deposit`."
         );
         protocol_settings.minimum_validator_deposit_changing_amount = value;
         self.protocol_settings.set(&protocol_settings);
@@ -95,6 +107,13 @@ impl ProtocolSettingsManager for AppchainAnchor {
             value.0 != protocol_settings.minimum_delegator_deposit.0,
             "The value is not changed."
         );
+        assert!(
+            value.0
+                > protocol_settings
+                    .minimum_delegator_deposit_changing_amount
+                    .0,
+            "The value should be greater than `minimum_delegator_deposit_changing_amount`."
+        );
         protocol_settings.minimum_delegator_deposit = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -108,6 +127,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
                     .minimum_delegator_deposit_changing_amount
                     .0,
             "The value is not changed."
+        );
+        assert!(
+            value.0 < protocol_settings.minimum_delegator_deposit.0,
+            "The value should be less than `minimum_delegator_deposit`."
         );
         protocol_settings.minimum_delegator_deposit_changing_amount = value;
         self.protocol_settings.set(&protocol_settings);
@@ -153,6 +176,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
             value.0 != protocol_settings.minimum_validator_count.0,
             "The value is not changed."
         );
+        assert!(
+            value.0 < protocol_settings.maximum_validator_count.0,
+            "The value should be less than `maximum_validator_count`."
+        );
         protocol_settings.minimum_validator_count = value;
         self.protocol_settings.set(&protocol_settings);
     }
@@ -163,6 +190,10 @@ impl ProtocolSettingsManager for AppchainAnchor {
         assert!(
             value.0 != protocol_settings.maximum_validator_count.0,
             "The value is not changed."
+        );
+        assert!(
+            value.0 > protocol_settings.minimum_validator_count.0,
+            "The value should be greater than `minimum_validator_count`."
         );
         protocol_settings.maximum_validator_count = value;
         self.protocol_settings.set(&protocol_settings);
@@ -277,6 +308,13 @@ impl AppchainSettingsManager for AppchainAnchor {
         appchain_settings.era_reward = era_reward;
         self.appchain_settings.set(&appchain_settings);
     }
+    //
+    fn set_bonus_for_new_validator(&mut self, bonus_amount: U128) {
+        self.assert_owner();
+        let mut appchain_settings = self.appchain_settings.get().unwrap();
+        appchain_settings.bonus_for_new_validator = bonus_amount;
+        self.appchain_settings.set(&appchain_settings);
+    }
 }
 
 #[near_bindgen]
@@ -285,32 +323,22 @@ impl AnchorSettingsManager for AppchainAnchor {
     fn set_token_price_maintainer_account(&mut self, account_id: AccountId) {
         self.assert_owner();
         assert!(
-            ValidAccountId::try_from(account_id.clone()).is_ok(),
-            "Invalid account id: {}",
-            account_id
-        );
-        assert!(
             !account_id.eq(&self.owner),
             "This account should not be the same as the owner account."
         );
         let mut anchor_settings = self.anchor_settings.get().unwrap();
-        anchor_settings.token_price_maintainer_account = account_id;
+        anchor_settings.token_price_maintainer_account = Some(account_id);
         self.anchor_settings.set(&anchor_settings);
     }
     //
     fn set_relayer_account(&mut self, account_id: AccountId) {
         self.assert_owner();
         assert!(
-            ValidAccountId::try_from(account_id.clone()).is_ok(),
-            "Invalid account id: {}",
-            account_id
-        );
-        assert!(
             !account_id.eq(&self.owner),
             "This account should not be the same as the owner account."
         );
         let mut anchor_settings = self.anchor_settings.get().unwrap();
-        anchor_settings.relayer_account = account_id;
+        anchor_settings.relayer_account = Some(account_id);
         self.anchor_settings.set(&anchor_settings);
     }
     //

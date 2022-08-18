@@ -57,11 +57,8 @@ impl AppchainLifecycleManager for AppchainAnchor {
         );
         let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         assert!(
-            !(wrapped_appchain_token.contract_account.trim().is_empty()
-                || wrapped_appchain_token
-                    .premined_beneficiary
-                    .trim()
-                    .is_empty()
+            !(wrapped_appchain_token.contract_account.is_none()
+                || wrapped_appchain_token.premined_beneficiary.is_none()
                 || wrapped_appchain_token.metadata.symbol.is_empty()
                 || wrapped_appchain_token.metadata.name.is_empty()
                 || wrapped_appchain_token.metadata.decimals == 0),

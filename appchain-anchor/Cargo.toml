@@ -1,29 +1,17 @@
 [package]
 name = "appchain-anchor"
-version = "1.3.1"
+version = "2.1.1"
 authors = ["Octopus Network"]
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client", tag = "v1.0.1" }
-near-sdk = "3.1.0"
-near-contract-standards = "3.1.0"
+beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client.git", branch = "main" }
+near-sdk = "4.0.0"
+near-contract-standards = "4.0.0"
 hex = "0.4.2"
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 getrandom = { version = "0.2", features = ["custom"] }
 ed25519-dalek = { version = "1.0.1", features = ["alloc"] }
-
-[dev-dependencies]
-hex-literal = "0.3.1"
-near-sdk = "3.1.0"
-near-sdk-sim = "3.1.0"
-num-format = "0.4.0"
-secp256k1-test = { package = "secp256k1", version = "0.20.3", features = ["rand-std", "recovery"] }
-beefy-merkle-tree = { git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.12", features = ["keccak"], default-features = false }
-# remember to include related mock contracts
-mock-appchain-registry = { path = "../mock-appchain-registry" }
-mock-oct-token = { path = "../mock-oct-token" }
-wrapped-appchain-token = { git = "https://github.com/octopus-network/wrapped-appchain-token" }

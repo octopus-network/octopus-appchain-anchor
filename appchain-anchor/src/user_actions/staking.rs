@@ -1,6 +1,10 @@
 use crate::{interfaces::StakingManager, *};
 use borsh::maybestd::collections::HashMap;
+use near_contract_standards::fungible_token::core::ext_ft_core;
 use near_sdk::serde_json;
+use std::str::FromStr;
+
+const SUB_ACCOUNT_ID_OF_WAT_FAUCET: &str = "wat-faucet";
 
 impl AppchainAnchor {
     //
@@ -8,10 +12,10 @@ impl AppchainAnchor {
         &mut self,
         sender_id: AccountId,
         amount: U128,
-        deposit_message: DepositMessage,
+        deposit_message: FTDepositMessage,
     ) -> PromiseOrValue<U128> {
         match deposit_message {
-            DepositMessage::RegisterValidator {
+            FTDepositMessage::RegisterValidator {
                 validator_id_in_appchain,
                 can_be_delegated_to,
                 profile,
@@ -25,15 +29,15 @@ impl AppchainAnchor {
                 );
                 PromiseOrValue::Value(0.into())
             }
-            DepositMessage::IncreaseStake => {
+            FTDepositMessage::IncreaseStake => {
                 self.increase_stake(sender_id, amount);
                 PromiseOrValue::Value(0.into())
             }
-            DepositMessage::RegisterDelegator { validator_id } => {
+            FTDepositMessage::RegisterDelegator { validator_id } => {
                 self.register_delegator(sender_id, validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
-            DepositMessage::IncreaseDelegation { validator_id } => {
+            FTDepositMessage::IncreaseDelegation { validator_id } => {
                 self.increase_delegation(sender_id, validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
@@ -46,7 +50,7 @@ impl AppchainAnchor {
     fn register_validator(
         &mut self,
         validator_id: AccountId,
-        validator_id_in_appchain: Option<String>,
+        validator_id_in_appchain: String,
         profile: HashMap<String, String>,
         deposit_amount: U128,
         can_be_delegated_to: bool,
@@ -58,6 +62,10 @@ impl AppchainAnchor {
                 serde_json::to_string(&self.appchain_state).unwrap()
             ),
         };
+        assert!(
+            env::prepaid_gas() > Gas::ONE_TERA.mul(T_GAS_FOR_REGISTER_VALIDATOR),
+            "Prepaid gas is not enough."
+        );
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         assert!(
             !next_validator_set.contains_validator(&validator_id),
@@ -66,18 +74,16 @@ impl AppchainAnchor {
         );
         let mut validator_profiles = self.validator_profiles.get().unwrap();
         let formatted_validator_id_in_appchain =
-            AccountIdInAppchain::new(validator_id_in_appchain.clone());
-        if validator_id_in_appchain.is_some() {
-            formatted_validator_id_in_appchain.assert_valid();
-            if let Some(validator_profile) = validator_profiles
-                .get_by_id_in_appchain(&formatted_validator_id_in_appchain.to_string())
-            {
-                assert!(
-                    !next_validator_set.contains_validator(&validator_profile.validator_id),
-                    "The account '{}' in appchain is already used by a validator in next era.",
-                    &formatted_validator_id_in_appchain.origin_to_string()
-                );
-            }
+            AccountIdInAppchain::new(Some(validator_id_in_appchain.clone()));
+        formatted_validator_id_in_appchain.assert_valid();
+        if let Some(validator_profile) = validator_profiles
+            .get_by_id_in_appchain(&formatted_validator_id_in_appchain.to_string())
+        {
+            assert!(
+                !next_validator_set.contains_validator(&validator_profile.validator_id),
+                "The account '{}' in appchain is already used by a validator in next era.",
+                &formatted_validator_id_in_appchain.origin_to_string()
+            );
         }
         self.assert_validator_stake_is_valid(deposit_amount.0, None);
         let protocol_settings = self.protocol_settings.get().unwrap();
@@ -106,7 +112,6 @@ impl AppchainAnchor {
             amount: deposit_amount,
             can_be_delegated_to,
         });
-        //
         next_validator_set.apply_staking_fact(&staking_history.staking_fact);
         self.next_validator_set.set(&next_validator_set);
         //
@@ -118,6 +123,37 @@ impl AppchainAnchor {
             profile,
         });
         self.validator_profiles.set(&validator_profiles);
+        //
+        if self.appchain_state.eq(&AppchainState::Active) {
+            let wat_faucet_account = AccountId::from_str(
+                format!(
+                    "{}.{}",
+                    SUB_ACCOUNT_ID_OF_WAT_FAUCET,
+                    env::current_account_id()
+                )
+                .as_str(),
+            )
+            .unwrap();
+            let appchain_settings = self.appchain_settings.get().unwrap();
+            #[derive(near_sdk::serde::Serialize)]
+            #[serde(crate = "near_sdk::serde")]
+            struct Input {
+                receiver_id: String,
+                amount: U128,
+            }
+            let args = Input {
+                receiver_id: formatted_validator_id_in_appchain.to_string(),
+                amount: appchain_settings.bonus_for_new_validator,
+            };
+            let args = near_sdk::serde_json::to_vec(&args)
+                .expect("Failed to serialize the cross contract args using JSON.");
+            Promise::new(wat_faucet_account).function_call(
+                "burn_wrapped_appchain_token".to_string(),
+                args,
+                0,
+                Gas::ONE_TERA.mul(T_GAS_FOR_BURN_WRAPPED_APPCHAIN_TOKEN),
+            );
+        }
     }
     //
     fn increase_stake(&mut self, validator_id: AccountId, amount: U128) {
@@ -216,7 +252,7 @@ impl AppchainAnchor {
         let mut staking_histories = self.staking_histories.get().unwrap();
         let staking_history = staking_histories.append(&mut StakingHistory {
             staking_fact,
-            block_height: env::block_index(),
+            block_height: env::block_height(),
             timestamp: env::block_timestamp(),
             index: U64::from(0),
         });
@@ -524,14 +560,11 @@ impl StakingManager for AppchainAnchor {
                 self.unbonded_stakes.remove(&account_id);
             }
             if balance_to_withdraw > 0 {
-                ext_fungible_token::ft_transfer(
-                    account_id,
-                    balance_to_withdraw.into(),
-                    None,
-                    &self.oct_token.get().unwrap().contract_account,
-                    1,
-                    GAS_FOR_FT_TRANSFER,
-                );
+                ext_ft_core::ext(self.oct_token.get().unwrap().contract_account)
+                    .with_attached_deposit(1)
+                    .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+                    .with_unused_gas_weight(0)
+                    .ft_transfer(account_id, balance_to_withdraw.into(), None);
             }
         };
     }
@@ -539,6 +572,7 @@ impl StakingManager for AppchainAnchor {
     fn withdraw_validator_rewards(&mut self, validator_id: AccountId) {
         self.assert_asset_transfer_is_not_paused();
         self.assert_rewards_withdrawal_is_not_paused();
+        self.assert_contract_account_of_wrapped_appchain_token_is_set();
         let end_era = self
             .validator_set_histories
             .get()
@@ -564,20 +598,24 @@ impl StakingManager for AppchainAnchor {
             }
         }
         if reward_to_withdraw > 0 {
-            ext_fungible_token::ft_transfer(
-                validator_id,
-                reward_to_withdraw.into(),
-                None,
-                &self.wrapped_appchain_token.get().unwrap().contract_account,
-                1,
-                GAS_FOR_FT_TRANSFER,
-            );
+            ext_ft_core::ext(
+                self.wrapped_appchain_token
+                    .get()
+                    .unwrap()
+                    .contract_account
+                    .unwrap(),
+            )
+            .with_attached_deposit(1)
+            .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+            .with_unused_gas_weight(0)
+            .ft_transfer(validator_id, reward_to_withdraw.into(), None);
         }
     }
     //
     fn withdraw_delegator_rewards(&mut self, delegator_id: AccountId, validator_id: AccountId) {
         self.assert_asset_transfer_is_not_paused();
         self.assert_rewards_withdrawal_is_not_paused();
+        self.assert_contract_account_of_wrapped_appchain_token_is_set();
         let end_era = self
             .validator_set_histories
             .get()
@@ -607,14 +645,17 @@ impl StakingManager for AppchainAnchor {
             }
         }
         if reward_to_withdraw > 0 {
-            ext_fungible_token::ft_transfer(
-                delegator_id,
-                reward_to_withdraw.into(),
-                None,
-                &self.wrapped_appchain_token.get().unwrap().contract_account,
-                1,
-                GAS_FOR_FT_TRANSFER,
-            );
+            ext_ft_core::ext(
+                self.wrapped_appchain_token
+                    .get()
+                    .unwrap()
+                    .contract_account
+                    .unwrap(),
+            )
+            .with_attached_deposit(1)
+            .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+            .with_unused_gas_weight(0)
+            .ft_transfer(delegator_id, reward_to_withdraw.into(), None);
         }
     }
 }

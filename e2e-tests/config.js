@@ -43,7 +43,7 @@ function getConfig(env) {
       };
     case 'local':
       return {
-        networkId: 'sandbox',
+        networkId: 'Sandbox',
         nodeUrl: 'http://localhost:3030',
         keyPath: `${process.env.HOME}/.near/localnet/node0/validator_key.json`,
         walletUrl: 'http://localhost:4000/wallet',
@@ -52,7 +52,7 @@ function getConfig(env) {
         octName: OCT_NAME,
         wrappedAppchainToken: WRAPPED_APPCHAIN_TOKEN,
         masterAccount: "test.near",
-        keyPath: "/tmp/near-sandbox/validator_key.json",
+        keyPath: "/tmp/near-Sandbox/validator_key.json",
       };
     case 'test':
     case 'ci':

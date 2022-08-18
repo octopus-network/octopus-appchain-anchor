@@ -13,6 +13,7 @@ Contents
   * [Manage protocol settings](#manage-protocol-settings)
   * [Manage NEAR fungible token](#manage-near-fungible-token)
   * [Manage wrapped appchain token](#manage-wrapped-appchain-token)
+  * [Manage wrapped appchain NFT](#manage-wrapped-appchain-nft)
   * [Manage staking](#manage-staking)
   * [Manage beefy light client](#manage-beefy-light-client)
   * [Process appchain messages](#process-appchain-messages)
@@ -26,6 +27,7 @@ Contents
   * [Stage appchain challenges](#stage-appchain-challenges)
 * [Initial deployment](#initial-deployment)
 * [Auditing](#auditing)
+* [Testing](#testing)
 
 ## Terminology
 
@@ -41,12 +43,12 @@ Contents
 * `OCT token`: The OCT token is used to stake for the validators of corresponding appchain.
 * `NEAR fungible token`: A token which is lived in NEAR protocol. It should be a NEP-141 compatible contract. This contract can bridge the token to the corresponding appchain.
 * `wrapped appchain token`: The wrapped token of the appchain native token, which is managed by a contract in NEAR protocol.
+* `wrapped appchain NFT`: The wrapped appchain native non-fungible token asset, which is managed by a contract in NEAR protocol.
 * `appchain notification`: The appchain notification generated in this contract. Appchain will query these data to complete cross-chain asset transfer. It has the following types:
   * Near fungible token is locked in appchain anchor contract.
   * Wrapped appchain token is burnt in NEAR protocol.
 * `staking history`: The staking history happens in this contract. These data will be used to recover the status of `validator set` at a certain time.
 * `appchain message`: The message which is relayed to this contract by `octopus relayer`.
-* `anchor event`: The events which indicate that the corresponding appchain may need to perform necessary operations.
 * `octopus relayer`: A standalone service which will relay the `appchain message` to this contract.
 * `appchain settings`: A set of settings for booting corresponding appchain, which includes `chain_spec`, `raw_chain_spec`, `boot_nodes`, `rpc_endpoint`, `era_reward` and other necessary field(s).
 * `anchor settings`: A set of settings for current appchain anchor, which includes `token_price_maintainer_account` and other necessary field(s).
@@ -109,7 +111,7 @@ When this contract receives an `appchain message` which indicates that the appch
 
 ### Manage wrapped appchain token
 
-The contract of `wrapped appchain token` in NEAR protocol should be deployed before the appchain go `active`. The owner of the token contract should be set to the owner of this contract. The initial total supply of `wrapped appchain token` should be minted to an account belongs to the appchain team.
+The contract of `wrapped appchain token` in NEAR protocol should be deployed before the appchain go `active`. The owner of the token contract should be set to this contract. The initial total supply of `wrapped appchain token` should be minted to an account belongs to the appchain team.
 
 The limitation of `wrapped appchain token` is: the market value of `wrapped appchain token` in NEAR contract cannot exceed the market value of a certain percent of all OCT token staked in this contract. The percentage is managed by `maximum_market_value_percent_of_wrapped_appchain_token` of `protocol settings`.
 
@@ -119,13 +121,30 @@ This contract should provide the following public interfaces related to wrapped 
 * Set contract account of wrapped appchain token.
 * Set initial balance of wrapped appchain token.
 * Set price of wrapped appchain token. This action can only be performed by `token_price_maintainer_account` which is managed in `anchor settings`.
-* Burn wrapped appchain token. Which will generate `appchain notification` for corresponding appchain to mint equivalent amount of native token.
+* Burn wrapped appchain token. Which will generate an `appchain notification` for corresponding appchain to mint equivalent amount of native token.
 
 ![Transfer wrapped appchain token back to appchain](/images/sq2-1.png)
 
 When this contract receives an `appchain message` which indicates that the appchain has locked a certain amount of `wrapped appchain token`, this contract should mint equivalent amount of `wrapped appchain token` in the corresponding NEAR fungible token contract.
 
 ![Transfer appchain native token to NEAR protocol](/images/sq2-2.png)
+
+### Manage wrapped appchain NFT
+
+Like the `wrapped appchain token`, this contract can also manage the `wrapped appchain NFT` asset(s) for the corresponding appchain.
+
+The contract of `wrapped appchain NFT` in NEAR protocol should be deployed before the appchain go `active`. The owner of the token contract should be set to this contract. (Only this contract has rights to `mint` NFT asset in the contract of `wrapped appchain NFT`.)
+
+This contract should provide the following public interfaces related to wrapped appchain token management:
+
+* Register a NFT class. Each class of NFT will be mapping to a `wrapped appchain NFT` contract in NEAR protocol. The metadata of the NFT class should be set when register it in this contract. This must be done, before users can transfer NFT asset of the certain class.
+* Change the metadata of a NFT class.
+* Open bridging for a NFT class. (Allow transferring NFTs of a certain class of appchain native NFT tokens from appchain to NEAR protocol, and allow transferring them back to appchain.)
+* Close bridging for a NFT class. (Refuse transferring NFTs of a certain class of appchain native NFT tokens between appchain and NEAR protocol.)
+
+When this contract receives an `appchain message` which indicates that the appchain has locked a certain NFT, this contract should mint a new one in the corresponding `wrapped appchain NFT` contract in NEAR protocol. The processing sequence is similar to `transfer appchain native token to NEAR protocol`, which is mentioned in [Manage wrapped appchain token](#manage-wrapped-appchain-token).
+
+When transfer a certain `wrapped appchain NFT` back to the corresponding appchain, the owner of the `wrapped appchain NFT` can transfer it to this contract with a particular message attached to the calling of funtion `nft_transfer_call` of the contract of the corresponding `wrapped appchain NFT` class. Then this contract will generate an `appchain notification` for corresponding appchain to unlock it. The processing sequence is similar to `transfer NEAR fungible token to appchain`, which is mentioned in [Manage NEAR fungible token](#manage-near-fungible-token).
 
 ### Manage staking
 
@@ -300,3 +319,28 @@ We should take the following steps to initialize this contract and all related c
 This contract has completed auditing by:
 
 * [Halborn](https://halborn.com) - The report is [here](/auditing/Octopus_Network_Anchor_NEAR_Smart_Contract_Security_Audit_Report.pdf).
+* [Blocksec](https://blocksec.com) - The report is [here](/auditing/Appchain_Anchor_Audit_Report_Blocksec.pdf).
+
+## Testing
+
+To run all tests:
+
+```shell
+./build.sh test
+```
+
+To run a certain test:
+
+```shell
+./build.sh test <test name>
+```
+
+And for running all tests, the following wasm files are needed in folder `res` (the folder will be created automatically after running `build.sh`):
+
+* `appchain_anchor.wasm` - Automatically generated by running `build.sh`.
+* `wat_faucet.wasm` - Automatically generated by running `build.sh`.
+* `mock_appchain_registry.wasm` - Automatically generated by running `build.sh`.
+* `mock_oct_token.wasm` - Automatically generated by running `build.sh`.
+* `wrapped_appchain_nft.wasm` - This wasm can be built from [Octopus wrapped appchain NFT template](https://github.com/octopus-network/wrapped-appchain-nft).
+* `wrapped_appchain_token.wasm` - This wasm can be built from [Octopus wrapped appchain token template](https://github.com/octopus-network/wrapped-appchain-token).
+* `appchain_anchor_<version>.wasm` - The history version of this contract. The testing of current version may need its previous version. Also refer to the code of function `initialize_contracts_and_users` in testing module `tests/simulator/common/basic_actions.rs`.

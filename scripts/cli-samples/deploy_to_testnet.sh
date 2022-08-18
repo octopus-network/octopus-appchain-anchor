@@ -14,8 +14,13 @@ ARGS='{"appchain_id":"'$APPCHAIN_ID'","appchain_registry":"'$REGISTRY_ACCOUNT_ID
 near call $ANCHOR_ACCOUNT_ID new $ARGS --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
 #
 ARGS='{"account_id":"'$ANCHOR_ACCOUNT_ID'","registration_only":null}'
-near call oct.beta_oct_relay.testnet storage_deposit $ARGS --accountId $ANCHOR_ACCOUNT_ID --deposit 1
+near call oct.beta_oct_relay.testnet storage_deposit $ARGS --accountId $ANCHOR_ACCOUNT_ID --deposit 0.00125
 #
 near call $ANCHOR_ACCOUNT_ID migrate_state '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
 #
-near call $ANCHOR_ACCOUNT_ID change_minimum_delegator_deposit '{"value":"200000000000000000000"}' --accountId $ANCHOR_ACCOUNT_ID
+near view $ANCHOR_ACCOUNT_ID get_anchor_version
+near view $ANCHOR_ACCOUNT_ID get_anchor_status
+near view $ANCHOR_ACCOUNT_ID get_anchor_settings
+near view $ANCHOR_ACCOUNT_ID get_protocol_settings
+near view $ANCHOR_ACCOUNT_ID get_wrapped_appchain_token
+near view $ANCHOR_ACCOUNT_ID get_near_fungible_tokens

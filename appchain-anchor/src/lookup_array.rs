@@ -125,17 +125,14 @@ where
             self.end_index
         );
         let mut index = self.start_index;
-        while index <= self.end_index && env::used_gas() < GAS_CAP_FOR_MULTI_TXS_PROCESSING {
+        while index <= self.end_index
+            && env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
+        {
             self.remove_at(&index);
             index += 1;
         }
-        if index <= self.end_index {
+        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
             self.start_index = index;
-            log!(
-                "Index range of lookup array after clear: {} - {}",
-                self.start_index,
-                self.end_index
-            );
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {
             self.start_index = 0;
