@@ -24,7 +24,7 @@ mock-oct-token = { path = "./mock-oct-token" }
 wrapped-appchain-token = { git = "https://github.com/octopus-network/wrapped-appchain-token.git", branch = "v2.0.0" }
 wrapped-appchain-nft = { git = "https://github.com/octopus-network/wrapped-appchain-nft.git", branch = "main" }
 tokio = { version = "1.14", features = ["full"] }
-workspaces = "0.3"
+workspaces = "0.4"
 
 [profile.release]
 codegen-units = 1

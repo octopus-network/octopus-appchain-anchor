@@ -19,7 +19,7 @@ pub async fn initialize_contracts_and_users(
     Contract,
     Vec<Account>,
 )> {
-    let root = worker.root_account();
+    let root = worker.root_account().unwrap();
     let mut users: Vec<Account> = Vec::new();
     //
     // deploy OCT token contract
