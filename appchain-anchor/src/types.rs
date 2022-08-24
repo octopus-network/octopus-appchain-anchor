@@ -557,12 +557,36 @@ pub enum AppchainMessageProcessingResult {
     Error { nonce: u32, message: String },
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub enum MultiTxsOperationProcessingResult {
     NeedMoreGas,
     Ok,
     Error(String),
+}
+
+impl MultiTxsOperationProcessingResult {
+    ///
+    pub fn is_ok(&self) -> bool {
+        match self {
+            MultiTxsOperationProcessingResult::Ok => true,
+            _ => false,
+        }
+    }
+    ///
+    pub fn is_need_more_gas(&self) -> bool {
+        match self {
+            MultiTxsOperationProcessingResult::NeedMoreGas => true,
+            _ => false,
+        }
+    }
+    ///
+    pub fn is_error(&self) -> bool {
+        match self {
+            MultiTxsOperationProcessingResult::Error(_) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

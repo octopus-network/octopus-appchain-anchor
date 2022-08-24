@@ -82,7 +82,7 @@ impl AppchainAnchor {
             appchain_message_nonce,
             processing_context,
         );
-        if result.eq(&MultiTxsOperationProcessingResult::Ok) {
+        if result.is_ok() {
             result = MultiTxsOperationProcessingResult::NeedMoreGas;
         }
         result

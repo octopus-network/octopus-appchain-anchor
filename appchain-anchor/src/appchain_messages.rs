@@ -98,8 +98,12 @@ impl IndexedAndClearable for u32 {
         ()
     }
     //
-    fn clear_extra_storage(&mut self) {
-        ()
+    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
+        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+            MultiTxsOperationProcessingResult::NeedMoreGas
+        } else {
+            MultiTxsOperationProcessingResult::Ok
+        }
     }
 }
 

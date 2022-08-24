@@ -1,3 +1,5 @@
+use core::panic;
+
 use crate::permissionless_actions::AppchainMessagesProcessingContext;
 use crate::*;
 use crate::{appchain_messages::AppchainMessage, interfaces::SudoActions};
@@ -47,61 +49,118 @@ impl SudoActions for AppchainAnchor {
         self.wrapped_appchain_token.set(&wrapped_appchain_token);
     }
     //
-    fn reset_validator_set_histories_to(&mut self, era_number: U64) {
+    fn reset_validator_set_histories_to(
+        &mut self,
+        era_number: U64,
+    ) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        validator_set_histories.reset_to(&era_number.0);
-        self.validator_set_histories.set(&validator_set_histories);
+        let result = validator_set_histories.reset_to(&era_number.0);
+        if !result.is_error() {
+            self.validator_set_histories.set(&validator_set_histories);
+        }
+        result
     }
     //
-    fn reset_staking_histories_to(&mut self, era_number: U64) {
+    fn reset_staking_histories_to(&mut self, era_number: U64) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         if let Some(validator_set_of_era) = validator_set_histories.get(&era_number.0) {
             let mut staking_histories = self.staking_histories.get().unwrap();
-            staking_histories.reset_to(&validator_set_of_era.staking_history_index());
-            self.staking_histories.set(&staking_histories);
+            let result = staking_histories.reset_to(&validator_set_of_era.staking_history_index());
+            if !result.is_error() {
+                self.staking_histories.set(&staking_histories);
+            }
+            return result;
+        } else {
+            panic!(
+                "Missing validator set history of era_number '{}'.",
+                era_number.0
+            );
         }
     }
     //
-    fn refresh_user_staking_histories(&mut self) {
+    fn clear_user_staking_histories(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut user_staking_histories = self.user_staking_histories.get().unwrap();
-        user_staking_histories.clear();
+        let result = user_staking_histories.clear();
+        if !result.is_error() {
+            self.user_staking_histories.set(&user_staking_histories);
+        }
+        result
+    }
+    //
+    fn regenerate_user_staking_histories(&mut self) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
+        let mut user_staking_histories = self.user_staking_histories.get().unwrap();
         let staking_histories = self.staking_histories.get().unwrap();
         let index_range = staking_histories.index_range();
         for index in index_range.start_index.0..index_range.end_index.0 + 1 {
             if let Some(staking_history) = staking_histories.get(&index) {
                 user_staking_histories.add_staking_history(&staking_history);
             }
+            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                self.user_staking_histories.set(&user_staking_histories);
+                return MultiTxsOperationProcessingResult::NeedMoreGas;
+            }
         }
         self.user_staking_histories.set(&user_staking_histories);
+        MultiTxsOperationProcessingResult::Ok
     }
     //
-    fn reset_next_validator_set_to(&mut self, era_number: U64) {
+    // While using this function to reset data of next validator set, this contract must
+    // refuse any other actions which will change the state of next validator set.
+    //
+    fn reset_next_validator_set_to(
+        &mut self,
+        era_number: U64,
+    ) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         if let Some(validator_set_of_era) = validator_set_histories.get(&era_number.0) {
             let mut next_validator_set = self.next_validator_set.get().unwrap();
-            next_validator_set.clear();
+            let result = next_validator_set.clear();
+            match result {
+                MultiTxsOperationProcessingResult::Ok => (),
+                MultiTxsOperationProcessingResult::NeedMoreGas => {
+                    self.next_validator_set.set(&next_validator_set);
+                    return result;
+                }
+                MultiTxsOperationProcessingResult::Error(_) => {
+                    return result;
+                }
+            }
             let staking_history_index = validator_set_of_era.staking_history_index();
             let staking_histories = self.staking_histories.get().unwrap();
             for index in 0..staking_history_index + 1 {
                 if let Some(staking_history) = staking_histories.get(&index) {
                     next_validator_set.apply_staking_fact(&staking_history.staking_fact);
                 }
+                if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                    self.next_validator_set.set(&next_validator_set);
+                    return MultiTxsOperationProcessingResult::NeedMoreGas;
+                }
             }
             self.next_validator_set.set(&next_validator_set);
+            MultiTxsOperationProcessingResult::Ok
+        } else {
+            panic!(
+                "Missing validator set history of era_number '{}'.",
+                era_number.0
+            );
         }
     }
     //
-    fn clear_appchain_notification_histories(&mut self) {
+    fn clear_appchain_notification_histories(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut appchain_notification_histories =
             self.appchain_notification_histories.get().unwrap();
-        appchain_notification_histories.clear();
-        self.appchain_notification_histories
-            .set(&appchain_notification_histories);
+        let result = appchain_notification_histories.clear();
+        if !result.is_error() {
+            self.appchain_notification_histories
+                .set(&appchain_notification_histories);
+        }
+        result
     }
     //
     fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>) {
@@ -296,7 +355,9 @@ impl SudoActions for AppchainAnchor {
         self.assert_owner();
         let mut appchain_messages = self.appchain_messages.get().unwrap();
         let result = appchain_messages.clear();
-        self.appchain_messages.set(&appchain_messages);
+        if !result.is_error() {
+            self.appchain_messages.set(&appchain_messages);
+        }
         result
     }
     //
@@ -317,5 +378,30 @@ impl SudoActions for AppchainAnchor {
         } else {
             MultiTxsOperationProcessingResult::Ok
         }
+    }
+    //
+    fn remove_validator_set_history_of(
+        &mut self,
+        era_number: U64,
+    ) -> MultiTxsOperationProcessingResult {
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        let result = validator_set_histories.remove_at(&era_number.0);
+        if !result.is_error() {
+            self.validator_set_histories.set(&validator_set_histories);
+        }
+        result
+    }
+    //
+    fn remove_validator_set_histories_before(
+        &mut self,
+        era_number: U64,
+    ) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        let result = validator_set_histories.remove_before(&era_number.0);
+        if !result.is_error() {
+            self.validator_set_histories.set(&validator_set_histories);
+        }
+        result
     }
 }

@@ -344,15 +344,21 @@ pub trait SudoActions {
         value: U128,
     );
     ///
-    fn reset_validator_set_histories_to(&mut self, era_number: U64);
+    fn reset_validator_set_histories_to(
+        &mut self,
+        era_number: U64,
+    ) -> MultiTxsOperationProcessingResult;
     ///
-    fn reset_staking_histories_to(&mut self, era_number: U64);
+    fn reset_staking_histories_to(&mut self, era_number: U64) -> MultiTxsOperationProcessingResult;
     ///
-    fn refresh_user_staking_histories(&mut self);
+    fn clear_user_staking_histories(&mut self) -> MultiTxsOperationProcessingResult;
     ///
-    fn reset_next_validator_set_to(&mut self, era_number: U64);
+    fn regenerate_user_staking_histories(&mut self) -> MultiTxsOperationProcessingResult;
     ///
-    fn clear_appchain_notification_histories(&mut self);
+    fn reset_next_validator_set_to(&mut self, era_number: U64)
+        -> MultiTxsOperationProcessingResult;
+    ///
+    fn clear_appchain_notification_histories(&mut self) -> MultiTxsOperationProcessingResult;
     ///
     fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
     ///
@@ -393,6 +399,16 @@ pub trait SudoActions {
     fn clear_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult;
     ///
     fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult;
+    ///
+    fn remove_validator_set_history_of(
+        &mut self,
+        era_number: U64,
+    ) -> MultiTxsOperationProcessingResult;
+    ///
+    fn remove_validator_set_histories_before(
+        &mut self,
+        era_number: U64,
+    ) -> MultiTxsOperationProcessingResult;
 }
 
 pub trait ValidatorActions {

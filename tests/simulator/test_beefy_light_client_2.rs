@@ -105,7 +105,7 @@ async fn test_beefy_light_client_2() -> anyhow::Result<()> {
             "Result of 'try_complete_updating_state_of_beefy_light_client': {}",
             serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
         );
-        if !result.eq(&MultiTxsOperationProcessingResult::NeedMoreGas) {
+        if !result.is_need_more_gas() {
             break;
         }
     }

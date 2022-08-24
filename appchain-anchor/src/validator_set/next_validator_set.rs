@@ -34,10 +34,13 @@ impl NextValidatorSet {
         &self.validator_set
     }
     ///
-    pub fn clear(&mut self) {
-        self.validator_set.clear();
-        self.unbonding_validator_ids.clear();
-        self.auto_unbonding_validator_ids.clear();
+    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
+        let result = self.validator_set.clear();
+        if result.is_ok() {
+            self.unbonding_validator_ids.clear();
+            self.auto_unbonding_validator_ids.clear();
+        }
+        result
     }
     ///
     pub fn apply_staking_fact(&mut self, staking_fact: &StakingFact) {

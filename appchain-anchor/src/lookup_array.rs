@@ -4,7 +4,7 @@ pub trait IndexedAndClearable {
     ///
     fn set_index(&mut self, index: &u64);
     ///
-    fn clear_extra_storage(&mut self);
+    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult;
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -97,25 +97,33 @@ where
         self.lookup_map.get(&index).unwrap()
     }
     ///
-    pub fn remove_before(&mut self, index: &u64) {
+    pub fn remove_before(&mut self, index: &u64) -> MultiTxsOperationProcessingResult {
         if self.start_index >= *index {
-            return;
+            return MultiTxsOperationProcessingResult::Ok;
         }
         for index in self.start_index..*index {
-            self.remove_at(&index);
+            let result = self.remove_at(&index);
+            if !result.is_ok() {
+                return result;
+            }
         }
         self.start_index = *index;
+        MultiTxsOperationProcessingResult::Ok
     }
     ///
-    pub fn reset_to(&mut self, index: &u64) {
+    pub fn reset_to(&mut self, index: &u64) -> MultiTxsOperationProcessingResult {
         assert!(
             *index >= self.start_index && *index <= self.end_index,
             "Invalid history data index."
         );
         for index in (*index + 1)..self.end_index + 1 {
-            self.remove_at(&index);
+            let result = self.remove_at(&index);
+            if !result.is_ok() {
+                return result;
+            }
         }
         self.end_index = *index;
+        MultiTxsOperationProcessingResult::Ok
     }
     ///
     pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
@@ -125,10 +133,7 @@ where
             self.end_index
         );
         let mut index = self.start_index;
-        while index <= self.end_index
-            && env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
-        {
-            self.remove_at(&index);
+        while index <= self.end_index && self.remove_at(&index).is_ok() {
             index += 1;
         }
         if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
@@ -141,10 +146,20 @@ where
         }
     }
     ///
-    pub fn remove_at(&mut self, index: &u64) {
+    pub fn remove_at(&mut self, index: &u64) -> MultiTxsOperationProcessingResult {
         if let Some(mut record) = self.lookup_map.get(index) {
-            record.clear_extra_storage();
-            self.lookup_map.remove_raw(&index.try_to_vec().unwrap());
+            let result = record.clear_extra_storage();
+            match result {
+                MultiTxsOperationProcessingResult::Ok => {
+                    self.lookup_map.remove_raw(&index.try_to_vec().unwrap());
+                }
+                MultiTxsOperationProcessingResult::NeedMoreGas => {
+                    self.lookup_map.insert(index, &record);
+                }
+                MultiTxsOperationProcessingResult::Error(_) => (),
+            }
+            return result;
         }
+        MultiTxsOperationProcessingResult::Ok
     }
 }

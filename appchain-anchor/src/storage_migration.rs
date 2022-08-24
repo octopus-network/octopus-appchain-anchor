@@ -298,7 +298,7 @@ impl OldAppchainAnchor {
         let mut anchor_event_histories = self.anchor_event_histories.get().unwrap();
         let result = anchor_event_histories.clear();
         self.anchor_event_histories.set(&anchor_event_histories);
-        if result.eq(&MultiTxsOperationProcessingResult::Ok) {
+        if result.is_ok() {
             self.anchor_event_histories.remove();
         } else {
             panic!("Should clear old anchor events first.");
@@ -312,8 +312,12 @@ impl IndexedAndClearable for OldAnchorEventHistory {
         self.index = U64::from(*index);
     }
     //
-    fn clear_extra_storage(&mut self) {
-        ()
+    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
+        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+            MultiTxsOperationProcessingResult::NeedMoreGas
+        } else {
+            MultiTxsOperationProcessingResult::Ok
+        }
     }
 }
 
@@ -323,8 +327,12 @@ impl IndexedAndClearable for OldAppchainNotificationHistory {
         self.index = U64::from(*index);
     }
     //
-    fn clear_extra_storage(&mut self) {
-        ()
+    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
+        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+            MultiTxsOperationProcessingResult::NeedMoreGas
+        } else {
+            MultiTxsOperationProcessingResult::Ok
+        }
     }
 }
 
@@ -334,8 +342,12 @@ impl IndexedAndClearable for OldStakingHistory {
         self.index = U64::from(*index);
     }
     //
-    fn clear_extra_storage(&mut self) {
-        ()
+    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
+        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+            MultiTxsOperationProcessingResult::NeedMoreGas
+        } else {
+            MultiTxsOperationProcessingResult::Ok
+        }
     }
 }
 

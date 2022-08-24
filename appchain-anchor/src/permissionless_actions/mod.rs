@@ -286,7 +286,7 @@ impl PermissionlessActions for AppchainAnchor {
         self.permissionless_actions_status
             .set(processing_context.processing_status());
         self.validator_set_histories.set(&validator_set_histories);
-        if result.eq(&MultiTxsOperationProcessingResult::Ok)
+        if result.is_ok()
             && processing_context.latest_applied_nonce() < processing_context.max_nonce()
         {
             result = MultiTxsOperationProcessingResult::NeedMoreGas;
