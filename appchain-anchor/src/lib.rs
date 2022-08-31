@@ -3,7 +3,7 @@ pub mod appchain_challenge;
 pub mod appchain_messages;
 mod assets;
 pub mod interfaces;
-mod lookup_array;
+pub mod lookup_array;
 mod permissionless_actions;
 mod reward_distribution_records;
 mod storage_key;

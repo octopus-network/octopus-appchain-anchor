@@ -71,8 +71,7 @@ impl AppchainAnchor {
     #[init(ignore_state)]
     pub fn migrate_state() -> Self {
         // Deserialize the state using the old contract structure.
-        let mut old_contract: OldAppchainAnchor =
-            env::state_read().expect("Old state doesn't exist");
+        let old_contract: OldAppchainAnchor = env::state_read().expect("Old state doesn't exist");
         //
         near_sdk::assert_self();
         //

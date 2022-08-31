@@ -104,6 +104,7 @@ pub async fn initialize_contracts_and_users(
             root.call(worker, appchain_anchor.id(), "new")
                 .args_json(json!({
                     "appchain_id": "test_appchain_id".to_string(),
+                    "appchain_template_type": AppchainTemplateType::Barnacle,
                     "appchain_registry": appchain_registry.id(),
                     "oct_token": oct_token.id(),
                 }))?

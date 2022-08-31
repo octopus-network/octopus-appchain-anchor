@@ -17,6 +17,7 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
         _wrapped_appchain_token,
         _registry,
         anchor,
+        _wat_faucet,
         users,
         mut appchain_message_nonce,
     ) = common::test_normal_actions(&worker, false, true, vec!["0x00".to_string()]).await?;
