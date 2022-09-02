@@ -365,7 +365,7 @@ impl FungibleTokenContractResolver for AppchainAnchor {
         symbol: String,
         sender_id_in_appchain: String,
         receiver_id_in_near: AccountId,
-        _amount: U128,
+        amount: U128,
         appchain_message_nonce: u32,
     ) {
         assert_self();
@@ -385,8 +385,8 @@ impl FungibleTokenContractResolver for AppchainAnchor {
                     &receiver_id_in_near, &symbol
                 );
                 let message = format!(
-                    "Failed to unlock near fungible token for appchain account '{}'. {}",
-                    sender_id_in_appchain, reason
+                    "Failed to unlock near fungible token '{}' with amount '{}' for appchain account '{}'. {}",
+                    symbol, amount.0, sender_id_in_appchain, reason
                 );
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Error {
