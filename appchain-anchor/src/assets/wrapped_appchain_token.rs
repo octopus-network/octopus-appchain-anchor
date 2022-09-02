@@ -282,22 +282,19 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     wrapped_appchain_token.changed_balance.0 + i128::try_from(amount.0).unwrap(),
                 );
                 self.wrapped_appchain_token.set(&wrapped_appchain_token);
-                let message = match sender_id_in_appchain {
-                    Some(sender_id) => format!(
+                if let Some(sender_id) = sender_id_in_appchain {
+                    // Only generate appchain message processing result in cross-chain transfer case
+                    let message = format!(
                         "Wrapped appchain token minted by '{}' of appchain for '{}' with amount '{}'.",
                         &sender_id, &receiver_id_in_near, &amount.0
-                    ),
-                    None => format!(
-                        "Wrapped appchain token minted by crosschain message for '{}' with amount '{}'.",
-                        &receiver_id_in_near, &amount.0
-                    ),
+                    );
+                    self.record_appchain_message_processing_result(
+                        &AppchainMessageProcessingResult::Ok {
+                            nonce: appchain_message_nonce,
+                            message: Some(message),
+                        },
+                    );
                 };
-                self.record_appchain_message_processing_result(
-                    &AppchainMessageProcessingResult::Ok {
-                        nonce: appchain_message_nonce,
-                        message: Some(message),
-                    },
-                );
             }
             PromiseResult::Failed => {
                 let reason = format!("Maybe the total supply will overflow.");

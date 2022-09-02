@@ -1,9 +1,9 @@
-use core::panic;
-
 use crate::permissionless_actions::AppchainMessagesProcessingContext;
 use crate::*;
 use crate::{appchain_messages::AppchainMessage, interfaces::SudoActions};
 use codec::Decode;
+use core::panic;
+use near_contract_standards::fungible_token::core::ext_ft_core;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 
 #[near_bindgen]
@@ -403,5 +403,82 @@ impl SudoActions for AppchainAnchor {
             self.validator_set_histories.set(&validator_set_histories);
         }
         result
+    }
+    //
+    fn unlock_auto_unbonded_stake_of(
+        &mut self,
+        delegator_id: Option<AccountId>,
+        validator_id: AccountId,
+        staking_history_index: U64,
+    ) {
+        self.assert_owner();
+        self.assert_asset_transfer_is_not_paused();
+        let unbonded_stake_references = match delegator_id.clone() {
+            Some(delegator_id) => self.unbonded_stakes.get(&delegator_id).unwrap(),
+            None => self.unbonded_stakes.get(&validator_id).unwrap(),
+        };
+        let staking_histories = self.staking_histories.get().unwrap();
+        let mut remained_stakes = Vec::<UnbondedStakeReference>::new();
+        let mut found = false;
+        for reference in unbonded_stake_references {
+            if reference.staking_history_index == staking_history_index.0 {
+                let staking_history = staking_histories.get(&staking_history_index.0).unwrap();
+                match staking_history.staking_fact {
+                    StakingFact::ValidatorAutoUnbonded {
+                        validator_id: unbonded_validator_id @ _,
+                        amount,
+                    } => {
+                        assert!(
+                            validator_id.eq(&unbonded_validator_id),
+                            "Invalid staking history for validator '{}'.",
+                            validator_id
+                        );
+                        ext_ft_core::ext(self.oct_token.get().unwrap().contract_account)
+                            .with_attached_deposit(1)
+                            .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+                            .with_unused_gas_weight(0)
+                            .ft_transfer(validator_id.clone(), amount.clone(), None);
+                        found = true;
+                        break;
+                    }
+                    StakingFact::DelegatorAutoUnbonded {
+                        delegator_id: unbonded_delegator_id @ _,
+                        validator_id: unbonded_validator_id @ _,
+                        amount,
+                    } => {
+                        let delegator_id = delegator_id
+                            .clone()
+                            .unwrap_or(AccountId::new_unchecked(String::new()));
+                        assert!(
+                            validator_id.eq(&unbonded_validator_id)
+                                && delegator_id.eq(&unbonded_delegator_id),
+                            "Invalid staking history for delegator '{}' of validator '{}'.",
+                            delegator_id,
+                            validator_id
+                        );
+                        ext_ft_core::ext(self.oct_token.get().unwrap().contract_account)
+                            .with_attached_deposit(1)
+                            .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER))
+                            .with_unused_gas_weight(0)
+                            .ft_transfer(delegator_id.clone(), amount.clone(), None);
+                        found = true;
+                        break;
+                    }
+                    _ => {
+                        remained_stakes.push(reference.clone());
+                    }
+                }
+            } else {
+                remained_stakes.push(reference.clone());
+            }
+        }
+        assert!(found, "Specified staking history is not found.");
+        if remained_stakes.len() > 0 {
+            self.unbonded_stakes
+                .insert(&delegator_id.unwrap_or(validator_id), &remained_stakes);
+        } else {
+            self.unbonded_stakes
+                .remove(&delegator_id.unwrap_or(validator_id));
+        }
     }
 }

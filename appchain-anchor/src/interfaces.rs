@@ -409,6 +409,13 @@ pub trait SudoActions {
         &mut self,
         era_number: U64,
     ) -> MultiTxsOperationProcessingResult;
+    ///
+    fn unlock_auto_unbonded_stake_of(
+        &mut self,
+        delegator_id: Option<AccountId>,
+        validator_id: AccountId,
+        staking_history_index: U64,
+    );
 }
 
 pub trait ValidatorActions {
