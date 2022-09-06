@@ -372,16 +372,20 @@ impl FungibleTokenContractResolver for AppchainAnchor {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
+                let message = format!(
+                    "Near fungible token '{}' with amount '{}' for appchain account '{}' is unlocked.",
+                    symbol, amount.0, sender_id_in_appchain
+                );
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Ok {
                         nonce: appchain_message_nonce,
-                        message: None,
+                        message: Some(message),
                     },
                 );
             }
             PromiseResult::Failed => {
                 let reason = format!(
-                    "Maybe the receiver account '{}' is not registered in '{}' token contract.",
+                    "Maybe the receiver account '{}' is not exised, or it is not registered in '{}' token contract.",
                     &receiver_id_in_near, &symbol
                 );
                 let message = format!(

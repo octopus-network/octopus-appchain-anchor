@@ -285,7 +285,7 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                 if let Some(sender_id) = sender_id_in_appchain {
                     // Only generate appchain message processing result in cross-chain transfer case
                     let message = format!(
-                        "Wrapped appchain token minted by '{}' of appchain for '{}' with amount '{}'.",
+                        "Wrapped appchain token is minted by '{}' of appchain for '{}' with amount '{}'.",
                         &sender_id, &receiver_id_in_near, &amount.0
                     );
                     self.record_appchain_message_processing_result(

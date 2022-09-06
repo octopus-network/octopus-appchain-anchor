@@ -499,10 +499,16 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
+                let message = format!(
+                    "NFT '{}' from appchain account '{}' with metadata '{}' is minted.",
+                    instance_id,
+                    owner_id_in_appchain,
+                    serde_json::to_string(&token_metadata).unwrap(),
+                );
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Ok {
                         nonce: appchain_message_nonce,
-                        message: None,
+                        message: Some(message),
                     },
                 );
             }
