@@ -5,6 +5,7 @@ mod owner_actions;
 mod settings_manager;
 mod staking;
 mod sudo_actions;
+mod testnet_actions;
 mod validator_actions;
 
 #[derive(BorshDeserialize, BorshSerialize, Clone)]
