@@ -297,7 +297,7 @@ impl AppchainAnchor {
                         raw_message.nonce as u32,
                         &AppchainMessageProcessingResult::Error {
                             nonce: raw_message.nonce as u32,
-                            message: format!("Failed to deserialize raw message paylod: {}", err),
+                            message: format!("Failed to deserialize raw message payload: {}", err),
                         },
                     ),
                 }
