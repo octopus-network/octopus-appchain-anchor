@@ -45,6 +45,10 @@ impl RewardDistributionRecords {
         ))
     }
     ///
+    pub fn is_empty(&self) -> bool {
+        self.era_number_set.is_empty()
+    }
+    ///
     pub fn insert(
         &mut self,
         appchain_message_nonce: u32,
