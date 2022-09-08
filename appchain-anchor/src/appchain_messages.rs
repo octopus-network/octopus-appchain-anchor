@@ -143,6 +143,17 @@ impl AppchainMessages {
         self.max_nonce
     }
     ///
+    pub fn is_empty(&self) -> bool {
+        for nonce in self.min_nonce..self.max_nonce + 1 {
+            if self.message_nonces.contains(&(nonce as u64))
+                || self.message_map.contains_key(&nonce)
+            {
+                return false;
+            }
+        }
+        true
+    }
+    ///
     pub fn insert_message(&mut self, appchain_message: &AppchainMessage) {
         let nonce = appchain_message.nonce;
         if !self.message_map.contains_key(&nonce) {
@@ -228,6 +239,7 @@ impl AppchainMessages {
             && env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
         {
             self.remove_messages_before(&nonce);
+            self.message_nonces.remove_before(&(nonce as u64));
             nonce += 1;
         }
         if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {

@@ -72,6 +72,18 @@ where
         self.lookup_map.contains_key(index)
     }
     ///
+    pub fn is_empty(&self) -> bool {
+        if self.start_index != self.end_index {
+            false
+        } else {
+            if self.lookup_map.contains_key(&self.end_index) {
+                false
+            } else {
+                true
+            }
+        }
+    }
+    ///
     pub fn insert(&mut self, index: &u64, record: &T) {
         self.lookup_map.insert(index, record);
         if *index > self.end_index {

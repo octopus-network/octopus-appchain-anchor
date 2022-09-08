@@ -54,6 +54,10 @@ impl UserStakingHistories {
         }
     }
     ///
+    pub fn is_empty(&self) -> bool {
+        self.account_id_set.is_empty()
+    }
+    ///
     pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
         for account_id in self.account_id_set.to_vec() {
             self.staking_histories_map.remove(&account_id);

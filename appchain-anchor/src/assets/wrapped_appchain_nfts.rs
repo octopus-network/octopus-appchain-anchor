@@ -95,6 +95,10 @@ impl WrappedAppchainNFTs {
         self.nfts.insert(class_id, internal_wrapped_appchain_nft);
     }
     ///
+    pub fn is_empty(&self) -> bool {
+        self.class_id_set.is_empty()
+    }
+    ///
     pub fn get(&self, class_id: &String) -> Option<InternalWrappedAppchainNFT> {
         self.nfts.get(class_id)
     }
@@ -147,6 +151,15 @@ impl WrappedAppchainNFTs {
             });
         }
         results
+    }
+    ///
+    pub fn clear(&mut self) {
+        for class_id in self.class_id_set.to_vec() {
+            let mut internal_wrapped_appchain_nft = self.nfts.get(&class_id).unwrap();
+            internal_wrapped_appchain_nft.locked_token_id_set.clear();
+            self.nfts.remove(&class_id);
+        }
+        self.class_id_set.clear();
     }
 }
 
