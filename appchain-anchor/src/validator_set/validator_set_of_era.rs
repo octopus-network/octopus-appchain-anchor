@@ -336,6 +336,10 @@ impl ValidatorSetViewer for ValidatorSetOfEra {
             .contains_delegator(delegator_id, validator_id)
     }
     //
+    fn is_empty(&self) -> bool {
+        self.validator_set.is_empty() && self.unprofitable_validator_id_set.is_empty()
+    }
+    //
     fn get_validator(&self, validator_id: &AccountId) -> Option<Validator> {
         if !self.all_staking_histories_are_applied() {
             return None;

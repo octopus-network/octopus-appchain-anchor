@@ -62,6 +62,10 @@ impl NearFungibleTokens {
         None
     }
     ///
+    pub fn is_empty(&self) -> bool {
+        self.symbols.is_empty()
+    }
+    ///
     pub fn insert(&mut self, near_fungible_token: &NearFungibleToken) {
         self.symbols.insert(&near_fungible_token.metadata.symbol);
         self.tokens
@@ -87,6 +91,15 @@ impl NearFungibleTokens {
         } else {
             0
         }
+    }
+    ///
+    pub fn clear(&mut self) {
+        let ft_symbols = self.symbols.to_vec();
+        for symbol in ft_symbols {
+            self.tokens.remove(&symbol);
+            self.symbols.remove(&symbol);
+        }
+        self.symbols.clear();
     }
 }
 
