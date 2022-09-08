@@ -7,13 +7,16 @@ use crate::{
             print_wat_balance_of_anchor,
         },
     },
-    contract_interfaces::{anchor_viewer, permissionless_actions, staking_actions, sudo_actions},
+    contract_interfaces::{anchor_viewer, permissionless_actions, staking_actions},
 };
 use appchain_anchor::{
+    appchain_messages::{EraPayoutPayload, RawMessage},
+    appchain_messages::{PayloadType, PlanNewEraPayload},
     types::{AnchorStatus, MultiTxsOperationProcessingResult, ValidatorSetInfo},
-    AppchainEvent, AppchainMessage,
 };
+use near_primitives::borsh::BorshSerialize;
 use near_sdk::{json_types::U64, serde_json};
+use parity_scale_codec::Encode;
 use workspaces::network::Sandbox;
 use workspaces::{Account, Contract, Worker};
 
@@ -44,22 +47,36 @@ pub async fn process_appchain_messages(
 
 pub async fn switch_era(
     worker: &Worker<Sandbox>,
-    root: &Account,
+    relayer: &Account,
     anchor: &Contract,
     era_number: u32,
     appchain_message_nonce: u32,
     to_confirm_view_result: bool,
 ) -> anyhow::Result<()> {
     if era_number > 0 {
-        let appchain_message = AppchainMessage {
-            appchain_event: AppchainEvent::EraSwitchPlaned { era_number },
-            nonce: appchain_message_nonce,
+        let payload = PlanNewEraPayload {
+            new_era: era_number,
         };
-        sudo_actions::stage_appchain_message(worker, root, anchor, appchain_message)
-            .await
-            .expect("Failed to call 'stage_appchain_message'");
+        let raw_message = RawMessage {
+            nonce: appchain_message_nonce as u64,
+            payload_type: PayloadType::PlanNewEra,
+            payload: payload.try_to_vec().unwrap(),
+        };
+        let mut raw_messages = Vec::new();
+        raw_messages.push(raw_message);
+        permissionless_actions::verify_and_stage_appchain_messages(
+            worker,
+            relayer,
+            anchor,
+            raw_messages.encode(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )
+        .await
+        .expect("Failed to call 'verify_and_stage_appchain_messages'");
     }
-    process_appchain_messages(worker, root, anchor).await?;
+    process_appchain_messages(worker, relayer, anchor).await?;
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(worker, anchor).await?;
         println!(
@@ -85,7 +102,7 @@ pub async fn switch_era(
 
 pub async fn distribute_reward_of(
     worker: &Worker<Sandbox>,
-    root: &Account,
+    relayer: &Account,
     anchor: &Contract,
     wrapped_appchain_token: &Contract,
     nonce: u32,
@@ -95,15 +112,29 @@ pub async fn distribute_reward_of(
 ) -> anyhow::Result<()> {
     let anchor_balance_of_wat =
         common::get_ft_balance_of(worker, &anchor.as_account(), &wrapped_appchain_token).await?;
-    let appchain_message = AppchainMessage {
-        appchain_event: AppchainEvent::EraRewardConcluded {
-            era_number,
-            unprofitable_validator_ids,
-            offenders: Vec::new(),
-        },
-        nonce,
+    let payload = EraPayoutPayload {
+        end_era: era_number,
+        excluded_validators: unprofitable_validator_ids,
+        offenders: Vec::new(),
     };
-    sudo_actions::stage_appchain_message(worker, root, anchor, appchain_message).await?;
+    let raw_message = RawMessage {
+        nonce: nonce as u64,
+        payload_type: PayloadType::EraPayout,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    let mut raw_messages = Vec::new();
+    raw_messages.push(raw_message);
+    permissionless_actions::verify_and_stage_appchain_messages(
+        worker,
+        relayer,
+        anchor,
+        raw_messages.encode(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .await
+    .expect("Failed to call 'verify_and_stage_appchain_messages'");
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(worker, anchor).await?;
         println!(
@@ -112,7 +143,7 @@ pub async fn distribute_reward_of(
         );
         println!();
     }
-    process_appchain_messages(worker, root, anchor).await?;
+    process_appchain_messages(worker, relayer, anchor).await?;
     assert_eq!(
         common::get_ft_balance_of(worker, &anchor.as_account(), &wrapped_appchain_token)
             .await?

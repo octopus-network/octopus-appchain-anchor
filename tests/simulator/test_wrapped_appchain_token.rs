@@ -1,9 +1,12 @@
 use crate::{
     common,
-    contract_interfaces::{sudo_actions, wrapped_appchain_token_manager},
+    contract_interfaces::{permissionless_actions, wrapped_appchain_token_manager},
 };
-use appchain_anchor::{AppchainEvent, AppchainMessage};
-use near_sdk::{json_types::U128, AccountId};
+use appchain_anchor::appchain_messages::{
+    EraPayoutPayload, LockPayload, PayloadType, PlanNewEraPayload, RawMessage,
+};
+use near_sdk::{borsh::BorshSerialize, AccountId};
+use parity_scale_codec::Encode;
 use std::str::FromStr;
 
 const TOTAL_SUPPLY: u128 = 100_000_000;
@@ -12,7 +15,7 @@ const TOTAL_SUPPLY: u128 = 100_000_000;
 async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     let worker = workspaces::sandbox().await?;
     let (
-        root,
+        _root,
         _oct_token,
         wrapped_appchain_token,
         _registry,
@@ -33,15 +36,29 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     let user1_wat_balance =
         common::get_ft_balance_of(&worker, &users[1], &wrapped_appchain_token).await?;
     appchain_message_nonce += 1;
-    let appchain_message = AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: AccountId::from_str("unknown.testnet").unwrap(),
-            amount: U128::from(total_supply / 10),
-        },
-        nonce: appchain_message_nonce,
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: AccountId::from_str("unknown.testnet").unwrap(),
+        amount: total_supply / 10,
     };
-    sudo_actions::stage_appchain_message(&worker, &root, &anchor, appchain_message).await?;
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    let mut raw_messages = Vec::new();
+    raw_messages.push(raw_message);
+    permissionless_actions::verify_and_stage_appchain_messages(
+        &worker,
+        &users[5],
+        &anchor,
+        raw_messages.encode(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .await
+    .expect("Failed to call 'verify_and_stage_appchain_messages'");
     common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
@@ -71,123 +88,184 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     //
     let user1_wat_balance =
         common::get_ft_balance_of(&worker, &users[1], &wrapped_appchain_token).await?;
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
+    let mut raw_messages = Vec::new();
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(60, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(60, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(40, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(40, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 1 },
-        nonce: appchain_message_nonce,
-    });
+    let payload = PlanNewEraPayload { new_era: 1 };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::PlanNewEra,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(70, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(70, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(30, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(30, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(45, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(45, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(45, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(45, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(45, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(45, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(45, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(45, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::EraRewardConcluded {
-            era_number: 0,
-            unprofitable_validator_ids: Vec::new(),
-            offenders: Vec::new(),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = EraPayoutPayload {
+        end_era: 0,
+        excluded_validators: Vec::new(),
+        offenders: Vec::new(),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::EraPayout,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(45, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(45, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(45, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(45, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::NativeTokenLocked {
-            owner_id_in_appchain: user4_id_in_appchain.clone(),
-            receiver_id_in_near: users[1].id().to_string().parse().unwrap(),
-            amount: U128::from(common::to_actual_amount(45, 18)),
-        },
-        nonce: appchain_message_nonce,
-    });
-    for appchain_message in appchain_messages {
-        sudo_actions::stage_appchain_message(&worker, &root, &anchor, appchain_message).await?;
-    }
+    let payload = LockPayload {
+        sender: user4_id_in_appchain.clone(),
+        receiver_id: users[1].id().to_string().parse().unwrap(),
+        amount: common::to_actual_amount(45, 18),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::Lock,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
+    permissionless_actions::verify_and_stage_appchain_messages(
+        &worker,
+        &users[5],
+        &anchor,
+        raw_messages.encode(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .await
+    .expect("Failed to call 'verify_and_stage_appchain_messages'");
     common::complex_actions::process_appchain_messages(&worker, &users[3], &anchor).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
@@ -202,47 +280,76 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     //
     //
     //
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
+    let mut raw_messages = Vec::new();
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 2 },
-        nonce: appchain_message_nonce,
-    });
+    let payload = PlanNewEraPayload { new_era: 2 };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::PlanNewEra,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::EraRewardConcluded {
-            era_number: 1,
-            unprofitable_validator_ids: Vec::new(),
-            offenders: Vec::new(),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = EraPayoutPayload {
+        end_era: 1,
+        excluded_validators: Vec::new(),
+        offenders: Vec::new(),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::EraPayout,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::EraSwitchPlaned { era_number: 3 },
-        nonce: appchain_message_nonce,
-    });
+    let payload = PlanNewEraPayload { new_era: 3 };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::PlanNewEra,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::EraRewardConcluded {
-            era_number: 2,
-            unprofitable_validator_ids: Vec::new(),
-            offenders: Vec::new(),
-        },
-        nonce: appchain_message_nonce,
-    });
+    let payload = EraPayoutPayload {
+        end_era: 2,
+        excluded_validators: Vec::new(),
+        offenders: Vec::new(),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::EraPayout,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
     appchain_message_nonce += 1;
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::EraRewardConcluded {
-            era_number: 1,
-            unprofitable_validator_ids: Vec::new(),
-            offenders: Vec::new(),
-        },
-        nonce: appchain_message_nonce,
-    });
-    for appchain_message in appchain_messages {
-        sudo_actions::stage_appchain_message(&worker, &root, &anchor, appchain_message).await?;
-    }
+    let payload = EraPayoutPayload {
+        end_era: 1,
+        excluded_validators: Vec::new(),
+        offenders: Vec::new(),
+    };
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::EraPayout,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    raw_messages.push(raw_message);
+    //
+    permissionless_actions::verify_and_stage_appchain_messages(
+        &worker,
+        &users[5],
+        &anchor,
+        raw_messages.encode(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .await
+    .expect("Failed to call 'verify_and_stage_appchain_messages'");
     common::complex_actions::process_appchain_messages(&worker, &users[3], &anchor).await?;
     common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;

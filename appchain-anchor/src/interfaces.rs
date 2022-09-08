@@ -331,10 +331,6 @@ pub trait StakingManager {
 pub trait SudoActions {
     ///
     fn set_owner_pk(&mut self, public_key: PublicKey);
-    /// Apply a certain `AppchainMessage`
-    fn stage_appchain_message(&mut self, appchain_message: AppchainMessage);
-    ///
-    fn stage_appchain_encoded_messages(&mut self, encoded_messages: Vec<u8>);
     ///
     fn set_metadata_of_wrapped_appchain_token(&mut self, metadata: FungibleTokenMetadata);
     ///
@@ -344,37 +340,13 @@ pub trait SudoActions {
         value: U128,
     );
     ///
-    fn reset_validator_set_histories_to(
-        &mut self,
-        era_number: U64,
-    ) -> MultiTxsOperationProcessingResult;
-    ///
-    fn reset_staking_histories_to(&mut self, era_number: U64) -> MultiTxsOperationProcessingResult;
-    ///
-    fn clear_user_staking_histories(&mut self) -> MultiTxsOperationProcessingResult;
-    ///
     fn regenerate_user_staking_histories(&mut self) -> MultiTxsOperationProcessingResult;
     ///
-    fn reset_next_validator_set_to(&mut self, era_number: U64)
-        -> MultiTxsOperationProcessingResult;
-    ///
-    fn clear_appchain_notification_histories(&mut self) -> MultiTxsOperationProcessingResult;
-    ///
     fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
-    ///
-    fn clear_reward_distribution_records(&mut self, era_number: U64);
-    ///
-    fn clear_unbonded_stakes(&mut self);
-    ///
-    fn clear_unwithdrawn_rewards(&mut self, era_number: U64);
-    ///
-    fn reset_validator_profiles_to(&mut self, era_number: U64);
     ///
     fn pause_asset_transfer(&mut self);
     ///
     fn resume_asset_transfer(&mut self);
-    ///
-    fn remove_staking_history_at(&mut self, index: U64);
     ///
     fn pause_rewards_withdrawal(&mut self);
     ///
@@ -386,29 +358,7 @@ pub trait SudoActions {
         account_id_in_appchain: String,
     );
     ///
-    fn force_change_account_id_in_appchain_of_staking_history(
-        &mut self,
-        index: U64,
-        account_id_in_appchain: String,
-    );
-    ///
-    fn remove_duplicated_message_nonces_in_reward_distribution_records(&mut self, era_number: U64);
-    ///
     fn set_latest_applied_appchain_message_nonce(&mut self, nonce: u32);
-    ///
-    fn clear_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult;
-    ///
-    fn try_complete_switching_era(&mut self) -> MultiTxsOperationProcessingResult;
-    ///
-    fn remove_validator_set_history_of(
-        &mut self,
-        era_number: U64,
-    ) -> MultiTxsOperationProcessingResult;
-    ///
-    fn remove_validator_set_histories_before(
-        &mut self,
-        era_number: U64,
-    ) -> MultiTxsOperationProcessingResult;
     ///
     fn unlock_auto_unbonded_stake_of(
         &mut self,

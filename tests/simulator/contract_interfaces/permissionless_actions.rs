@@ -2,6 +2,31 @@ use appchain_anchor::types::{MultiTxsOperationProcessingResult, ValidatorMerkleP
 use near_sdk::serde_json::json;
 use workspaces::{network::Sandbox, result::CallExecutionDetails, Account, Contract, Worker};
 
+pub async fn verify_and_stage_appchain_messages(
+    worker: &Worker<Sandbox>,
+    signer: &Account,
+    anchor: &Contract,
+    encoded_messages: Vec<u8>,
+    header: Vec<u8>,
+    mmr_leaf: Vec<u8>,
+    mmr_proof: Vec<u8>,
+) -> anyhow::Result<CallExecutionDetails> {
+    let result = signer
+        .call(worker, anchor.id(), "verify_and_stage_appchain_messages")
+        .gas(300_000_000_000_000)
+        .args_json(json!({
+            "encoded_messages": encoded_messages,
+            "header": header,
+            "mmr_leaf": mmr_leaf,
+            "mmr_proof": mmr_proof
+        }))?
+        .transact()
+        .await;
+    println!("{:?}", result);
+    println!();
+    result
+}
+
 pub async fn process_appchain_messages(
     worker: &Worker<Sandbox>,
     signer: &Account,

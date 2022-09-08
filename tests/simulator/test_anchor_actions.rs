@@ -1,6 +1,6 @@
 use crate::{
     common,
-    contract_interfaces::{anchor_viewer, settings_manager, staking_actions, sudo_actions},
+    contract_interfaces::{anchor_viewer, settings_manager, staking_actions},
 };
 use near_sdk::json_types::U64;
 use std::collections::HashMap;
@@ -23,9 +23,16 @@ async fn test_anchor_actions() -> anyhow::Result<()> {
     // Try start and complete switching era1
     //
     appchain_message_nonce += 1;
-    common::complex_actions::switch_era(&worker, &root, &anchor, 1, appchain_message_nonce, false)
-        .await
-        .expect("Failed to switch era");
+    common::complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        1,
+        appchain_message_nonce,
+        false,
+    )
+    .await
+    .expect("Failed to switch era");
     common::complex_viewer::print_validator_set_info_of(&worker, &anchor, U64::from(1)).await?;
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(1)).await?;
     common::complex_viewer::print_delegator_list_of(&worker, &anchor, 1, &users[0]).await?;
@@ -35,7 +42,7 @@ async fn test_anchor_actions() -> anyhow::Result<()> {
     appchain_message_nonce += 1;
     common::complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,
@@ -74,61 +81,6 @@ async fn test_anchor_actions() -> anyhow::Result<()> {
     )
     .await?;
     //
-    // Reset contract status
-    //
-    let result =
-        sudo_actions::clear_reward_distribution_records(&worker, &root, &anchor, U64::from(3))
-            .await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::clear_reward_distribution_records(&worker, &root, &anchor, U64::from(2))
-            .await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::clear_reward_distribution_records(&worker, &root, &anchor, U64::from(1))
-            .await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::clear_reward_distribution_records(&worker, &root, &anchor, U64::from(0))
-            .await?;
-    assert!(result.is_success());
-    let result = sudo_actions::clear_unbonded_stakes(&worker, &root, &anchor).await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::clear_unwithdrawn_rewards(&worker, &root, &anchor, U64::from(3)).await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::clear_unwithdrawn_rewards(&worker, &root, &anchor, U64::from(2)).await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::clear_unwithdrawn_rewards(&worker, &root, &anchor, U64::from(1)).await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::clear_unwithdrawn_rewards(&worker, &root, &anchor, U64::from(0)).await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::clear_appchain_notification_histories(&worker, &root, &anchor).await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::reset_validator_set_histories_to(&worker, &root, &anchor, U64::from(2))
-            .await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::reset_validator_set_histories_to(&worker, &root, &anchor, U64::from(1))
-            .await?;
-    assert!(result.is_success());
-    let result =
-        sudo_actions::reset_validator_set_histories_to(&worker, &root, &anchor, U64::from(0))
-            .await?;
-    assert!(result.is_success());
-    common::complex_viewer::print_anchor_status(&worker, &anchor).await?;
-    common::complex_viewer::print_wrapped_appchain_token_info(&worker, &anchor).await?;
-    common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(0)).await?;
-    common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(1)).await?;
-    common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(2)).await?;
-    common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(3)).await?;
-    common::complex_viewer::print_staking_histories(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
     Ok(())
 }
 
@@ -192,9 +144,16 @@ async fn test_staking_actions(
     // Try start and complete switching era2
     //
     appchain_message_nonce += 1;
-    common::complex_actions::switch_era(&worker, &root, &anchor, 2, appchain_message_nonce, true)
-        .await
-        .expect("Failed to switch era");
+    common::complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        2,
+        appchain_message_nonce,
+        true,
+    )
+    .await
+    .expect("Failed to switch era");
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(2)).await?;
     common::complex_viewer::print_delegator_list_of(&worker, &anchor, 2, &users[0]).await?;
     //
@@ -203,7 +162,7 @@ async fn test_staking_actions(
     appchain_message_nonce += 1;
     common::complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,
@@ -267,9 +226,16 @@ async fn test_staking_actions(
     // Try start and complete switching era3
     //
     appchain_message_nonce += 1;
-    common::complex_actions::switch_era(&worker, &root, &anchor, 3, appchain_message_nonce, true)
-        .await
-        .expect("Failed to switch era");
+    common::complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        3,
+        appchain_message_nonce,
+        true,
+    )
+    .await
+    .expect("Failed to switch era");
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(3)).await?;
     common::complex_viewer::print_delegator_list_of(&worker, &anchor, 3, &users[0]).await?;
     //
@@ -278,7 +244,7 @@ async fn test_staking_actions(
     appchain_message_nonce += 1;
     common::complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,
@@ -333,9 +299,16 @@ async fn test_staking_actions(
     // Try start and complete switching era4
     //
     appchain_message_nonce += 1;
-    common::complex_actions::switch_era(&worker, &root, &anchor, 4, appchain_message_nonce, true)
-        .await
-        .expect("Failed to switch era");
+    common::complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        4,
+        appchain_message_nonce,
+        true,
+    )
+    .await
+    .expect("Failed to switch era");
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(4)).await?;
     common::complex_viewer::print_delegator_list_of(&worker, &anchor, 4, &users[0]).await?;
     //
@@ -345,7 +318,7 @@ async fn test_staking_actions(
     appchain_message_nonce += 1;
     common::complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,
@@ -379,7 +352,7 @@ async fn test_staking_actions(
     appchain_message_nonce += 1;
     common::complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,
@@ -413,9 +386,16 @@ async fn test_staking_actions(
     // Try start and complete switching era5
     //
     appchain_message_nonce += 1;
-    common::complex_actions::switch_era(&worker, &root, &anchor, 5, appchain_message_nonce, true)
-        .await
-        .expect("Failed to switch era");
+    common::complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        5,
+        appchain_message_nonce,
+        true,
+    )
+    .await
+    .expect("Failed to switch era");
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(5)).await?;
     common::complex_viewer::print_delegator_list_of(&worker, &anchor, 5, &users[0]).await?;
     //
@@ -425,7 +405,7 @@ async fn test_staking_actions(
     appchain_message_nonce += 1;
     common::complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,

@@ -522,6 +522,12 @@ pub async fn test_normal_actions(
     lifecycle_actions::initialize_beefy_light_client(worker, &root, &anchor, initial_public_keys)
         .await
         .expect("Failed in calling 'initialize_beefy_light_client'");
+    settings_manager::turn_on_beefy_light_client_witness_mode(&worker, &root, &anchor)
+        .await
+        .expect("Failed in calling 'turn_on_beefy_light_client_witness_mode'");
+    settings_manager::set_relayer_account(&worker, &root, &anchor, &users[5])
+        .await
+        .expect("Failed to call 'set_relayer_account'");
     //
     // Go live
     //

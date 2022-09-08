@@ -224,8 +224,10 @@ impl PermissionlessActions for AppchainAnchor {
                 panic!("Failed in verifying appchain messages: {:?}", err);
             }
         }
-        let messages = Decode::decode(&mut &encoded_messages[..]).unwrap();
-        self.internal_stage_appchain_messages(&messages);
+        match Decode::decode(&mut &encoded_messages[..]) {
+            Ok(messages) => self.internal_stage_appchain_messages(&messages),
+            Err(err) => panic!("Failed to decode messages: {}", err),
+        }
     }
     //
     fn process_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult {

@@ -199,6 +199,14 @@ pub async fn initialize_contracts_and_users(
     register_user_to_ft_contract(worker, &eve, &oct_token).await?;
     super::call_ft_transfer(worker, &root, &eve, total_supply / 10, &oct_token).await?;
     users.push(eve);
+    // relayer
+    let relayer = root
+        .create_subaccount(worker, "relayer")
+        .initial_balance(parse_near!("50 N"))
+        .transact()
+        .await?
+        .unwrap();
+    users.push(relayer);
     // Return initialized UserAccounts
     Ok((
         root,

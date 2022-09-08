@@ -1,7 +1,7 @@
 use crate::{
     common,
     contract_interfaces::{
-        anchor_viewer, permissionless_actions, settings_manager, staking_actions, sudo_actions,
+        anchor_viewer, permissionless_actions, settings_manager, staking_actions,
     },
 };
 use appchain_anchor::types::{MultiTxsOperationProcessingResult, ValidatorMerkleProof};
@@ -9,7 +9,7 @@ use beefy_light_client::mmr::{MmrLeaf, MmrLeafProof};
 use beefy_light_client::{beefy_ecdsa_to_ethereum, commitment::SignedCommitment};
 use codec::Decode;
 use hex_literal::hex;
-use near_sdk::{json_types::U64, serde_json};
+use near_sdk::serde_json;
 use workspaces::{network::Sandbox, Account, Contract, Worker};
 
 #[tokio::test]
@@ -33,6 +33,10 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
         mut appchain_message_nonce,
     ) = common::test_normal_actions(&worker, false, true, initial_public_keys).await?;
     //
+    settings_manager::turn_off_beefy_light_client_witness_mode(&worker, &root, &anchor)
+        .await
+        .expect("Failed to call 'turn_off_beefy_light_client_witness_mode'");
+    //
     // Update state of beefy light client
     //
     update_state_of_beefy_light_client_1(&worker, &anchor, &users[4]).await?;
@@ -40,11 +44,22 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     update_state_of_beefy_light_client_2(&worker, &anchor, &users[1]).await?;
     common::complex_viewer::print_latest_appchain_commitment(&worker, &anchor).await?;
     //
+    settings_manager::turn_on_beefy_light_client_witness_mode(&worker, &root, &anchor)
+        .await
+        .expect("Failed to call 'turn_on_beefy_light_client_witness_mode'");
+    //
     // Try start and complete switching era1
     //
     appchain_message_nonce += 1;
-    common::complex_actions::switch_era(&worker, &root, &anchor, 1, appchain_message_nonce, true)
-        .await?;
+    common::complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        1,
+        appchain_message_nonce,
+        true,
+    )
+    .await?;
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(1)).await?;
     common::complex_viewer::print_delegator_list_of(&worker, &anchor, 1, &users[0]).await?;
     //
@@ -53,7 +68,7 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     appchain_message_nonce += 1;
     common::complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,
@@ -116,8 +131,15 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     // Try start and complete switching era2
     //
     appchain_message_nonce += 1;
-    common::complex_actions::switch_era(&worker, &root, &anchor, 2, appchain_message_nonce, true)
-        .await?;
+    common::complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        2,
+        appchain_message_nonce,
+        true,
+    )
+    .await?;
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(2)).await?;
     common::complex_viewer::print_delegator_list_of(&worker, &anchor, 2, &users[0]).await?;
     //
@@ -126,7 +148,7 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     appchain_message_nonce += 1;
     common::complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,
@@ -189,8 +211,15 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     // Try start and complete switching era3
     //
     appchain_message_nonce += 1;
-    common::complex_actions::switch_era(&worker, &root, &anchor, 3, appchain_message_nonce, true)
-        .await?;
+    common::complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        3,
+        appchain_message_nonce,
+        true,
+    )
+    .await?;
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(3)).await?;
     common::complex_viewer::print_delegator_list_of(&worker, &anchor, 3, &users[0]).await?;
     //
@@ -199,7 +228,7 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     appchain_message_nonce += 1;
     common::complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,
@@ -245,8 +274,15 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     // Try start and complete switching era3
     //
     appchain_message_nonce += 1;
-    common::complex_actions::switch_era(&worker, &root, &anchor, 4, appchain_message_nonce, true)
-        .await?;
+    common::complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        4,
+        appchain_message_nonce,
+        true,
+    )
+    .await?;
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(4)).await?;
     common::complex_viewer::print_delegator_list_of(&worker, &anchor, 4, &users[0]).await?;
     //
@@ -255,7 +291,7 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     appchain_message_nonce += 1;
     common::complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,
@@ -341,12 +377,8 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
     common::complex_actions::withdraw_stake_of(&worker, &anchor, &users[3], &oct_token).await?;
     common::complex_actions::withdraw_stake_of(&worker, &anchor, &users[4], &oct_token).await?;
     //
-    // Reset history data
     //
-    let result =
-        sudo_actions::reset_validator_set_histories_to(&worker, &root, &anchor, U64::from(0))
-            .await?;
-    assert!(result.is_success());
+    //
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(0)).await?;
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(1)).await?;
     common::complex_viewer::print_validator_list_of(&worker, &anchor, Some(2)).await?;

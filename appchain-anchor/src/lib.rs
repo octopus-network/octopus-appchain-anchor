@@ -1,6 +1,6 @@
 mod anchor_viewer;
 pub mod appchain_challenge;
-mod appchain_messages;
+pub mod appchain_messages;
 mod assets;
 pub mod interfaces;
 mod lookup_array;

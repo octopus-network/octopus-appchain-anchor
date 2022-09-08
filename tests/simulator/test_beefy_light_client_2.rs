@@ -1,3 +1,4 @@
+use crate::contract_interfaces::settings_manager;
 use crate::{common, contract_interfaces::permissionless_actions};
 use appchain_anchor::types::{MultiTxsOperationProcessingResult, ValidatorMerkleProof};
 use beefy_light_client::commitment::{Commitment, Payload, Signature};
@@ -83,6 +84,10 @@ async fn test_beefy_light_client_2() -> anyhow::Result<()> {
         _users,
         _appchain_message_nonce,
     ) = common::test_normal_actions(&worker, false, true, initial_public_keys).await?;
+    //
+    settings_manager::turn_off_beefy_light_client_witness_mode(&worker, &root, &anchor)
+        .await
+        .expect("Failed to call 'turn_off_beefy_light_client_witness_mode'");
     //
     permissionless_actions::start_updating_state_of_beefy_light_client(
         &worker,
