@@ -63,6 +63,8 @@ pub trait ValidatorSetViewer {
     ///
     fn contains_delegator(&self, delegator_id: &AccountId, validator_id: &AccountId) -> bool;
     ///
+    fn is_empty(&self) -> bool;
+    ///
     fn get_validator(&self, validator_id: &AccountId) -> Option<Validator>;
     ///
     fn get_validator_by_index(&self, index: &u64) -> Option<Validator>;
@@ -461,6 +463,10 @@ impl ValidatorSetViewer for ValidatorSet {
     fn contains_delegator(&self, delegator_id: &AccountId, validator_id: &AccountId) -> bool {
         self.delegators
             .contains_key(&(delegator_id.clone(), validator_id.clone()))
+    }
+    //
+    fn is_empty(&self) -> bool {
+        self.validator_id_set.is_empty()
     }
     //
     fn get_validator(&self, validator_id: &AccountId) -> Option<Validator> {

@@ -108,6 +108,10 @@ impl ValidatorSetViewer for NextValidatorSet {
         }
     }
     //
+    fn is_empty(&self) -> bool {
+        self.validator_set.is_empty()
+    }
+    //
     fn get_validator(&self, validator_id: &AccountId) -> Option<Validator> {
         if self.contains_validator(validator_id) {
             self.validator_set.get_validator(validator_id)
