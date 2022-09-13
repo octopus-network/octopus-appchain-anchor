@@ -5,11 +5,11 @@ use super::{Delegator, Validator, ValidatorSet};
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct NextValidatorSet {
     /// The validator set of next era
-    validator_set: ValidatorSet,
+    pub validator_set: ValidatorSet,
     /// The unbonding validator ids in next era
-    unbonding_validator_ids: Vec<AccountId>,
+    pub unbonding_validator_ids: Vec<AccountId>,
     /// The auto-unbonding validator ids in next era
-    auto_unbonding_validator_ids: Vec<AccountId>,
+    pub auto_unbonding_validator_ids: Vec<AccountId>,
 }
 
 impl NextValidatorSet {

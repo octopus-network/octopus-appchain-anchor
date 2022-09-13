@@ -40,21 +40,21 @@ pub struct Delegator {
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct ValidatorSet {
     /// The number of era in appchain.
-    era_number: u64,
+    pub era_number: u64,
     /// The set of account id of validators.
-    validator_id_set: UnorderedSet<AccountId>,
+    pub validator_id_set: UnorderedSet<AccountId>,
     /// The map from validator id to the set of its delegators' id.
-    validator_id_to_delegator_id_set: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    pub validator_id_to_delegator_id_set: LookupMap<AccountId, UnorderedSet<AccountId>>,
     /// The map from delegator id to the set of its validators' id that
     /// the delegator delegates his/her voting rights to.
-    delegator_id_to_validator_id_set: LookupMap<AccountId, UnorderedSet<AccountId>>,
+    pub delegator_id_to_validator_id_set: LookupMap<AccountId, UnorderedSet<AccountId>>,
     /// The validators data, mapped by their account id in NEAR protocol.
-    validators: LookupMap<AccountId, Validator>,
+    pub validators: LookupMap<AccountId, Validator>,
     /// The delegators data, mapped by the tuple of their delegator account id and
     /// validator account id in NEAR protocol.
-    delegators: LookupMap<(AccountId, AccountId), Delegator>,
+    pub delegators: LookupMap<(AccountId, AccountId), Delegator>,
     /// Total stake of current set
-    total_stake: Balance,
+    pub total_stake: Balance,
 }
 
 pub trait ValidatorSetViewer {
