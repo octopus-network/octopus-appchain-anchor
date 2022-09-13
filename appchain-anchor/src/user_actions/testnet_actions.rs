@@ -258,4 +258,45 @@ impl AppchainAnchor {
         }
         result
     }
+    //
+    pub fn remove_validator_from_next_validator_set(&mut self, validator_id: AccountId) {
+        self.assert_testnet();
+        self.assert_owner();
+        let mut next_validator_set = self.next_validator_set.get().unwrap();
+        next_validator_set.remove_validator(&validator_id);
+        self.next_validator_set.set(&next_validator_set);
+    }
+    //
+    pub fn clear_unbonding_flag_of_next_validator_set(&mut self) {
+        self.assert_testnet();
+        self.assert_owner();
+        let mut next_validator_set = self.next_validator_set.get().unwrap();
+        next_validator_set.clear_auto_unbonding_validator_ids();
+        next_validator_set.clear_unbonding_validator_ids();
+        self.next_validator_set.set(&next_validator_set);
+    }
+}
+
+impl NextValidatorSet {
+    //
+    pub fn remove_validator(&mut self, validator_id: &AccountId) {
+        assert!(
+            self.validator_set.validator_id_set.contains(validator_id),
+            "Invalid validator id."
+        );
+        if self.auto_unbonding_validator_ids.contains(&validator_id) {
+            let new_vec = self
+                .auto_unbonding_validator_ids
+                .drain(..)
+                .filter(|e| !e.eq(validator_id))
+                .collect();
+            self.auto_unbonding_validator_ids = new_vec;
+        }
+        self.validator_set.validator_id_set.remove(validator_id);
+        self.validator_set
+            .validator_id_to_delegator_id_set
+            .remove(&validator_id);
+        let validator = self.validator_set.validators.remove(validator_id).unwrap();
+        self.validator_set.total_stake -= validator.total_stake;
+    }
 }
