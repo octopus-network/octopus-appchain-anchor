@@ -90,6 +90,22 @@ pub async fn set_token_price_maintainer_account(
         .await
 }
 
+pub async fn set_relayer_account(
+    worker: &Worker<Sandbox>,
+    signer: &Account,
+    anchor: &Contract,
+    account: &Account,
+) -> anyhow::Result<CallExecutionDetails> {
+    signer
+        .call(worker, anchor.id(), "set_relayer_account")
+        .args_json(json!({
+            "account_id": account.id()
+        }))?
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+}
+
 pub async fn set_price_of_oct_token(
     worker: &Worker<Sandbox>,
     signer: &Account,
@@ -150,6 +166,22 @@ pub async fn turn_on_beefy_light_client_witness_mode(
             worker,
             anchor.id(),
             "turn_on_beefy_light_client_witness_mode",
+        )
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+}
+
+pub async fn turn_off_beefy_light_client_witness_mode(
+    worker: &Worker<Sandbox>,
+    signer: &Account,
+    anchor: &Contract,
+) -> anyhow::Result<CallExecutionDetails> {
+    signer
+        .call(
+            worker,
+            anchor.id(),
+            "turn_off_beefy_light_client_witness_mode",
         )
         .gas(200_000_000_000_000)
         .transact()

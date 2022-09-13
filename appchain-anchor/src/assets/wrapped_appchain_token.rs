@@ -112,7 +112,8 @@ impl WrappedAppchainTokenManager for AppchainAnchor {
         self.assert_contract_account_of_wrapped_appchain_token_is_set();
         let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         let sender_id = env::predecessor_account_id();
-        let account_id_in_appchain = AccountIdInAppchain::new(Some(receiver_id.clone()));
+        let account_id_in_appchain =
+            AccountIdInAppchain::new(Some(receiver_id.clone()), &self.appchain_template_type);
         account_id_in_appchain.assert_valid();
         // burn token in wrapped appchain token contract
         #[derive(near_sdk::serde::Serialize)]
@@ -152,9 +153,9 @@ impl AppchainAnchor {
     //
     pub fn internal_mint_wrapped_appchain_token(
         &mut self,
-        sender_id: Option<String>,
-        receiver_id: AccountId,
-        amount: U128,
+        sender_id: Option<&String>,
+        receiver_id: &AccountId,
+        amount: &U128,
         appchain_message_nonce: u32,
         processing_context: &mut AppchainMessagesProcessingContext,
     ) -> MultiTxsOperationProcessingResult {
@@ -168,8 +169,10 @@ impl AppchainAnchor {
             self.record_appchain_message_processing_result(&result);
             return MultiTxsOperationProcessingResult::Error(message);
         }
-        if let Some(sender_id) = &sender_id {
-            if !AccountIdInAppchain::new(Some(sender_id.clone())).is_valid() {
+        if let Some(sender_id) = sender_id {
+            if !AccountIdInAppchain::new(Some(sender_id.clone()), &self.appchain_template_type)
+                .is_valid()
+            {
                 let message = format!("Invalid sender id in appchain: '{}'", sender_id);
                 let result = AppchainMessageProcessingResult::Error {
                     nonce: appchain_message_nonce,
@@ -188,7 +191,7 @@ impl AppchainAnchor {
         }
         let args = Args {
             account_id: receiver_id.clone(),
-            amount,
+            amount: amount.clone(),
         };
         let args = near_sdk::serde_json::to_vec(&args)
             .expect("Failed to serialize the cross contract args using JSON.");
@@ -205,9 +208,9 @@ impl AppchainAnchor {
                     .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
                     .with_unused_gas_weight(0)
                     .resolve_wrapped_appchain_token_minting(
-                        sender_id.clone(),
+                        sender_id.map_or(None, |s| Some(s.clone())),
                         receiver_id.clone(),
-                        amount,
+                        amount.clone(),
                         appchain_message_nonce,
                     ),
             );
@@ -279,22 +282,19 @@ impl WrappedAppchainTokenContractResolver for AppchainAnchor {
                     wrapped_appchain_token.changed_balance.0 + i128::try_from(amount.0).unwrap(),
                 );
                 self.wrapped_appchain_token.set(&wrapped_appchain_token);
-                let message = match sender_id_in_appchain {
-                    Some(sender_id) => format!(
-                        "Wrapped appchain token minted by '{}' of appchain for '{}' with amount '{}'.",
+                if let Some(sender_id) = sender_id_in_appchain {
+                    // Only generate appchain message processing result in cross-chain transfer case
+                    let message = format!(
+                        "Wrapped appchain token is minted by '{}' of appchain for '{}' with amount '{}'.",
                         &sender_id, &receiver_id_in_near, &amount.0
-                    ),
-                    None => format!(
-                        "Wrapped appchain token minted by crosschain message for '{}' with amount '{}'.",
-                        &receiver_id_in_near, &amount.0
-                    ),
+                    );
+                    self.record_appchain_message_processing_result(
+                        &AppchainMessageProcessingResult::Ok {
+                            nonce: appchain_message_nonce,
+                            message: Some(message),
+                        },
+                    );
                 };
-                self.record_appchain_message_processing_result(
-                    &AppchainMessageProcessingResult::Ok {
-                        nonce: appchain_message_nonce,
-                        message: Some(message),
-                    },
-                );
             }
             PromiseResult::Failed => {
                 let reason = format!("Maybe the total supply will overflow.");

@@ -1,14 +1,13 @@
 mod anchor_viewer;
 pub mod appchain_challenge;
-mod appchain_messages;
+pub mod appchain_messages;
 mod assets;
 pub mod interfaces;
 mod lookup_array;
-mod message_decoder;
 mod permissionless_actions;
 mod reward_distribution_records;
 mod storage_key;
-mod storage_migration;
+pub mod storage_migration;
 pub mod types;
 mod upgrade;
 mod user_actions;
@@ -31,7 +30,7 @@ use near_sdk::{
 };
 use std::ops::Mul;
 
-pub use message_decoder::AppchainMessage;
+pub use appchain_messages::AppchainMessage;
 pub use permissionless_actions::AppchainEvent;
 
 use appchain_challenge::AppchainChallenge;
@@ -54,7 +53,7 @@ use validator_set::ValidatorSetViewer;
 register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v2.1.1";
+const ANCHOR_VERSION: &str = "v2.2.0";
 /// Constants for gas.
 const T_GAS_FOR_FT_TRANSFER: u64 = 10;
 const T_GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10;
@@ -136,6 +135,8 @@ trait ResolverForSelfCallback {
 pub struct AppchainAnchor {
     /// The id of corresponding appchain.
     appchain_id: AppchainId,
+    /// The type of appchain template of corresponding appchain.
+    appchain_template_type: AppchainTemplateType,
     /// The account id of appchain registry contract.
     appchain_registry: AccountId,
     /// The owner account id.
@@ -173,8 +174,6 @@ pub struct AppchainAnchor {
     appchain_state: AppchainState,
     /// The staking history data happened in this contract.
     staking_histories: LazyOption<LookupArray<StakingHistory>>,
-    /// The anchor event history data.
-    anchor_event_histories: LazyOption<LookupArray<AnchorEventHistory>>,
     /// The appchain notification history data.
     appchain_notification_histories: LazyOption<LookupArray<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
@@ -202,12 +201,14 @@ impl AppchainAnchor {
     #[init]
     pub fn new(
         appchain_id: AppchainId,
+        appchain_template_type: AppchainTemplateType,
         appchain_registry: AccountId,
         oct_token: AccountId,
     ) -> Self {
         assert!(!env::state_exists(), "The contract is already initialized.");
         Self {
             appchain_id,
+            appchain_template_type,
             appchain_registry,
             owner: env::predecessor_account_id(),
             owner_pk: env::signer_account_pk(),
@@ -261,10 +262,6 @@ impl AppchainAnchor {
             staking_histories: LazyOption::new(
                 StorageKey::StakingHistories.into_bytes(),
                 Some(&LookupArray::new(StorageKey::StakingHistoriesMap)),
-            ),
-            anchor_event_histories: LazyOption::new(
-                StorageKey::AnchorEventHistories.into_bytes(),
-                Some(&LookupArray::new(StorageKey::AnchorEventHistoriesMap)),
             ),
             appchain_notification_histories: LazyOption::new(
                 StorageKey::AppchainNotificationHistories.into_bytes(),
@@ -567,8 +564,8 @@ impl AppchainAnchor {
         let appchain_notification_history =
             appchain_notification_histories.append(&mut AppchainNotificationHistory {
                 appchain_notification,
-                block_height: env::block_height(),
-                timestamp: env::block_timestamp(),
+                block_height: U64::from(env::block_height()),
+                timestamp: U64::from(env::block_timestamp()),
                 index: U64::from(0),
             });
         self.appchain_notification_histories
@@ -610,25 +607,18 @@ pub fn get_random_in_near(buf: &mut [u8]) -> Result<(), Error> {
     Ok(())
 }
 
-impl IndexedAndClearable for AnchorEventHistory {
-    //
-    fn set_index(&mut self, index: &u64) {
-        self.index = U64::from(*index);
-    }
-    //
-    fn clear_extra_storage(&mut self) {
-        ()
-    }
-}
-
 impl IndexedAndClearable for AppchainNotificationHistory {
     //
     fn set_index(&mut self, index: &u64) {
         self.index = U64::from(*index);
     }
     //
-    fn clear_extra_storage(&mut self) {
-        ()
+    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
+        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+            MultiTxsOperationProcessingResult::NeedMoreGas
+        } else {
+            MultiTxsOperationProcessingResult::Ok
+        }
     }
 }
 
@@ -638,8 +628,12 @@ impl IndexedAndClearable for StakingHistory {
         self.index = U64::from(*index);
     }
     //
-    fn clear_extra_storage(&mut self) {
-        ()
+    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
+        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+            MultiTxsOperationProcessingResult::NeedMoreGas
+        } else {
+            MultiTxsOperationProcessingResult::Ok
+        }
     }
 }
 
@@ -649,7 +643,11 @@ impl IndexedAndClearable for AppchainChallenge {
         ()
     }
     //
-    fn clear_extra_storage(&mut self) {
-        ()
+    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
+        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+            MultiTxsOperationProcessingResult::NeedMoreGas
+        } else {
+            MultiTxsOperationProcessingResult::Ok
+        }
     }
 }

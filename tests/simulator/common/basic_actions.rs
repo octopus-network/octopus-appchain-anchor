@@ -1,3 +1,4 @@
+use appchain_anchor::types::AppchainTemplateType;
 use near_contract_standards::fungible_token::metadata::{FungibleTokenMetadata, FT_METADATA_SPEC};
 use near_sdk::json_types::Base64VecU8;
 use near_sdk::json_types::U128;
@@ -18,7 +19,7 @@ pub async fn initialize_contracts_and_users(
     Contract,
     Vec<Account>,
 )> {
-    let root = worker.root_account();
+    let root = worker.root_account().unwrap();
     let mut users: Vec<Account> = Vec::new();
     //
     // deploy OCT token contract
@@ -89,7 +90,7 @@ pub async fn initialize_contracts_and_users(
         true => appchain_anchor
             .deploy(
                 worker,
-                &std::fs::read(format!("res/appchain_anchor_v2.1.0.wasm"))?,
+                &std::fs::read(format!("res/appchain_anchor_v2.1.1.wasm"))?,
             )
             .await?
             .unwrap(),
@@ -98,15 +99,31 @@ pub async fn initialize_contracts_and_users(
             .await?
             .unwrap(),
     };
-    root.call(worker, appchain_anchor.id(), "new")
-        .args_json(json!({
-            "appchain_id": "test_appchain_id".to_string(),
-            "appchain_registry": appchain_registry.id(),
-            "oct_token": oct_token.id(),
-        }))?
-        .gas(300_000_000_000_000)
-        .transact()
-        .await?;
+    match with_old_anchor {
+        true => {
+            root.call(worker, appchain_anchor.id(), "new")
+                .args_json(json!({
+                    "appchain_id": "test_appchain_id".to_string(),
+                    "appchain_registry": appchain_registry.id(),
+                    "oct_token": oct_token.id(),
+                }))?
+                .gas(300_000_000_000_000)
+                .transact()
+                .await?
+        }
+        false => {
+            root.call(worker, appchain_anchor.id(), "new")
+                .args_json(json!({
+                    "appchain_id": "test_appchain_id".to_string(),
+                    "appchain_template_type": AppchainTemplateType::Barnacle,
+                    "appchain_registry": appchain_registry.id(),
+                    "oct_token": oct_token.id(),
+                }))?
+                .gas(300_000_000_000_000)
+                .transact()
+                .await?
+        }
+    };
     //
     // deploy wrapped appchain token faucet contract
     //
@@ -182,6 +199,14 @@ pub async fn initialize_contracts_and_users(
     register_user_to_ft_contract(worker, &eve, &oct_token).await?;
     super::call_ft_transfer(worker, &root, &eve, total_supply / 10, &oct_token).await?;
     users.push(eve);
+    // relayer
+    let relayer = root
+        .create_subaccount(worker, "relayer")
+        .initial_balance(parse_near!("50 N"))
+        .transact()
+        .await?
+        .unwrap();
+    users.push(relayer);
     // Return initialized UserAccounts
     Ok((
         root,

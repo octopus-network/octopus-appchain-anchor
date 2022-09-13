@@ -114,7 +114,7 @@ impl ValidatorSet {
         }
     }
     ///
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
         let validator_ids = self.validator_id_set.to_vec();
         for validator_id in validator_ids {
             if let Some(mut delegator_id_set) =
@@ -130,14 +130,21 @@ impl ValidatorSet {
                         validator_id_set_of_delegator.clear();
                         self.delegator_id_to_validator_id_set.remove(&delegator_id);
                     }
+                    if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                        return MultiTxsOperationProcessingResult::NeedMoreGas;
+                    }
                 }
                 delegator_id_set.clear();
                 self.validator_id_to_delegator_id_set.remove(&validator_id);
                 self.validators.remove(&validator_id);
+                if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                    return MultiTxsOperationProcessingResult::NeedMoreGas;
+                }
             }
         }
         self.validator_id_set.clear();
         self.total_stake = 0;
+        MultiTxsOperationProcessingResult::Ok
     }
     //
     fn apply_staking_fact(&mut self, staking_fact: &StakingFact) {

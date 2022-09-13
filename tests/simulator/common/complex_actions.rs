@@ -7,13 +7,16 @@ use crate::{
             print_wat_balance_of_anchor,
         },
     },
-    contract_interfaces::{anchor_viewer, permissionless_actions, staking_actions, sudo_actions},
+    contract_interfaces::{anchor_viewer, permissionless_actions, staking_actions},
 };
 use appchain_anchor::{
+    appchain_messages::{EraPayoutPayload, RawMessage},
+    appchain_messages::{PayloadType, PlanNewEraPayload},
     types::{AnchorStatus, MultiTxsOperationProcessingResult, ValidatorSetInfo},
-    AppchainEvent, AppchainMessage,
 };
+use near_primitives::borsh::BorshSerialize;
 use near_sdk::{json_types::U64, serde_json};
+use parity_scale_codec::Encode;
 use workspaces::network::Sandbox;
 use workspaces::{Account, Contract, Worker};
 
@@ -29,6 +32,7 @@ pub async fn process_appchain_messages(
             "Process appchain messages: {}",
             serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
         );
+        println!();
         print_anchor_status(worker, anchor).await?;
         match result {
             MultiTxsOperationProcessingResult::Ok => break,
@@ -43,27 +47,43 @@ pub async fn process_appchain_messages(
 
 pub async fn switch_era(
     worker: &Worker<Sandbox>,
-    root: &Account,
+    relayer: &Account,
     anchor: &Contract,
     era_number: u32,
     appchain_message_nonce: u32,
     to_confirm_view_result: bool,
 ) -> anyhow::Result<()> {
     if era_number > 0 {
-        let mut appchain_messages = Vec::<AppchainMessage>::new();
-        appchain_messages.push(AppchainMessage {
-            appchain_event: AppchainEvent::EraSwitchPlaned { era_number },
-            nonce: appchain_message_nonce,
-        });
-        sudo_actions::stage_appchain_messages(worker, root, anchor, appchain_messages).await?;
+        let payload = PlanNewEraPayload {
+            new_era: era_number,
+        };
+        let raw_message = RawMessage {
+            nonce: appchain_message_nonce as u64,
+            payload_type: PayloadType::PlanNewEra,
+            payload: payload.try_to_vec().unwrap(),
+        };
+        let mut raw_messages = Vec::new();
+        raw_messages.push(raw_message);
+        permissionless_actions::verify_and_stage_appchain_messages(
+            worker,
+            relayer,
+            anchor,
+            raw_messages.encode(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )
+        .await
+        .expect("Failed to call 'verify_and_stage_appchain_messages'");
     }
-    process_appchain_messages(worker, root, anchor).await?;
+    process_appchain_messages(worker, relayer, anchor).await?;
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(worker, anchor).await?;
         println!(
             "Anchor status: {}",
             serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
         );
+        println!();
         let validator_set_info = anchor_viewer::get_validator_set_info_of(
             worker,
             anchor,
@@ -75,13 +95,14 @@ pub async fn switch_era(
             era_number,
             serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
         );
+        println!();
     }
     Ok(())
 }
 
 pub async fn distribute_reward_of(
     worker: &Worker<Sandbox>,
-    root: &Account,
+    relayer: &Account,
     anchor: &Contract,
     wrapped_appchain_token: &Contract,
     nonce: u32,
@@ -91,23 +112,38 @@ pub async fn distribute_reward_of(
 ) -> anyhow::Result<()> {
     let anchor_balance_of_wat =
         common::get_ft_balance_of(worker, &anchor.as_account(), &wrapped_appchain_token).await?;
-    let mut appchain_messages = Vec::<AppchainMessage>::new();
-    appchain_messages.push(AppchainMessage {
-        appchain_event: AppchainEvent::EraRewardConcluded {
-            era_number,
-            unprofitable_validator_ids,
-        },
-        nonce,
-    });
-    sudo_actions::stage_appchain_messages(worker, root, anchor, appchain_messages).await?;
+    let payload = EraPayoutPayload {
+        end_era: era_number,
+        excluded_validators: unprofitable_validator_ids,
+        offenders: Vec::new(),
+    };
+    let raw_message = RawMessage {
+        nonce: nonce as u64,
+        payload_type: PayloadType::EraPayout,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    let mut raw_messages = Vec::new();
+    raw_messages.push(raw_message);
+    permissionless_actions::verify_and_stage_appchain_messages(
+        worker,
+        relayer,
+        anchor,
+        raw_messages.encode(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .await
+    .expect("Failed to call 'verify_and_stage_appchain_messages'");
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(worker, anchor).await?;
         println!(
             "Anchor status: {}",
             serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
         );
+        println!();
     }
-    process_appchain_messages(worker, root, anchor).await?;
+    process_appchain_messages(worker, relayer, anchor).await?;
     assert_eq!(
         common::get_ft_balance_of(worker, &anchor.as_account(), &wrapped_appchain_token)
             .await?
@@ -120,6 +156,7 @@ pub async fn distribute_reward_of(
             "Anchor status: {}",
             serde_json::to_string::<AnchorStatus>(&anchor_status).unwrap()
         );
+        println!();
         let validator_set_info = anchor_viewer::get_validator_set_info_of(
             worker,
             anchor,
@@ -131,6 +168,7 @@ pub async fn distribute_reward_of(
             era_number,
             serde_json::to_string::<ValidatorSetInfo>(&validator_set_info).unwrap()
         );
+        println!();
         print_appchain_notifications(worker, &anchor).await?;
     }
     Ok(())
@@ -161,6 +199,7 @@ pub async fn withdraw_validator_rewards_of(
             .0
             - wat_balance_before_withdraw.0
     );
+    println!();
     print_validator_reward_histories(worker, anchor, user, end_era).await?;
     Ok(())
 }
@@ -192,6 +231,7 @@ pub async fn withdraw_delegator_rewards_of(
             .0
             - wat_balance_before_withdraw.0
     );
+    println!();
     print_delegator_reward_histories(worker, anchor, user, validator, end_era).await?;
     Ok(())
 }
@@ -215,6 +255,7 @@ pub async fn withdraw_stake_of(
         &user.id(),
         common::get_ft_balance_of(worker, user, oct_token).await?.0 - oct_balance_before_withdraw.0
     );
+    println!();
     print_unbonded_stakes_of(worker, anchor, user).await?;
     Ok(())
 }

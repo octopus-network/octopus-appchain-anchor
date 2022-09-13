@@ -253,11 +253,11 @@ impl AppchainAnchor {
         &mut self,
         processing_context: &mut AppchainMessagesProcessingContext,
         appchain_message_nonce: u32,
-        owner_id_in_appchain: String,
-        receiver_id_in_near: AccountId,
-        class_id: String,
-        instance_id: String,
-        token_metadata: TokenMetadata,
+        owner_id_in_appchain: &String,
+        receiver_id_in_near: &AccountId,
+        class_id: &String,
+        instance_id: &String,
+        token_metadata: &TokenMetadata,
     ) -> MultiTxsOperationProcessingResult {
         let wrapped_appchain_nfts = self.wrapped_appchain_nfts.get().unwrap();
         if let Some(wrapped_appchain_nft) = wrapped_appchain_nfts.get(&class_id) {
@@ -306,11 +306,11 @@ impl AppchainAnchor {
                             .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
                             .with_unused_gas_weight(0)
                             .resolve_wrapped_appchain_nft_transfer(
-                                owner_id_in_appchain,
-                                receiver_id_in_near,
+                                owner_id_in_appchain.clone(),
+                                receiver_id_in_near.clone(),
                                 class_id.clone(),
-                                instance_id,
-                                token_metadata,
+                                instance_id.clone(),
+                                token_metadata.clone(),
                                 appchain_message_nonce,
                             ),
                     );
@@ -345,11 +345,11 @@ impl AppchainAnchor {
                             .with_static_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION))
                             .with_unused_gas_weight(0)
                             .resolve_wrapped_appchain_nft_mint(
-                                owner_id_in_appchain,
-                                receiver_id_in_near,
+                                owner_id_in_appchain.clone(),
+                                receiver_id_in_near.clone(),
                                 class_id.clone(),
-                                instance_id,
-                                token_metadata,
+                                instance_id.clone(),
+                                token_metadata.clone(),
                                 appchain_message_nonce,
                             ),
                     );
@@ -395,7 +395,11 @@ impl AppchainAnchor {
                 NFTTransferMessage::BridgeToAppchain {
                     receiver_id_in_appchain,
                 } => {
-                    AccountIdInAppchain::new(Some(receiver_id_in_appchain.clone())).assert_valid();
+                    AccountIdInAppchain::new(
+                        Some(receiver_id_in_appchain.clone()),
+                        &self.appchain_template_type,
+                    )
+                    .assert_valid();
                     wrapped_appchain_nft.add_locked_nft(&token_id);
                     let class_id = wrapped_appchain_nfts
                         .get_class_id_by_contract_account(&predecessor_account_id)
@@ -495,10 +499,16 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
+                let message = format!(
+                    "NFT '{}' from appchain account '{}' with metadata '{}' is minted.",
+                    instance_id,
+                    owner_id_in_appchain,
+                    serde_json::to_string(&token_metadata).unwrap(),
+                );
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Ok {
                         nonce: appchain_message_nonce,
-                        message: None,
+                        message: Some(message),
                     },
                 );
             }

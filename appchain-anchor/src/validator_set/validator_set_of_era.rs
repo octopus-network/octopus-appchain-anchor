@@ -217,7 +217,7 @@ impl ValidatorSetOfEra {
         }
     }
     ///
-    pub fn clear_reward_distribution_records(&mut self) {
+    pub fn clear_reward_distribution_records(&mut self) -> MultiTxsOperationProcessingResult {
         let validator_ids = self.validator_set.validator_id_set.to_vec();
         for validator_id in validator_ids {
             if self.unprofitable_validator_id_set.contains(&validator_id) {
@@ -232,16 +232,26 @@ impl ValidatorSetOfEra {
                 for delegator_id in delegator_ids {
                     self.delegator_rewards
                         .remove(&(delegator_id.clone(), validator_id.clone()));
+                    if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                        return MultiTxsOperationProcessingResult::NeedMoreGas;
+                    }
                 }
             }
             self.validator_rewards.remove(&validator_id);
+            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                return MultiTxsOperationProcessingResult::NeedMoreGas;
+            }
         }
         self.unprofitable_validator_id_set.clear();
+        MultiTxsOperationProcessingResult::Ok
     }
     ///
-    pub fn clear(&mut self) {
-        self.clear_reward_distribution_records();
-        self.validator_set.clear();
+    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
+        let mut result = self.clear_reward_distribution_records();
+        if result.is_ok() {
+            result = self.validator_set.clear();
+        }
+        result
     }
     //
     pub fn apply_staking_fact(&mut self, staking_fact: &StakingFact) {
@@ -383,7 +393,7 @@ impl IndexedAndClearable for ValidatorSetOfEra {
         ()
     }
     //
-    fn clear_extra_storage(&mut self) {
-        self.clear();
+    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
+        self.clear()
     }
 }

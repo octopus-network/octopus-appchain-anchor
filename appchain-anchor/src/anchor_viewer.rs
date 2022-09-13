@@ -7,6 +7,10 @@ impl AnchorViewer for AppchainAnchor {
         ANCHOR_VERSION.to_string()
     }
     //
+    fn get_appchain_template_type(&self) -> AppchainTemplateType {
+        self.appchain_template_type.clone()
+    }
+    //
     fn get_owner_pk(&self) -> PublicKey {
         self.owner_pk.clone()
     }
@@ -57,11 +61,6 @@ impl AnchorViewer for AppchainAnchor {
                 .index_range(),
             index_range_of_validator_set_history: self
                 .validator_set_histories
-                .get()
-                .unwrap()
-                .index_range(),
-            index_range_of_anchor_event_history: self
-                .anchor_event_histories
                 .get()
                 .unwrap()
                 .index_range(),
@@ -489,7 +488,10 @@ impl AnchorViewer for AppchainAnchor {
         &self,
         validator_id_in_appchain: String,
     ) -> Option<ValidatorProfile> {
-        let formatted_id = AccountIdInAppchain::new(Some(validator_id_in_appchain.clone()));
+        let formatted_id = AccountIdInAppchain::new(
+            Some(validator_id_in_appchain.clone()),
+            &self.appchain_template_type,
+        );
         formatted_id.assert_valid();
         self.validator_profiles
             .get()
@@ -547,7 +549,7 @@ impl AnchorViewer for AppchainAnchor {
     //
     fn get_appchain_message_of(&self, nonce: u32) -> Option<AppchainMessage> {
         let appchain_messages = self.appchain_messages.get().unwrap();
-        appchain_messages.get_message(nonce)
+        appchain_messages.get_message(&nonce)
     }
     //
     fn get_appchain_messages(
