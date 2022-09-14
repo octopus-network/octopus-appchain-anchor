@@ -1,10 +1,11 @@
 use crate::{
     common,
-    contract_interfaces::{native_near_token, sudo_actions},
+    contract_interfaces::{native_near_token, permissionless_actions},
 };
-use appchain_anchor::{AppchainEvent, AppchainMessage};
-use near_sdk::{json_types::U128, serde_json::json};
+use appchain_anchor::appchain_messages::{BurnAssetPayload, PayloadType, RawMessage};
+use near_sdk::{borsh::BorshSerialize, json_types::U128, serde_json::json};
 use near_units::parse_near;
+use parity_scale_codec::Encode;
 use std::str::FromStr;
 use workspaces::AccountId;
 
@@ -102,16 +103,31 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
     //
     //
     appchain_message_nonce += 1;
-    let appchain_message = AppchainMessage {
-        appchain_event: AppchainEvent::NearFungibleTokenBurnt {
-            contract_account: "NEAR".to_string(),
-            owner_id_in_appchain: user0_id_in_appchain.clone(),
-            receiver_id_in_near: users[0].id().to_string().parse().unwrap(),
-            amount: U128::from(parse_near!("1 N")),
-        },
-        nonce: appchain_message_nonce,
+    let payload = BurnAssetPayload {
+        token_id: "NEAR".to_string(),
+        sender: user0_id_in_appchain.clone(),
+        receiver_id: users[0].id().to_string().parse().unwrap(),
+        amount: parse_near!("1 N"),
     };
-    sudo_actions::stage_appchain_message(&worker, &root, &anchor, appchain_message).await?;
+    let raw_message = RawMessage {
+        nonce: appchain_message_nonce as u64,
+        payload_type: PayloadType::BurnAsset,
+        payload: payload.try_to_vec().unwrap(),
+    };
+    let mut raw_messages = Vec::new();
+    raw_messages.push(raw_message);
+    permissionless_actions::verify_and_stage_appchain_messages(
+        &worker,
+        &users[5],
+        &anchor,
+        raw_messages.encode(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    )
+    .await
+    .expect("Failed to call 'verify_and_stage_appchain_messages'");
+    //
     let old_balance = users[0].view_account(&worker).await?.balance;
     println!("Balance of users[0]: {}", old_balance);
     common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;

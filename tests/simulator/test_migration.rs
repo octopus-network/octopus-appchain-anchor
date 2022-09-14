@@ -24,16 +24,23 @@ async fn test_migration() -> anyhow::Result<()> {
     // Try start and complete switching era1
     //
     appchain_message_nonce += 1;
-    complex_actions::switch_era(&worker, &root, &anchor, 1, appchain_message_nonce, false)
-        .await
-        .expect("Failed to switch era 1.");
+    complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        1,
+        appchain_message_nonce,
+        false,
+    )
+    .await
+    .expect("Failed to switch era 1.");
     //
     // Distribut reward of era0
     //
     appchain_message_nonce += 1;
     complex_actions::distribute_reward_of(
         &worker,
-        &root,
+        &users[5],
         &anchor,
         &wrapped_appchain_token,
         appchain_message_nonce,
