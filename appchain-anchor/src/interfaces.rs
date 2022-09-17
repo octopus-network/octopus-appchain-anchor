@@ -419,7 +419,7 @@ pub trait WrappedAppchainNFTManager {
 
 pub trait NativeNearTokenManager {
     ///
-    fn deploy_native_near_token_receiver_contract(&mut self);
+    fn deploy_near_vault_contract(&mut self);
     ///
     fn set_price_of_native_near_token(&mut self, price: U128);
     ///

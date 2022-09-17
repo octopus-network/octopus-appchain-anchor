@@ -7,6 +7,8 @@ use near_sdk::{env, near_bindgen, AccountId, Balance};
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
     appchain_id: AppchainId,
+    /// The type of appchain template of corresponding appchain.
+    appchain_template_type: AppchainTemplateType,
     /// The account id of appchain registry contract.
     appchain_registry: AccountId,
     /// The owner account id.
@@ -78,7 +80,7 @@ impl AppchainAnchor {
         // Create the new contract using the data from the old contract.
         let new_contract = AppchainAnchor {
             appchain_id: old_contract.appchain_id,
-            appchain_template_type: AppchainTemplateType::Barnacle,
+            appchain_template_type: old_contract.appchain_template_type,
             appchain_registry: old_contract.appchain_registry,
             owner: old_contract.owner,
             owner_pk: old_contract.owner_pk,

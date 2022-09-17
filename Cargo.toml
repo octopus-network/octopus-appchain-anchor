@@ -42,5 +42,5 @@ members = [
     "mock-appchain-registry",
     "mock-oct-token",
     "wat-faucet",
-    "native-near-token-receiver",
+    "near-vault",
 ]

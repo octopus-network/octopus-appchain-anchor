@@ -1,16 +1,12 @@
 use workspaces::{network::Sandbox, result::CallExecutionDetails, Account, Contract, Worker};
 
-pub async fn deploy_native_near_token_receiver_contract(
+pub async fn deploy_near_vault_contract(
     worker: &Worker<Sandbox>,
     signer: &Account,
     anchor: &Contract,
 ) -> anyhow::Result<CallExecutionDetails> {
     signer
-        .call(
-            worker,
-            anchor.id(),
-            "deploy_native_near_token_receiver_contract",
-        )
+        .call(worker, anchor.id(), "deploy_near_vault_contract")
         .gas(200_000_000_000_000)
         .transact()
         .await

@@ -5,7 +5,7 @@ use crate::{
 use near_sdk::json_types::Base58CryptoHash;
 use std::str::FromStr;
 
-pub const PREFIX_OF_RECEIVER_SUB_ACCOUNT: &str = "near-receiver";
+pub const PREFIX_OF_RECEIVER_SUB_ACCOUNT: &str = "near-vault";
 pub const CONTRACT_ACCOUNT_FOR_NATIVE_NEAR_TOKEN: &str = "NEAR";
 
 impl Default for NativeNearToken {
@@ -21,10 +21,10 @@ impl Default for NativeNearToken {
 #[near_bindgen]
 impl NativeNearTokenManager for AppchainAnchor {
     ///
-    fn deploy_native_near_token_receiver_contract(&mut self) {
+    fn deploy_near_vault_contract(&mut self) {
         self.assert_owner();
         assert!(
-            env::storage_has_key(&StorageKey::NativeNearTokenReceiverContractWasm.into_bytes()),
+            env::storage_has_key(&StorageKey::NearVaultContractWasm.into_bytes()),
             "Wasm file for deployment is not staged yet."
         );
         let contract_account = AccountId::from_str(
@@ -41,8 +41,7 @@ impl NativeNearTokenManager for AppchainAnchor {
             .transfer(NATIVE_NEAR_TOKEN_RECEIVER_CONTRACT_INIT_BALANCE)
             .add_full_access_key(self.owner_pk.clone())
             .deploy_contract(
-                env::storage_read(&StorageKey::NativeNearTokenReceiverContractWasm.into_bytes())
-                    .unwrap(),
+                env::storage_read(&StorageKey::NearVaultContractWasm.into_bytes()).unwrap(),
             )
             .function_call(
                 "new".to_string(),
@@ -175,7 +174,7 @@ impl NativeNearToken {
 /// Stores attached data into blob store and returns hash of it.
 /// Implemented to avoid loading the data into WASM for optimal gas usage.
 #[no_mangle]
-pub extern "C" fn store_wasm_of_native_near_token_receiver_contract() {
+pub extern "C" fn store_wasm_of_near_vault_contract() {
     env::setup_panic_hook();
     let contract: AppchainAnchor = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
     contract.assert_owner();
@@ -190,10 +189,7 @@ pub extern "C" fn store_wasm_of_native_near_token_receiver_contract() {
         storage_cost
     );
 
-    env::storage_write(
-        &StorageKey::NativeNearTokenReceiverContractWasm.into_bytes(),
-        &input,
-    );
+    env::storage_write(&StorageKey::NearVaultContractWasm.into_bytes(), &input);
     let mut blob_hash = [0u8; 32];
     blob_hash.copy_from_slice(&sha256_hash);
     let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(blob_hash))

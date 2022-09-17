@@ -26,29 +26,23 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
     //
     //
     //
-    native_near_token::deploy_native_near_token_receiver_contract(&worker, &users[0], &anchor)
+    native_near_token::deploy_near_vault_contract(&worker, &users[0], &anchor)
         .await
         .expect_err("Should fail.");
     //
-    root.call(
-        &worker,
-        anchor.id(),
-        "store_wasm_of_native_near_token_receiver_contract",
-    )
-    .args(std::fs::read(format!(
-        "res/native_near_token_receiver.wasm"
-    ))?)
-    .gas(300_000_000_000_000)
-    .deposit(parse_near!("2 N"))
-    .transact()
-    .await
-    .expect("Failed in calling 'store_wasm_of_native_near_token_receiver_contract'.");
+    root.call(&worker, anchor.id(), "store_wasm_of_near_vault_contract")
+        .args(std::fs::read(format!("res/near_vault.wasm"))?)
+        .gas(300_000_000_000_000)
+        .deposit(parse_near!("2 N"))
+        .transact()
+        .await
+        .expect("Failed in calling 'store_wasm_of_near_vault_contract'.");
     //
-    native_near_token::deploy_native_near_token_receiver_contract(&worker, &users[0], &anchor)
+    native_near_token::deploy_near_vault_contract(&worker, &users[0], &anchor)
         .await
         .expect_err("Should fail.");
     //
-    native_near_token::deploy_native_near_token_receiver_contract(&worker, &root, &anchor)
+    native_near_token::deploy_near_vault_contract(&worker, &root, &anchor)
         .await
         .expect("Failed to deploy native near token receiver contract.");
     //
@@ -57,7 +51,7 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
     let user0_id_in_appchain =
         "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
     let receiver_account =
-        AccountId::from_str(format!("near-receiver.{}", anchor.id()).as_str()).unwrap();
+        AccountId::from_str(format!("near-vault.{}", anchor.id()).as_str()).unwrap();
     let old_balance = users[0].view_account(&worker).await?.balance;
     println!("Balance of users[0]: {}", old_balance);
     users[0]
