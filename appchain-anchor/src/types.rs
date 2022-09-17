@@ -410,7 +410,8 @@ pub struct UnbondedStake {
 
 /// The actual processing order is:
 /// `CopyingFromLastEra` -> `UnbondingValidator`-> `AutoUnbondingValidator`
-/// -> `ApplyingStakingHistory` -> `ReadyForDistributingReward` -> `DistributingReward`
+/// -> `ApplyingStakingHistory` -> `SyncingStakingAmountToCouncil` -> `ReadyForDistributingReward`
+/// -> `DistributingReward`
 /// -> `CheckingForAutoUnbondingValidator` -> `Completed`
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
@@ -440,6 +441,7 @@ pub enum ValidatorSetProcessingStatus {
     CheckingForAutoUnbondingValidator {
         unprofitable_validator_index: U64,
     },
+    SyncingStakingAmountToCouncil,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

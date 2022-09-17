@@ -17,6 +17,7 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
         _oct_token,
         _wrapped_appchain_token,
         _registry,
+        _council,
         anchor,
         _wat_faucet,
         users,

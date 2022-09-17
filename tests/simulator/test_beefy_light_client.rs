@@ -27,6 +27,7 @@ async fn test_beefy_light_client() -> anyhow::Result<()> {
         oct_token,
         wrapped_appchain_token,
         _registry,
+        _council,
         anchor,
         _wat_faucet,
         users,

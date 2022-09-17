@@ -1,6 +1,7 @@
 use super::{AppchainMessagesProcessingContext, ResultOfLoopingValidatorSet};
 use crate::*;
 use core::convert::TryFrom;
+use std::str::FromStr;
 use user_actions::UnbondedStakeReference;
 
 impl AppchainAnchor {
@@ -203,28 +204,67 @@ impl AppchainAnchor {
                     applying_index.0 += 1;
                 }
                 if applying_index.0 > validator_set.staking_history_index() {
-                    processing_context.clear_switching_era_number();
                     validator_set.set_processing_status(
-                        ValidatorSetProcessingStatus::ReadyForDistributingReward,
+                        ValidatorSetProcessingStatus::SyncingStakingAmountToCouncil,
                     );
-                    self.record_appchain_message_processing_result(
-                        &AppchainMessageProcessingResult::Ok {
-                            nonce: processing_context.processing_nonce().unwrap_or(0),
-                            message: Some(format!(
-                                "Validator set '{}' is generated and is ready for distributing reward.",
-                                era_number
-                            )),
-                        },
-                    );
-                    validator_set_histories.insert(&era_number, &validator_set);
-                    MultiTxsOperationProcessingResult::Ok
                 } else {
                     validator_set.set_processing_status(
                         ValidatorSetProcessingStatus::ApplyingStakingHistory { applying_index },
                     );
-                    validator_set_histories.insert(&era_number, &validator_set);
-                    MultiTxsOperationProcessingResult::NeedMoreGas
                 }
+                validator_set_histories.insert(&era_number, &validator_set);
+                MultiTxsOperationProcessingResult::NeedMoreGas
+            }
+            ValidatorSetProcessingStatus::SyncingStakingAmountToCouncil => {
+                let validator_list = validator_set.get_validator_list();
+                #[derive(Serialize, Deserialize, Clone)]
+                #[serde(crate = "near_sdk::serde")]
+                struct StakingRecord {
+                    pub validator_id: AccountId,
+                    pub total_stake: U128,
+                }
+                #[derive(Serialize, Deserialize, Clone)]
+                #[serde(crate = "near_sdk::serde")]
+                struct Input {
+                    pub stake_records: Vec<StakingRecord>,
+                }
+                let args = Input {
+                    stake_records: validator_list
+                        .iter()
+                        .map(|v| StakingRecord {
+                            validator_id: v.validator_id.clone(),
+                            total_stake: v.total_stake,
+                        })
+                        .collect::<Vec<StakingRecord>>(),
+                };
+                let args = near_sdk::serde_json::to_vec(&args)
+                    .expect("Failed to serialize the cross contract args using JSON.");
+                let contract_account = AccountId::from_str(
+                    format!("octopus-council.{}", self.appchain_registry).as_str(),
+                )
+                .unwrap();
+                Promise::new(contract_account).function_call(
+                    "sync_validator_stakes_of_anchor".to_string(),
+                    args,
+                    0,
+                    Gas::ONE_TERA.mul(T_GAS_FOR_SYNC_STAKING_AMOUNT_TO_COUNCIL),
+                );
+                //
+                processing_context.clear_switching_era_number();
+                validator_set.set_processing_status(
+                    ValidatorSetProcessingStatus::ReadyForDistributingReward,
+                );
+                self.record_appchain_message_processing_result(
+                    &AppchainMessageProcessingResult::Ok {
+                        nonce: processing_context.processing_nonce().unwrap_or(0),
+                        message: Some(format!(
+                            "Validator set '{}' is generated and is ready for distributing reward.",
+                            era_number
+                        )),
+                    },
+                );
+                validator_set_histories.insert(&era_number, &validator_set);
+                MultiTxsOperationProcessingResult::Ok
             }
             _ => MultiTxsOperationProcessingResult::Error(format!(
                 "Wrong processing status '{:?}' of validator set '{}'.",

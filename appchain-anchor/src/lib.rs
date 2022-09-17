@@ -69,6 +69,7 @@ const T_GAS_FOR_REGISTER_VALIDATOR: u64 = 100;
 const T_GAS_FOR_BURN_WRAPPED_APPCHAIN_TOKEN: u64 = 50;
 const T_GAS_FOR_NATIVE_NEAR_RECEIVER_CONTRACT_INITIALIZATION: u64 = 50;
 const T_GAS_FOR_UNLOCK_NATIVE_NEAR: u64 = 10;
+const T_GAS_FOR_SYNC_STAKING_AMOUNT_TO_COUNCIL: u64 = 150;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.

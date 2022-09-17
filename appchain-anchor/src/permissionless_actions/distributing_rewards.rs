@@ -100,6 +100,7 @@ impl AppchainAnchor {
             | ValidatorSetProcessingStatus::UnbondingValidator { .. }
             | ValidatorSetProcessingStatus::AutoUnbondingValidator { .. }
             | ValidatorSetProcessingStatus::ApplyingStakingHistory { .. }
+            | ValidatorSetProcessingStatus::SyncingStakingAmountToCouncil
             | ValidatorSetProcessingStatus::ReadyForDistributingReward => {
                 MultiTxsOperationProcessingResult::Error(format!(
                     "Wrong processing status '{:?}' of validator set '{}'.",

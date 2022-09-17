@@ -94,11 +94,12 @@ pub async fn test_normal_actions(
     Contract,
     Contract,
     Contract,
+    Contract,
     Vec<Account>,
     u32,
 )> {
     let total_supply = to_actual_amount(TOTAL_SUPPLY, 18);
-    let (root, oct_token, registry, anchor, wat_faucet, users) =
+    let (root, oct_token, registry, council, anchor, wat_faucet, users) =
         basic_actions::initialize_contracts_and_users(worker, total_supply, with_old_anchor)
             .await?;
     let user0_id_in_appchain =
@@ -587,7 +588,7 @@ pub async fn test_normal_actions(
     let user4_balance = get_ft_balance_of(worker, &users[4], &oct_token).await?;
     let wat_faucet_balance =
         get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token).await?;
-    let amount4 = to_actual_amount(13_000, 18);
+    let amount4 = to_actual_amount(26_000, 18);
     staking_actions::register_validator(
         worker,
         &users[4],
@@ -641,6 +642,7 @@ pub async fn test_normal_actions(
         oct_token,
         wrapped_appchain_token,
         registry,
+        council,
         anchor,
         wat_faucet,
         users,

@@ -14,6 +14,7 @@ async fn test_anchor_actions() -> anyhow::Result<()> {
         oct_token,
         wrapped_appchain_token,
         _registry,
+        _council,
         anchor,
         _wat_faucet,
         users,
