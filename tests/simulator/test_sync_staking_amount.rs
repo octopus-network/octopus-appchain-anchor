@@ -1,5 +1,9 @@
 use crate::common::{self, complex_actions};
-use near_sdk::{serde_json, AccountId};
+use near_sdk::{
+    serde_json::{self, json},
+    AccountId,
+};
+use octopus_council::types::{CouncilChangeHistory, ValidatorStake};
 
 #[tokio::test]
 async fn test_sync_staking_amount() -> anyhow::Result<()> {
@@ -47,6 +51,20 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
     .await
     .expect("Failed to distribute reward of era 0.");
     //
+    // Try start and complete switching era2
+    //
+    appchain_message_nonce += 1;
+    complex_actions::switch_era(
+        &worker,
+        &users[5],
+        &anchor,
+        2,
+        appchain_message_nonce,
+        false,
+    )
+    .await
+    .expect("Failed to switch era 2.");
+    //
     //
     //
     let result = council
@@ -70,21 +88,36 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
         "Result of 'get_council_members': {:?}",
         serde_json::to_string::<Vec<AccountId>>(&result).unwrap()
     );
-    assert!(result
-        .get(0)
-        .unwrap()
-        .to_string()
-        .eq(&users[0].id().to_string()));
-    assert!(result
-        .get(1)
-        .unwrap()
-        .to_string()
-        .eq(&users[4].id().to_string()));
-    assert!(result
-        .get(2)
-        .unwrap()
-        .to_string()
-        .eq(&users[1].id().to_string()));
+    //
+    let result = council
+        .call(&worker, "get_ranked_validator_stakes")
+        .args_json(json!( {
+            "start_index": 0,
+            "quantity": null,
+        }))?
+        .view()
+        .await?
+        .json::<Vec<ValidatorStake>>()
+        .unwrap();
+    println!(
+        "Result of 'get_ranked_validator_stakes': {:?}",
+        serde_json::to_string::<Vec<ValidatorStake>>(&result).unwrap()
+    );
+    //
+    let result = council
+        .call(&worker, "get_council_change_histories")
+        .args_json(json!( {
+            "start_index": "0",
+            "quantity": null,
+        }))?
+        .view()
+        .await?
+        .json::<Vec<CouncilChangeHistory>>()
+        .unwrap();
+    println!(
+        "Result of 'get_council_change_histories': {:?}",
+        serde_json::to_string::<Vec<CouncilChangeHistory>>(&result).unwrap()
+    );
     //
     Ok(())
 }
