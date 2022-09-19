@@ -539,6 +539,11 @@ pub enum AppchainNotification {
         owner_id_in_near: AccountId,
         receiver_id_in_appchain: String,
     },
+    /// A message using scale codec with hex format deliver to the agent account in appchain.
+    AppchainAgentMessageSigned {
+        sender_id_in_near: AccountId,
+        message: String,
+    },
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]

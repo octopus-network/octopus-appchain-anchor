@@ -1,5 +1,6 @@
 use crate::*;
 
+mod appchain_agent_actions;
 mod appchain_lifecycle;
 mod owner_actions;
 mod settings_manager;
