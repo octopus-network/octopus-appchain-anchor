@@ -152,6 +152,7 @@ impl AppchainMessages {
         for nonce in self.min_nonce..self.max_nonce + 1 {
             if self.message_nonces.contains(&(nonce as u64))
                 || self.message_map.contains_key(&nonce)
+                || self.processing_result_map.contains_key(&nonce)
             {
                 return false;
             }
@@ -239,16 +240,14 @@ impl AppchainMessages {
             self.min_nonce,
             self.max_nonce
         );
-        let mut nonce = self.min_nonce + 1;
-        while nonce <= self.max_nonce + 1
+        while self.min_nonce <= self.max_nonce
             && env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
         {
-            self.remove_messages_before(&nonce);
-            self.message_nonces.remove_before(&(nonce as u64));
-            nonce += 1;
+            self.remove_at(self.min_nonce);
+            self.message_nonces.remove_at(&(self.min_nonce as u64));
+            self.min_nonce += 1;
         }
         if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
-            self.min_nonce = nonce - 1;
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {
             self.min_nonce = 0;
@@ -257,13 +256,10 @@ impl AppchainMessages {
         }
     }
     ///
-    pub fn remove_messages_before(&mut self, nonce: &u32) {
-        for nonce in self.min_nonce..*nonce {
-            self.message_map.remove_raw(&nonce.try_to_vec().unwrap());
-            self.processing_result_map
-                .remove_raw(&nonce.try_to_vec().unwrap());
-        }
-        self.min_nonce = *nonce;
+    pub fn remove_at(&mut self, nonce: u32) {
+        self.message_map.remove_raw(&nonce.try_to_vec().unwrap());
+        self.processing_result_map
+            .remove_raw(&nonce.try_to_vec().unwrap());
     }
 }
 
