@@ -31,8 +31,8 @@ near call $ANCHOR_ACCOUNT_ID clear_appchain_notification_histories '' --accountI
 #
 near call $ANCHOR_ACCOUNT_ID clear_external_assets_registration '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
 #
+near call $ANCHOR_ACCOUNT_ID remove_staged_wasm '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
+#
+near call $ANCHOR_ACCOUNT_ID clear_validator_set_histories '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
+#
 near call $ANCHOR_ACCOUNT_ID clear_contract_level_lazy_option_values '' --accountId $ANCHOR_ACCOUNT_ID --gas 200000000000000
-#
-#
-#
-near view-state $ANCHOR_ACCOUNT_ID

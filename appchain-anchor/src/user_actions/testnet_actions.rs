@@ -1,4 +1,5 @@
 use crate::*;
+use near_sdk::json_types::Base64VecU8;
 
 impl AppchainAnchor {
     //
@@ -72,8 +73,6 @@ impl AppchainAnchor {
             wrapped_appchain_nfts.is_empty(),
             "'wrapped_appchain_nfts' is not empty."
         );
-        self.oct_token.remove();
-        self.wrapped_appchain_token.remove();
         self.near_fungible_tokens.remove();
         self.validator_set_histories.remove();
         self.next_validator_set.remove();
@@ -274,6 +273,190 @@ impl AppchainAnchor {
         next_validator_set.clear_auto_unbonding_validator_ids();
         next_validator_set.clear_unbonding_validator_ids();
         self.next_validator_set.set(&next_validator_set);
+    }
+    //
+    pub fn clear_validator_set_histories(&mut self) -> MultiTxsOperationProcessingResult {
+        self.assert_testnet();
+        self.assert_owner();
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        let result = validator_set_histories.clear();
+        if !result.is_error() {
+            self.validator_set_histories.set(&validator_set_histories);
+        }
+        result
+    }
+    //
+    pub fn change_validator_id_in_appchain_in_validator_set(
+        &mut self,
+        era_number: U64,
+        validator_id: AccountId,
+        validator_id_in_appchain: String,
+    ) {
+        self.assert_testnet();
+        self.assert_owner();
+        let mut validator_set = self
+            .validator_set_histories
+            .get()
+            .unwrap()
+            .get(&era_number.0)
+            .expect("Invalid era number");
+        let mut validator = validator_set
+            .get_validator(&validator_id)
+            .expect("Invalid validator id.");
+        let id_in_appchain = AccountIdInAppchain::new(
+            Some(validator_id_in_appchain.clone()),
+            &self.appchain_template_type,
+        );
+        assert!(
+            id_in_appchain.is_valid(),
+            "Invalid validator id in appchain."
+        );
+        validator.validator_id_in_appchain = id_in_appchain.to_string();
+        validator_set.insert_validator(&validator);
+    }
+    //
+    pub fn remove_staged_wasm(&mut self) {
+        self.assert_testnet();
+        self.assert_owner();
+        log!(
+            "AnchorContractWasm: {}",
+            env::storage_remove(&StorageKey::AnchorContractWasm.into_bytes())
+        );
+        log!(
+            "WrappedAppchainNFTContractWasm: {}",
+            env::storage_remove(&StorageKey::WrappedAppchainNFTContractWasm.into_bytes())
+        );
+    }
+    //
+    pub fn get_recorded_era_numbers_of_reward_distribution_records(&self) -> Vec<U64> {
+        let reward_distribution_records = self.reward_distribution_records.get().unwrap();
+        reward_distribution_records
+            .get_recorded_era_numbers()
+            .iter()
+            .map(|n| U64::from(*n))
+            .collect()
+    }
+    //
+    pub fn clear_era_number_set_of_reward_distribution_records(&mut self) {
+        self.assert_testnet();
+        self.assert_owner();
+        let mut reward_distribution_records = self.reward_distribution_records.get().unwrap();
+        reward_distribution_records.clear_era_number_set();
+        self.reward_distribution_records
+            .set(&reward_distribution_records);
+    }
+    //
+    pub fn remove_storage_keys(&mut self, keys: Vec<String>) {
+        self.assert_testnet();
+        self.assert_owner();
+        for key in keys {
+            let json_str = format!("\"{}\"", key);
+            log!(
+                "Remove key '{}': {}",
+                key,
+                env::storage_remove(&serde_json::from_str::<Base64VecU8>(&json_str).unwrap().0)
+            );
+            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                break;
+            }
+        }
+    }
+    ///
+    #[init(ignore_state)]
+    pub fn reset_contract_state() -> Self {
+        near_sdk::assert_self();
+        let old_contract: AppchainAnchor = env::state_read().expect("Old state doesn't exist");
+        Self {
+            appchain_id: old_contract.appchain_id,
+            appchain_template_type: old_contract.appchain_template_type,
+            appchain_registry: old_contract.appchain_registry,
+            owner: old_contract.owner,
+            owner_pk: old_contract.owner_pk,
+            oct_token: old_contract.oct_token,
+            wrapped_appchain_token: old_contract.wrapped_appchain_token,
+            near_fungible_tokens: LazyOption::new(
+                StorageKey::NearFungibleTokens.into_bytes(),
+                Some(&NearFungibleTokens::new()),
+            ),
+            validator_set_histories: LazyOption::new(
+                StorageKey::ValidatorSetHistories.into_bytes(),
+                Some(&LookupArray::new(StorageKey::ValidatorSetHistoriesMap)),
+            ),
+            next_validator_set: LazyOption::new(
+                StorageKey::NextValidatorSet.into_bytes(),
+                Some(&NextValidatorSet::new(u64::MAX)),
+            ),
+            unwithdrawn_validator_rewards: LookupMap::new(
+                StorageKey::UnwithdrawnValidatorRewards.into_bytes(),
+            ),
+            unwithdrawn_delegator_rewards: LookupMap::new(
+                StorageKey::UnwithdrawnDelegatorRewards.into_bytes(),
+            ),
+            unbonded_stakes: LookupMap::new(StorageKey::UnbondedStakes.into_bytes()),
+            validator_profiles: LazyOption::new(
+                StorageKey::ValidatorProfiles.into_bytes(),
+                Some(&ValidatorProfiles::new()),
+            ),
+            appchain_settings: LazyOption::new(
+                StorageKey::AppchainSettings.into_bytes(),
+                Some(&AppchainSettings::default()),
+            ),
+            anchor_settings: LazyOption::new(
+                StorageKey::AnchorSettings.into_bytes(),
+                Some(&AnchorSettings::default()),
+            ),
+            protocol_settings: LazyOption::new(
+                StorageKey::ProtocolSettings.into_bytes(),
+                Some(&ProtocolSettings::default()),
+            ),
+            appchain_state: AppchainState::Staging,
+            staking_histories: LazyOption::new(
+                StorageKey::StakingHistories.into_bytes(),
+                Some(&LookupArray::new(StorageKey::StakingHistoriesMap)),
+            ),
+            appchain_notification_histories: LazyOption::new(
+                StorageKey::AppchainNotificationHistories.into_bytes(),
+                Some(&LookupArray::new(
+                    StorageKey::AppchainNotificationHistoriesMap,
+                )),
+            ),
+            permissionless_actions_status: LazyOption::new(
+                StorageKey::PermissionlessActionsStatus.into_bytes(),
+                Some(&PermissionlessActionsStatus {
+                    switching_era_number: None,
+                    distributing_reward_era_number: None,
+                    processing_appchain_message_nonce: None,
+                    max_nonce_of_staged_appchain_messages: 0,
+                    latest_applied_appchain_message_nonce: 0,
+                }),
+            ),
+            beefy_light_client_state: LazyOption::new(
+                StorageKey::BeefyLightClientState.into_bytes(),
+                None,
+            ),
+            reward_distribution_records: LazyOption::new(
+                StorageKey::RewardDistributionRecords.into_bytes(),
+                Some(&RewardDistributionRecords::new()),
+            ),
+            asset_transfer_is_paused: false,
+            user_staking_histories: LazyOption::new(
+                StorageKey::UserStakingHistories.into_bytes(),
+                Some(&UserStakingHistories::new()),
+            ),
+            rewards_withdrawal_is_paused: false,
+            appchain_messages: LazyOption::new(
+                StorageKey::AppchainMessages.into_bytes(),
+                Some(&AppchainMessages::new()),
+            ),
+            appchain_challenges: LazyOption::new(
+                StorageKey::AppchainChallenges.into_bytes(),
+                Some(&LookupArray::new(StorageKey::AppchainChallengesMap)),
+            ),
+            wrapped_appchain_nfts: LazyOption::new(
+                StorageKey::WrappedAppchainNFTs.into_bytes(),
+                Some(&WrappedAppchainNFTs::new()),
+            ),
+        }
     }
 }
 
