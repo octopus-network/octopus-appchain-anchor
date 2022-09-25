@@ -326,6 +326,10 @@ impl AppchainAnchor {
             "WrappedAppchainNFTContractWasm: {}",
             env::storage_remove(&StorageKey::WrappedAppchainNFTContractWasm.into_bytes())
         );
+        log!(
+            "NearVaultContractWasm: {}",
+            env::storage_remove(&StorageKey::NearVaultContractWasm.into_bytes())
+        )
     }
     //
     pub fn get_recorded_era_numbers_of_reward_distribution_records(&self) -> Vec<U64> {
@@ -456,6 +460,7 @@ impl AppchainAnchor {
                 StorageKey::WrappedAppchainNFTs.into_bytes(),
                 Some(&WrappedAppchainNFTs::new()),
             ),
+            native_near_token: old_contract.native_near_token,
         }
     }
 }
