@@ -126,4 +126,12 @@ impl RewardDistributionRecords {
             }
         }
     }
+    ///
+    pub fn get_recorded_era_numbers(&self) -> Vec<u64> {
+        self.era_number_set.to_vec()
+    }
+    ///
+    pub fn clear_era_number_set(&mut self) {
+        self.era_number_set.clear();
+    }
 }
