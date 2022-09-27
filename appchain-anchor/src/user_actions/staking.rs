@@ -597,6 +597,12 @@ impl StakingManager for AppchainAnchor {
                 reward_to_withdraw += reward;
                 self.unwithdrawn_validator_rewards
                     .remove(&(era_number, validator_id.clone()));
+                log!(
+                    "Era reward is withdrawn. Era number: '{}', Validator id: '{}', Amount: '{}'.",
+                    era_number,
+                    validator_id,
+                    reward,
+                );
             }
         }
         if reward_to_withdraw > 0 {
@@ -644,6 +650,13 @@ impl StakingManager for AppchainAnchor {
                     delegator_id.clone(),
                     validator_id.clone(),
                 ));
+                log!(
+                    "Era reward is withdrawn. Era number: '{}', Delegator id: '{}', Validator id: '{}', Amount: '{}'.",
+                    era_number,
+                    delegator_id,
+                    validator_id,
+                    reward,
+                );
             }
         }
         if reward_to_withdraw > 0 {

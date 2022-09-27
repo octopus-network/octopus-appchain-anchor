@@ -280,6 +280,12 @@ impl AppchainAnchor {
                 &None,
                 &validator.validator_id,
             );
+            log!(
+                "Era reward is distributed. Era number: '{}', Validator id: '{}', Amount: '{}'.",
+                validator_set.era_number(),
+                validator.validator_id,
+                validator_reward
+            );
             self.reward_distribution_records
                 .set(&reward_distribution_records);
             return ResultOfLoopingValidatorSet::NoMoreDelegator;
@@ -305,8 +311,15 @@ impl AppchainAnchor {
             reward_distribution_records.insert(
                 appchain_message_nonce,
                 validator_set.era_number(),
-                &Some(delegator.delegator_id),
+                &Some(delegator.delegator_id.clone()),
                 &delegator.validator_id,
+            );
+            log!(
+                "Era reward is distributed. Era number: '{}', Delegator id: '{}', Validator id: '{}', Amount: '{}'.",
+                validator_set.era_number(),
+                delegator.delegator_id,
+                delegator.validator_id,
+                delegator_reward
             );
             self.reward_distribution_records
                 .set(&reward_distribution_records);
