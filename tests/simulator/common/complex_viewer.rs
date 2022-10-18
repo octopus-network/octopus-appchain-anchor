@@ -1,6 +1,6 @@
 use crate::{common::get_ft_balance_of, contract_interfaces::anchor_viewer};
 use appchain_anchor::types::{
-    AnchorSettings, AnchorStatus, AppchainCommitment, AppchainSettings, ValidatorProfile,
+    AnchorSettings, AnchorStatus, AppchainSettings, BeefyLightClientStatus, ValidatorProfile,
     ValidatorSetInfo, WrappedAppchainToken,
 };
 use near_sdk::{json_types::U64, serde_json, AccountId};
@@ -212,8 +212,8 @@ pub async fn print_user_staking_histories_of(
             &user.id(),
             serde_json::to_string(&staking_history).unwrap()
         );
-        index += 1;
         println!();
+        index += 1;
     }
     Ok(())
 }
@@ -240,8 +240,8 @@ pub async fn print_validator_list_of(
                 serde_json::to_string(&validator).unwrap()
             );
         }
-        index += 1;
         println!();
+        index += 1;
     }
     Ok(())
 }
@@ -264,8 +264,8 @@ pub async fn print_delegator_list_of(
             era_number,
             serde_json::to_string(&delegator).unwrap()
         );
-        index += 1;
         println!();
+        index += 1;
     }
     Ok(())
 }
@@ -286,8 +286,8 @@ pub async fn print_validator_reward_histories(
             validator.id().to_string(),
             serde_json::to_string(&reward_history).unwrap()
         );
-        index += 1;
         println!();
+        index += 1;
     }
     Ok(())
 }
@@ -311,8 +311,8 @@ pub async fn print_delegator_reward_histories(
             validator.id().to_string(),
             serde_json::to_string(&reward_history).unwrap()
         );
-        index += 1;
         println!();
+        index += 1;
     }
     Ok(())
 }
@@ -331,21 +331,20 @@ pub async fn print_unbonded_stakes_of(
             user.id(),
             serde_json::to_string(&unbonded_stake).unwrap()
         );
-        index += 1;
         println!();
+        index += 1;
     }
     Ok(())
 }
 
-pub async fn print_latest_appchain_commitment(
+pub async fn print_beefy_light_client_status(
     worker: &Worker<Sandbox>,
     anchor: &Contract,
 ) -> anyhow::Result<()> {
-    let appchain_commitment =
-        anchor_viewer::get_latest_commitment_of_appchain(worker, &anchor).await?;
+    let status = anchor_viewer::get_beefy_light_client_status(worker, &anchor).await?;
     println!(
-        "Latest appchain commitment: {}",
-        serde_json::to_string::<Option<AppchainCommitment>>(&appchain_commitment).unwrap()
+        "Beefy light client status: {}",
+        serde_json::to_string::<BeefyLightClientStatus>(&status).unwrap()
     );
     println!();
     Ok(())
@@ -395,8 +394,8 @@ pub async fn print_appchain_messages_processing_results(
             index,
             serde_json::to_string(&appchain_message).unwrap()
         );
-        index += 1;
         println!();
+        index += 1;
     }
     Ok(())
 }

@@ -1,6 +1,5 @@
-use crate::contract_interfaces::settings_manager;
 use crate::{common, contract_interfaces::permissionless_actions};
-use appchain_anchor::types::{MultiTxsOperationProcessingResult, ValidatorMerkleProof};
+use appchain_anchor::types::ValidatorMerkleProof;
 use beefy_light_client::commitment::{Commitment, Payload, Signature};
 use beefy_light_client::{beefy_ecdsa_to_ethereum, commitment::SignedCommitment};
 use beefy_merkle_tree::{merkle_proof, Keccak256};
@@ -16,7 +15,7 @@ const MMR_ROOT_ID: BeefyPayloadId = *b"mh";
 #[tokio::test]
 async fn test_beefy_light_client_2() -> anyhow::Result<()> {
     let worker = workspaces::sandbox().await?;
-    const MAX_VALIDATORS: i32 = 85;
+    const MAX_VALIDATORS: i32 = 35;
 
     let secp = Secp256k1::new();
 
@@ -86,11 +85,7 @@ async fn test_beefy_light_client_2() -> anyhow::Result<()> {
         _appchain_message_nonce,
     ) = common::test_normal_actions(&worker, false, true, initial_public_keys).await?;
     //
-    settings_manager::turn_off_beefy_light_client_witness_mode(&worker, &root, &anchor)
-        .await
-        .expect("Failed to call 'turn_off_beefy_light_client_witness_mode'");
-    //
-    permissionless_actions::start_updating_state_of_beefy_light_client(
+    let result = permissionless_actions::process_appchain_messages_with_all_proofs(
         &worker,
         &root,
         &anchor,
@@ -98,22 +93,17 @@ async fn test_beefy_light_client_2() -> anyhow::Result<()> {
         validator_proofs,
         encoded_mmr_leaf.to_vec(),
         encoded_mmr_proof.to_vec(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
     )
     .await
-    .expect("Failed in calling 'start_updating_state_of_beefy_light_client'");
-    loop {
-        let result = permissionless_actions::try_complete_updating_state_of_beefy_light_client(
-            &worker, &root, &anchor,
-        )
-        .await
-        .expect("Failed in calling 'try_complete_updating_state_of_beefy_light_client'");
-        println!(
-            "Result of 'try_complete_updating_state_of_beefy_light_client': {}",
-            serde_json::to_string::<MultiTxsOperationProcessingResult>(&result).unwrap()
-        );
-        if !result.is_need_more_gas() {
-            break;
-        }
-    }
+    .expect("Failed in calling 'process_appchain_messages_with_all_proofs'");
+    println!(
+        "Result of 'process_appchain_messages_with_all_proofs': {}",
+        serde_json::to_string(&result).unwrap()
+    );
+    //
     Ok(())
 }

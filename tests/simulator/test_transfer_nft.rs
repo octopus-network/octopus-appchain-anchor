@@ -1,5 +1,5 @@
 use crate::{
-    common,
+    common::{self, to_actual_amount},
     contract_interfaces::{permissionless_actions, wrapped_appchain_nft_manager},
 };
 use appchain_anchor::{
@@ -129,6 +129,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
             reference: None,
             reference_hash: None,
         },
+        fee: to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -183,6 +184,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
             reference: None,
             reference_hash: None,
         },
+        fee: to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -256,6 +258,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
             reference: None,
             reference_hash: None,
         },
+        fee: to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,

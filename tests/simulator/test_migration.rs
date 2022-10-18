@@ -1,5 +1,5 @@
 use crate::common::{self, complex_actions};
-use near_sdk::json_types::U64;
+use near_sdk::{json_types::U64, serde_json::json};
 use near_units::parse_near;
 
 #[tokio::test]
@@ -69,6 +69,21 @@ async fn test_migration() -> anyhow::Result<()> {
     println!();
     assert!(result.is_success());
     //
+    let result = anchor
+        .call(&worker, "migrate_appchain_messages")
+        .args_json(json!({
+            "start_nonce": 0,
+        }))?
+        .gas(300_000_000_000_000)
+        .transact()
+        .await?;
+    println!(
+        "Result of calling 'migrate_appchain_messages': {:?}",
+        result
+    );
+    println!();
+    assert!(result.is_success());
+    //
     //
     //
     common::complex_viewer::print_anchor_status(&worker, &anchor).await?;
@@ -99,5 +114,6 @@ async fn test_migration() -> anyhow::Result<()> {
         &user1_id_in_appchain,
     )
     .await?;
+    common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
     Ok(())
 }

@@ -1,7 +1,52 @@
+use crate::appchain_messages::Offender;
 use crate::*;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub enum OldAppchainEvent {
+    /// The fact that a certain amount of bridged fungible token has been burnt in the appchain.
+    NearFungibleTokenBurnt {
+        contract_account: String,
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+    },
+    /// The fact that a certain amount of appchain native token has been locked in the appchain.
+    NativeTokenLocked {
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        amount: U128,
+    },
+    /// The fact that the era switch is planed in the appchain.
+    EraSwitchPlaned { era_number: u32 },
+    /// The fact that the total reward and unprofitable validator list
+    /// is concluded in the appchain.
+    EraRewardConcluded {
+        era_number: u32,
+        unprofitable_validator_ids: Vec<String>,
+        offenders: Vec<Offender>,
+    },
+    /// The fact that a certain non-fungible token is locked in the appchain.
+    NonFungibleTokenLocked {
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        class_id: String,
+        instance_id: String,
+        token_metadata: TokenMetadata,
+    },
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct OldAppchainMessage {
+    pub appchain_event: OldAppchainEvent,
+    // pub block_height: U64,
+    // pub timestamp: U64,
+    pub nonce: u32,
+}
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
@@ -115,5 +160,108 @@ impl AppchainAnchor {
         //
         //
         new_contract
+    }
+    ///
+    pub fn migrate_appchain_messages(
+        &mut self,
+        start_nonce: u32,
+    ) -> MultiTxsOperationProcessingResult {
+        near_sdk::assert_self();
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        for nonce in start_nonce..appchain_messages.max_nonce() + 1 {
+            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                return MultiTxsOperationProcessingResult::Error(format!(
+                    "Not all records are migrated. Call this function again with start_nonce '{}'.",
+                    nonce
+                ));
+            }
+            if let Some(old_data) = env::storage_read(&get_storage_key_in_lookup_array(
+                &StorageKey::AppchainMessageMap,
+                &nonce,
+            )) {
+                if let Ok(old_version) = OldAppchainMessage::try_from_slice(&old_data) {
+                    env::storage_write(
+                        &get_storage_key_in_lookup_array(&StorageKey::AppchainMessageMap, &nonce),
+                        &AppchainMessage::from_old_version(old_version)
+                            .try_to_vec()
+                            .unwrap(),
+                    );
+                }
+            }
+        }
+        MultiTxsOperationProcessingResult::Ok
+    }
+}
+
+pub fn get_storage_key_in_lookup_array<T: BorshSerialize>(
+    prefix: &StorageKey,
+    index: &T,
+) -> Vec<u8> {
+    [prefix.into_bytes(), index.try_to_vec().unwrap()].concat()
+}
+
+impl AppchainEvent {
+    //
+    pub fn from_old_version(old_version: OldAppchainEvent) -> Self {
+        match old_version {
+            OldAppchainEvent::NearFungibleTokenBurnt {
+                contract_account,
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                amount,
+            } => AppchainEvent::NearFungibleTokenBurnt {
+                contract_account,
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                amount,
+                fee: 0.into(),
+            },
+            OldAppchainEvent::NativeTokenLocked {
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                amount,
+            } => AppchainEvent::NativeTokenLocked {
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                amount,
+                fee: 0.into(),
+            },
+            OldAppchainEvent::EraSwitchPlaned { era_number } => {
+                AppchainEvent::EraSwitchPlaned { era_number }
+            }
+            OldAppchainEvent::EraRewardConcluded {
+                era_number,
+                unprofitable_validator_ids,
+                offenders,
+            } => AppchainEvent::EraRewardConcluded {
+                era_number,
+                unprofitable_validator_ids,
+                offenders,
+            },
+            OldAppchainEvent::NonFungibleTokenLocked {
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                class_id,
+                instance_id,
+                token_metadata,
+            } => AppchainEvent::NonFungibleTokenLocked {
+                owner_id_in_appchain,
+                receiver_id_in_near,
+                class_id,
+                instance_id,
+                token_metadata,
+                fee: 0.into(),
+            },
+        }
+    }
+}
+
+impl AppchainMessage {
+    //
+    pub fn from_old_version(old_version: OldAppchainMessage) -> Self {
+        Self {
+            appchain_event: AppchainEvent::from_old_version(old_version.appchain_event),
+            nonce: old_version.nonce,
+        }
     }
 }

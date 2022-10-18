@@ -238,7 +238,7 @@ pub trait PermissionlessActions {
         header: Vec<u8>,
         mmr_leaf_for_header: Vec<u8>,
         mmr_proof_for_header: Vec<u8>,
-    );
+    ) -> MultiTxsOperationProcessingResult;
 }
 
 pub trait ProtocolSettingsManager {

@@ -18,6 +18,7 @@ pub struct BurnAssetPayload {
     pub sender: String,
     pub receiver_id: AccountId,
     pub amount: u128,
+    pub fee: u128,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
@@ -26,6 +27,7 @@ pub struct LockPayload {
     pub sender: String,
     pub receiver_id: AccountId,
     pub amount: u128,
+    pub fee: u128,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
@@ -58,6 +60,7 @@ pub struct LockNftPayload {
     pub class: u128,
     pub instance: u128,
     pub metadata: TokenMetadata,
+    pub fee: u128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -290,6 +293,7 @@ impl AppchainAnchor {
                                 owner_id_in_appchain: payload.sender,
                                 receiver_id_in_near: payload.receiver_id,
                                 amount: payload.amount.into(),
+                                fee: payload.fee.into(),
                             },
                         });
                     }
@@ -317,6 +321,7 @@ impl AppchainAnchor {
                                 owner_id_in_appchain: payload.sender,
                                 receiver_id_in_near: payload.receiver_id,
                                 amount: payload.amount.into(),
+                                fee: payload.fee.into(),
                             },
                         });
                     }
@@ -416,6 +421,7 @@ impl AppchainAnchor {
                                 class_id: payload.class.to_string(),
                                 instance_id: payload.instance.to_string(),
                                 token_metadata: payload.metadata,
+                                fee: payload.fee.into(),
                             },
                         });
                     }

@@ -1,5 +1,5 @@
 use crate::{
-    common,
+    common::{self, to_actual_amount},
     contract_interfaces::{native_near_token, permissionless_actions},
 };
 use appchain_anchor::appchain_messages::{BurnAssetPayload, PayloadType, RawMessage};
@@ -103,6 +103,7 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
         sender: user0_id_in_appchain.clone(),
         receiver_id: users[0].id().to_string().parse().unwrap(),
         amount: parse_near!("1 N"),
+        fee: to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
