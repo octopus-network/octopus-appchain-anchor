@@ -264,33 +264,39 @@ impl PermissionlessActions for AppchainAnchor {
         mmr_leaf_for_header: Vec<u8>,
         mmr_proof_for_header: Vec<u8>,
     ) -> MultiTxsOperationProcessingResult {
-        self.assert_light_client_is_ready();
-        let mut light_client = self.beefy_light_client_state.get().unwrap();
-        match light_client.update_state(
-            &signed_commitment,
-            &validator_proofs
-                .iter()
-                .map(|proof| beefy_light_client::ValidatorMerkleProof {
-                    proof: proof.proof.clone(),
-                    number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
-                    leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
-                    leaf: proof.leaf.clone(),
-                })
-                .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
-            &mmr_leaf_for_mmr_root,
-            &mmr_proof_for_mmr_root,
-        ) {
-            Ok(()) => {
-                self.beefy_light_client_state.set(&light_client);
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        if anchor_settings.beefy_light_client_witness_mode {
+            self.assert_relayer();
+        } else {
+            self.assert_light_client_is_ready();
+            let mut light_client = self.beefy_light_client_state.get().unwrap();
+            match light_client.update_state(
+                &signed_commitment,
+                &validator_proofs
+                    .iter()
+                    .map(|proof| beefy_light_client::ValidatorMerkleProof {
+                        proof: proof.proof.clone(),
+                        number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
+                        leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
+                        leaf: proof.leaf.clone(),
+                    })
+                    .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
+                &mmr_leaf_for_mmr_root,
+                &mmr_proof_for_mmr_root,
+            ) {
+                Ok(()) => {
+                    self.beefy_light_client_state.set(&light_client);
+                }
+                Err(beefy_light_client::Error::CommitmentAlreadyUpdated) => {}
+                Err(err) => panic!("Failed to update state of beefy light client: {:?}", err),
             }
-            Err(beefy_light_client::Error::CommitmentAlreadyUpdated) => {}
-            Err(err) => panic!("Failed to update state of beefy light client: {:?}", err),
         }
         if encoded_messages.len() == 0 {
             return MultiTxsOperationProcessingResult::Error(format!(
-                "State of beefy light client has been updated. But there is no message data to be processed."
+                "There is no message data to be processed."
             ));
         }
+        let light_client = self.beefy_light_client_state.get().unwrap();
         if let Err(err) = light_client.verify_solochain_messages(
             &encoded_messages,
             &header,
