@@ -19,6 +19,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         _oct_token,
         wrapped_appchain_token,
         _registry,
+        _council,
         anchor,
         _wat_faucet,
         users,
@@ -80,6 +81,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         total_supply / 2 - common::to_actual_amount(50000, 18),
     )
     .await?;
+    println!("Result of 'burn_wrapped_appchain_token': {:?}", result);
     assert!(result.is_success());
     common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
     common::complex_viewer::print_wrapped_appchain_token_info(&worker, &anchor).await?;

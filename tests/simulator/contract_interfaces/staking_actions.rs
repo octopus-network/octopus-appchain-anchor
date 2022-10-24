@@ -203,3 +203,21 @@ pub async fn withdraw_delegator_rewards(
         .transact()
         .await
 }
+
+pub async fn change_delegated_validator(
+    worker: &Worker<Sandbox>,
+    signer: &Account,
+    anchor: &Contract,
+    old_validator_id: &AccountId,
+    new_validator_id: &AccountId,
+) -> anyhow::Result<CallExecutionDetails> {
+    signer
+        .call(worker, anchor.id(), "change_delegated_validator")
+        .args_json(json!({
+            "old_validator_id": old_validator_id,
+            "new_validator_id": new_validator_id
+        }))?
+        .gas(200_000_000_000_000)
+        .transact()
+        .await
+}

@@ -43,6 +43,10 @@ impl AnchorViewer for AppchainAnchor {
         self.wrapped_appchain_nfts.get().unwrap().to_vec()
     }
     //
+    fn get_native_near_token(&self) -> NativeNearToken {
+        self.native_near_token.get().unwrap()
+    }
+    //
     fn get_appchain_state(&self) -> AppchainState {
         self.appchain_state.clone()
     }

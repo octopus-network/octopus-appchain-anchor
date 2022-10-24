@@ -91,6 +91,18 @@ pub async fn print_near_fungible_tokens(
     Ok(())
 }
 
+pub async fn print_native_near_token(
+    worker: &Worker<Sandbox>,
+    anchor: &Contract,
+) -> anyhow::Result<()> {
+    let native_near_token = anchor_viewer::get_native_near_token(worker, &anchor).await?;
+    println!(
+        "Native NEAR token: {}",
+        serde_json::to_string(&native_near_token).unwrap()
+    );
+    Ok(())
+}
+
 pub async fn print_validator_profile(
     worker: &Worker<Sandbox>,
     anchor: &Contract,

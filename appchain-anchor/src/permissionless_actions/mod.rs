@@ -2,6 +2,7 @@ mod distributing_rewards;
 mod switching_era;
 
 use crate::appchain_messages::Offender;
+use crate::assets::native_near_token::CONTRACT_ACCOUNT_FOR_NATIVE_NEAR_TOKEN;
 use crate::interfaces::PermissionlessActions;
 use crate::*;
 use codec::Decode;
@@ -13,7 +14,7 @@ use std::str::FromStr;
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainEvent {
-    /// The fact that a certain amount of bridge token has been burnt in the appchain.
+    /// The fact that a certain amount of bridged fungible token has been burnt in the appchain.
     NearFungibleTokenBurnt {
         contract_account: String,
         owner_id_in_appchain: String,
@@ -42,6 +43,12 @@ pub enum AppchainEvent {
         class_id: String,
         instance_id: String,
         token_metadata: TokenMetadata,
+    },
+    /// The fact that a certain amount of bridged native NEAR token has been burnt in the appchain.
+    NativeNearTokenBurnt {
+        owner_id_in_appchain: String,
+        receiver_id_in_near: AccountId,
+        amount: U128,
     },
 }
 
@@ -397,6 +404,20 @@ impl AppchainAnchor {
                     self.record_appchain_message_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
+                //
+                if contract_account
+                    .eq(&String::from_str(CONTRACT_ACCOUNT_FOR_NATIVE_NEAR_TOKEN).unwrap())
+                {
+                    let mut native_near_token = self.native_near_token.get().unwrap();
+                    let result = native_near_token.unlock_near(
+                        receiver_id_in_near,
+                        amount,
+                        processing_context,
+                    );
+                    self.native_near_token.set(&native_near_token);
+                    return result;
+                }
+                //
                 let contract_account_id = AccountId::from_str(&contract_account);
                 if contract_account_id.is_err() {
                     let message = format!("Invalid contract account: '{}'.", contract_account);
@@ -523,6 +544,35 @@ impl AppchainAnchor {
                     instance_id,
                     token_metadata,
                 )
+            }
+            AppchainEvent::NativeNearTokenBurnt {
+                owner_id_in_appchain: _,
+                receiver_id_in_near,
+                amount,
+            } => {
+                if self.asset_transfer_is_paused {
+                    let message = format!("Asset transfer is now paused.");
+                    let result = AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message: message.clone(),
+                    };
+                    self.record_appchain_message_processing_result(&result);
+                    return MultiTxsOperationProcessingResult::Error(message);
+                }
+                let mut native_near_token = self.native_near_token.get().unwrap();
+                if native_near_token.bridging_state.eq(&BridgingState::Closed) {
+                    let message = format!("Bridging for native NEAR token is now closed.");
+                    let result = AppchainMessageProcessingResult::Error {
+                        nonce: appchain_message.nonce,
+                        message: message.clone(),
+                    };
+                    self.record_appchain_message_processing_result(&result);
+                    return MultiTxsOperationProcessingResult::Error(message);
+                }
+                let result =
+                    native_near_token.unlock_near(receiver_id_in_near, amount, processing_context);
+                self.native_near_token.set(&native_near_token);
+                result
             }
         }
     }

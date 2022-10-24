@@ -79,6 +79,7 @@ async fn test_beefy_light_client_2() -> anyhow::Result<()> {
         _oct_token,
         _wrapped_appchain_token,
         _registry,
+        _council,
         anchor,
         _wat_faucet,
         _users,

@@ -14,6 +14,7 @@ async fn test_anchor_actions() -> anyhow::Result<()> {
         oct_token,
         wrapped_appchain_token,
         _registry,
+        _council,
         anchor,
         _wat_faucet,
         users,
@@ -136,6 +137,18 @@ async fn test_staking_actions(
         .await
         .expect("Failed to unbond stakes");
     assert!(unbonded_stakes.len() == 0);
+    //
+    // user3 change delegated validator
+    //
+    staking_actions::change_delegated_validator(
+        &worker,
+        &users[3],
+        &anchor,
+        &users[0].id().to_string().parse().unwrap(),
+        &users[1].id().to_string().parse().unwrap(),
+    )
+    .await
+    .expect("Failed to change delegated validator");
     //
     // Print staking histories
     //

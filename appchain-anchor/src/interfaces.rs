@@ -28,6 +28,8 @@ pub trait AnchorViewer {
     fn get_near_fungible_tokens(&self) -> Vec<NearFungibleToken>;
     /// Get info of wrapped appchain NFT contracts which has registered in this contract.
     fn get_wrapped_appchain_nfts(&self) -> Vec<WrappedAppchainNFT>;
+    /// Get info of native NEAR token which is locked in receiver sub-account
+    fn get_native_near_token(&self) -> NativeNearToken;
     /// Get state of corresponding appchain.
     fn get_appchain_state(&self) -> AppchainState;
     /// Get current status of anchor.
@@ -326,6 +328,13 @@ pub trait StakingManager {
     /// Withdraw rewards of a certain delegator to a validator.
     /// This function can be called by any account.
     fn withdraw_delegator_rewards(&mut self, delegator_id: AccountId, validator_id: AccountId);
+    /// Change the validator which the caller is delegated to.
+    /// This function can only be called by a delegator.
+    fn change_delegated_validator(
+        &mut self,
+        old_validator_id: AccountId,
+        new_validator_id: AccountId,
+    );
 }
 
 pub trait SudoActions {
@@ -406,4 +415,22 @@ pub trait WrappedAppchainNFTManager {
     fn open_bridging_of_wrapped_appchain_nft(&mut self, class_id: String);
     ///
     fn close_bridging_of_wrapped_appchain_nft(&mut self, class_id: String);
+}
+
+pub trait NativeNearTokenManager {
+    ///
+    fn deploy_near_vault_contract(&mut self);
+    ///
+    fn set_price_of_native_near_token(&mut self, price: U128);
+    ///
+    fn open_bridging_of_native_near_token(&mut self);
+    ///
+    fn close_bridging_of_native_near_token(&mut self);
+    ///
+    fn generate_appchain_notification_for_near_deposit(
+        &mut self,
+        sender_id_in_near: AccountId,
+        receiver_id_in_appchain: String,
+        amount: U128,
+    );
 }

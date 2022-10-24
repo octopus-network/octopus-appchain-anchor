@@ -3,7 +3,7 @@ pub mod appchain_challenge;
 pub mod appchain_messages;
 mod assets;
 pub mod interfaces;
-mod lookup_array;
+pub mod lookup_array;
 mod permissionless_actions;
 mod reward_distribution_records;
 mod storage_key;
@@ -53,7 +53,7 @@ use validator_set::ValidatorSetViewer;
 register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v2.2.0";
+const ANCHOR_VERSION: &str = "v2.3.0";
 /// Constants for gas.
 const T_GAS_FOR_FT_TRANSFER: u64 = 10;
 const T_GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10;
@@ -67,6 +67,9 @@ const T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES: u64 = 240;
 const T_GAS_FOR_NFT_CONTRACT_INITIALIZATION: u64 = 50;
 const T_GAS_FOR_REGISTER_VALIDATOR: u64 = 100;
 const T_GAS_FOR_BURN_WRAPPED_APPCHAIN_TOKEN: u64 = 50;
+const T_GAS_FOR_NATIVE_NEAR_RECEIVER_CONTRACT_INITIALIZATION: u64 = 50;
+const T_GAS_FOR_UNLOCK_NATIVE_NEAR: u64 = 10;
+const T_GAS_FOR_SYNC_STAKING_AMOUNT_TO_COUNCIL: u64 = 150;
 /// The value of decimals value of USD.
 const USD_DECIMALS_VALUE: Balance = 1_000_000;
 /// The value of decimals value of OCT token.
@@ -81,6 +84,8 @@ const STORAGE_DEPOSIT_FOR_NEP141_TOEKN: Balance = 12_500_000_000_000_000_000_000
 const STORAGE_DEPOSIT_FOR_MINT_NFT: Balance = 100_000_000_000_000_000_000_000;
 /// Storage deposit for wrapped appchain NFT contract (in yocto)
 const WRAPPED_APPCHAIN_NFT_CONTRACT_INIT_BALANCE: Balance = 3_200_000_000_000_000_000_000_000;
+/// Storage deposit for native NEAR token receiver contract (in yocto)
+const NATIVE_NEAR_TOKEN_RECEIVER_CONTRACT_INIT_BALANCE: Balance = 3_200_000_000_000_000_000_000_000;
 
 #[ext_contract(ext_self)]
 trait ResolverForSelfCallback {
@@ -194,6 +199,8 @@ pub struct AppchainAnchor {
     appchain_challenges: LazyOption<LookupArray<AppchainChallenge>>,
     /// The wrapped appchain NFT data
     wrapped_appchain_nfts: LazyOption<WrappedAppchainNFTs>,
+    /// The native NEAR token data
+    native_near_token: LazyOption<NativeNearToken>,
 }
 
 #[near_bindgen]
@@ -304,6 +311,10 @@ impl AppchainAnchor {
             wrapped_appchain_nfts: LazyOption::new(
                 StorageKey::WrappedAppchainNFTs.into_bytes(),
                 Some(&WrappedAppchainNFTs::new()),
+            ),
+            native_near_token: LazyOption::new(
+                StorageKey::NativeNearToken.into_bytes(),
+                Some(&NativeNearToken::default()),
             ),
         }
     }

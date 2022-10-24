@@ -295,7 +295,7 @@ impl AppchainAnchor {
                     .expect("Failed to serialize the cross contract args using JSON.");
                 Promise::new(wrapped_appchain_nft.contract_account)
                     .function_call(
-                        "nft_tranfser".to_string(),
+                        "nft_transfer".to_string(),
                         args,
                         1,
                         Gas::ONE_TERA.mul(T_GAS_FOR_NFT_TRANSFER),
@@ -500,10 +500,12 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {
                 let message = format!(
-                    "NFT '{}' from appchain account '{}' with metadata '{}' is minted.",
+                    "NFT '{}' of class '{}' from appchain account '{}' with metadata '{}' is minted to '{}'.",
                     instance_id,
+                    class_id,
                     owner_id_in_appchain,
                     serde_json::to_string(&token_metadata).unwrap(),
+                    receiver_id_in_near,
                 );
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Ok {
@@ -513,21 +515,11 @@ impl WrappedAppchainNFTContractResolver for AppchainAnchor {
                 );
             }
             PromiseResult::Failed => {
-                let wrapped_appchain_nfts = self.wrapped_appchain_nfts.get().unwrap();
-                let reason = format!(
-                    "Maybe the receiver account '{}' is not registered in contract '{}'.",
-                    receiver_id_in_near,
-                    wrapped_appchain_nfts
-                        .get(&class_id)
-                        .unwrap()
-                        .contract_account,
-                );
                 let message = format!(
-                    "Failed to mint NFT '{}' from appchain account '{}' with metadata '{}'. {}",
+                    "Failed to mint NFT '{}' from appchain account '{}' with metadata '{}'. Need to check results of previous actions.",
                     instance_id,
                     owner_id_in_appchain,
                     serde_json::to_string(&token_metadata).unwrap(),
-                    reason
                 );
                 self.record_appchain_message_processing_result(
                     &AppchainMessageProcessingResult::Error {

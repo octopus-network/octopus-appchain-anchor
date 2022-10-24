@@ -1,5 +1,6 @@
 pub mod anchor_viewer;
 pub mod lifecycle_actions;
+pub mod native_near_token;
 pub mod near_fungible_token_manager;
 pub mod permissionless_actions;
 pub mod settings_manager;

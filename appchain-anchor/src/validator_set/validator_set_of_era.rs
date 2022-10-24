@@ -86,7 +86,8 @@ impl ValidatorSetOfEra {
     //
     fn all_staking_histories_are_applied(&self) -> bool {
         match self.processing_status {
-            ValidatorSetProcessingStatus::ReadyForDistributingReward
+            ValidatorSetProcessingStatus::SyncingStakingAmountToCouncil
+            | ValidatorSetProcessingStatus::ReadyForDistributingReward
             | ValidatorSetProcessingStatus::DistributingReward { .. }
             | ValidatorSetProcessingStatus::CheckingForAutoUnbondingValidator { .. }
             | ValidatorSetProcessingStatus::Completed => true,

@@ -2,8 +2,9 @@ use appchain_anchor::appchain_challenge::AppchainChallenge;
 use appchain_anchor::types::{
     AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
     AppchainMessageProcessingResult, AppchainNotificationHistory, AppchainSettings, AppchainState,
-    AppchainValidator, IndexRange, NearFungibleToken, RewardHistory, StakingHistory, UnbondedStake,
-    UserStakingHistory, ValidatorProfile, ValidatorSetInfo, WrappedAppchainToken,
+    AppchainValidator, IndexRange, NativeNearToken, NearFungibleToken, RewardHistory,
+    StakingHistory, UnbondedStake, UserStakingHistory, ValidatorProfile, ValidatorSetInfo,
+    WrappedAppchainToken,
 };
 use appchain_anchor::AppchainMessage;
 use near_sdk::json_types::U64;
@@ -53,6 +54,17 @@ pub async fn get_near_fungible_tokens(
         .view()
         .await?
         .json::<Vec<NearFungibleToken>>()
+}
+
+pub async fn get_native_near_token(
+    worker: &Worker<Sandbox>,
+    anchor: &Contract,
+) -> anyhow::Result<NativeNearToken> {
+    anchor
+        .call(worker, "get_native_near_token")
+        .view()
+        .await?
+        .json::<NativeNearToken>()
 }
 
 pub async fn get_appchain_state(

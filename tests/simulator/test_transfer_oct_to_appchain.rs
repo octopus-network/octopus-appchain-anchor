@@ -5,7 +5,7 @@ use near_sdk::{json_types::U128, serde_json::json};
 async fn test_transfer_oct_to_appchain() -> anyhow::Result<()> {
     //
     let worker = workspaces::sandbox().await?;
-    let (root, oct_token, _, _, anchor, _wat_faucet, users, _) =
+    let (root, oct_token, _, _registry, _council, anchor, _wat_faucet, users, _) =
         common::test_normal_actions(&worker, false, false, vec!["0x00".to_string()]).await?;
     //
     near_fungible_token_manager::register_near_fungible_token(

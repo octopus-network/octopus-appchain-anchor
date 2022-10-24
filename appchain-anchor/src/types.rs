@@ -213,6 +213,14 @@ pub struct NearFungibleToken {
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub struct NativeNearToken {
+    pub locked_balance: U128,
+    pub bridging_state: BridgingState,
+    pub price_in_usd: U128,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub enum StakingFact {
     /// A new validator is registered in appchain anchor
     ValidatorRegistered {
@@ -279,6 +287,12 @@ pub enum StakingFact {
     ValidatorIdInAppchainChanged {
         validator_id: AccountId,
         validator_id_in_appchain: String,
+    },
+    /// A delegator changed his/her validator
+    DelegatedValidatorChanged {
+        delegator_id: AccountId,
+        old_validator_id: AccountId,
+        new_validator_id: AccountId,
     },
 }
 
@@ -396,7 +410,8 @@ pub struct UnbondedStake {
 
 /// The actual processing order is:
 /// `CopyingFromLastEra` -> `UnbondingValidator`-> `AutoUnbondingValidator`
-/// -> `ApplyingStakingHistory` -> `ReadyForDistributingReward` -> `DistributingReward`
+/// -> `ApplyingStakingHistory` -> `SyncingStakingAmountToCouncil` -> `ReadyForDistributingReward`
+/// -> `DistributingReward`
 /// -> `CheckingForAutoUnbondingValidator` -> `Completed`
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
@@ -426,6 +441,7 @@ pub enum ValidatorSetProcessingStatus {
     CheckingForAutoUnbondingValidator {
         unprofitable_validator_index: U64,
     },
+    SyncingStakingAmountToCouncil,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -513,7 +529,7 @@ pub struct ValidatorProfile {
 pub enum AppchainNotification {
     /// A certain amount of a NEAR fungible token has been locked in appchain anchor.
     NearFungibleTokenLocked {
-        contract_account: AccountId,
+        contract_account: String,
         sender_id_in_near: AccountId,
         receiver_id_in_appchain: String,
         amount: U128,
