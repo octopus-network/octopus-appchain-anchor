@@ -691,6 +691,15 @@ impl StakingManager for AppchainAnchor {
         self.assert_delegator_id(&delegator_id, &old_validator_id, &next_validator_set);
         self.assert_validator_id(&new_validator_id, &next_validator_set);
         //
+        let delegator = next_validator_set
+            .get_delegator(&delegator_id, &old_validator_id)
+            .unwrap();
+        let new_validator = next_validator_set.get_validator(&new_validator_id).unwrap();
+        self.assert_validator_stake_is_valid(
+            new_validator.deposit_amount,
+            Some(new_validator.total_stake + delegator.deposit_amount),
+        );
+        //
         let staking_history = self.record_staking_fact(StakingFact::DelegatedValidatorChanged {
             delegator_id,
             old_validator_id,
