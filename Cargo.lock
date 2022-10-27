@@ -105,7 +105,7 @@ checksum = "98161a4e3e2184da77bb14f02184cdd111e83bbbcc9979dfee3c44b9a85f5602"
 
 [[package]]
 name = "appchain-anchor"
-version = "2.3.0"
+version = "2.3.1"
 dependencies = [
  "beefy-light-client",
  "ed25519-dalek",
@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "appchain-anchor-wrapper"
-version = "2.3.0"
+version = "2.3.1"
 dependencies = [
  "anyhow",
  "appchain-anchor",
@@ -2179,8 +2179,8 @@ dependencies = [
 
 [[package]]
 name = "octopus-council"
-version = "0.2.0"
-source = "git+https://github.com/octopus-network/octopus-dao?branch=v0.2.0#dd437807ae903d8ba8afdf5b9b7c945c8fab4212"
+version = "0.3.0"
+source = "git+https://github.com/octopus-network/octopus-dao?branch=main#71bb8551d95c5af2ea9ddcff39693d7999ab0e76"
 dependencies = [
  "near-contract-standards",
  "near-sdk",

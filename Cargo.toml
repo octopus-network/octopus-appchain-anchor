@@ -1,6 +1,6 @@
 [package]
 name = "appchain-anchor-wrapper"
-version = "2.3.0"
+version = "2.3.1"
 authors = ["Octopus Network"]
 edition = "2021"
 
@@ -24,7 +24,7 @@ mock-appchain-registry = { path = "./mock-appchain-registry" }
 mock-oct-token = { path = "./mock-oct-token" }
 wrapped-appchain-token = { git = "https://github.com/octopus-network/wrapped-appchain-token.git", branch = "v2.0.0" }
 wrapped-appchain-nft = { git = "https://github.com/octopus-network/wrapped-appchain-nft.git", branch = "main" }
-octopus-council = { git = "https://github.com/octopus-network/octopus-dao", branch = "v0.2.0" }
+octopus-council = { git = "https://github.com/octopus-network/octopus-dao", branch = "main" }
 tokio = { version = "1.14", features = ["full"] }
 workspaces = "0.4"
 
