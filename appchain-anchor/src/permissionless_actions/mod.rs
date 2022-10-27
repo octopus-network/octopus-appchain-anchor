@@ -264,6 +264,11 @@ impl PermissionlessActions for AppchainAnchor {
         mmr_leaf_for_header: Vec<u8>,
         mmr_proof_for_header: Vec<u8>,
     ) -> MultiTxsOperationProcessingResult {
+        if encoded_messages.len() == 0 {
+            return MultiTxsOperationProcessingResult::Error(format!(
+                "There is no message data to be processed."
+            ));
+        }
         let anchor_settings = self.anchor_settings.get().unwrap();
         if anchor_settings.beefy_light_client_witness_mode {
             self.assert_relayer();
@@ -290,20 +295,14 @@ impl PermissionlessActions for AppchainAnchor {
                 Err(beefy_light_client::Error::CommitmentAlreadyUpdated) => {}
                 Err(err) => panic!("Failed to update state of beefy light client: {:?}", err),
             }
-        }
-        if encoded_messages.len() == 0 {
-            return MultiTxsOperationProcessingResult::Error(format!(
-                "There is no message data to be processed."
-            ));
-        }
-        let light_client = self.beefy_light_client_state.get().unwrap();
-        if let Err(err) = light_client.verify_solochain_messages(
-            &encoded_messages,
-            &header,
-            &mmr_leaf_for_header,
-            &mmr_proof_for_header,
-        ) {
-            panic!("Failed in verifying appchain messages: {:?}", err);
+            if let Err(err) = light_client.verify_solochain_messages(
+                &encoded_messages,
+                &header,
+                &mmr_leaf_for_header,
+                &mmr_proof_for_header,
+            ) {
+                panic!("Failed in verifying appchain messages: {:?}", err);
+            }
         }
         let messages = Decode::decode(&mut &encoded_messages[..]).unwrap();
         self.internal_stage_appchain_messages(&messages);
