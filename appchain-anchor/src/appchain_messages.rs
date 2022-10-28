@@ -84,6 +84,7 @@ pub enum MessagePayload {
 
 #[derive(Encode, Decode, Clone)]
 pub struct RawMessage {
+    #[codec(compact)]
     pub nonce: u64,
     pub payload_type: PayloadType,
     pub payload: Vec<u8>,
