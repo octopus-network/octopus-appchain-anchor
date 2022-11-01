@@ -372,19 +372,26 @@ impl ValidatorSet {
                 new_validator_id,
             } => {
                 //
-                let delegator = self
+                let old_delegator = self
                     .delegators
                     .remove(&(delegator_id.clone(), old_validator_id.clone()))
                     .unwrap();
+                let new_delegator = Delegator {
+                    delegator_id: delegator_id.clone(),
+                    validator_id: new_validator_id.clone(),
+                    registered_block_height: env::block_height(),
+                    registered_timestamp: env::block_timestamp(),
+                    deposit_amount: match self
+                        .delegators
+                        .get(&(delegator_id.clone(), new_validator_id.clone()))
+                    {
+                        Some(delegator) => old_delegator.deposit_amount + delegator.deposit_amount,
+                        None => old_delegator.deposit_amount,
+                    },
+                };
                 self.delegators.insert(
                     &(delegator_id.clone(), new_validator_id.clone()),
-                    &Delegator {
-                        delegator_id: delegator_id.clone(),
-                        validator_id: new_validator_id.clone(),
-                        registered_block_height: env::block_height(),
-                        registered_timestamp: env::block_timestamp(),
-                        deposit_amount: delegator.deposit_amount,
-                    },
+                    &new_delegator,
                 );
                 //
                 let mut delegator_id_set = self
