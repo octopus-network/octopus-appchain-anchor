@@ -438,6 +438,13 @@ impl ValidatorSet {
                 validator_id_set.insert(new_validator_id);
                 self.delegator_id_to_validator_id_set
                     .insert(delegator_id, &validator_id_set);
+                //
+                let mut old_validator = self.validators.get(&old_validator_id).unwrap();
+                old_validator.total_stake -= old_delegator.deposit_amount;
+                self.validators.insert(&old_validator_id, &old_validator);
+                let mut new_validator = self.validators.get(&new_validator_id).unwrap();
+                new_validator.total_stake += old_delegator.deposit_amount;
+                self.validators.insert(&new_validator_id, &new_validator);
             }
         }
     }
