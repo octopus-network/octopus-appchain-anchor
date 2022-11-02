@@ -703,6 +703,11 @@ impl StakingManager for AppchainAnchor {
             .get_delegator(&delegator_id, &old_validator_id)
             .unwrap();
         let new_validator = next_validator_set.get_validator(&new_validator_id).unwrap();
+        assert!(
+            new_validator.can_be_delegated_to,
+            "Validator '{}' cannot be delegated to.",
+            &new_validator_id
+        );
         self.assert_validator_stake_is_valid(
             new_validator.deposit_amount,
             Some(new_validator.total_stake + delegator.deposit_amount),
