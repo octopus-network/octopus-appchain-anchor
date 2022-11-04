@@ -53,7 +53,7 @@ use validator_set::ValidatorSetViewer;
 register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v2.3.0";
+const ANCHOR_VERSION: &str = "v2.3.1";
 /// Constants for gas.
 const T_GAS_FOR_FT_TRANSFER: u64 = 10;
 const T_GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10;
@@ -62,7 +62,7 @@ const T_GAS_FOR_NFT_TRANSFER: u64 = 10;
 const T_GAS_FOR_MINT_NFT: u64 = 10;
 const T_GAS_FOR_RESOLVER_FUNCTION: u64 = 10;
 const T_GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 10;
-const T_GAS_CAP_FOR_MULTI_TXS_PROCESSING: u64 = 150;
+const T_GAS_CAP_FOR_MULTI_TXS_PROCESSING: u64 = 130;
 const T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES: u64 = 240;
 const T_GAS_FOR_NFT_CONTRACT_INITIALIZATION: u64 = 50;
 const T_GAS_FOR_REGISTER_VALIDATOR: u64 = 100;

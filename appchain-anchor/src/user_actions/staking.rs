@@ -209,6 +209,10 @@ impl AppchainAnchor {
                 serde_json::to_string(&self.appchain_state).unwrap()
             ),
         };
+        assert!(
+            !delegator_id.eq(&validator_id),
+            "You can not delegate to yourself."
+        );
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         self.assert_validator_id(&validator_id, &next_validator_set);
         assert!(
@@ -688,8 +692,26 @@ impl StakingManager for AppchainAnchor {
         };
         let mut next_validator_set = self.next_validator_set.get().unwrap();
         let delegator_id = env::predecessor_account_id();
+        assert!(
+            !delegator_id.eq(&new_validator_id),
+            "You can not delegate to yourself."
+        );
         self.assert_delegator_id(&delegator_id, &old_validator_id, &next_validator_set);
         self.assert_validator_id(&new_validator_id, &next_validator_set);
+        //
+        let delegator = next_validator_set
+            .get_delegator(&delegator_id, &old_validator_id)
+            .unwrap();
+        let new_validator = next_validator_set.get_validator(&new_validator_id).unwrap();
+        assert!(
+            new_validator.can_be_delegated_to,
+            "Validator '{}' cannot be delegated to.",
+            &new_validator_id
+        );
+        self.assert_validator_stake_is_valid(
+            new_validator.deposit_amount,
+            Some(new_validator.total_stake + delegator.deposit_amount),
+        );
         //
         let staking_history = self.record_staking_fact(StakingFact::DelegatedValidatorChanged {
             delegator_id,
