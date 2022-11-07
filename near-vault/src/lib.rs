@@ -43,7 +43,7 @@ impl NativeNearTokenReceiver {
         near_amount: U128,
     ) {
         assert!(
-            env::attached_deposit() == near_amount.0,
+            env::attached_deposit() >= near_amount.0,
             "Attached deposit is not equal to the requested amount."
         );
         //
@@ -72,7 +72,7 @@ impl NativeNearTokenReceiver {
     pub fn unlock_near(&mut self, receiver_id: AccountId, amount: U128) {
         self.assert_anchor();
         assert!(
-            env::account_balance() - env::account_locked_balance() > amount.0,
+            env::account_balance() - env::account_locked_balance() >= amount.0,
             "Available balance is not enough."
         );
         Promise::new(receiver_id).transfer(amount.0);
