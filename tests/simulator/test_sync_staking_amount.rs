@@ -24,22 +24,12 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
     // Try start and complete switching era1
     //
     appchain_message_nonce += 1;
-    complex_actions::switch_era(
-        &worker,
-        &users[5],
-        &anchor,
-        1,
-        appchain_message_nonce,
-        false,
-    )
-    .await
-    .expect("Failed to switch era 1.");
+    complex_actions::switch_era(&users[5], &anchor, 1, appchain_message_nonce, false).await;
     //
     // Distribut reward of era0
     //
     appchain_message_nonce += 1;
     complex_actions::distribute_reward_of(
-        &worker,
         &users[5],
         &anchor,
         &wrapped_appchain_token,
@@ -48,27 +38,17 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
         Vec::new(),
         false,
     )
-    .await
-    .expect("Failed to distribute reward of era 0.");
+    .await;
     //
     // Try start and complete switching era2
     //
     appchain_message_nonce += 1;
-    complex_actions::switch_era(
-        &worker,
-        &users[5],
-        &anchor,
-        2,
-        appchain_message_nonce,
-        false,
-    )
-    .await
-    .expect("Failed to switch era 2.");
+    complex_actions::switch_era(&users[5], &anchor, 2, appchain_message_nonce, false).await;
     //
     //
     //
     let result = council_keeper
-        .call(&worker, "get_living_appchain_ids")
+        .call("get_living_appchain_ids")
         .view()
         .await?
         .json::<Vec<String>>()
@@ -79,7 +59,7 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
     );
     //
     let result = council_keeper
-        .call(&worker, "get_council_members")
+        .call("get_council_members")
         .view()
         .await?
         .json::<Vec<AccountId>>()
@@ -90,11 +70,11 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
     );
     //
     let result = council_keeper
-        .call(&worker, "get_ranked_validator_stakes")
+        .call("get_ranked_validator_stakes")
         .args_json(json!( {
             "start_index": 0,
             "quantity": null,
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<ValidatorStake>>()
@@ -105,11 +85,11 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
     );
     //
     let result = council_keeper
-        .call(&worker, "get_council_change_histories")
+        .call("get_council_change_histories")
         .args_json(json!( {
             "start_index": "0",
             "quantity": null,
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<CouncilChangeHistory>>()

@@ -5,9 +5,9 @@ use crate::appchain_messages::Offender;
 use crate::assets::native_near_token::CONTRACT_ACCOUNT_FOR_NATIVE_NEAR_TOKEN;
 use crate::interfaces::PermissionlessActions;
 use crate::*;
-use codec::Decode;
 use core::convert::{TryFrom, TryInto};
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
+use parity_scale_codec::Decode;
 use std::ops::Add;
 use std::str::FromStr;
 

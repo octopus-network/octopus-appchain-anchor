@@ -35,8 +35,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
     //
     //
     //
-    wrapped_appchain_nft_manager::register_wrapped_appchain_nft(
-        &worker,
+    assert!(wrapped_appchain_nft_manager::register_wrapped_appchain_nft(
         &users[0],
         &anchor,
         "nft_class1".to_string(),
@@ -51,10 +50,10 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
         },
     )
     .await
-    .expect_err("Should fail");
+    .unwrap()
+    .is_failure());
     //
-    wrapped_appchain_nft_manager::register_wrapped_appchain_nft(
-        &worker,
+    assert!(wrapped_appchain_nft_manager::register_wrapped_appchain_nft(
         &root,
         &anchor,
         "nft_class1".to_string(),
@@ -69,23 +68,21 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
         },
     )
     .await
-    .expect_err("Should fail");
+    .unwrap()
+    .is_failure());
     //
-    root.call(
-        &worker,
-        anchor.id(),
-        "store_wasm_of_wrapped_appchain_nft_contract",
-    )
-    .args(std::fs::read(format!("res/wrapped_appchain_nft.wasm"))?)
-    .gas(300_000_000_000_000)
-    .deposit(parse_near!("30 N"))
-    .transact()
-    .await
-    .expect("Failed in calling 'store_wasm_of_wrapped_appchain_nft_contract'");
+    assert!(root
+        .call(anchor.id(), "store_wasm_of_wrapped_appchain_nft_contract")
+        .args(std::fs::read(format!("res/wrapped_appchain_nft.wasm"))?)
+        .gas(300_000_000_000_000)
+        .deposit(parse_near!("30 N"))
+        .transact()
+        .await
+        .unwrap()
+        .is_success());
     //
     let class_id = "1".to_string();
-    wrapped_appchain_nft_manager::register_wrapped_appchain_nft(
-        &worker,
+    assert!(wrapped_appchain_nft_manager::register_wrapped_appchain_nft(
         &root,
         &anchor,
         class_id.clone(),
@@ -100,7 +97,8 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
         },
     )
     .await
-    .expect("Failed to register wrapped appchain nft");
+    .unwrap()
+    .is_success());
     //
     //
     //
@@ -138,8 +136,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
     };
     let mut raw_messages = Vec::new();
     raw_messages.push(raw_message);
-    permissionless_actions::verify_and_stage_appchain_messages(
-        &worker,
+    assert!(permissionless_actions::verify_and_stage_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
@@ -148,16 +145,16 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
         Vec::new(),
     )
     .await
-    .expect("Failed to call 'verify_and_stage_appchain_messages'");
-    common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
-    common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
+    .unwrap()
+    .is_success());
+    common::complex_actions::process_appchain_messages(&users[4], &anchor).await;
+    common::complex_viewer::print_appchain_messages(&anchor).await;
+    common::complex_viewer::print_appchain_messages_processing_results(&anchor).await;
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
     //
     //
     //
     let result = wrapped_appchain_nft_manager::open_bridging_of_wrapped_appchain_nft(
-        &worker,
         &root,
         &anchor,
         class_id.clone(),
@@ -193,8 +190,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
     };
     let mut raw_messages = Vec::new();
     raw_messages.push(raw_message);
-    permissionless_actions::verify_and_stage_appchain_messages(
-        &worker,
+    assert!(permissionless_actions::verify_and_stage_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
@@ -203,17 +199,17 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
         Vec::new(),
     )
     .await
-    .expect("Failed to call 'verify_and_stage_appchain_messages'");
-    common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
-    common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
+    .unwrap()
+    .is_success());
+    common::complex_actions::process_appchain_messages(&users[4], &anchor).await;
+    common::complex_viewer::print_appchain_messages(&anchor).await;
+    common::complex_viewer::print_appchain_messages_processing_results(&anchor).await;
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
     //
     //
     //
-    users[0]
+    assert!(users[0]
         .call(
-            &worker,
             &AccountId::from_str(
                 format!("{}.{}", class_id.clone(), anchor.id().to_string()).as_str(),
             )
@@ -228,13 +224,14 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
             "msg": serde_json::ser::to_string(&NFTTransferMessage::BridgeToAppchain {
                 receiver_id_in_appchain: user0_id_in_appchain.clone(),
             }).unwrap(),
-        }))?
+        }))
         .gas(300_000_000_000_000)
         .deposit(1)
         .transact()
         .await
-        .expect("Failed to transfer nft");
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
+        .unwrap()
+        .is_success());
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
     //
     //
     //
@@ -267,8 +264,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
     };
     let mut raw_messages = Vec::new();
     raw_messages.push(raw_message);
-    permissionless_actions::verify_and_stage_appchain_messages(
-        &worker,
+    assert!(permissionless_actions::verify_and_stage_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
@@ -277,10 +273,11 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
         Vec::new(),
     )
     .await
-    .expect("Failed to call 'verify_and_stage_appchain_messages'");
-    common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
-    common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
+    .unwrap()
+    .is_success());
+    common::complex_actions::process_appchain_messages(&users[4], &anchor).await;
+    common::complex_viewer::print_appchain_messages(&anchor).await;
+    common::complex_viewer::print_appchain_messages_processing_results(&anchor).await;
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
     Ok(())
 }

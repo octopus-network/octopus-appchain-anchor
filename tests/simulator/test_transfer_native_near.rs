@@ -26,25 +26,36 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
     //
     //
     //
-    native_near_token::deploy_near_vault_contract(&worker, &users[0], &anchor)
-        .await
-        .expect_err("Should fail.");
+    assert!(
+        native_near_token::deploy_near_vault_contract(&users[0], &anchor)
+            .await
+            .unwrap()
+            .is_failure()
+    );
     //
-    root.call(&worker, anchor.id(), "store_wasm_of_near_vault_contract")
+    assert!(root
+        .call(anchor.id(), "store_wasm_of_near_vault_contract")
         .args(std::fs::read(format!("res/near_vault.wasm"))?)
         .gas(300_000_000_000_000)
         .deposit(parse_near!("2 N"))
         .transact()
         .await
-        .expect("Failed in calling 'store_wasm_of_near_vault_contract'.");
+        .unwrap()
+        .is_success());
     //
-    native_near_token::deploy_near_vault_contract(&worker, &users[0], &anchor)
-        .await
-        .expect_err("Should fail.");
+    assert!(
+        native_near_token::deploy_near_vault_contract(&users[0], &anchor)
+            .await
+            .unwrap()
+            .is_failure()
+    );
     //
-    native_near_token::deploy_near_vault_contract(&worker, &root, &anchor)
-        .await
-        .expect("Failed to deploy native near token receiver contract.");
+    assert!(
+        native_near_token::deploy_near_vault_contract(&root, &anchor)
+            .await
+            .unwrap()
+            .is_success()
+    );
     //
     //
     //
@@ -52,48 +63,53 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
         "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d".to_string();
     let receiver_account =
         AccountId::from_str(format!("near-vault.{}", anchor.id()).as_str()).unwrap();
-    let old_balance = users[0].view_account(&worker).await?.balance;
+    let old_balance = users[0].view_account().await?.balance;
     println!("Balance of users[0]: {}", old_balance);
-    users[0]
-        .call(&worker, &receiver_account, "deposit_near_for_appchain_user")
+    assert!(users[0]
+        .call(&receiver_account, "deposit_near_for_appchain_user")
         .args_json(json!({
             "receiver_id_in_appchain": user0_id_in_appchain,
             "near_amount": U128::from(parse_near!("1 N")),
-        }))?
+        }))
         .gas(200_000_000_000_000)
         .deposit(parse_near!("1 N"))
         .transact()
         .await
-        .expect("Failed in calling 'deposit_near_for_appchain_user'");
-    let new_balance = users[0].view_account(&worker).await?.balance;
+        .unwrap()
+        .is_success());
+    let new_balance = users[0].view_account().await?.balance;
     println!("Balance of users[0]: {}", new_balance);
     assert!(old_balance - new_balance > parse_near!("1 N"));
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
     //
     //
     //
-    native_near_token::open_bridging_of_native_near_token(&worker, &root, &anchor)
-        .await
-        .expect("Failed to open bridging of native NEAR token.");
+    assert!(
+        native_near_token::open_bridging_of_native_near_token(&root, &anchor)
+            .await
+            .unwrap()
+            .is_success()
+    );
     //
-    let old_balance = users[0].view_account(&worker).await?.balance;
+    let old_balance = users[0].view_account().await?.balance;
     println!("Balance of users[0]: {}", old_balance);
-    users[0]
-        .call(&worker, &receiver_account, "deposit_near_for_appchain_user")
+    assert!(users[0]
+        .call(&receiver_account, "deposit_near_for_appchain_user")
         .args_json(json!({
             "receiver_id_in_appchain": user0_id_in_appchain,
             "near_amount": U128::from(parse_near!("1 N")),
-        }))?
+        }))
         .gas(200_000_000_000_000)
         .deposit(parse_near!("1 N"))
         .transact()
         .await
-        .expect("Failed in calling 'deposit_near_for_appchain_user'");
-    let new_balance = users[0].view_account(&worker).await?.balance;
+        .unwrap()
+        .is_success());
+    let new_balance = users[0].view_account().await?.balance;
     println!("Balance of users[0]: {}", new_balance);
     assert!(old_balance - new_balance > parse_near!("1 N"));
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
-    common::complex_viewer::print_native_near_token(&worker, &anchor).await?;
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
+    common::complex_viewer::print_native_near_token(&anchor).await;
     //
     //
     //
@@ -112,8 +128,7 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
     };
     let mut raw_messages = Vec::new();
     raw_messages.push(raw_message);
-    permissionless_actions::verify_and_stage_appchain_messages(
-        &worker,
+    assert!(permissionless_actions::verify_and_stage_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
@@ -122,18 +137,19 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
         Vec::new(),
     )
     .await
-    .expect("Failed to call 'verify_and_stage_appchain_messages'");
+    .unwrap()
+    .is_success());
     //
-    let old_balance = users[0].view_account(&worker).await?.balance;
+    let old_balance = users[0].view_account().await?.balance;
     println!("Balance of users[0]: {}", old_balance);
-    common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
-    let new_balance = users[0].view_account(&worker).await?.balance;
+    common::complex_actions::process_appchain_messages(&users[4], &anchor).await;
+    let new_balance = users[0].view_account().await?.balance;
     println!("Balance of users[0]: {}", new_balance);
     assert!(new_balance - old_balance == parse_near!("1 N"));
-    common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
-    common::complex_viewer::print_native_near_token(&worker, &anchor).await?;
+    common::complex_viewer::print_appchain_messages(&anchor).await;
+    common::complex_viewer::print_appchain_messages_processing_results(&anchor).await;
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
+    common::complex_viewer::print_native_near_token(&anchor).await;
     //
     Ok(())
 }

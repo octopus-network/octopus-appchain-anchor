@@ -8,8 +8,7 @@ async fn test_transfer_oct_to_appchain() -> anyhow::Result<()> {
     let (root, oct_token, _, _registry, _council, anchor, _wat_faucet, users, _) =
         common::test_normal_actions(&worker, false, false, vec!["0x00".to_string()]).await?;
     //
-    near_fungible_token_manager::register_near_fungible_token(
-        &worker,
+    assert!(near_fungible_token_manager::register_near_fungible_token(
         &root,
         &anchor,
         "OCT".to_string(),
@@ -19,11 +18,11 @@ async fn test_transfer_oct_to_appchain() -> anyhow::Result<()> {
         U128::from(1000000),
     )
     .await
-    .expect("Failed to register NEAR fungible token");
-    common::complex_viewer::print_near_fungible_tokens(&worker, &anchor).await?;
+    .unwrap()
+    .is_success());
+    common::complex_viewer::print_near_fungible_tokens(&anchor).await;
     //
-    common::call_ft_transfer_call(
-        &worker,
+    assert!(common::call_ft_transfer_call(
         &users[0],
         &anchor.as_account(),
         common::to_actual_amount(200, 18),
@@ -34,7 +33,7 @@ async fn test_transfer_oct_to_appchain() -> anyhow::Result<()> {
         })
         .to_string(),
         &oct_token,
-    ).await?;
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
+    ).await.unwrap().is_success());
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
     Ok(())
 }

@@ -1,5 +1,5 @@
 use crate::*;
-use codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 
 #[derive(Encode, Decode, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]

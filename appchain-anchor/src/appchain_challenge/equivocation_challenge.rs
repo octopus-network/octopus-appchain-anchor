@@ -1,7 +1,7 @@
 use crate::*;
-use codec::{Decode, Encode};
 use core::convert::TryFrom;
 use ed25519_dalek::Verifier;
+use parity_scale_codec::{Decode, Encode};
 
 pub type RoundNumber = u32;
 pub type SetId = u32;

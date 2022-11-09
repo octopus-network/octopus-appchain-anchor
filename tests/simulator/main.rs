@@ -3,7 +3,6 @@ mod contract_interfaces;
 
 mod test_anchor_actions;
 mod test_beefy_light_client_1;
-mod test_beefy_light_client_2;
 mod test_equivocation_challenge;
 mod test_migration;
 mod test_sync_staking_amount;

@@ -16,7 +16,6 @@ mod validator_profiles;
 mod validator_set;
 
 use core::convert::TryInto;
-use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use near_contract_standards::non_fungible_token::TokenId;
 use near_contract_standards::upgrade::Ownable;
@@ -49,8 +48,6 @@ use validator_profiles::ValidatorProfiles;
 use validator_set::next_validator_set::NextValidatorSet;
 use validator_set::validator_set_of_era::ValidatorSetOfEra;
 use validator_set::ValidatorSetViewer;
-
-register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
 const ANCHOR_VERSION: &str = "v2.4.1";
@@ -619,12 +616,6 @@ impl AppchainAnchor {
             Gas::ONE_TERA.mul(T_GAS_FOR_SYNC_STATE_TO_REGISTRY),
         );
     }
-}
-
-pub fn get_random_in_near(buf: &mut [u8]) -> Result<(), Error> {
-    let random = env::random_seed();
-    buf.copy_from_slice(&random);
-    Ok(())
 }
 
 impl IndexedAndClearable for AppchainNotificationHistory {
