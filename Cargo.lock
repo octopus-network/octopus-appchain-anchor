@@ -60,7 +60,7 @@ checksum = "216261ddc8289130e551ddcd5ce8a064710c0d064a4d2895c67151c92b5443f6"
 
 [[package]]
 name = "appchain-anchor"
-version = "2.4.0"
+version = "2.5.0"
 dependencies = [
  "beefy-light-client",
  "ed25519-dalek",
@@ -73,7 +73,7 @@ dependencies = [
 
 [[package]]
 name = "appchain-anchor-wrapper"
-version = "2.4.1"
+version = "2.5.0"
 dependencies = [
  "anyhow",
  "appchain-anchor",
