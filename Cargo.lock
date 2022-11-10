@@ -105,7 +105,7 @@ checksum = "98161a4e3e2184da77bb14f02184cdd111e83bbbcc9979dfee3c44b9a85f5602"
 
 [[package]]
 name = "appchain-anchor"
-version = "2.3.1"
+version = "2.4.0"
 dependencies = [
  "beefy-light-client",
  "ed25519-dalek",
@@ -118,12 +118,13 @@ dependencies = [
 
 [[package]]
 name = "appchain-anchor-wrapper"
-version = "2.3.1"
+version = "2.4.0"
 dependencies = [
  "anyhow",
  "appchain-anchor",
  "beefy-light-client",
  "beefy-merkle-tree 4.0.0-dev (git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.12)",
+ "council-keeper",
  "hex 0.4.3",
  "hex-literal",
  "mock-appchain-registry",
@@ -133,7 +134,6 @@ dependencies = [
  "near-sdk",
  "near-units",
  "num-format",
- "octopus-council",
  "parity-scale-codec 2.3.1",
  "parity-scale-codec 3.2.1",
  "secp256k1",
@@ -642,6 +642,15 @@ name = "core-foundation-sys"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5827cebf4670468b8772dd191856768aedcb1b0278a04f989f7766351917b9dc"
+
+[[package]]
+name = "council-keeper"
+version = "0.5.1"
+source = "git+https://github.com/octopus-network/octopus-dao?branch=main#1f391891f47cf9b0c59d25a6700a13c2982c2880"
+dependencies = [
+ "near-contract-standards",
+ "near-sdk",
+]
 
 [[package]]
 name = "cpufeatures"
@@ -2175,15 +2184,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21158b2c33aa6d4561f1c0a6ea283ca92bc54802a93b263e910746d679a7eb53"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "octopus-council"
-version = "0.3.0"
-source = "git+https://github.com/octopus-network/octopus-dao?branch=main#71bb8551d95c5af2ea9ddcff39693d7999ab0e76"
-dependencies = [
- "near-contract-standards",
- "near-sdk",
 ]
 
 [[package]]

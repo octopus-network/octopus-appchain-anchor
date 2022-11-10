@@ -29,16 +29,22 @@ impl AppchainAnchor {
                 );
                 PromiseOrValue::Value(0.into())
             }
-            FTDepositMessage::IncreaseStake => {
-                self.increase_stake(sender_id, amount);
+            FTDepositMessage::IncreaseStake { validator_id } => {
+                self.increase_stake(validator_id.unwrap_or(sender_id), amount);
                 PromiseOrValue::Value(0.into())
             }
-            FTDepositMessage::RegisterDelegator { validator_id } => {
-                self.register_delegator(sender_id, validator_id, amount);
+            FTDepositMessage::RegisterDelegator {
+                validator_id,
+                delegator_id,
+            } => {
+                self.register_delegator(delegator_id.unwrap_or(sender_id), validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
-            FTDepositMessage::IncreaseDelegation { validator_id } => {
-                self.increase_delegation(sender_id, validator_id, amount);
+            FTDepositMessage::IncreaseDelegation {
+                validator_id,
+                delegator_id,
+            } => {
+                self.increase_delegation(delegator_id.unwrap_or(sender_id), validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
             _ => panic!(

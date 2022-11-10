@@ -656,12 +656,16 @@ pub enum FTDepositMessage {
         can_be_delegated_to: bool,
         profile: HashMap<String, String>,
     },
-    IncreaseStake,
+    IncreaseStake {
+        validator_id: Option<AccountId>,
+    },
     RegisterDelegator {
         validator_id: AccountId,
+        delegator_id: Option<AccountId>,
     },
     IncreaseDelegation {
         validator_id: AccountId,
+        delegator_id: Option<AccountId>,
     },
     BridgeToAppchain {
         receiver_id_in_appchain: String,

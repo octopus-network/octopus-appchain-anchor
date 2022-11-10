@@ -49,7 +49,8 @@ pub async fn register_delegator(
         amount,
         json!({
             "RegisterDelegator": {
-                "validator_id": validator_id
+                "validator_id": validator_id,
+                "delegator_id": null,
             }
         })
         .to_string(),
@@ -70,7 +71,12 @@ pub async fn increase_stake(
         signer,
         &anchor.as_account(),
         amount,
-        "\"IncreaseStake\"".to_string(),
+        json!({
+            "IncreaseStake": {
+                "validator_id": null,
+            }
+        })
+        .to_string(),
         oct_token,
     )
     .await
@@ -91,7 +97,8 @@ pub async fn increase_delegation(
         amount,
         json!({
             "IncreaseDelegation": {
-                "validator_id": validator_id
+                "validator_id": validator_id,
+                "delegator_id": null,
             }
         })
         .to_string(),
