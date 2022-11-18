@@ -1,13 +1,13 @@
 use near_sdk::serde_json::json;
 use workspaces::{network::Sandbox, result::CallExecutionDetails, Account, Contract, Worker};
 
-pub async fn go_booting(
+pub async fn generate_initial_validator_set(
     worker: &Worker<Sandbox>,
     signer: &Account,
     anchor: &Contract,
 ) -> anyhow::Result<CallExecutionDetails> {
     signer
-        .call(worker, anchor.id(), "go_booting")
+        .call(worker, anchor.id(), "generate_initial_validator_set")
         .gas(200_000_000_000_000)
         .transact()
         .await

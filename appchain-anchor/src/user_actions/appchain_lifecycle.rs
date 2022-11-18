@@ -6,12 +6,12 @@ use crate::{
 #[near_bindgen]
 impl AppchainLifecycleManager for AppchainAnchor {
     //
-    fn go_booting(&mut self) {
+    fn generate_initial_validator_set(&mut self) {
         self.assert_owner();
         assert_eq!(
             self.appchain_state,
-            AppchainState::Staging,
-            "Appchain state must be 'staging'."
+            AppchainState::Booting,
+            "Appchain state must be 'Booting'."
         );
         let protocol_settings = self.protocol_settings.get().unwrap();
         let next_validator_set = self.next_validator_set.get().unwrap();
@@ -25,7 +25,6 @@ impl AppchainLifecycleManager for AppchainAnchor {
                 >= protocol_settings.minimum_total_stake_price_for_booting.0,
             "Not enough stake deposited in anchor."
         );
-        self.appchain_state = AppchainState::Booting;
         let mut processing_context = AppchainMessagesProcessingContext::new(
             self.permissionless_actions_status.get().unwrap(),
         );
@@ -54,6 +53,11 @@ impl AppchainLifecycleManager for AppchainAnchor {
             self.appchain_state,
             AppchainState::Booting,
             "Appchain state must be 'booting'."
+        );
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        assert!(
+            validator_set_histories.get(&0).is_some(),
+            "The validator set 0 has not been generated."
         );
         let wrapped_appchain_token = self.wrapped_appchain_token.get().unwrap();
         assert!(

@@ -3,6 +3,34 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, Debug, PartialEq)]
+#[serde(crate = "near_sdk::serde")]
+pub enum OldAppchainState {
+    /// The initial state of an appchain, after it is successfully registered.
+    /// This state is managed by appchain registry.
+    Registered,
+    /// The state while the appchain is under auditing by Octopus Network.
+    /// This state is managed by appchain registry.
+    Auditing,
+    /// The state while voter can upvote or downvote an appchain.
+    /// This state is managed by appchain registry.
+    InQueue,
+    /// The state while validator and delegator can deposit OCT tokens to this contract
+    /// to indicate their willing of staking for an appchain.
+    Staging,
+    /// The state while an appchain is booting.
+    Booting,
+    /// The state while an appchain is active normally.
+    Active,
+    /// The state while an appchain is under challenging, which all deposit and withdraw actions
+    /// are frozen.
+    Frozen,
+    /// The state which an appchain is broken for some technical or governance reasons.
+    Broken,
+    /// The state which the lifecycle of an appchain is end.
+    Dead,
+}
+
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
@@ -43,7 +71,7 @@ pub struct OldAppchainAnchor {
     /// The protocol settings for appchain anchor.
     protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain.
-    appchain_state: AppchainState,
+    appchain_state: OldAppchainState,
     /// The staking history data happened in this contract.
     staking_histories: LazyOption<LookupArray<StakingHistory>>,
     /// The appchain notification history data.
@@ -98,7 +126,7 @@ impl AppchainAnchor {
             appchain_settings: old_contract.appchain_settings,
             anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
-            appchain_state: old_contract.appchain_state,
+            appchain_state: AppchainState::from_old_version(old_contract.appchain_state),
             staking_histories: old_contract.staking_histories,
             appchain_notification_histories: old_contract.appchain_notification_histories,
             permissionless_actions_status: old_contract.permissionless_actions_status,
@@ -115,5 +143,21 @@ impl AppchainAnchor {
         //
         //
         new_contract
+    }
+}
+
+impl AppchainState {
+    pub fn from_old_version(old_version: OldAppchainState) -> Self {
+        match old_version {
+            OldAppchainState::Registered => AppchainState::Registered,
+            OldAppchainState::Auditing => AppchainState::Audited,
+            OldAppchainState::InQueue => AppchainState::Voting,
+            OldAppchainState::Staging => AppchainState::Booting,
+            OldAppchainState::Booting => AppchainState::Booting,
+            OldAppchainState::Active => AppchainState::Active,
+            OldAppchainState::Frozen => AppchainState::Closing,
+            OldAppchainState::Broken => AppchainState::Closing,
+            OldAppchainState::Dead => AppchainState::Closed,
+        }
     }
 }

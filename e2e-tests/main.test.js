@@ -272,7 +272,7 @@ test('test increase stake', async () => {
 });
 
 test('test go booting', async () => {
-  await anchor.go_booting({}, CALL_GAS, 0);
+  await anchor.generate_initial_validator_set({}, CALL_GAS, 0);
   const appchainState = await anchor.get_appchain_state();
   expect(appchainState).toEqual('Booting');
 });

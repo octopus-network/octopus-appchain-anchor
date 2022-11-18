@@ -82,24 +82,18 @@ pub enum AppchainState {
     Registered,
     /// The state while the appchain is under auditing by Octopus Network.
     /// This state is managed by appchain registry.
-    Auditing,
-    /// The state while voter can upvote or downvote an appchain.
+    Audited,
+    /// The state while members of Octopus DAO can upvote for the appchain.
     /// This state is managed by appchain registry.
-    InQueue,
-    /// The state while validator and delegator can deposit OCT tokens to this contract
-    /// to indicate their willing of staking for an appchain.
-    Staging,
+    Voting,
     /// The state while an appchain is booting.
     Booting,
     /// The state while an appchain is active normally.
     Active,
-    /// The state while an appchain is under challenging, which all deposit and withdraw actions
-    /// are frozen.
-    Frozen,
-    /// The state which an appchain is broken for some technical or governance reasons.
-    Broken,
+    /// The state which an appchain is closing for some technical or governance reasons.
+    Closing,
     /// The state which the lifecycle of an appchain is end.
-    Dead,
+    Closed,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
