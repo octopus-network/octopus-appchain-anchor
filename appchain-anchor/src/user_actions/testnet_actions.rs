@@ -349,22 +349,6 @@ impl AppchainAnchor {
         self.reward_distribution_records
             .set(&reward_distribution_records);
     }
-    //
-    pub fn remove_storage_keys(&mut self, keys: Vec<String>) {
-        self.assert_testnet();
-        self.assert_owner();
-        for key in keys {
-            let json_str = format!("\"{}\"", key);
-            log!(
-                "Remove key '{}': {}",
-                key,
-                env::storage_remove(&serde_json::from_str::<Base64VecU8>(&json_str).unwrap().0)
-            );
-            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
-                break;
-            }
-        }
-    }
     ///
     #[init(ignore_state)]
     pub fn reset_contract_state() -> Self {
@@ -486,5 +470,28 @@ impl NextValidatorSet {
             .remove(&validator_id);
         let validator = self.validator_set.validators.remove(validator_id).unwrap();
         self.validator_set.total_stake -= validator.total_stake;
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn remove_storage_keys() {
+    env::setup_panic_hook();
+
+    let input = env::input().unwrap();
+    //
+    #[derive(Serialize, Deserialize)]
+    #[serde(crate = "near_sdk::serde")]
+    struct Args {
+        pub keys: Vec<String>,
+    }
+    //
+    let args: Args = serde_json::from_slice(&input).unwrap();
+    for key in args.keys {
+        let json_str = format!("\"{}\"", key);
+        log!(
+            "Remove key '{}': {}",
+            key,
+            env::storage_remove(&serde_json::from_str::<Base64VecU8>(&json_str).unwrap().0)
+        );
     }
 }
