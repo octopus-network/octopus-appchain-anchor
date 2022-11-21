@@ -413,7 +413,7 @@ impl AppchainAnchor {
                 StorageKey::ProtocolSettings.into_bytes(),
                 Some(&ProtocolSettings::default()),
             ),
-            appchain_state: AppchainState::Staging,
+            appchain_state: AppchainState::Booting,
             staking_histories: LazyOption::new(
                 StorageKey::StakingHistories.into_bytes(),
                 Some(&LookupArray::new(StorageKey::StakingHistoriesMap)),
