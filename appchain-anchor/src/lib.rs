@@ -18,7 +18,6 @@ mod validator_set;
 use core::convert::TryInto;
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use near_contract_standards::non_fungible_token::TokenId;
-use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
 use near_sdk::json_types::{U128, U64};
@@ -466,13 +465,13 @@ impl AppchainAnchor {
 }
 
 #[near_bindgen]
-impl Ownable for AppchainAnchor {
+impl AppchainAnchor {
     //
-    fn get_owner(&self) -> AccountId {
+    pub fn get_owner(&self) -> AccountId {
         self.owner.clone()
     }
     //
-    fn set_owner(&mut self, owner: AccountId) {
+    pub fn set_owner(&mut self, owner: AccountId) {
         self.assert_owner();
         assert!(!owner.eq(&self.owner), "Owner is not changed.",);
         self.owner = owner;
