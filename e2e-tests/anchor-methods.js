@@ -25,7 +25,7 @@ module.exports = {
     // oct price
     'set_price_of_oct_token',
     // appchain lifecycle
-    'go_booting',
+    'generate_initial_validator_set',
     'go_live',
     // staking & delegating
     'decrease_stake',

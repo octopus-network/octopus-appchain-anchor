@@ -1,9 +1,9 @@
 use crate::common::{self, complex_actions};
+use council_keeper::types::{CouncilChangeHistory, ValidatorStake};
 use near_sdk::{
     serde_json::{self, json},
     AccountId,
 };
-use octopus_council::types::{CouncilChangeHistory, ValidatorStake};
 
 #[tokio::test]
 async fn test_sync_staking_amount() -> anyhow::Result<()> {
@@ -14,7 +14,7 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
         _,
         wrapped_appchain_token,
         _registry,
-        council,
+        council_keeper,
         anchor,
         _wat_faucet,
         users,
@@ -67,7 +67,7 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
     //
     //
     //
-    let result = council
+    let result = council_keeper
         .call(&worker, "get_living_appchain_ids")
         .view()
         .await?
@@ -78,7 +78,7 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
         serde_json::to_string::<Vec<String>>(&result).unwrap()
     );
     //
-    let result = council
+    let result = council_keeper
         .call(&worker, "get_council_members")
         .view()
         .await?
@@ -89,7 +89,7 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
         serde_json::to_string::<Vec<AccountId>>(&result).unwrap()
     );
     //
-    let result = council
+    let result = council_keeper
         .call(&worker, "get_ranked_validator_stakes")
         .args_json(json!( {
             "start_index": 0,
@@ -104,7 +104,7 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
         serde_json::to_string::<Vec<ValidatorStake>>(&result).unwrap()
     );
     //
-    let result = council
+    let result = council_keeper
         .call(&worker, "get_council_change_histories")
         .args_json(json!( {
             "start_index": "0",

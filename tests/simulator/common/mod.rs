@@ -119,7 +119,7 @@ pub async fn test_normal_actions(
     //
     assert_eq!(
         anchor_viewer::get_appchain_state(worker, &anchor).await?,
-        AppchainState::Staging
+        AppchainState::Booting
     );
     if to_confirm_view_result {
         let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
@@ -464,13 +464,13 @@ pub async fn test_normal_actions(
         complex_viewer::print_validator_list_of(worker, &anchor, None).await?;
     }
     //
-    // Try go_booting
+    // Try generate_initial_validator_set
     //
-    lifecycle_actions::go_booting(worker, &root, &anchor)
+    lifecycle_actions::generate_initial_validator_set(worker, &root, &anchor)
         .await
         .expect_err("Should fail");
     //
-    // Set appchain settings and try go_booting
+    // Set appchain settings and try generate_initial_validator_set
     //
     settings_manager::set_rpc_endpoint(worker, &root, &anchor, "rpc_endpoint".to_string())
         .await
@@ -481,27 +481,27 @@ pub async fn test_normal_actions(
     settings_manager::set_era_reward(worker, &root, &anchor, to_actual_amount(10, 18))
         .await
         .expect("Failed in calling 'set_era_reward'");
-    lifecycle_actions::go_booting(worker, &root, &anchor)
+    lifecycle_actions::generate_initial_validator_set(worker, &root, &anchor)
         .await
         .expect_err("Should fail");
     //
-    // Change protocol settings and try go_booting
+    // Change protocol settings and try generate_initial_validator_set
     //
     settings_manager::change_minimum_validator_count(worker, &root, &anchor, 1)
         .await
         .expect("Failed in calling 'change_minimum_validator_count'");
-    lifecycle_actions::go_booting(worker, &root, &anchor)
+    lifecycle_actions::generate_initial_validator_set(worker, &root, &anchor)
         .await
         .expect_err("Should fail");
     //
-    // Change price of OCT token and try go_booting
+    // Change price of OCT token and try generate_initial_validator_set
     //
     settings_manager::set_price_of_oct_token(worker, &users[4], &anchor, 2_130_000)
         .await
         .expect("Failed in calling 'set_price_of_oct_token'");
-    lifecycle_actions::go_booting(worker, &root, &anchor)
+    lifecycle_actions::generate_initial_validator_set(worker, &root, &anchor)
         .await
-        .expect("Failed in calling 'go_booting'");
+        .expect("Failed in calling 'generate_initial_validator_set'");
     assert_eq!(
         anchor_viewer::get_appchain_state(worker, &anchor).await?,
         AppchainState::Booting

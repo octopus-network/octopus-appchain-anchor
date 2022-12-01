@@ -53,7 +53,7 @@ use validator_set::ValidatorSetViewer;
 register_custom_getrandom!(get_random_in_near);
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v2.3.1";
+const ANCHOR_VERSION: &str = "v2.4.0";
 /// Constants for gas.
 const T_GAS_FOR_FT_TRANSFER: u64 = 10;
 const T_GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10;
@@ -265,7 +265,7 @@ impl AppchainAnchor {
                 StorageKey::ProtocolSettings.into_bytes(),
                 Some(&ProtocolSettings::default()),
             ),
-            appchain_state: AppchainState::Staging,
+            appchain_state: AppchainState::Booting,
             staking_histories: LazyOption::new(
                 StorageKey::StakingHistories.into_bytes(),
                 Some(&LookupArray::new(StorageKey::StakingHistoriesMap)),
@@ -502,7 +502,7 @@ impl AppchainAnchor {
         let predecessor_account_id = env::predecessor_account_id();
         match deposit_message {
             FTDepositMessage::RegisterValidator { .. }
-            | FTDepositMessage::IncreaseStake
+            | FTDepositMessage::IncreaseStake { .. }
             | FTDepositMessage::RegisterDelegator { .. }
             | FTDepositMessage::IncreaseDelegation { .. } => {
                 assert!(

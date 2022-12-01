@@ -82,24 +82,18 @@ pub enum AppchainState {
     Registered,
     /// The state while the appchain is under auditing by Octopus Network.
     /// This state is managed by appchain registry.
-    Auditing,
-    /// The state while voter can upvote or downvote an appchain.
+    Audited,
+    /// The state while members of Octopus DAO can upvote for the appchain.
     /// This state is managed by appchain registry.
-    InQueue,
-    /// The state while validator and delegator can deposit OCT tokens to this contract
-    /// to indicate their willing of staking for an appchain.
-    Staging,
+    Voting,
     /// The state while an appchain is booting.
     Booting,
     /// The state while an appchain is active normally.
     Active,
-    /// The state while an appchain is under challenging, which all deposit and withdraw actions
-    /// are frozen.
-    Frozen,
-    /// The state which an appchain is broken for some technical or governance reasons.
-    Broken,
+    /// The state which an appchain is closing for some technical or governance reasons.
+    Closing,
     /// The state which the lifecycle of an appchain is end.
-    Dead,
+    Closed,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -127,7 +121,7 @@ pub struct ProtocolSettings {
     pub minimum_validator_deposit: U128,
     /// The minimum amount for a validator to increase or decrease his/her deposit.
     pub minimum_validator_deposit_changing_amount: U128,
-    /// The maximum percent value that the deposit of a validator in total stake
+    /// The maximum percent value that the deposit of a validator in total stake.
     pub maximum_validator_stake_percent: u16,
     /// The minimum deposit amount for a delegator to delegate his voting weight to
     /// a certain validator.
@@ -136,13 +130,13 @@ pub struct ProtocolSettings {
     /// to a validator.
     pub minimum_delegator_deposit_changing_amount: U128,
     /// The minimum price (in USD) of total stake in this contract for
-    /// booting corresponding appchain
+    /// booting corresponding appchain.
     pub minimum_total_stake_price_for_booting: U128,
     /// The maximum percentage of the total market value of all NEP-141 tokens to the total
-    /// market value of OCT token staked in this contract
+    /// market value of OCT token staked in this contract.
     pub maximum_market_value_percent_of_near_fungible_tokens: u16,
     /// The maximum percentage of the total market value of wrapped appchain token to the total
-    /// market value of OCT token staked in this contract
+    /// market value of OCT token staked in this contract.
     pub maximum_market_value_percent_of_wrapped_appchain_token: u16,
     /// The minimum number of validator(s) registered in this contract for
     /// booting the corresponding appchain and keep it alive.
@@ -159,16 +153,18 @@ pub struct ProtocolSettings {
     /// they no longer delegates their stake to a certain validator on the corresponding appchain.
     pub unlock_period_of_delegator_deposit: U64,
     /// The maximum number of historical eras that the validators or delegators are allowed to
-    /// withdraw their reward
+    /// withdraw their reward.
     pub maximum_era_count_of_unwithdrawn_reward: U64,
     /// The maximum number of valid appchain message.
     /// If the era number of appchain message is smaller than the latest era number minus
     /// this value, the message will be considered as `invalid`.
     pub maximum_era_count_of_valid_appchain_message: U64,
-    /// The percent of commission fees of a validator's reward in an era
+    /// The percent of commission fees of a validator's reward in an era.
     pub validator_commission_percent: u16,
-    /// The maximum unprofitable era count for auto-unbonding a validator
+    /// The maximum unprofitable era count for auto-unbonding a validator.
     pub maximum_allowed_unprofitable_era_count: u16,
+    /// The subaccount name for council keeper contract.
+    pub subaccount_for_council_keeper_contract: String,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -656,12 +652,16 @@ pub enum FTDepositMessage {
         can_be_delegated_to: bool,
         profile: HashMap<String, String>,
     },
-    IncreaseStake,
+    IncreaseStake {
+        validator_id: Option<AccountId>,
+    },
     RegisterDelegator {
         validator_id: AccountId,
+        delegator_id: Option<AccountId>,
     },
     IncreaseDelegation {
         validator_id: AccountId,
+        delegator_id: Option<AccountId>,
     },
     BridgeToAppchain {
         receiver_id_in_appchain: String,

@@ -83,21 +83,22 @@ pub async fn initialize_contracts_and_users(
     //
     // deploy octopus council contract
     //
-    let octopus_council = appchain_registry
+    let council_keeper = appchain_registry
         .as_account()
         .create_subaccount(worker, "octopus-council")
         .initial_balance(parse_near!("10 N"))
         .transact()
         .await?
         .unwrap();
-    let octopus_council = octopus_council
-        .deploy(worker, &std::fs::read(format!("res/octopus_council.wasm"))?)
+    let council_keeper = council_keeper
+        .deploy(worker, &std::fs::read(format!("res/council_keeper.wasm"))?)
         .await?
         .unwrap();
-    octopus_council
+    council_keeper
         .call(worker, "new")
         .args_json(json!({
-            "max_number_of_council_members": 3
+            "max_number_of_council_members": 3,
+            "dao_contract_account": council_keeper.id().to_string(),
         }))?
         .gas(300_000_000_000_000)
         .transact()
@@ -116,7 +117,7 @@ pub async fn initialize_contracts_and_users(
         true => appchain_anchor
             .deploy(
                 worker,
-                &std::fs::read(format!("res/appchain_anchor_v2.2.0.wasm"))?,
+                &std::fs::read(format!("res/appchain_anchor_v2.3.1.wasm"))?,
             )
             .await?
             .unwrap(),
@@ -239,7 +240,7 @@ pub async fn initialize_contracts_and_users(
         root,
         oct_token,
         appchain_registry,
-        octopus_council,
+        council_keeper,
         appchain_anchor,
         wat_faucet,
         users,

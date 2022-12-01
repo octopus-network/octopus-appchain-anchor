@@ -159,8 +159,8 @@ pub trait AnchorViewer {
 }
 
 pub trait AppchainLifecycleManager {
-    /// Verify and change the state of corresponding appchain to `booting`.
-    fn go_booting(&mut self);
+    /// Generate the initial validator set for the appchain.
+    fn generate_initial_validator_set(&mut self);
     /// Verify and change the state of corresponding appchain to `active`.
     fn go_live(&mut self);
     /// Initialize the beefy light client
@@ -276,6 +276,8 @@ pub trait ProtocolSettingsManager {
     fn change_validator_commission_percent(&mut self, value: u16);
     ///
     fn change_maximum_allowed_unprofitable_era_count(&mut self, value: u16);
+    ///
+    fn change_subaccount_for_council_keeper_contract(&mut self, subaccount_name: String);
 }
 
 pub trait AppchainSettingsManager {

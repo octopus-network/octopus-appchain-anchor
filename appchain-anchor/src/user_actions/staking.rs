@@ -29,16 +29,22 @@ impl AppchainAnchor {
                 );
                 PromiseOrValue::Value(0.into())
             }
-            FTDepositMessage::IncreaseStake => {
-                self.increase_stake(sender_id, amount);
+            FTDepositMessage::IncreaseStake { validator_id } => {
+                self.increase_stake(validator_id.unwrap_or(sender_id), amount);
                 PromiseOrValue::Value(0.into())
             }
-            FTDepositMessage::RegisterDelegator { validator_id } => {
-                self.register_delegator(sender_id, validator_id, amount);
+            FTDepositMessage::RegisterDelegator {
+                validator_id,
+                delegator_id,
+            } => {
+                self.register_delegator(delegator_id.unwrap_or(sender_id), validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
-            FTDepositMessage::IncreaseDelegation { validator_id } => {
-                self.increase_delegation(sender_id, validator_id, amount);
+            FTDepositMessage::IncreaseDelegation {
+                validator_id,
+                delegator_id,
+            } => {
+                self.increase_delegation(delegator_id.unwrap_or(sender_id), validator_id, amount);
                 PromiseOrValue::Value(0.into())
             }
             _ => panic!(
@@ -56,7 +62,7 @@ impl AppchainAnchor {
         can_be_delegated_to: bool,
     ) {
         match self.appchain_state {
-            AppchainState::Staging | AppchainState::Active => (),
+            AppchainState::Booting | AppchainState::Active => (),
             _ => panic!(
                 "Cannot register validator while appchain state is '{}'.",
                 serde_json::to_string(&self.appchain_state).unwrap()
@@ -160,7 +166,7 @@ impl AppchainAnchor {
     //
     fn increase_stake(&mut self, validator_id: AccountId, amount: U128) {
         match self.appchain_state {
-            AppchainState::Staging | AppchainState::Active => (),
+            AppchainState::Booting | AppchainState::Active => (),
             _ => panic!(
                 "Cannot increase stake while appchain state is '{}'.",
                 serde_json::to_string(&self.appchain_state).unwrap()
@@ -203,7 +209,7 @@ impl AppchainAnchor {
         deposit_amount: U128,
     ) {
         match self.appchain_state {
-            AppchainState::Staging | AppchainState::Active => (),
+            AppchainState::Booting | AppchainState::Active => (),
             _ => panic!(
                 "Cannot register delegator while appchain state is '{}'.",
                 serde_json::to_string(&self.appchain_state).unwrap()
@@ -278,7 +284,7 @@ impl AppchainAnchor {
         amount: U128,
     ) {
         match self.appchain_state {
-            AppchainState::Staging | AppchainState::Active => (),
+            AppchainState::Booting | AppchainState::Active => (),
             _ => panic!(
                 "Cannot increase delegation while appchain state is '{}'.",
                 serde_json::to_string(&self.appchain_state).unwrap()
@@ -321,7 +327,7 @@ impl StakingManager for AppchainAnchor {
     //
     fn decrease_stake(&mut self, amount: U128) {
         match self.appchain_state {
-            AppchainState::Active => (),
+            AppchainState::Booting | AppchainState::Active => (),
             _ => panic!(
                 "Cannot decrease stake while appchain state is '{}'.",
                 serde_json::to_string(&self.appchain_state).unwrap()
@@ -362,7 +368,7 @@ impl StakingManager for AppchainAnchor {
     //
     fn unbond_stake(&mut self) {
         match self.appchain_state {
-            AppchainState::Active | AppchainState::Broken => (),
+            AppchainState::Active | AppchainState::Closing => (),
             _ => panic!(
                 "Cannot unbond stake while appchain state is '{}'.",
                 serde_json::to_string(&self.appchain_state).unwrap()
@@ -413,7 +419,7 @@ impl StakingManager for AppchainAnchor {
     //
     fn decrease_delegation(&mut self, validator_id: AccountId, amount: U128) {
         match self.appchain_state {
-            AppchainState::Active => (),
+            AppchainState::Booting | AppchainState::Active => (),
             _ => panic!(
                 "Cannot decrease delegation while appchain state is '{}'.",
                 serde_json::to_string(&self.appchain_state).unwrap()
@@ -458,7 +464,7 @@ impl StakingManager for AppchainAnchor {
     //
     fn unbond_delegation(&mut self, validator_id: AccountId) {
         match self.appchain_state {
-            AppchainState::Active | AppchainState::Broken => (),
+            AppchainState::Active | AppchainState::Closing => (),
             _ => panic!(
                 "Cannot unbond delegation while appchain state is '{}'.",
                 serde_json::to_string(&self.appchain_state).unwrap()
@@ -684,7 +690,7 @@ impl StakingManager for AppchainAnchor {
         new_validator_id: AccountId,
     ) {
         match self.appchain_state {
-            AppchainState::Active | AppchainState::Broken => (),
+            AppchainState::Active => (),
             _ => panic!(
                 "Cannot change delegated validator while appchain state is '{}'.",
                 serde_json::to_string(&self.appchain_state).unwrap()
