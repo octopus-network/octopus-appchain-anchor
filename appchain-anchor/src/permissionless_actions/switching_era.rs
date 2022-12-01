@@ -240,7 +240,15 @@ impl AppchainAnchor {
                 let args = near_sdk::serde_json::to_vec(&args)
                     .expect("Failed to serialize the cross contract args using JSON.");
                 let contract_account = AccountId::from_str(
-                    format!("council-keeper.{}", self.appchain_registry).as_str(),
+                    format!(
+                        "{}.{}",
+                        self.protocol_settings
+                            .get()
+                            .unwrap()
+                            .subaccount_for_council_keeper_contract,
+                        self.appchain_registry
+                    )
+                    .as_str(),
                 )
                 .unwrap();
                 Promise::new(contract_account).function_call(

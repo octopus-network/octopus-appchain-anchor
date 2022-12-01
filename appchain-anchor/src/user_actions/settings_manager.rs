@@ -24,6 +24,7 @@ impl Default for ProtocolSettings {
             maximum_era_count_of_valid_appchain_message: U64::from(7),
             validator_commission_percent: 20,
             maximum_allowed_unprofitable_era_count: 3,
+            subaccount_for_council_keeper_contract: "octopus-council".to_string(),
         }
     }
 }
@@ -281,6 +282,21 @@ impl ProtocolSettingsManager for AppchainAnchor {
             "The value is not changed."
         );
         protocol_settings.maximum_allowed_unprofitable_era_count = value;
+        self.protocol_settings.set(&protocol_settings);
+    }
+    //
+    fn change_subaccount_for_council_keeper_contract(&mut self, subaccount_name: String) {
+        self.assert_owner();
+        assert!(
+            !subaccount_name.trim().is_empty(),
+            "The subaccount name can not be empty."
+        );
+        let mut protocol_settings = self.protocol_settings.get().unwrap();
+        assert!(
+            !subaccount_name.eq(&protocol_settings.subaccount_for_council_keeper_contract),
+            "The value is not changed."
+        );
+        protocol_settings.subaccount_for_council_keeper_contract = subaccount_name;
         self.protocol_settings.set(&protocol_settings);
     }
 }

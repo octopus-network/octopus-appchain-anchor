@@ -85,7 +85,7 @@ pub async fn initialize_contracts_and_users(
     //
     let council_keeper = appchain_registry
         .as_account()
-        .create_subaccount(worker, "council-keeper")
+        .create_subaccount(worker, "octopus-council")
         .initial_balance(parse_near!("10 N"))
         .transact()
         .await?
@@ -117,7 +117,7 @@ pub async fn initialize_contracts_and_users(
         true => appchain_anchor
             .deploy(
                 worker,
-                &std::fs::read(format!("res/appchain_anchor_v2.3.0.wasm"))?,
+                &std::fs::read(format!("res/appchain_anchor_v2.3.1.wasm"))?,
             )
             .await?
             .unwrap(),

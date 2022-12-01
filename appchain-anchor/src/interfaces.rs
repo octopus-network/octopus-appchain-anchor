@@ -276,6 +276,8 @@ pub trait ProtocolSettingsManager {
     fn change_validator_commission_percent(&mut self, value: u16);
     ///
     fn change_maximum_allowed_unprofitable_era_count(&mut self, value: u16);
+    ///
+    fn change_subaccount_for_council_keeper_contract(&mut self, subaccount_name: String);
 }
 
 pub trait AppchainSettingsManager {
