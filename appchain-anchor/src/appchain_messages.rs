@@ -82,7 +82,8 @@ pub enum MessagePayload {
     LockNft(LockNftPayload),
 }
 
-#[derive(Encode, Decode, Clone)]
+#[derive(Encode, Decode, Clone, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct RawMessage {
     #[codec(compact)]
     pub nonce: u64,
@@ -265,6 +266,10 @@ impl AppchainAnchor {
                 message.nonce as u32 > processing_status.latest_applied_appchain_message_nonce
             })
             .for_each(|raw_message| {
+                log!(
+                    "Received message: {}",
+                    serde_json::to_string(raw_message).unwrap()
+                );
                 self.internal_stage_raw_message(&mut appchain_messages, raw_message)
             });
         self.appchain_messages.set(&appchain_messages);
