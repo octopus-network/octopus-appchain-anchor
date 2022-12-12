@@ -320,7 +320,7 @@ impl AppchainAnchor {
         assert_eq!(
             env::predecessor_account_id(),
             self.owner,
-            "Function can only be called by owner."
+            "This function can only be called by owner."
         );
     }
     // Assert that the function is called by appchain registry.
@@ -330,6 +330,14 @@ impl AppchainAnchor {
             self.appchain_registry,
             "Function can only be called by appchain registry contract."
         );
+    }
+    //
+    fn assert_registry(&self) {
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.appchain_registry,
+            "This function can only be called by appchain registry contract."
+        )
     }
     //
     fn assert_token_price_maintainer(&self) {
