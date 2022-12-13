@@ -152,6 +152,11 @@ where
             match result {
                 MultiTxsOperationProcessingResult::Ok => {
                     self.lookup_map.remove_raw(&index.try_to_vec().unwrap());
+                    if *index == self.start_index && *index < self.end_index {
+                        self.start_index += 1;
+                    } else if *index == self.end_index && *index > self.start_index {
+                        self.end_index -= 1;
+                    }
                 }
                 MultiTxsOperationProcessingResult::NeedMoreGas => {
                     self.lookup_map.insert(index, &record);

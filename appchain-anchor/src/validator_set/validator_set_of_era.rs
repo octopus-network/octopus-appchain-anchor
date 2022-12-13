@@ -248,11 +248,53 @@ impl ValidatorSetOfEra {
     }
     ///
     pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
-        let mut result = self.clear_reward_distribution_records();
-        if result.is_ok() {
-            result = self.validator_set.clear();
+        let validator_ids = self.validator_set.validator_id_set.to_vec();
+        for validator_id in validator_ids {
+            if let Some(mut delegator_id_set) = self
+                .validator_set
+                .validator_id_to_delegator_id_set
+                .get(&validator_id)
+            {
+                let delegator_ids = delegator_id_set.to_vec();
+                for delegator_id in delegator_ids {
+                    self.delegator_rewards
+                        .remove(&(delegator_id.clone(), validator_id.clone()));
+                    self.validator_set
+                        .delegators
+                        .remove(&(delegator_id.clone(), validator_id.clone()));
+                    if let Some(mut validator_id_set_of_delegator) = self
+                        .validator_set
+                        .delegator_id_to_validator_id_set
+                        .get(&delegator_id)
+                    {
+                        validator_id_set_of_delegator.clear();
+                        self.validator_set
+                            .delegator_id_to_validator_id_set
+                            .remove(&delegator_id);
+                    }
+                    delegator_id_set.remove(&delegator_id);
+                    if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                        self.validator_set
+                            .validator_id_to_delegator_id_set
+                            .insert(&validator_id, &delegator_id_set);
+                        return MultiTxsOperationProcessingResult::NeedMoreGas;
+                    }
+                }
+                self.validator_set
+                    .validator_id_to_delegator_id_set
+                    .remove(&validator_id);
+            }
+            self.validator_rewards.remove(&validator_id);
+            self.validator_set.validators.remove(&validator_id);
+            self.validator_set.validator_id_set.remove(&validator_id);
+            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                return MultiTxsOperationProcessingResult::NeedMoreGas;
+            }
         }
-        result
+        self.validator_set.total_stake = 0;
+        self.valid_total_stake = 0;
+        self.unprofitable_validator_id_set.clear();
+        MultiTxsOperationProcessingResult::Ok
     }
     //
     pub fn apply_staking_fact(&mut self, staking_fact: &StakingFact) {
