@@ -117,7 +117,7 @@ pub async fn initialize_contracts_and_users(
         true => appchain_anchor
             .deploy(
                 worker,
-                &std::fs::read(format!("res/appchain_anchor_v2.3.1.wasm"))?,
+                &std::fs::read(format!("res/appchain_anchor_v2.4.0.wasm"))?,
             )
             .await?
             .unwrap(),
@@ -142,9 +142,7 @@ pub async fn initialize_contracts_and_users(
         false => {
             root.call(worker, appchain_anchor.id(), "new")
                 .args_json(json!({
-                    "appchain_id": TEST_APPCHAIN_ID.to_string(),
                     "appchain_template_type": AppchainTemplateType::Barnacle,
-                    "appchain_registry": appchain_registry.id(),
                     "oct_token": oct_token.id(),
                 }))?
                 .gas(300_000_000_000_000)

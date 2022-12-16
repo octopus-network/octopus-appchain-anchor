@@ -206,17 +206,19 @@ pub struct AppchainAnchor {
 #[near_bindgen]
 impl AppchainAnchor {
     #[init]
-    pub fn new(
-        appchain_id: AppchainId,
-        appchain_template_type: AppchainTemplateType,
-        appchain_registry: AccountId,
-        oct_token: AccountId,
-    ) -> Self {
+    pub fn new(appchain_template_type: AppchainTemplateType, oct_token: AccountId) -> Self {
         assert!(!env::state_exists(), "The contract is already initialized.");
+        let account_id = env::current_account_id().to_string();
+        let parts = account_id.split(".").collect::<Vec<&str>>();
+        assert!(
+            parts.len() > 2,
+            "This contract must be deployed as a sub-account of octopus appchain registry.",
+        );
+        let (appchain_id, appchain_registry) = account_id.split_once(".").unwrap();
         Self {
-            appchain_id,
+            appchain_id: appchain_id.to_string(),
             appchain_template_type,
-            appchain_registry,
+            appchain_registry: AccountId::try_from(appchain_registry.to_string()).unwrap(),
             owner: env::predecessor_account_id(),
             owner_pk: env::signer_account_pk(),
             oct_token: LazyOption::new(
@@ -318,12 +320,20 @@ impl AppchainAnchor {
             ),
         }
     }
-    // Assert that the contract called by the owner.
+    // Assert that the function is called by the owner.
     fn assert_owner(&self) {
         assert_eq!(
             env::predecessor_account_id(),
             self.owner,
             "Function can only be called by owner."
+        );
+    }
+    // Assert that the function is called by appchain registry.
+    fn assert_registry(&self) {
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.appchain_registry,
+            "Function can only be called by appchain registry contract."
         );
     }
     //
