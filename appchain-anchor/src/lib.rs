@@ -328,14 +328,6 @@ impl AppchainAnchor {
         assert_eq!(
             env::predecessor_account_id(),
             self.appchain_registry,
-            "Function can only be called by appchain registry contract."
-        );
-    }
-    //
-    fn assert_registry(&self) {
-        assert_eq!(
-            env::predecessor_account_id(),
-            self.appchain_registry,
             "This function can only be called by appchain registry contract."
         )
     }
