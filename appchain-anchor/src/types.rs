@@ -110,7 +110,8 @@ pub struct AppchainSettings {
 pub struct AnchorSettings {
     pub token_price_maintainer_account: Option<AccountId>,
     pub relayer_account: Option<AccountId>,
-    pub beefy_light_client_witness_mode: bool,
+    pub relayer_tee_pubkey: Option<Vec<u8>>,
+    pub witness_mode: bool,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -530,33 +531,6 @@ impl MultiTxsOperationProcessingResult {
             _ => false,
         }
     }
-}
-
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct ValidatorMerkleProof {
-    /// Proof items (does not contain the leaf hash, nor the root obviously).
-    ///
-    /// This vec contains all inner node hashes necessary to reconstruct the root hash given the
-    /// leaf hash.
-    pub proof: Vec<Hash>,
-    /// Number of leaves in the original tree.
-    ///
-    /// This is needed to detect a case where we have an odd number of leaves that "get promoted"
-    /// to upper layers.
-    pub number_of_leaves: u32,
-    /// Index of the leaf the proof is for (0-based).
-    pub leaf_index: u32,
-    /// Leaf content.
-    pub leaf: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub enum BeefyLightClientStatus {
-    Uninitialized,
-    UpdatingState,
-    Ready,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

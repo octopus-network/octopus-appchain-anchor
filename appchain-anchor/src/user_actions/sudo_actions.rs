@@ -48,12 +48,6 @@ impl SudoActions for AppchainAnchor {
         MultiTxsOperationProcessingResult::Ok
     }
     //
-    fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>) {
-        self.assert_owner();
-        self.beefy_light_client_state
-            .set(&beefy_light_client::new(initial_public_keys));
-    }
-    //
     fn pause_asset_transfer(&mut self) {
         self.assert_owner();
         assert!(

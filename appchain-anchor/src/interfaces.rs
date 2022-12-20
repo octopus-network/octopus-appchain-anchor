@@ -118,10 +118,6 @@ pub trait AnchorViewer {
         &self,
         validator_id_in_appchain: String,
     ) -> Option<ValidatorProfile>;
-    /// Get the latest commitment data of appchain state.
-    fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment>;
-    /// Get status of the beefy light client.
-    fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus;
     /// Get staking histories related to the given account id.
     fn get_user_staking_histories_of(&self, account_id: AccountId) -> Vec<UserStakingHistory>;
     /// Get a certain appchain message.
@@ -163,8 +159,6 @@ pub trait AppchainLifecycleManager {
     fn generate_initial_validator_set(&mut self);
     /// Verify and change the state of corresponding appchain to `active`.
     fn go_live(&mut self);
-    /// Initialize the beefy light client
-    fn initialize_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
 }
 
 pub trait NearFungibleTokenManager {
@@ -204,41 +198,15 @@ pub trait OwnerActions {
 
 pub trait PermissionlessActions {
     ///
-    fn start_updating_state_of_beefy_light_client(
-        &mut self,
-        signed_commitment: Vec<u8>,
-        validator_proofs: Vec<ValidatorMerkleProof>,
-        mmr_leaf: Vec<u8>,
-        mmr_proof: Vec<u8>,
-    );
-    ///
-    fn try_complete_updating_state_of_beefy_light_client(
-        &mut self,
-    ) -> MultiTxsOperationProcessingResult;
-    ///
-    fn verify_and_stage_appchain_messages(
+    fn stage_and_apply_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
-        header: Vec<u8>,
-        mmr_leaf: Vec<u8>,
-        mmr_proof: Vec<u8>,
+        relayer_tee_signature: Option<Vec<u8>>,
     );
     ///
     fn process_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult;
     ///
     fn commit_appchain_challenge(&mut self, appchain_challenge: AppchainChallenge);
-    //
-    fn process_appchain_messages_with_all_proofs(
-        &mut self,
-        signed_commitment: Vec<u8>,
-        validator_proofs: Vec<ValidatorMerkleProof>,
-        mmr_leaf_for_mmr_root: Vec<u8>,
-        mmr_proof_for_mmr_root: Vec<u8>,
-        encoded_messages: Vec<u8>,
-        header: Vec<u8>,
-        mmr_leaf_for_header: Vec<u8>,
-        mmr_proof_for_header: Vec<u8>,
-    ) -> MultiTxsOperationProcessingResult;
 }
 
 pub trait ProtocolSettingsManager {
@@ -297,9 +265,11 @@ pub trait AnchorSettingsManager {
     ///
     fn set_relayer_account(&mut self, account_id: AccountId);
     ///
-    fn turn_on_beefy_light_client_witness_mode(&mut self);
+    fn set_relayer_tee_pubkey(&mut self, pubkey: Vec<u8>);
     ///
-    fn turn_off_beefy_light_client_witness_mode(&mut self);
+    fn turn_on_witness_mode(&mut self);
+    ///
+    fn turn_off_witness_mode(&mut self);
 }
 
 pub trait StakingManager {
@@ -352,8 +322,6 @@ pub trait SudoActions {
     );
     ///
     fn regenerate_user_staking_histories(&mut self) -> MultiTxsOperationProcessingResult;
-    ///
-    fn reset_beefy_light_client(&mut self, initial_public_keys: Vec<String>);
     ///
     fn pause_asset_transfer(&mut self);
     ///

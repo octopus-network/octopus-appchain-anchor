@@ -22,7 +22,7 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
         _wat_faucet,
         users,
         mut appchain_message_nonce,
-    ) = common::test_normal_actions(&worker, false, true, vec!["0x00".to_string()]).await?;
+    ) = common::test_normal_actions(&worker, false, true).await?;
     //
     //
     //
@@ -113,6 +113,8 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
     //
     //
     //
+    let old_balance = users[0].view_account().await?.balance;
+    println!("Balance of users[0]: {}", old_balance);
     appchain_message_nonce += 1;
     let payload = BurnAssetPayload {
         token_id: "NEAR".to_string(),
@@ -128,26 +130,21 @@ async fn test_transfer_native_near() -> anyhow::Result<()> {
     };
     let mut raw_messages = Vec::new();
     raw_messages.push(raw_message);
-    assert!(permissionless_actions::verify_and_stage_appchain_messages(
+    assert!(permissionless_actions::stage_and_apply_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
+        None,
     )
     .await
     .unwrap()
     .is_success());
     //
-    let old_balance = users[0].view_account().await?.balance;
-    println!("Balance of users[0]: {}", old_balance);
-    common::complex_actions::process_appchain_messages(&users[4], &anchor).await;
+    common::complex_viewer::print_appchain_messages(&anchor).await;
+    common::complex_viewer::print_appchain_messages_processing_results(&anchor).await;
     let new_balance = users[0].view_account().await?.balance;
     println!("Balance of users[0]: {}", new_balance);
     assert!(new_balance - old_balance == parse_near!("1 N"));
-    common::complex_viewer::print_appchain_messages(&anchor).await;
-    common::complex_viewer::print_appchain_messages_processing_results(&anchor).await;
     common::complex_viewer::print_appchain_notifications(&anchor).await;
     common::complex_viewer::print_native_near_token(&anchor).await;
     //

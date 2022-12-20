@@ -127,7 +127,7 @@ pub async fn initialize_contracts_and_users(
         .unwrap();
     let appchain_anchor = match with_old_anchor {
         true => appchain_anchor
-            .deploy(&std::fs::read(format!("res/appchain_anchor_v2.4.1.wasm"))?)
+            .deploy(&std::fs::read(format!("res/appchain_anchor_v2.5.0.wasm"))?)
             .await?
             .unwrap(),
         false => appchain_anchor

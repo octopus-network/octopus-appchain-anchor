@@ -31,7 +31,7 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
         _wat_faucet,
         users,
         mut appchain_message_nonce,
-    ) = common::test_normal_actions(&worker, false, true, vec!["0x00".to_string()]).await?;
+    ) = common::test_normal_actions(&worker, false, true).await?;
     //
     //
     //
@@ -136,13 +136,11 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
     };
     let mut raw_messages = Vec::new();
     raw_messages.push(raw_message);
-    assert!(permissionless_actions::verify_and_stage_appchain_messages(
+    assert!(permissionless_actions::stage_and_apply_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
+        None,
     )
     .await
     .unwrap()
@@ -190,13 +188,11 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
     };
     let mut raw_messages = Vec::new();
     raw_messages.push(raw_message);
-    assert!(permissionless_actions::verify_and_stage_appchain_messages(
+    assert!(permissionless_actions::stage_and_apply_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
+        None,
     )
     .await
     .unwrap()
@@ -264,13 +260,11 @@ async fn test_transfer_nft_to_near() -> anyhow::Result<()> {
     };
     let mut raw_messages = Vec::new();
     raw_messages.push(raw_message);
-    assert!(permissionless_actions::verify_and_stage_appchain_messages(
+    assert!(permissionless_actions::stage_and_apply_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
+        None,
     )
     .await
     .unwrap()

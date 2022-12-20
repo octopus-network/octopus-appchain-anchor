@@ -20,7 +20,7 @@ async fn test_migration() -> anyhow::Result<()> {
         _wat_faucet,
         users,
         mut appchain_message_nonce,
-    ) = common::test_normal_actions(&worker, true, false, vec!["0x00".to_string()]).await?;
+    ) = common::test_normal_actions(&worker, true, false).await?;
     //
     // Try start and complete switching era1
     //

@@ -34,7 +34,8 @@ impl Default for AnchorSettings {
         Self {
             token_price_maintainer_account: None,
             relayer_account: None,
-            beefy_light_client_witness_mode: false,
+            relayer_tee_pubkey: None,
+            witness_mode: false,
         }
     }
 }
@@ -358,25 +359,33 @@ impl AnchorSettingsManager for AppchainAnchor {
         self.anchor_settings.set(&anchor_settings);
     }
     //
-    fn turn_on_beefy_light_client_witness_mode(&mut self) {
+    fn set_relayer_tee_pubkey(&mut self, pubkey: Vec<u8>) {
         self.assert_owner();
+        assert!(pubkey.len() == 32, "Invalid length of pubkey.");
         let mut anchor_settings = self.anchor_settings.get().unwrap();
-        assert!(
-            !anchor_settings.beefy_light_client_witness_mode,
-            "Witness mode is already turned on."
-        );
-        anchor_settings.beefy_light_client_witness_mode = true;
+        anchor_settings.relayer_tee_pubkey = Some(pubkey);
         self.anchor_settings.set(&anchor_settings);
     }
     //
-    fn turn_off_beefy_light_client_witness_mode(&mut self) {
+    fn turn_on_witness_mode(&mut self) {
         self.assert_owner();
         let mut anchor_settings = self.anchor_settings.get().unwrap();
         assert!(
-            anchor_settings.beefy_light_client_witness_mode,
+            !anchor_settings.witness_mode,
+            "Witness mode is already turned on."
+        );
+        anchor_settings.witness_mode = true;
+        self.anchor_settings.set(&anchor_settings);
+    }
+    //
+    fn turn_off_witness_mode(&mut self) {
+        self.assert_owner();
+        let mut anchor_settings = self.anchor_settings.get().unwrap();
+        assert!(
+            anchor_settings.witness_mode,
             "Witness mode is already turned off."
         );
-        anchor_settings.beefy_light_client_witness_mode = false;
+        anchor_settings.witness_mode = false;
         self.anchor_settings.set(&anchor_settings);
     }
 }

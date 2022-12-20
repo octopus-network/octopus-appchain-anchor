@@ -19,7 +19,7 @@ async fn test_sync_staking_amount() -> anyhow::Result<()> {
         _wat_faucet,
         users,
         mut appchain_message_nonce,
-    ) = common::test_normal_actions(&worker, false, false, vec!["0x00".to_string()]).await?;
+    ) = common::test_normal_actions(&worker, false, false).await?;
     //
     // Try start and complete switching era1
     //

@@ -58,13 +58,11 @@ pub async fn switch_era(
         };
         let mut raw_messages = Vec::new();
         raw_messages.push(raw_message);
-        assert!(permissionless_actions::verify_and_stage_appchain_messages(
+        assert!(permissionless_actions::stage_and_apply_appchain_messages(
             relayer,
             anchor,
             raw_messages.encode(),
-            Vec::new(),
-            Vec::new(),
-            Vec::new(),
+            None,
         )
         .await
         .unwrap()
@@ -116,13 +114,11 @@ pub async fn distribute_reward_of(
     };
     let mut raw_messages = Vec::new();
     raw_messages.push(raw_message);
-    assert!(permissionless_actions::verify_and_stage_appchain_messages(
+    assert!(permissionless_actions::stage_and_apply_appchain_messages(
         relayer,
         anchor,
         raw_messages.encode(),
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
+        None,
     )
     .await
     .unwrap()

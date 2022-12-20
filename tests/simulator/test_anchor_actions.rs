@@ -19,7 +19,7 @@ async fn test_anchor_actions() -> anyhow::Result<()> {
         _wat_faucet,
         users,
         mut appchain_message_nonce,
-    ) = common::test_normal_actions(&worker, false, true, vec!["0x00".to_string()]).await?;
+    ) = common::test_normal_actions(&worker, false, true).await?;
     //
     // Try start and complete switching era1
     //

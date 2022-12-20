@@ -1,10 +1,9 @@
 use appchain_anchor::appchain_challenge::AppchainChallenge;
 use appchain_anchor::types::{
     AnchorSettings, AnchorStatus, AppchainDelegator, AppchainMessageProcessingResult,
-    AppchainNotificationHistory, AppchainSettings, AppchainState, AppchainValidator,
-    BeefyLightClientStatus, IndexRange, NativeNearToken, NearFungibleToken, RewardHistory,
-    StakingHistory, UnbondedStake, UserStakingHistory, ValidatorProfile, ValidatorSetInfo,
-    WrappedAppchainToken,
+    AppchainNotificationHistory, AppchainSettings, AppchainState, AppchainValidator, IndexRange,
+    NativeNearToken, NearFungibleToken, RewardHistory, StakingHistory, UnbondedStake,
+    UserStakingHistory, ValidatorProfile, ValidatorSetInfo, WrappedAppchainToken,
 };
 use appchain_anchor::AppchainMessage;
 use near_sdk::json_types::U64;
@@ -245,16 +244,6 @@ pub async fn get_delegator_rewards_of(
         .view()
         .await?
         .json::<Vec<RewardHistory>>()
-}
-
-pub async fn get_beefy_light_client_status(
-    anchor: &Contract,
-) -> Result<BeefyLightClientStatus, Error> {
-    anchor
-        .call("get_beefy_light_client_status")
-        .view()
-        .await?
-        .json::<BeefyLightClientStatus>()
 }
 
 pub async fn get_user_staking_histories_of(

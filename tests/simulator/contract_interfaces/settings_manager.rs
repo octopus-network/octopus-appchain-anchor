@@ -138,12 +138,12 @@ pub async fn change_unlock_period_of_delegator_deposit(
         .await
 }
 
-pub async fn turn_on_beefy_light_client_witness_mode(
+pub async fn turn_on_witness_mode(
     signer: &Account,
     anchor: &Contract,
 ) -> Result<ExecutionFinalResult, Error> {
     signer
-        .call(anchor.id(), "turn_on_beefy_light_client_witness_mode")
+        .call(anchor.id(), "turn_on_witness_mode")
         .gas(200_000_000_000_000)
         .transact()
         .await

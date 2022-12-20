@@ -35,8 +35,6 @@ use appchain_challenge::AppchainChallenge;
 use appchain_messages::AppchainMessages;
 use assets::near_fungible_tokens::NearFungibleTokens;
 use assets::wrapped_appchain_nfts::WrappedAppchainNFTs;
-use beefy_light_client::Hash;
-use beefy_light_client::LightClient;
 use lookup_array::{IndexedAndClearable, LookupArray};
 use reward_distribution_records::RewardDistributionRecords;
 use storage_key::StorageKey;
@@ -178,8 +176,6 @@ pub struct AppchainAnchor {
     appchain_notification_histories: LazyOption<LookupArray<AppchainNotificationHistory>>,
     /// The status of permissionless actions.
     permissionless_actions_status: LazyOption<PermissionlessActionsStatus>,
-    /// The state of beefy light client
-    beefy_light_client_state: LazyOption<LightClient>,
     /// The reward distribution records data
     reward_distribution_records: LazyOption<RewardDistributionRecords>,
     /// Whether the asset transfer is paused
@@ -283,10 +279,6 @@ impl AppchainAnchor {
                     latest_applied_appchain_message_nonce: 0,
                 }),
             ),
-            beefy_light_client_state: LazyOption::new(
-                StorageKey::BeefyLightClientState.into_bytes(),
-                None,
-            ),
             reward_distribution_records: LazyOption::new(
                 StorageKey::RewardDistributionRecords.into_bytes(),
                 Some(&RewardDistributionRecords::new()),
@@ -382,25 +374,6 @@ impl AppchainAnchor {
             "Delegator id '{}' of validator '{}' is not valid.",
             delegator_id,
             validator_id
-        );
-    }
-    //
-    fn assert_light_client_initialized(&self) {
-        assert!(
-            self.beefy_light_client_state.is_some(),
-            "Beefy light client is not initialized."
-        );
-    }
-    //
-    fn assert_light_client_is_ready(&self) {
-        self.assert_light_client_initialized();
-        assert!(
-            !self
-                .beefy_light_client_state
-                .get()
-                .unwrap()
-                .is_updating_state(),
-            "Beefy light client is updating state."
         );
     }
     //

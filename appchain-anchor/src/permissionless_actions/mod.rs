@@ -5,7 +5,7 @@ use crate::appchain_messages::Offender;
 use crate::assets::native_near_token::CONTRACT_ACCOUNT_FOR_NATIVE_NEAR_TOKEN;
 use crate::interfaces::PermissionlessActions;
 use crate::*;
-use core::convert::{TryFrom, TryInto};
+use core::convert::TryFrom;
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use parity_scale_codec::Decode;
 use std::ops::Add;
@@ -134,102 +134,24 @@ enum ResultOfLoopingValidatorSet {
 
 #[near_bindgen]
 impl PermissionlessActions for AppchainAnchor {
-    ///
-    fn start_updating_state_of_beefy_light_client(
-        &mut self,
-        signed_commitment: Vec<u8>,
-        validator_proofs: Vec<ValidatorMerkleProof>,
-        mmr_leaf: Vec<u8>,
-        mmr_proof: Vec<u8>,
-    ) {
-        let anchor_settings = self.anchor_settings.get().unwrap();
-        assert!(
-            !anchor_settings.beefy_light_client_witness_mode,
-            "Beefy light client is in witness mode."
-        );
-        self.assert_light_client_is_ready();
-        let mut light_client = self.beefy_light_client_state.get().unwrap();
-        if let Err(err) = light_client.start_updating_state(
-            &signed_commitment,
-            &validator_proofs
-                .iter()
-                .map(|proof| beefy_light_client::ValidatorMerkleProof {
-                    proof: proof.proof.clone(),
-                    number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
-                    leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
-                    leaf: proof.leaf.clone(),
-                })
-                .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
-            &mmr_leaf,
-            &mmr_proof,
-        ) {
-            panic!(
-                "Failed to start updating state of beefy light client: {:?}",
-                err
-            );
-        }
-        self.beefy_light_client_state.set(&light_client);
-    }
     //
-    fn try_complete_updating_state_of_beefy_light_client(
-        &mut self,
-    ) -> MultiTxsOperationProcessingResult {
-        let anchor_settings = self.anchor_settings.get().unwrap();
-        assert!(
-            !anchor_settings.beefy_light_client_witness_mode,
-            "Beefy light client is in witness mode."
-        );
-        self.assert_light_client_initialized();
-        let mut light_client = self.beefy_light_client_state.get().unwrap();
-        if !light_client.is_updating_state() {
-            return MultiTxsOperationProcessingResult::Ok;
-        }
-        loop {
-            match light_client.complete_updating_state(1) {
-                Ok(flag) => match flag {
-                    true => {
-                        self.beefy_light_client_state.set(&light_client);
-                        return MultiTxsOperationProcessingResult::Ok;
-                    }
-                    false => (),
-                },
-                Err(err) => {
-                    self.beefy_light_client_state.set(&light_client);
-                    return MultiTxsOperationProcessingResult::Error(format!("{:?}", err));
-                }
-            }
-            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
-                break;
-            }
-        }
-        self.beefy_light_client_state.set(&light_client);
-        MultiTxsOperationProcessingResult::NeedMoreGas
-    }
-    //
-    fn verify_and_stage_appchain_messages(
+    fn stage_and_apply_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
-        header: Vec<u8>,
-        mmr_leaf: Vec<u8>,
-        mmr_proof: Vec<u8>,
+        relayer_tee_signature: Option<Vec<u8>>,
     ) {
+        self.assert_relayer();
         let anchor_settings = self.anchor_settings.get().unwrap();
-        if anchor_settings.beefy_light_client_witness_mode {
-            self.assert_relayer();
-        } else {
-            self.assert_light_client_is_ready();
-            let light_client = self.beefy_light_client_state.get().unwrap();
-            if let Err(err) = light_client.verify_solochain_messages(
-                &encoded_messages,
-                &header,
-                &mmr_leaf,
-                &mmr_proof,
-            ) {
-                panic!("Failed in verifying appchain messages: {:?}", err);
-            }
+        if !anchor_settings.witness_mode {
+            // Check the signature
+            let signature = relayer_tee_signature.expect("Missing signature of relayer TEE.");
+            assert!(signature.len() == 64);
         }
         match Decode::decode(&mut &encoded_messages[..]) {
-            Ok(messages) => self.internal_stage_appchain_messages(&messages),
+            Ok(messages) => {
+                self.internal_stage_appchain_messages(&messages);
+                self.internal_process_appchain_message(Some(messages[0].nonce()));
+            }
             Err(err) => panic!("Failed to decode messages: {}", err),
         }
     }
@@ -251,81 +173,6 @@ impl PermissionlessActions for AppchainAnchor {
         let mut appchain_challenges = self.appchain_challenges.get().unwrap();
         appchain_challenges.append(&mut appchain_challenge.clone());
         self.appchain_challenges.set(&appchain_challenges);
-    }
-    //
-    fn process_appchain_messages_with_all_proofs(
-        &mut self,
-        signed_commitment: Vec<u8>,
-        validator_proofs: Vec<ValidatorMerkleProof>,
-        mmr_leaf_for_mmr_root: Vec<u8>,
-        mmr_proof_for_mmr_root: Vec<u8>,
-        encoded_messages: Vec<u8>,
-        header: Vec<u8>,
-        mmr_leaf_for_header: Vec<u8>,
-        mmr_proof_for_header: Vec<u8>,
-    ) -> MultiTxsOperationProcessingResult {
-        if encoded_messages.len() == 0 {
-            return MultiTxsOperationProcessingResult::Error(format!(
-                "There is no message data to be processed."
-            ));
-        }
-        let anchor_settings = self.anchor_settings.get().unwrap();
-        if anchor_settings.beefy_light_client_witness_mode {
-            self.assert_relayer();
-        } else {
-            self.assert_light_client_is_ready();
-            let mut light_client = self.beefy_light_client_state.get().unwrap();
-            match light_client.update_state(
-                &signed_commitment,
-                &validator_proofs
-                    .iter()
-                    .map(|proof| beefy_light_client::ValidatorMerkleProof {
-                        proof: proof.proof.clone(),
-                        number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
-                        leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
-                        leaf: proof.leaf.clone(),
-                    })
-                    .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
-                &mmr_leaf_for_mmr_root,
-                &mmr_proof_for_mmr_root,
-            ) {
-                Ok(()) => {
-                    self.beefy_light_client_state.set(&light_client);
-                }
-                Err(beefy_light_client::Error::CommitmentAlreadyUpdated) => {}
-                Err(err) => panic!("Failed to update state of beefy light client: {:?}", err),
-            }
-            if let Err(err) = light_client.verify_solochain_messages(
-                &encoded_messages,
-                &header,
-                &mmr_leaf_for_header,
-                &mmr_proof_for_header,
-            ) {
-                panic!("Failed in verifying appchain messages: {:?}", err);
-            }
-        }
-        let messages = Decode::decode(&mut &encoded_messages[..]).unwrap();
-        self.internal_stage_appchain_messages(&messages);
-        let appchain_messages = self.appchain_messages.get().unwrap();
-        let result = if appchain_messages
-            .get_processing_result(&messages[0].nonce())
-            .is_some()
-        {
-            MultiTxsOperationProcessingResult::Ok
-        } else {
-            if env::prepaid_gas() - env::used_gas()
-                > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
-            {
-                self.internal_process_appchain_message(Some(messages[0].nonce()))
-            } else {
-                log!("Remained gas is not enough to process an appchain message. Please call function 'process_appchain_messages' to continue.");
-                MultiTxsOperationProcessingResult::NeedMoreGas
-            }
-        };
-        if messages.len() > 1 {
-            log!("There are more appchain message(s) need to be applied. Please call function 'process_appchain_messages' to continue.");
-        }
-        result
     }
 }
 
@@ -433,6 +280,12 @@ impl AppchainAnchor {
                         processing_context,
                     );
                     self.native_near_token.set(&native_near_token);
+                    self.record_appchain_message_processing_result(
+                        &AppchainMessageProcessingResult::Ok {
+                            nonce: appchain_message.nonce,
+                            message: None,
+                        },
+                    );
                     return result;
                 }
                 //

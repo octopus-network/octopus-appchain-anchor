@@ -79,7 +79,6 @@ pub async fn test_normal_actions(
     worker: &Worker<Sandbox>,
     with_old_anchor: bool,
     to_confirm_view_result: bool,
-    initial_public_keys: Vec<String>,
 ) -> anyhow::Result<(
     Account,
     Contract,
@@ -558,20 +557,12 @@ pub async fn test_normal_actions(
         complex_viewer::print_delegator_list_of(&anchor, 0, &users[0]).await;
     }
     //
-    // Initialize beefy light client
+    // Initialization
     //
-    assert!(
-        lifecycle_actions::initialize_beefy_light_client(&root, &anchor, initial_public_keys)
-            .await
-            .unwrap()
-            .is_success()
-    );
-    assert!(
-        settings_manager::turn_on_beefy_light_client_witness_mode(&root, &anchor)
-            .await
-            .unwrap()
-            .is_success()
-    );
+    assert!(settings_manager::turn_on_witness_mode(&root, &anchor)
+        .await
+        .unwrap()
+        .is_success());
     assert!(
         settings_manager::set_relayer_account(&root, &anchor, &users[5])
             .await

@@ -1,7 +1,7 @@
 use crate::{common::get_ft_balance_of, contract_interfaces::anchor_viewer};
 use appchain_anchor::types::{
-    AnchorSettings, AnchorStatus, AppchainSettings, BeefyLightClientStatus, ValidatorProfile,
-    ValidatorSetInfo, WrappedAppchainToken,
+    AnchorSettings, AnchorStatus, AppchainSettings, ValidatorProfile, ValidatorSetInfo,
+    WrappedAppchainToken,
 };
 use near_sdk::{json_types::U64, serde_json, AccountId};
 use workspaces::{Account, Contract};
@@ -285,17 +285,6 @@ pub async fn print_unbonded_stakes_of(anchor: &Contract, user: &Account) {
         println!();
         index += 1;
     }
-}
-
-pub async fn print_beefy_light_client_status(anchor: &Contract) {
-    let status = anchor_viewer::get_beefy_light_client_status(&anchor)
-        .await
-        .unwrap();
-    println!(
-        "Beefy light client status: {}",
-        serde_json::to_string::<BeefyLightClientStatus>(&status).unwrap()
-    );
-    println!();
 }
 
 pub async fn print_wat_balance_of_anchor(anchor: &Contract, wrapped_appchain_token: &Contract) {

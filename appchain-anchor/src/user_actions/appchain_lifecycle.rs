@@ -74,23 +74,7 @@ impl AppchainLifecycleManager for AppchainAnchor {
                 || appchain_settings.era_reward.0 == 0),
             "Missing appchain settings."
         );
-        self.assert_light_client_initialized();
         self.appchain_state = AppchainState::Active;
         self.sync_state_to_registry();
-    }
-    //
-    fn initialize_beefy_light_client(&mut self, initial_public_keys: Vec<String>) {
-        self.assert_owner();
-        assert_eq!(
-            self.appchain_state,
-            AppchainState::Booting,
-            "Appchain state must be 'booting'."
-        );
-        assert!(
-            self.beefy_light_client_state.is_none(),
-            "Beefy light client has already been initialized."
-        );
-        self.beefy_light_client_state
-            .set(&beefy_light_client::new(initial_public_keys));
     }
 }

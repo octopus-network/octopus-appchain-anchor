@@ -503,30 +503,6 @@ impl AnchorViewer for AppchainAnchor {
             .get_by_id_in_appchain(&formatted_id.to_string())
     }
     //
-    fn get_latest_commitment_of_appchain(&self) -> Option<AppchainCommitment> {
-        if let Some(light_client) = self.beefy_light_client_state.get() {
-            if let Some(commitment) = light_client.get_latest_commitment() {
-                return Some(AppchainCommitment {
-                    block_number: commitment.block_number,
-                    validator_set_id: U64::from(commitment.validator_set_id),
-                });
-            }
-        }
-        None
-    }
-    //
-    fn get_beefy_light_client_status(&self) -> BeefyLightClientStatus {
-        if let Some(light_client) = self.beefy_light_client_state.get() {
-            if light_client.is_updating_state() {
-                BeefyLightClientStatus::UpdatingState
-            } else {
-                BeefyLightClientStatus::Ready
-            }
-        } else {
-            BeefyLightClientStatus::Uninitialized
-        }
-    }
-    //
     fn get_user_staking_histories_of(&self, account_id: AccountId) -> Vec<UserStakingHistory> {
         let staking_histories = self.staking_histories.get().unwrap();
         let user_staking_histories = self.user_staking_histories.get().unwrap();
