@@ -14,3 +14,4 @@ hex = "0.4.2"
 parity-scale-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 getrandom = { version = "0.2", features = ["custom"] }
 ed25519-dalek = { version = "1.0.1", features = ["alloc"] }
+secp256k1 = { version = "0.25", features = ["alloc"] }

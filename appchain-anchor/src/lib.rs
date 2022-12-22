@@ -47,7 +47,7 @@ use validator_set::validator_set_of_era::ValidatorSetOfEra;
 use validator_set::ValidatorSetViewer;
 
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v2.5.0";
+const ANCHOR_VERSION: &str = "v3.0.0";
 /// Constants for gas.
 const T_GAS_FOR_FT_TRANSFER: u64 = 10;
 const T_GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10;

@@ -7,6 +7,7 @@ use crate::interfaces::PermissionlessActions;
 use crate::*;
 use core::convert::TryFrom;
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
+use near_sdk::env::sha256;
 use parity_scale_codec::Decode;
 use std::ops::Add;
 use std::str::FromStr;
@@ -145,7 +146,19 @@ impl PermissionlessActions for AppchainAnchor {
         if !anchor_settings.witness_mode {
             // Check the signature
             let signature = relayer_tee_signature.expect("Missing signature of relayer TEE.");
-            assert!(signature.len() == 64);
+            let signature = secp256k1::ecdsa::Signature::from_der(&signature)
+                .expect("Invalid ecdsa signature.");
+            let anchor_settings = self.anchor_settings.get().unwrap();
+            let secp = secp256k1::Secp256k1::new();
+            let message = sha256(&encoded_messages);
+            assert!(secp
+                .verify_ecdsa(
+                    &secp256k1::Message::from_slice(&message).unwrap(),
+                    &signature,
+                    &secp256k1::PublicKey::from_slice(&anchor_settings.relayer_tee_pubkey.unwrap())
+                        .unwrap(),
+                )
+                .is_ok());
         }
         match Decode::decode(&mut &encoded_messages[..]) {
             Ok(messages) => {
@@ -492,5 +505,38 @@ impl AppchainMessageProcessingResult {
             AppchainMessageProcessingResult::Ok { nonce, .. }
             | AppchainMessageProcessingResult::Error { nonce, .. } => *nonce,
         }
+    }
+}
+
+mod test {
+    #[test]
+    fn test_verifying_ecdsa_signature() {
+        let encoded_messages = [
+            4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 161, 1, 66, 0, 0, 0, 48, 120, 100, 52, 51, 53, 57, 51,
+            99, 55, 49, 53, 102, 100, 100, 51, 49, 99, 54, 49, 49, 52, 49, 97, 98, 100, 48, 52, 97,
+            57, 57, 102, 100, 54, 56, 50, 50, 99, 56, 53, 53, 56, 56, 53, 52, 99, 99, 100, 101, 51,
+            57, 97, 53, 54, 56, 52, 101, 55, 97, 53, 54, 100, 97, 50, 55, 100, 14, 0, 0, 0, 106,
+            117, 108, 105, 97, 110, 115, 117, 110, 46, 110, 101, 97, 114, 0, 0, 100, 167, 179, 182,
+            224, 13, 0, 0, 0, 0, 0, 0, 0, 0,
+        ];
+        let signature = [
+            48, 69, 2, 33, 0, 148, 148, 138, 36, 248, 214, 201, 135, 167, 254, 115, 159, 101, 127,
+            104, 27, 245, 106, 222, 139, 252, 188, 172, 252, 155, 154, 228, 148, 129, 136, 7, 181,
+            2, 32, 88, 249, 205, 111, 220, 171, 85, 15, 4, 35, 132, 199, 255, 249, 227, 152, 253,
+            250, 152, 144, 225, 143, 35, 254, 226, 173, 173, 2, 58, 143, 188, 161,
+        ];
+        let signature =
+            secp256k1::ecdsa::Signature::from_der(&signature).expect("Invalid ecdsa signature.");
+        let pubkey_hex = "03e7eb789e168e736aadb317acc0cf7eeae531c0ddb95a25d4e4638550d2a9f49a";
+        let pubkey_bytes = hex::decode(pubkey_hex).unwrap();
+        let secp = secp256k1::Secp256k1::new();
+        let message = near_sdk::env::sha256(&encoded_messages);
+        assert!(secp
+            .verify_ecdsa(
+                &secp256k1::Message::from_slice(&message).unwrap(),
+                &signature,
+                &secp256k1::PublicKey::from_slice(&pubkey_bytes).unwrap(),
+            )
+            .is_ok());
     }
 }
