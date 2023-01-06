@@ -54,7 +54,7 @@ impl Default for AppchainSettings {
 impl ProtocolSettingsManager for AppchainAnchor {
     //
     fn change_minimum_validator_deposit(&mut self, value: U128) {
-        self.assert_owner();
+        self.assert_registry();
         let mut protocol_settings = self.protocol_settings.get().unwrap();
         assert!(
             value.0 != protocol_settings.minimum_validator_deposit.0,
