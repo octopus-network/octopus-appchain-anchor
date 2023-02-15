@@ -1,0 +1,31 @@
+name: Appchain anchor contract deployment on testnet (barnacle appchain)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+      - run: npm install -g near-cli
+      - run: rustup target add wasm32-unknown-unknown
+      - name: Build
+        run: ./build.sh
+      - run: mkdir ~/.near-credentials
+      - run: mkdir ~/.near-credentials/testnet
+      - name: Retrieve the pk of anchor contract and save it to near credentials folder
+        env:
+          BARNACLE_ANCHOR_PK: ${{ secrets.BARNACLE_ANCHOR_PK }}
+        run: echo $BARNACLE_ANCHOR_PK > ~/.near-credentials/testnet/barnacle0928.registry.test_oct.testnet.json
+      - name: Deploy anchor contract to testnet (barnacle appchain)
+        run: ./scripts/ci/deploy_testnet.sh barnacle0928
