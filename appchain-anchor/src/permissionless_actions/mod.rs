@@ -139,13 +139,14 @@ impl PermissionlessActions for AppchainAnchor {
     fn stage_and_apply_appchain_messages(
         &mut self,
         encoded_messages: Vec<u8>,
-        relayer_tee_signature: Option<Vec<u8>>,
+        verification_proxy_signature: Option<Vec<u8>>,
     ) {
         self.assert_relayer();
         let anchor_settings = self.anchor_settings.get().unwrap();
         if !anchor_settings.witness_mode {
             // Check the signature
-            let signature = relayer_tee_signature.expect("Missing signature of relayer TEE.");
+            let signature =
+                verification_proxy_signature.expect("Missing signature of verification proxy.");
             let signature = secp256k1::ecdsa::Signature::from_der(&signature)
                 .expect("Invalid ecdsa signature.");
             let anchor_settings = self.anchor_settings.get().unwrap();
@@ -155,8 +156,10 @@ impl PermissionlessActions for AppchainAnchor {
                 .verify_ecdsa(
                     &secp256k1::Message::from_slice(&message).unwrap(),
                     &signature,
-                    &secp256k1::PublicKey::from_slice(&anchor_settings.relayer_tee_pubkey.unwrap())
-                        .unwrap(),
+                    &secp256k1::PublicKey::from_slice(
+                        &anchor_settings.verification_proxy_pubkey.unwrap()
+                    )
+                    .unwrap(),
                 )
                 .is_ok());
         }
@@ -173,16 +176,28 @@ impl PermissionlessActions for AppchainAnchor {
         self.internal_process_appchain_message(None)
     }
     //
-    fn commit_appchain_challenge(&mut self, appchain_challenge: AppchainChallenge) {
-        match &appchain_challenge {
-            AppchainChallenge::EquivocationChallenge {
-                submitter_account: _,
-                proof,
-            } => {
-                assert!(proof.is_valid(), "Invalid equivocation challenge data.");
-            }
-            AppchainChallenge::ConspiracyMmr { .. } => (),
-        }
+    fn commit_appchain_challenge(
+        &mut self,
+        appchain_challenge: AppchainChallenge,
+        verification_proxy_signature: Vec<u8>,
+    ) {
+        // Check the signature
+        let signature = secp256k1::ecdsa::Signature::from_der(&verification_proxy_signature)
+            .expect("Invalid ecdsa signature.");
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        let secp = secp256k1::Secp256k1::new();
+        let message = sha256(&appchain_challenge.try_to_vec().unwrap());
+        assert!(secp
+            .verify_ecdsa(
+                &secp256k1::Message::from_slice(&message).unwrap(),
+                &signature,
+                &secp256k1::PublicKey::from_slice(
+                    &anchor_settings.verification_proxy_pubkey.unwrap()
+                )
+                .unwrap(),
+            )
+            .is_ok());
+        // Store challenge data
         let mut appchain_challenges = self.appchain_challenges.get().unwrap();
         appchain_challenges.append(&mut appchain_challenge.clone());
         self.appchain_challenges.set(&appchain_challenges);

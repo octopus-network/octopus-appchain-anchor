@@ -144,7 +144,7 @@ impl AnchorSettings {
         Self {
             token_price_maintainer_account: old_version.token_price_maintainer_account,
             relayer_account: old_version.relayer_account,
-            relayer_tee_pubkey: None,
+            verification_proxy_pubkey: None,
             witness_mode: old_version.beefy_light_client_witness_mode,
         }
     }

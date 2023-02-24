@@ -110,7 +110,7 @@ pub struct AppchainSettings {
 pub struct AnchorSettings {
     pub token_price_maintainer_account: Option<AccountId>,
     pub relayer_account: Option<AccountId>,
-    pub relayer_tee_pubkey: Option<Vec<u8>>,
+    pub verification_proxy_pubkey: Option<Vec<u8>>,
     pub witness_mode: bool,
 }
 

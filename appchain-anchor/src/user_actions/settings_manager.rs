@@ -34,7 +34,7 @@ impl Default for AnchorSettings {
         Self {
             token_price_maintainer_account: None,
             relayer_account: None,
-            relayer_tee_pubkey: None,
+            verification_proxy_pubkey: None,
             witness_mode: false,
         }
     }
@@ -359,11 +359,11 @@ impl AnchorSettingsManager for AppchainAnchor {
         self.anchor_settings.set(&anchor_settings);
     }
     //
-    fn set_relayer_tee_pubkey(&mut self, pubkey: Vec<u8>) {
+    fn set_verification_proxy_pubkey(&mut self, pubkey: Vec<u8>) {
         self.assert_owner();
         assert!(pubkey.len() == 32, "Invalid length of pubkey.");
         let mut anchor_settings = self.anchor_settings.get().unwrap();
-        anchor_settings.relayer_tee_pubkey = Some(pubkey);
+        anchor_settings.verification_proxy_pubkey = Some(pubkey);
         self.anchor_settings.set(&anchor_settings);
     }
     //

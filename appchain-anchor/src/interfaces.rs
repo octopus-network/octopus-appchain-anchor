@@ -206,7 +206,11 @@ pub trait PermissionlessActions {
     ///
     fn process_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult;
     ///
-    fn commit_appchain_challenge(&mut self, appchain_challenge: AppchainChallenge);
+    fn commit_appchain_challenge(
+        &mut self,
+        appchain_challenge: AppchainChallenge,
+        verification_proxy_signature: Vec<u8>,
+    );
 }
 
 pub trait ProtocolSettingsManager {
@@ -265,7 +269,7 @@ pub trait AnchorSettingsManager {
     ///
     fn set_relayer_account(&mut self, account_id: AccountId);
     ///
-    fn set_relayer_tee_pubkey(&mut self, pubkey: Vec<u8>);
+    fn set_verification_proxy_pubkey(&mut self, pubkey: Vec<u8>);
     ///
     fn turn_on_witness_mode(&mut self);
     ///
