@@ -147,7 +147,7 @@ impl PermissionlessActions for AppchainAnchor {
             // Check the signature
             let signature =
                 verification_proxy_signature.expect("Missing signature of verification proxy.");
-            let signature = secp256k1::ecdsa::Signature::from_der(&signature)
+            let signature = secp256k1::ecdsa::Signature::from_compact(&signature)
                 .expect("Invalid ecdsa signature.");
             let anchor_settings = self.anchor_settings.get().unwrap();
             let secp = secp256k1::Secp256k1::new();

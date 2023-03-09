@@ -361,7 +361,7 @@ impl AnchorSettingsManager for AppchainAnchor {
     //
     fn set_verification_proxy_pubkey(&mut self, pubkey: Vec<u8>) {
         self.assert_owner();
-        assert!(pubkey.len() == 32, "Invalid length of pubkey.");
+        assert!(pubkey.len() == 33, "Invalid length of pubkey.");
         let mut anchor_settings = self.anchor_settings.get().unwrap();
         anchor_settings.verification_proxy_pubkey = Some(pubkey);
         self.anchor_settings.set(&anchor_settings);
