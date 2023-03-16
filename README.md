@@ -27,7 +27,7 @@ Contents
   * [Stage appchain challenges](#stage-appchain-challenges)
 * [Initial deployment](#initial-deployment)
 * [Auditing](#auditing)
-* [Testing](#testing)
+* [Building and testing](#building-and-testing)
 
 ## Terminology
 
@@ -321,7 +321,9 @@ This contract has completed auditing by:
 * [Halborn](https://halborn.com) - The report is [here](/auditing/Octopus_Network_Anchor_NEAR_Smart_Contract_Security_Audit_Report.pdf).
 * [Blocksec](https://blocksec.com) - The report is [here](/auditing/Appchain_Anchor_Audit_Report_Blocksec.pdf).
 
-## Testing
+## Building and testing
+
+It is recommended to use [contract-builder](contract-builder/README.md) to build this contract.
 
 To run all tests:
 
