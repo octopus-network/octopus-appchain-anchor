@@ -83,7 +83,6 @@ impl AppchainAnchor {
         self.staking_histories.remove();
         self.appchain_notification_histories.remove();
         self.permissionless_actions_status.remove();
-        self.beefy_light_client_state.remove();
         self.reward_distribution_records.remove();
         self.user_staking_histories.remove();
         self.appchain_messages.remove();
@@ -417,10 +416,6 @@ impl AppchainAnchor {
                     max_nonce_of_staged_appchain_messages: 0,
                     latest_applied_appchain_message_nonce: 0,
                 }),
-            ),
-            beefy_light_client_state: LazyOption::new(
-                StorageKey::BeefyLightClientState.into_bytes(),
-                None,
             ),
             reward_distribution_records: LazyOption::new(
                 StorageKey::RewardDistributionRecords.into_bytes(),
