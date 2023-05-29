@@ -314,7 +314,7 @@ impl AppchainAnchor {
                                 appchain_message_nonce,
                             ),
                     );
-                processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER));
+                processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_NFT_TRANSFER));
                 processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION));
                 MultiTxsOperationProcessingResult::Ok
             } else {
@@ -353,7 +353,7 @@ impl AppchainAnchor {
                                 appchain_message_nonce,
                             ),
                     );
-                processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_FT_TRANSFER));
+                processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_MINT_NFT));
                 processing_context.add_prepaid_gas(Gas::ONE_TERA.mul(T_GAS_FOR_RESOLVER_FUNCTION));
                 MultiTxsOperationProcessingResult::Ok
             }

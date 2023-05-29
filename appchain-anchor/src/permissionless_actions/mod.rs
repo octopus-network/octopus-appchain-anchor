@@ -5,9 +5,9 @@ use crate::appchain_messages::Offender;
 use crate::assets::native_near_token::CONTRACT_ACCOUNT_FOR_NATIVE_NEAR_TOKEN;
 use crate::interfaces::PermissionlessActions;
 use crate::*;
-use codec::Decode;
 use core::convert::{TryFrom, TryInto};
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
+use parity_scale_codec::Decode;
 use std::ops::Add;
 use std::str::FromStr;
 
@@ -20,12 +20,14 @@ pub enum AppchainEvent {
         owner_id_in_appchain: String,
         receiver_id_in_near: AccountId,
         amount: U128,
+        fee: U128,
     },
     /// The fact that a certain amount of appchain native token has been locked in the appchain.
     NativeTokenLocked {
         owner_id_in_appchain: String,
         receiver_id_in_near: AccountId,
         amount: U128,
+        fee: U128,
     },
     /// The fact that the era switch is planed in the appchain.
     EraSwitchPlaned { era_number: u32 },
@@ -43,12 +45,7 @@ pub enum AppchainEvent {
         class_id: String,
         instance_id: String,
         token_metadata: TokenMetadata,
-    },
-    /// The fact that a certain amount of bridged native NEAR token has been burnt in the appchain.
-    NativeNearTokenBurnt {
-        owner_id_in_appchain: String,
-        receiver_id_in_near: AccountId,
-        amount: U128,
+        fee: U128,
     },
 }
 
@@ -238,69 +235,7 @@ impl PermissionlessActions for AppchainAnchor {
     }
     //
     fn process_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult {
-        let processing_status = self.permissionless_actions_status.get().unwrap();
-        let appchain_messages = self.appchain_messages.get().unwrap();
-        let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
-        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        let mut result = MultiTxsOperationProcessingResult::Ok;
-        while processing_context.used_gas_of_current_function_call()
-            < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
-            && env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES)
-        {
-            if let Some(processing_nonce) = processing_context.processing_nonce() {
-                if appchain_messages
-                    .get_processing_result(&processing_nonce)
-                    .is_some()
-                {
-                    processing_context.clear_processing_nonce();
-                    processing_context.set_latest_applied_nonce(processing_nonce);
-                    result = MultiTxsOperationProcessingResult::Ok;
-                    continue;
-                }
-                if let Some(appchain_message) = appchain_messages.get_message(&processing_nonce) {
-                    result = self.internal_apply_appchain_message(
-                        &mut processing_context,
-                        &mut validator_set_histories,
-                        &appchain_message,
-                    );
-                    match result {
-                        MultiTxsOperationProcessingResult::Ok => {
-                            processing_context.clear_processing_nonce();
-                            processing_context.set_latest_applied_nonce(processing_nonce);
-                        }
-                        MultiTxsOperationProcessingResult::NeedMoreGas => (),
-                        MultiTxsOperationProcessingResult::Error(..) => {
-                            // The loop should continue even if it fails to apply a certain message
-                            processing_context.clear_processing_nonce();
-                            processing_context.set_latest_applied_nonce(processing_nonce);
-                            result = MultiTxsOperationProcessingResult::Ok;
-                        }
-                    }
-                } else {
-                    result = MultiTxsOperationProcessingResult::Error(format!(
-                        "Missing appchain message with nonce '{}'.",
-                        processing_nonce
-                    ));
-                    break;
-                }
-            } else {
-                if processing_context.latest_applied_nonce() < processing_context.max_nonce() {
-                    processing_context
-                        .set_processing_nonce(processing_context.latest_applied_nonce() + 1);
-                } else {
-                    break;
-                }
-            }
-        }
-        self.permissionless_actions_status
-            .set(processing_context.processing_status());
-        self.validator_set_histories.set(&validator_set_histories);
-        if result.is_ok()
-            && processing_context.latest_applied_nonce() < processing_context.max_nonce()
-        {
-            result = MultiTxsOperationProcessingResult::NeedMoreGas;
-        }
-        result
+        self.internal_process_appchain_message(None)
     }
     //
     fn commit_appchain_challenge(&mut self, appchain_challenge: AppchainChallenge) {
@@ -328,59 +263,141 @@ impl PermissionlessActions for AppchainAnchor {
         header: Vec<u8>,
         mmr_leaf_for_header: Vec<u8>,
         mmr_proof_for_header: Vec<u8>,
-    ) {
-        self.assert_light_client_is_ready();
-        let mut light_client = self.beefy_light_client_state.get().unwrap();
-        match light_client.update_state(
-            &signed_commitment,
-            &validator_proofs
-                .iter()
-                .map(|proof| beefy_light_client::ValidatorMerkleProof {
-                    proof: proof.proof.clone(),
-                    number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
-                    leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
-                    leaf: proof.leaf.clone(),
-                })
-                .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
-            &mmr_leaf_for_mmr_root,
-            &mmr_proof_for_mmr_root,
-        ) {
-            Ok(()) => {
-                self.beefy_light_client_state.set(&light_client);
-            }
-            Err(beefy_light_client::Error::CommitmentAlreadyUpdated) => {}
-            Err(err) => panic!("Failed to update state of beefy light client: {:?}", err),
+    ) -> MultiTxsOperationProcessingResult {
+        if encoded_messages.len() == 0 {
+            return MultiTxsOperationProcessingResult::Error(format!(
+                "There is no message data to be processed."
+            ));
         }
-        if let Err(err) = light_client.verify_solochain_messages(
-            &encoded_messages,
-            &header,
-            &mmr_leaf_for_header,
-            &mmr_proof_for_header,
-        ) {
-            panic!("Failed in verifying appchain messages: {:?}", err);
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        if anchor_settings.beefy_light_client_witness_mode {
+            self.assert_relayer();
+        } else {
+            self.assert_light_client_is_ready();
+            let mut light_client = self.beefy_light_client_state.get().unwrap();
+            match light_client.update_state(
+                &signed_commitment,
+                &validator_proofs
+                    .iter()
+                    .map(|proof| beefy_light_client::ValidatorMerkleProof {
+                        proof: proof.proof.clone(),
+                        number_of_leaves: proof.number_of_leaves.try_into().unwrap_or_default(),
+                        leaf_index: proof.leaf_index.try_into().unwrap_or_default(),
+                        leaf: proof.leaf.clone(),
+                    })
+                    .collect::<Vec<beefy_light_client::ValidatorMerkleProof>>(),
+                &mmr_leaf_for_mmr_root,
+                &mmr_proof_for_mmr_root,
+            ) {
+                Ok(()) => {
+                    self.beefy_light_client_state.set(&light_client);
+                }
+                Err(beefy_light_client::Error::CommitmentAlreadyUpdated) => {}
+                Err(err) => panic!("Failed to update state of beefy light client: {:?}", err),
+            }
+            if let Err(err) = light_client.verify_solochain_messages(
+                &encoded_messages,
+                &header,
+                &mmr_leaf_for_header,
+                &mmr_proof_for_header,
+            ) {
+                panic!("Failed in verifying appchain messages: {:?}", err);
+            }
         }
         let messages = Decode::decode(&mut &encoded_messages[..]).unwrap();
         self.internal_stage_appchain_messages(&messages);
-        let processing_status = self.permissionless_actions_status.get().unwrap();
-        let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
-        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
-        messages.iter().for_each(|raw_message| {
-            let appchain_messages = self.appchain_messages.get().unwrap();
-            if appchain_messages
-                .get_processing_result(&raw_message.nonce())
-                .is_none()
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        let result = if appchain_messages
+            .get_processing_result(&messages[0].nonce())
+            .is_some()
+        {
+            MultiTxsOperationProcessingResult::Ok
+        } else {
+            if env::prepaid_gas() - env::used_gas()
+                > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
             {
-                self.internal_apply_appchain_message(
-                    &mut processing_context,
-                    &mut validator_set_histories,
-                    &appchain_messages.get_message(&raw_message.nonce()).unwrap(),
-                );
+                self.internal_process_appchain_message(Some(messages[0].nonce()))
+            } else {
+                log!("Remained gas is not enough to process an appchain message. Please call function 'process_appchain_messages' to continue.");
+                MultiTxsOperationProcessingResult::NeedMoreGas
             }
-        });
+        };
+        if messages.len() > 1 {
+            log!("There are more appchain message(s) need to be applied. Please call function 'process_appchain_messages' to continue.");
+        }
+        result
     }
 }
 
 impl AppchainAnchor {
+    /// Process a certain `AppchainMesaage`
+    pub fn internal_process_appchain_message(
+        &mut self,
+        nonce: Option<u32>,
+    ) -> MultiTxsOperationProcessingResult {
+        let processing_status = self.permissionless_actions_status.get().unwrap();
+        let appchain_messages = self.appchain_messages.get().unwrap();
+        let mut processing_context = AppchainMessagesProcessingContext::new(processing_status);
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        let mut result = MultiTxsOperationProcessingResult::Ok;
+        if processing_context.processing_nonce().is_none() {
+            if let Some(nonce) = nonce {
+                processing_context.set_processing_nonce(nonce);
+            } else if processing_context.latest_applied_nonce() < processing_context.max_nonce() {
+                processing_context
+                    .set_processing_nonce(processing_context.latest_applied_nonce() + 1);
+            }
+        }
+        if let Some(processing_nonce) = processing_context.processing_nonce() {
+            if appchain_messages
+                .get_processing_result(&processing_nonce)
+                .is_none()
+            {
+                if let Some(appchain_message) = appchain_messages.get_message(&processing_nonce) {
+                    let start_gas = env::used_gas();
+                    result = self.internal_apply_appchain_message(
+                        &mut processing_context,
+                        &mut validator_set_histories,
+                        &appchain_message,
+                    );
+                    log!(
+                        "Gas used for appchain message '{}': {}",
+                        appchain_message.nonce,
+                        (env::used_gas() - start_gas).0
+                    );
+                    match result {
+                        MultiTxsOperationProcessingResult::Ok => {
+                            processing_context.clear_processing_nonce();
+                            processing_context.set_latest_applied_nonce(processing_nonce);
+                        }
+                        MultiTxsOperationProcessingResult::NeedMoreGas => (),
+                        MultiTxsOperationProcessingResult::Error(..) => {
+                            // The loop should continue even if it fails to apply a certain message
+                            processing_context.clear_processing_nonce();
+                            processing_context.set_latest_applied_nonce(processing_nonce);
+                            result = MultiTxsOperationProcessingResult::Ok;
+                        }
+                    }
+                } else {
+                    result = MultiTxsOperationProcessingResult::Error(format!(
+                        "Missing appchain message with nonce '{}'.",
+                        processing_nonce
+                    ));
+                }
+            } else {
+                processing_context.clear_processing_nonce();
+            }
+        }
+        self.permissionless_actions_status
+            .set(processing_context.processing_status());
+        self.validator_set_histories.set(&validator_set_histories);
+        if result.is_ok()
+            && processing_context.latest_applied_nonce() < processing_context.max_nonce()
+        {
+            result = MultiTxsOperationProcessingResult::NeedMoreGas;
+        }
+        result
+    }
     /// Apply a certain `AppchainMessage`
     pub fn internal_apply_appchain_message(
         &mut self,
@@ -394,6 +411,7 @@ impl AppchainAnchor {
                 owner_id_in_appchain,
                 receiver_id_in_near,
                 amount,
+                fee,
             } => {
                 if self.asset_transfer_is_paused {
                     let message = format!("Asset transfer is now paused.");
@@ -428,19 +446,31 @@ impl AppchainAnchor {
                     self.record_appchain_message_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
-                self.internal_unlock_near_fungible_token(
+                let mut result = self.internal_unlock_near_fungible_token(
                     owner_id_in_appchain,
                     &contract_account_id.unwrap(),
                     receiver_id_in_near,
                     amount,
                     appchain_message.nonce,
                     processing_context,
-                )
+                );
+                if result.is_ok() {
+                    let anchor_settings = self.anchor_settings.get().unwrap();
+                    result = self.internal_mint_wrapped_appchain_token(
+                        Some(owner_id_in_appchain),
+                        &anchor_settings.relayer_account.unwrap(),
+                        fee,
+                        appchain_message.nonce,
+                        processing_context,
+                    );
+                }
+                result
             }
             AppchainEvent::NativeTokenLocked {
                 owner_id_in_appchain,
                 receiver_id_in_near,
                 amount,
+                fee,
             } => {
                 if self.asset_transfer_is_paused {
                     let message = format!("Asset transfer is now paused.");
@@ -465,13 +495,24 @@ impl AppchainAnchor {
                     self.record_appchain_message_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
-                self.internal_mint_wrapped_appchain_token(
+                let mut result = self.internal_mint_wrapped_appchain_token(
                     Some(owner_id_in_appchain),
                     receiver_id_in_near,
                     amount,
                     appchain_message.nonce,
                     processing_context,
-                )
+                );
+                if result.is_ok() {
+                    let anchor_settings = self.anchor_settings.get().unwrap();
+                    result = self.internal_mint_wrapped_appchain_token(
+                        Some(owner_id_in_appchain),
+                        &anchor_settings.relayer_account.unwrap(),
+                        fee,
+                        appchain_message.nonce,
+                        processing_context,
+                    );
+                }
+                result
             }
             AppchainEvent::EraSwitchPlaned { era_number } => {
                 if let Some(era_number) = processing_context.switching_era_number() {
@@ -525,6 +566,7 @@ impl AppchainAnchor {
                 class_id,
                 instance_id,
                 token_metadata,
+                fee,
             } => {
                 if self.asset_transfer_is_paused {
                     let message = format!("Asset transfer is now paused.");
@@ -535,7 +577,7 @@ impl AppchainAnchor {
                     self.record_appchain_message_processing_result(&result);
                     return MultiTxsOperationProcessingResult::Error(message);
                 }
-                self.internal_process_locked_nft_in_appchain(
+                let mut result = self.internal_process_locked_nft_in_appchain(
                     processing_context,
                     appchain_message.nonce,
                     owner_id_in_appchain,
@@ -543,35 +585,17 @@ impl AppchainAnchor {
                     class_id,
                     instance_id,
                     token_metadata,
-                )
-            }
-            AppchainEvent::NativeNearTokenBurnt {
-                owner_id_in_appchain: _,
-                receiver_id_in_near,
-                amount,
-            } => {
-                if self.asset_transfer_is_paused {
-                    let message = format!("Asset transfer is now paused.");
-                    let result = AppchainMessageProcessingResult::Error {
-                        nonce: appchain_message.nonce,
-                        message: message.clone(),
-                    };
-                    self.record_appchain_message_processing_result(&result);
-                    return MultiTxsOperationProcessingResult::Error(message);
+                );
+                if result.is_ok() {
+                    let anchor_settings = self.anchor_settings.get().unwrap();
+                    result = self.internal_mint_wrapped_appchain_token(
+                        Some(owner_id_in_appchain),
+                        &anchor_settings.relayer_account.unwrap(),
+                        fee,
+                        appchain_message.nonce,
+                        processing_context,
+                    );
                 }
-                let mut native_near_token = self.native_near_token.get().unwrap();
-                if native_near_token.bridging_state.eq(&BridgingState::Closed) {
-                    let message = format!("Bridging for native NEAR token is now closed.");
-                    let result = AppchainMessageProcessingResult::Error {
-                        nonce: appchain_message.nonce,
-                        message: message.clone(),
-                    };
-                    self.record_appchain_message_processing_result(&result);
-                    return MultiTxsOperationProcessingResult::Error(message);
-                }
-                let result =
-                    native_near_token.unlock_near(receiver_id_in_near, amount, processing_context);
-                self.native_near_token.set(&native_near_token);
                 result
             }
         }

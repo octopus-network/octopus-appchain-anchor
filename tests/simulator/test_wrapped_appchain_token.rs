@@ -34,13 +34,13 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     //
     // Mint wrapped appchain token for user1 (error)
     //
-    let user1_wat_balance =
-        common::get_ft_balance_of(&worker, &users[1], &wrapped_appchain_token).await?;
+    let user1_wat_balance = common::get_ft_balance_of(&users[1], &wrapped_appchain_token).await?;
     appchain_message_nonce += 1;
     let payload = LockPayload {
         sender: user4_id_in_appchain.clone(),
         receiver_id: AccountId::from_str("unknown.testnet").unwrap(),
         amount: total_supply / 10,
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -49,8 +49,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     };
     let mut raw_messages = Vec::new();
     raw_messages.push(raw_message);
-    permissionless_actions::verify_and_stage_appchain_messages(
-        &worker,
+    assert!(permissionless_actions::verify_and_stage_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
@@ -59,13 +58,14 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         Vec::new(),
     )
     .await
-    .expect("Failed to call 'verify_and_stage_appchain_messages'");
-    common::complex_actions::process_appchain_messages(&worker, &users[4], &anchor).await?;
-    common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
+    .unwrap()
+    .is_success());
+    common::complex_actions::process_appchain_messages(&users[4], &anchor).await;
+    common::complex_viewer::print_appchain_messages(&anchor).await;
+    common::complex_viewer::print_appchain_messages_processing_results(&anchor).await;
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
     assert_eq!(
-        common::get_ft_balance_of(&worker, &users[1], &wrapped_appchain_token)
+        common::get_ft_balance_of(&users[1], &wrapped_appchain_token)
             .await?
             .0,
         user1_wat_balance.0
@@ -74,22 +74,21 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     // Burn wrapped appchain token from user0
     //
     let result = wrapped_appchain_token_manager::burn_wrapped_appchain_token(
-        &worker,
         &users[0],
         &anchor,
         user0_id_in_appchain,
         total_supply / 2 - common::to_actual_amount(50000, 18),
     )
-    .await?;
+    .await
+    .expect("Failed to call 'burn_wrapped_appchain_token'");
     println!("Result of 'burn_wrapped_appchain_token': {:?}", result);
     assert!(result.is_success());
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
-    common::complex_viewer::print_wrapped_appchain_token_info(&worker, &anchor).await?;
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
+    common::complex_viewer::print_wrapped_appchain_token_info(&anchor).await;
     //
     // Mint wrapped appchain token for user1
     //
-    let user1_wat_balance =
-        common::get_ft_balance_of(&worker, &users[1], &wrapped_appchain_token).await?;
+    let user1_wat_balance = common::get_ft_balance_of(&users[1], &wrapped_appchain_token).await?;
     let mut raw_messages = Vec::new();
     //
     appchain_message_nonce += 1;
@@ -97,6 +96,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(60, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -110,6 +110,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(40, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -132,6 +133,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(70, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -145,6 +147,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(30, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -158,6 +161,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(45, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -171,6 +175,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(45, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -184,6 +189,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(45, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -197,6 +203,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(45, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -223,6 +230,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(45, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -236,6 +244,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(45, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -249,6 +258,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         sender: user4_id_in_appchain.clone(),
         receiver_id: users[1].id().to_string().parse().unwrap(),
         amount: common::to_actual_amount(45, 18),
+        fee: common::to_actual_amount(1, 18),
     };
     let raw_message = RawMessage {
         nonce: appchain_message_nonce as u64,
@@ -257,8 +267,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     };
     raw_messages.push(raw_message);
     //
-    permissionless_actions::verify_and_stage_appchain_messages(
-        &worker,
+    assert!(permissionless_actions::verify_and_stage_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
@@ -267,14 +276,15 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         Vec::new(),
     )
     .await
-    .expect("Failed to call 'verify_and_stage_appchain_messages'");
-    common::complex_actions::process_appchain_messages(&worker, &users[3], &anchor).await?;
-    common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_notifications(&worker, &anchor).await?;
-    common::complex_viewer::print_wrapped_appchain_token_info(&worker, &anchor).await?;
+    .unwrap()
+    .is_success());
+    common::complex_actions::process_appchain_messages(&users[3], &anchor).await;
+    common::complex_viewer::print_appchain_messages(&anchor).await;
+    common::complex_viewer::print_appchain_messages_processing_results(&anchor).await;
+    common::complex_viewer::print_appchain_notifications(&anchor).await;
+    common::complex_viewer::print_wrapped_appchain_token_info(&anchor).await;
     assert_eq!(
-        common::get_ft_balance_of(&worker, &users[1], &wrapped_appchain_token)
+        common::get_ft_balance_of(&users[1], &wrapped_appchain_token)
             .await?
             .0,
         user1_wat_balance.0 + common::to_actual_amount(515, 18)
@@ -341,8 +351,7 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
     };
     raw_messages.push(raw_message);
     //
-    permissionless_actions::verify_and_stage_appchain_messages(
-        &worker,
+    assert!(permissionless_actions::verify_and_stage_appchain_messages(
         &users[5],
         &anchor,
         raw_messages.encode(),
@@ -351,9 +360,10 @@ async fn test_wrapped_appchain_token_bridging() -> anyhow::Result<()> {
         Vec::new(),
     )
     .await
-    .expect("Failed to call 'verify_and_stage_appchain_messages'");
-    common::complex_actions::process_appchain_messages(&worker, &users[3], &anchor).await?;
-    common::complex_viewer::print_appchain_messages(&worker, &anchor).await?;
-    common::complex_viewer::print_appchain_messages_processing_results(&worker, &anchor).await?;
+    .unwrap()
+    .is_success());
+    common::complex_actions::process_appchain_messages(&users[3], &anchor).await;
+    common::complex_viewer::print_appchain_messages(&anchor).await;
+    common::complex_viewer::print_appchain_messages_processing_results(&anchor).await;
     Ok(())
 }

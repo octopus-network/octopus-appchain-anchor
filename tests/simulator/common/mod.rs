@@ -14,64 +14,57 @@ use near_sdk::AccountId;
 use std::collections::HashMap;
 use std::str::FromStr;
 use workspaces::network::Sandbox;
-use workspaces::result::CallExecutionDetails;
-use workspaces::{Account, Contract, Worker};
+use workspaces::Worker;
+use workspaces::{error::Error, result::ExecutionFinalResult, Account, Contract};
 
 const TOTAL_SUPPLY: u128 = 100_000_000;
 
 pub async fn call_ft_transfer(
-    worker: &Worker<Sandbox>,
     sender: &Account,
     receiver: &Account,
     amount: u128,
     ft_token_contract: &Contract,
-) -> anyhow::Result<()> {
+) -> Result<ExecutionFinalResult, Error> {
     sender
-        .call(worker, ft_token_contract.id(), "ft_transfer")
+        .call(ft_token_contract.id(), "ft_transfer")
         .args_json(json!({
             "receiver_id": receiver.id(),
             "amount": U128::from(amount),
             "memo": Option::<String>::None,
-        }))?
+        }))
         .gas(20_000_000_000_000)
         .deposit(1)
         .transact()
-        .await?;
-    Ok(())
+        .await
 }
 
 pub async fn call_ft_transfer_call(
-    worker: &Worker<Sandbox>,
     sender: &Account,
     receiver: &Account,
     amount: u128,
     msg: String,
     ft_token_contract: &Contract,
-) -> anyhow::Result<CallExecutionDetails> {
+) -> Result<ExecutionFinalResult, Error> {
     sender
-        .call(worker, ft_token_contract.id(), "ft_transfer_call")
+        .call(ft_token_contract.id(), "ft_transfer_call")
         .args_json(json!({
             "receiver_id": receiver.id(),
             "amount": U128::from(amount),
             "memo": Option::<String>::None,
             "msg": msg.clone(),
-        }))?
+        }))
         .gas(300_000_000_000_000)
         .deposit(1)
         .transact()
         .await
 }
 
-pub async fn get_ft_balance_of(
-    worker: &Worker<Sandbox>,
-    user: &Account,
-    ft_contract: &Contract,
-) -> anyhow::Result<U128> {
+pub async fn get_ft_balance_of(user: &Account, ft_contract: &Contract) -> Result<U128, Error> {
     ft_contract
-        .call(worker, "ft_balance_of")
+        .call("ft_balance_of")
         .args_json(json!({
             "account_id": user.id()
-        }))?
+        }))
         .view()
         .await?
         .json::<U128>()
@@ -118,46 +111,59 @@ pub async fn test_normal_actions(
     // Check initial status
     //
     assert_eq!(
-        anchor_viewer::get_appchain_state(worker, &anchor).await?,
+        anchor_viewer::get_appchain_state(&anchor).await?,
         AppchainState::Booting
     );
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
         assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
     }
     //
     //
     //
-    settings_manager::set_price_of_oct_token(worker, &users[4], &anchor, 2_130_000)
+    assert!(
+        settings_manager::set_price_of_oct_token(&users[4], &anchor, 2_130_000)
+            .await
+            .unwrap()
+            .is_failure()
+    );
+    assert!(
+        wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
+            &users[4], &anchor, 110_000,
+        )
         .await
-        .expect_err("Should fail");
-    wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
-        worker, &users[4], &anchor, 110_000,
-    )
-    .await
-    .expect_err("Should fail");
-    settings_manager::set_token_price_maintainer_account(worker, &root, &anchor, &users[4])
-        .await
-        .expect("Failed in calling 'set_token_price_maintainer_account'");
+        .unwrap()
+        .is_failure()
+    );
+    assert!(
+        settings_manager::set_token_price_maintainer_account(&root, &anchor, &users[4])
+            .await
+            .unwrap()
+            .is_success()
+    );
     //
     // Initialize wrapped appchain token contract.
     //
-    wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
-        worker, &users[4], &anchor, 110,
-    )
-    .await
-    .expect("Failed in calling 'set_price_of_wrapped_appchain_token'");
-    wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
-        worker,
-        &root,
-        &anchor,
-        AccountId::from_str(format!("wrapped_appchain_token.{}", root.id()).as_str()).unwrap(),
-    )
-    .await
-    .expect("Failed in calling 'set_account_of_wrapped_appchain_token'");
+    assert!(
+        wrapped_appchain_token_manager::set_price_of_wrapped_appchain_token(
+            &users[4], &anchor, 110
+        )
+        .await
+        .unwrap()
+        .is_success()
+    );
+    assert!(
+        wrapped_appchain_token_manager::set_account_of_wrapped_appchain_token(
+            &root,
+            &anchor,
+            AccountId::from_str(format!("wrapped_appchain_token.{}", root.id()).as_str()).unwrap(),
+        )
+        .await
+        .unwrap()
+        .is_success()
+    );
     let wrapped_appchain_token = basic_actions::deploy_wrapped_appchain_token_contract(
-        worker,
         &root,
         &anchor,
         &wat_faucet.as_account(),
@@ -167,36 +173,35 @@ pub async fn test_normal_actions(
     .await
     .expect("Failed to deploy wrapped appchain token contract");
     if to_confirm_view_result {
-        complex_viewer::print_wrapped_appchain_token_info(worker, &anchor).await?;
+        complex_viewer::print_wrapped_appchain_token_info(&anchor).await;
     }
     //
-    call_ft_transfer(
-        &worker,
+    assert!(call_ft_transfer(
         &wat_faucet.as_account(),
         &users[0],
         to_actual_amount(TOTAL_SUPPLY / 2, 18),
         &wrapped_appchain_token,
     )
     .await
-    .expect("Failed to call 'ft_transfer' of wrapped appchain token contract.");
+    .unwrap()
+    .is_success());
     //
     if !with_old_anchor {
-        settings_manager::set_bonus_for_new_validator(
-            &worker,
+        assert!(settings_manager::set_bonus_for_new_validator(
             &root,
             &anchor,
-            to_actual_amount(1, 18),
+            to_actual_amount(1, 18)
         )
         .await
-        .expect("Failed to call 'set_bonus_for_new_validator'.");
+        .unwrap()
+        .is_success());
     }
     //
     // user0 register validator (error)
     //
-    let user0_balance = get_ft_balance_of(worker, &users[0], &oct_token).await?;
+    let user0_balance = get_ft_balance_of(&users[0], &oct_token).await?;
     let amount0 = to_actual_amount(4999, 18);
-    staking_actions::register_validator(
-        worker,
+    assert!(staking_actions::register_validator(
         &users[0],
         &oct_token,
         &anchor,
@@ -206,109 +211,107 @@ pub async fn test_normal_actions(
         HashMap::new(),
     )
     .await
-    .expect("Failed in calling 'register_validator'");
+    .unwrap()
+    .is_success());
     assert_eq!(
-        get_ft_balance_of(worker, &users[0], &oct_token).await?.0,
+        get_ft_balance_of(&users[0], &oct_token).await?.0,
         user0_balance.0
     );
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(anchor_status.total_stake_in_next_era.0, 0);
         assert_eq!(anchor_status.validator_count_in_next_era.0, 0);
     }
     //
     // user0 register validator
     //
-    let user0_balance = get_ft_balance_of(worker, &users[0], &oct_token).await?;
+    let user0_balance = get_ft_balance_of(&users[0], &oct_token).await?;
     let wat_faucet_balance =
-        get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token).await?;
+        get_ft_balance_of(&wat_faucet.as_account(), &wrapped_appchain_token).await?;
     let amount0 = to_actual_amount(23_000, 18);
-    staking_actions::register_validator(
-        worker,
+    assert!(staking_actions::register_validator(
         &users[0],
         &oct_token,
         &anchor,
         &user0_id_in_appchain,
         amount0,
-        true,
+        false,
         HashMap::new(),
     )
     .await
-    .expect("Failed in calling 'register_validator'");
+    .unwrap()
+    .is_success());
     assert_eq!(
-        get_ft_balance_of(worker, &users[0], &oct_token).await?.0,
+        get_ft_balance_of(&users[0], &oct_token).await?.0,
         user0_balance.0 - amount0
     );
     if !with_old_anchor {
         assert_eq!(
-            get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token)
+            get_ft_balance_of(&wat_faucet.as_account(), &wrapped_appchain_token)
                 .await?
                 .0,
             wat_faucet_balance.0
         );
     }
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(anchor_status.total_stake_in_next_era.0, amount0);
         assert_eq!(anchor_status.validator_count_in_next_era.0, 1);
         complex_viewer::print_validator_profile(
-            worker,
             &anchor,
             &users[0].id().to_string().parse().unwrap(),
             &user0_id_in_appchain,
         )
-        .await?;
+        .await;
     }
     //
     // user1 register validator
     //
-    let user1_balance = get_ft_balance_of(worker, &users[1], &oct_token).await?;
+    let user1_balance = get_ft_balance_of(&users[1], &oct_token).await?;
     let wat_faucet_balance =
-        get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token).await?;
+        get_ft_balance_of(&wat_faucet.as_account(), &wrapped_appchain_token).await?;
     let amount1 = to_actual_amount(25_000, 18);
-    staking_actions::register_validator(
-        worker,
+    assert!(staking_actions::register_validator(
         &users[1],
         &oct_token,
         &anchor,
         &user1_id_in_appchain,
         amount1,
-        false,
+        true,
         HashMap::new(),
     )
     .await
-    .expect("Failed in calling 'register_validator'");
+    .unwrap()
+    .is_success());
     assert_eq!(
-        get_ft_balance_of(worker, &users[1], &oct_token).await?.0,
+        get_ft_balance_of(&users[1], &oct_token).await?.0,
         user1_balance.0 - amount1
     );
     if !with_old_anchor {
         assert_eq!(
-            get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token)
+            get_ft_balance_of(&wat_faucet.as_account(), &wrapped_appchain_token)
                 .await?
                 .0,
             wat_faucet_balance.0
         );
     }
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
         assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
         complex_viewer::print_validator_profile(
-            worker,
             &anchor,
             &users[1].id().to_string().parse().unwrap(),
             &user1_id_in_appchain,
         )
-        .await?;
+        .await;
     }
     //
     // user2 register delegator to user0 (error)
     //
-    let user2_balance = get_ft_balance_of(worker, &users[2], &oct_token).await?;
+    let user2_balance = get_ft_balance_of(&users[2], &oct_token).await?;
     let amount2 = to_actual_amount(199, 18);
-    staking_actions::register_delegator(
-        worker,
+    assert!(staking_actions::register_delegator(
         &users[2],
         &oct_token,
         &anchor,
@@ -316,23 +319,30 @@ pub async fn test_normal_actions(
         amount2,
     )
     .await
-    .expect("Failed in calling 'register_delegator'");
+    .unwrap()
+    .is_success());
     assert_eq!(
-        get_ft_balance_of(worker, &users[2], &oct_token).await?.0,
+        get_ft_balance_of(&users[2], &oct_token).await?.0,
         user2_balance.0
     );
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(anchor_status.total_stake_in_next_era.0, amount0 + amount1);
         assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
     }
     //
+    // user1 enable delegation
+    //
+    assert!(validator_actions::enable_delegation(&users[0], &anchor)
+        .await
+        .unwrap()
+        .is_success());
+    //
     // user2 register delegator to user0
     //
-    let user2_balance = get_ft_balance_of(worker, &users[2], &oct_token).await?;
+    let user2_balance = get_ft_balance_of(&users[2], &oct_token).await?;
     let amount2_0 = to_actual_amount(1000, 18);
-    staking_actions::register_delegator(
-        worker,
+    assert!(staking_actions::register_delegator(
         &users[2],
         &oct_token,
         &anchor,
@@ -340,13 +350,14 @@ pub async fn test_normal_actions(
         amount2_0,
     )
     .await
-    .expect("Failed in calling 'register_delegator'");
+    .unwrap()
+    .is_success());
     assert_eq!(
-        get_ft_balance_of(worker, &users[2], &oct_token).await?.0,
+        get_ft_balance_of(&users[2], &oct_token).await?.0,
         user2_balance.0 - amount2_0
     );
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(
             anchor_status.total_stake_in_next_era.0,
             amount0 + amount1 + amount2_0
@@ -354,12 +365,18 @@ pub async fn test_normal_actions(
         assert_eq!(anchor_status.validator_count_in_next_era.0, 2);
     }
     //
+    // user1 disable delegation
+    //
+    assert!(validator_actions::disable_delegation(&users[1], &anchor)
+        .await
+        .unwrap()
+        .is_success());
+    //
     // user2 register delegator to user1 (error)
     //
-    let user2_balance = get_ft_balance_of(worker, &users[2], &oct_token).await?;
+    let user2_balance = get_ft_balance_of(&users[2], &oct_token).await?;
     let amount2_1 = to_actual_amount(1000, 18);
-    staking_actions::register_delegator(
-        worker,
+    assert!(staking_actions::register_delegator(
         &users[2],
         &oct_token,
         &anchor,
@@ -367,13 +384,14 @@ pub async fn test_normal_actions(
         amount2_1,
     )
     .await
-    .expect("Failed in calling 'register_delegator'");
+    .unwrap()
+    .is_success());
     assert_eq!(
-        get_ft_balance_of(worker, &users[2], &oct_token).await?.0,
+        get_ft_balance_of(&users[2], &oct_token).await?.0,
         user2_balance.0
     );
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(
             anchor_status.total_stake_in_next_era.0,
             amount0 + amount1 + amount2_0
@@ -383,10 +401,9 @@ pub async fn test_normal_actions(
     //
     // user3 register delegator to user0
     //
-    let user3_balance = get_ft_balance_of(worker, &users[3], &oct_token).await?;
+    let user3_balance = get_ft_balance_of(&users[3], &oct_token).await?;
     let amount3_0 = to_actual_amount(2000, 18);
-    staking_actions::register_delegator(
-        worker,
+    assert!(staking_actions::register_delegator(
         &users[3],
         &oct_token,
         &anchor,
@@ -394,13 +411,14 @@ pub async fn test_normal_actions(
         amount3_0,
     )
     .await
-    .expect("Failed in calling 'register_delegator'");
+    .unwrap()
+    .is_success());
     assert_eq!(
-        get_ft_balance_of(worker, &users[3], &oct_token).await?.0,
+        get_ft_balance_of(&users[3], &oct_token).await?.0,
         user3_balance.0 - amount3_0
     );
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(
             anchor_status.total_stake_in_next_era.0,
             amount0 + amount1 + amount2_0 + amount3_0
@@ -410,17 +428,20 @@ pub async fn test_normal_actions(
     //
     // user0 increase stake
     //
-    let user0_balance = get_ft_balance_of(worker, &users[0], &oct_token).await?;
+    let user0_balance = get_ft_balance_of(&users[0], &oct_token).await?;
     let amount0_p = to_actual_amount(1_200, 18);
-    staking_actions::increase_stake(worker, &users[0], &oct_token, &anchor, amount0_p)
-        .await
-        .expect("Failed in calling 'increase_stake'");
+    assert!(
+        staking_actions::increase_stake(&users[0], &oct_token, &anchor, amount0_p)
+            .await
+            .unwrap()
+            .is_success()
+    );
     assert_eq!(
-        get_ft_balance_of(worker, &users[0], &oct_token).await?.0,
+        get_ft_balance_of(&users[0], &oct_token).await?.0,
         user0_balance.0 - amount0_p
     );
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(
             anchor_status.total_stake_in_next_era.0,
             amount0 + amount1 + amount2_0 + amount3_0 + amount0_p
@@ -430,10 +451,9 @@ pub async fn test_normal_actions(
     //
     // user2 increase delegation to user0
     //
-    let user2_balance = get_ft_balance_of(worker, &users[2], &oct_token).await?;
+    let user2_balance = get_ft_balance_of(&users[2], &oct_token).await?;
     let amount2_0_p = to_actual_amount(500, 18);
-    staking_actions::increase_delegation(
-        worker,
+    assert!(staking_actions::increase_delegation(
         &users[2],
         &oct_token,
         &anchor,
@@ -441,13 +461,14 @@ pub async fn test_normal_actions(
         amount2_0_p,
     )
     .await
-    .expect("Failed in calling 'increase_delegation'");
+    .unwrap()
+    .is_success());
     assert_eq!(
-        get_ft_balance_of(worker, &users[2], &oct_token).await?.0,
+        get_ft_balance_of(&users[2], &oct_token).await?.0,
         user2_balance.0 - amount2_0_p
     );
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(
             anchor_status.total_stake_in_next_era.0,
             amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p
@@ -458,52 +479,71 @@ pub async fn test_normal_actions(
     // Print anchor status and staking histories
     //
     if to_confirm_view_result {
-        complex_viewer::print_anchor_status(worker, &anchor).await?;
-        complex_viewer::print_wrapped_appchain_token_info(worker, &anchor).await?;
-        complex_viewer::print_staking_histories(worker, &anchor).await?;
-        complex_viewer::print_validator_list_of(worker, &anchor, None).await?;
+        complex_viewer::print_anchor_status(&anchor).await;
+        complex_viewer::print_wrapped_appchain_token_info(&anchor).await;
+        complex_viewer::print_staking_histories(&anchor).await;
+        complex_viewer::print_validator_list_of(&anchor, None).await;
     }
     //
     // Try generate_initial_validator_set
     //
-    lifecycle_actions::generate_initial_validator_set(worker, &root, &anchor)
+    lifecycle_actions::generate_initial_validator_set(&root, &anchor)
         .await
-        .expect_err("Should fail");
+        .unwrap()
+        .is_failure();
     //
     // Set appchain settings and try generate_initial_validator_set
     //
-    settings_manager::set_rpc_endpoint(worker, &root, &anchor, "rpc_endpoint".to_string())
+    assert!(
+        settings_manager::set_rpc_endpoint(&root, &anchor, "rpc_endpoint".to_string())
+            .await
+            .unwrap()
+            .is_success()
+    );
+    assert!(
+        settings_manager::set_subql_endpoint(&root, &anchor, "subql_endpoint".to_string())
+            .await
+            .unwrap()
+            .is_success()
+    );
+    assert!(
+        settings_manager::set_era_reward(&root, &anchor, to_actual_amount(10, 18))
+            .await
+            .unwrap()
+            .is_success()
+    );
+    lifecycle_actions::generate_initial_validator_set(&root, &anchor)
         .await
-        .expect("Failed in calling 'set_rpc_endpoint'");
-    settings_manager::set_subql_endpoint(worker, &root, &anchor, "subql_endpoint".to_string())
-        .await
-        .expect("Failed in calling 'set_subql_endpoint'");
-    settings_manager::set_era_reward(worker, &root, &anchor, to_actual_amount(10, 18))
-        .await
-        .expect("Failed in calling 'set_era_reward'");
-    lifecycle_actions::generate_initial_validator_set(worker, &root, &anchor)
-        .await
-        .expect_err("Should fail");
+        .unwrap()
+        .is_failure();
     //
     // Change protocol settings and try generate_initial_validator_set
     //
-    settings_manager::change_minimum_validator_count(worker, &root, &anchor, 1)
+    assert!(
+        settings_manager::change_minimum_validator_count(&root, &anchor, 1)
+            .await
+            .unwrap()
+            .is_success()
+    );
+    lifecycle_actions::generate_initial_validator_set(&root, &anchor)
         .await
-        .expect("Failed in calling 'change_minimum_validator_count'");
-    lifecycle_actions::generate_initial_validator_set(worker, &root, &anchor)
-        .await
-        .expect_err("Should fail");
+        .unwrap()
+        .is_failure();
     //
     // Change price of OCT token and try generate_initial_validator_set
     //
-    settings_manager::set_price_of_oct_token(worker, &users[4], &anchor, 2_130_000)
+    assert!(
+        settings_manager::set_price_of_oct_token(&users[4], &anchor, 2_130_000)
+            .await
+            .unwrap()
+            .is_success()
+    );
+    lifecycle_actions::generate_initial_validator_set(&root, &anchor)
         .await
-        .expect("Failed in calling 'set_price_of_oct_token'");
-    lifecycle_actions::generate_initial_validator_set(worker, &root, &anchor)
-        .await
-        .expect("Failed in calling 'generate_initial_validator_set'");
+        .unwrap()
+        .is_failure();
     assert_eq!(
-        anchor_viewer::get_appchain_state(worker, &anchor).await?,
+        anchor_viewer::get_appchain_state(&anchor).await?,
         AppchainState::Booting
     );
     //
@@ -511,86 +551,99 @@ pub async fn test_normal_actions(
     //
     let appchain_message_nonce: u32 = 0;
     if to_confirm_view_result {
-        complex_viewer::print_anchor_status(worker, &anchor).await?;
-        complex_viewer::print_staking_histories(worker, &anchor).await?;
-        complex_viewer::print_validator_set_info_of(worker, &anchor, U64::from(0)).await?;
-        complex_viewer::print_validator_list_of(worker, &anchor, Some(0)).await?;
-        complex_viewer::print_delegator_list_of(worker, &anchor, 0, &users[0]).await?;
+        complex_viewer::print_anchor_status(&anchor).await;
+        complex_viewer::print_staking_histories(&anchor).await;
+        complex_viewer::print_validator_set_info_of(&anchor, U64::from(0)).await;
+        complex_viewer::print_validator_list_of(&anchor, Some(0)).await;
+        complex_viewer::print_delegator_list_of(&anchor, 0, &users[0]).await;
     }
     //
     // Initialize beefy light client
     //
-    lifecycle_actions::initialize_beefy_light_client(worker, &root, &anchor, initial_public_keys)
-        .await
-        .expect("Failed in calling 'initialize_beefy_light_client'");
-    settings_manager::turn_on_beefy_light_client_witness_mode(&worker, &root, &anchor)
-        .await
-        .expect("Failed in calling 'turn_on_beefy_light_client_witness_mode'");
-    settings_manager::set_relayer_account(&worker, &root, &anchor, &users[5])
-        .await
-        .expect("Failed to call 'set_relayer_account'");
+    assert!(
+        lifecycle_actions::initialize_beefy_light_client(&root, &anchor, initial_public_keys)
+            .await
+            .unwrap()
+            .is_success()
+    );
+    assert!(
+        settings_manager::turn_on_beefy_light_client_witness_mode(&root, &anchor)
+            .await
+            .unwrap()
+            .is_success()
+    );
+    assert!(
+        settings_manager::set_relayer_account(&root, &anchor, &users[5])
+            .await
+            .unwrap()
+            .is_success()
+    );
     //
     // Go live
     //
-    lifecycle_actions::go_live(worker, &root, &anchor)
+    assert!(lifecycle_actions::go_live(&root, &anchor)
         .await
-        .expect("Failed in calling 'go_live'");
+        .unwrap()
+        .is_success());
     assert_eq!(
-        anchor_viewer::get_appchain_state(worker, &anchor).await?,
+        anchor_viewer::get_appchain_state(&anchor).await?,
         AppchainState::Active
     );
     //
     // Change id in appchain and profile of user0, user1
     //
-    validator_actions::set_validator_id_in_appchain(
-        worker,
+    assert!(validator_actions::set_validator_id_in_appchain(
         &users[0],
         &anchor,
-        &user0_id_in_appchain,
+        &user0_id_in_appchain
     )
     .await
-    .expect("Failed in calling 'set_validator_id_in_appchain'");
-    validator_actions::set_validator_profile(worker, &users[0], &anchor, &user0_profile)
-        .await
-        .expect("Failed in calling 'set_validator_profile'");
+    .unwrap()
+    .is_success());
+    assert!(
+        validator_actions::set_validator_profile(&users[0], &anchor, &user0_profile)
+            .await
+            .unwrap()
+            .is_success()
+    );
     if to_confirm_view_result {
         complex_viewer::print_validator_profile(
-            worker,
             &anchor,
             &users[0].id().to_string().parse().unwrap(),
             &user0_id_in_appchain,
         )
-        .await?;
+        .await;
     }
-    validator_actions::set_validator_id_in_appchain(
-        worker,
+    assert!(validator_actions::set_validator_id_in_appchain(
         &users[1],
         &anchor,
-        &user1_id_in_appchain,
+        &user1_id_in_appchain
     )
     .await
-    .expect("Failed in calling 'set_validator_id_in_appchain'");
-    validator_actions::set_validator_profile(worker, &users[1], &anchor, &user1_profile)
-        .await
-        .expect("Failed in calling 'set_validator_profile'");
+    .unwrap()
+    .is_success());
+    assert!(
+        validator_actions::set_validator_profile(&users[1], &anchor, &user1_profile)
+            .await
+            .unwrap()
+            .is_success()
+    );
     if to_confirm_view_result {
         complex_viewer::print_validator_profile(
-            worker,
             &anchor,
             &users[1].id().to_string().parse().unwrap(),
             &user1_id_in_appchain,
         )
-        .await?;
+        .await;
     }
     //
     // user4 register validator
     //
-    let user4_balance = get_ft_balance_of(worker, &users[4], &oct_token).await?;
+    let user4_balance = get_ft_balance_of(&users[4], &oct_token).await?;
     let wat_faucet_balance =
-        get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token).await?;
+        get_ft_balance_of(&wat_faucet.as_account(), &wrapped_appchain_token).await?;
     let amount4 = to_actual_amount(26_000, 18);
-    staking_actions::register_validator(
-        worker,
+    assert!(staking_actions::register_validator(
         &users[4],
         &oct_token,
         &anchor,
@@ -600,39 +653,39 @@ pub async fn test_normal_actions(
         user4_profile,
     )
     .await
-    .expect("Failed in calling 'register_validator'");
+    .unwrap()
+    .is_success());
     assert_eq!(
-        get_ft_balance_of(worker, &users[4], &oct_token).await?.0,
+        get_ft_balance_of(&users[4], &oct_token).await?.0,
         user4_balance.0 - amount4
     );
     if !with_old_anchor {
         assert_eq!(
-            get_ft_balance_of(worker, &wat_faucet.as_account(), &wrapped_appchain_token)
+            get_ft_balance_of(&wat_faucet.as_account(), &wrapped_appchain_token)
                 .await?
                 .0,
             wat_faucet_balance.0 - to_actual_amount(1, 18)
         );
     }
     if to_confirm_view_result {
-        let anchor_status = anchor_viewer::get_anchor_status(worker, &anchor).await?;
+        let anchor_status = anchor_viewer::get_anchor_status(&anchor).await?;
         assert_eq!(
             anchor_status.total_stake_in_next_era.0,
             amount0 + amount1 + amount2_0 + amount3_0 + amount0_p + amount2_0_p + amount4
         );
         assert_eq!(anchor_status.validator_count_in_next_era.0, 3);
         complex_viewer::print_validator_profile(
-            worker,
             &anchor,
             &users[4].id().to_string().parse().unwrap(),
             &user4_id_in_appchain,
         )
-        .await?;
+        .await;
     }
     //
     // Print staking histories
     //
     if to_confirm_view_result {
-        complex_viewer::print_staking_histories(worker, &anchor).await?;
+        complex_viewer::print_staking_histories(&anchor).await;
     }
     //
     //

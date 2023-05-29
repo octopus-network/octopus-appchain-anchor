@@ -179,21 +179,14 @@ impl AppchainAnchor {
                     let validator_id = unprofitable_validators
                         .get(usize::try_from(unprofitable_validator_index.0).unwrap())
                         .unwrap();
-                    if validator_set.contains_validator(validator_id)
+                    if era_number
+                        >= u64::from(protocol_settings.maximum_allowed_unprofitable_era_count)
+                        && validator_set.contains_validator(validator_id)
                         && next_validator_set.contains_validator(validator_id)
                     {
-                        let start_checking_index = match era_number
-                            >= u64::from(protocol_settings.maximum_allowed_unprofitable_era_count)
-                        {
-                            true => {
-                                era_number
-                                    - u64::from(
-                                        protocol_settings.maximum_allowed_unprofitable_era_count,
-                                    )
-                                    + 1
-                            }
-                            false => 0,
-                        };
+                        let start_checking_index = era_number
+                            - u64::from(protocol_settings.maximum_allowed_unprofitable_era_count)
+                            + 1;
                         let mut should_be_unbonded = true;
                         for index in start_checking_index..era_number {
                             if let Some(set_of_era) = validator_set_histories.get(&index) {

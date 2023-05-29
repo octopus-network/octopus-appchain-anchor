@@ -16,10 +16,8 @@ mod validator_profiles;
 mod validator_set;
 
 use core::convert::TryInto;
-use getrandom::{register_custom_getrandom, Error};
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use near_contract_standards::non_fungible_token::TokenId;
-use near_contract_standards::upgrade::Ownable;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
 use near_sdk::json_types::{U128, U64};
@@ -50,20 +48,17 @@ use validator_set::next_validator_set::NextValidatorSet;
 use validator_set::validator_set_of_era::ValidatorSetOfEra;
 use validator_set::ValidatorSetViewer;
 
-register_custom_getrandom!(get_random_in_near);
-
 /// Version of this contract (the same as in Cargo.toml)
-const ANCHOR_VERSION: &str = "v2.4.1";
+const ANCHOR_VERSION: &str = "v2.5.0";
 /// Constants for gas.
 const T_GAS_FOR_FT_TRANSFER: u64 = 10;
 const T_GAS_FOR_BURN_FUNGIBLE_TOKEN: u64 = 10;
 const T_GAS_FOR_MINT_FUNGIBLE_TOKEN: u64 = 20;
 const T_GAS_FOR_NFT_TRANSFER: u64 = 10;
-const T_GAS_FOR_MINT_NFT: u64 = 10;
+const T_GAS_FOR_MINT_NFT: u64 = 20;
 const T_GAS_FOR_RESOLVER_FUNCTION: u64 = 10;
 const T_GAS_FOR_SYNC_STATE_TO_REGISTRY: u64 = 10;
 const T_GAS_CAP_FOR_MULTI_TXS_PROCESSING: u64 = 130;
-const T_GAS_CAP_FOR_PROCESSING_APPCHAIN_MESSAGES: u64 = 240;
 const T_GAS_FOR_NFT_CONTRACT_INITIALIZATION: u64 = 50;
 const T_GAS_FOR_REGISTER_VALIDATOR: u64 = 100;
 const T_GAS_FOR_BURN_WRAPPED_APPCHAIN_TOKEN: u64 = 50;
@@ -325,7 +320,7 @@ impl AppchainAnchor {
         assert_eq!(
             env::predecessor_account_id(),
             self.owner,
-            "Function can only be called by owner."
+            "This function can only be called by owner."
         );
     }
     // Assert that the function is called by appchain registry.
@@ -333,8 +328,8 @@ impl AppchainAnchor {
         assert_eq!(
             env::predecessor_account_id(),
             self.appchain_registry,
-            "Function can only be called by appchain registry contract."
-        );
+            "This function can only be called by appchain registry contract."
+        )
     }
     //
     fn assert_token_price_maintainer(&self) {
@@ -470,13 +465,13 @@ impl AppchainAnchor {
 }
 
 #[near_bindgen]
-impl Ownable for AppchainAnchor {
+impl AppchainAnchor {
     //
-    fn get_owner(&self) -> AccountId {
+    pub fn get_owner(&self) -> AccountId {
         self.owner.clone()
     }
     //
-    fn set_owner(&mut self, owner: AccountId) {
+    pub fn set_owner(&mut self, owner: AccountId) {
         self.assert_owner();
         assert!(!owner.eq(&self.owner), "Owner is not changed.",);
         self.owner = owner;
@@ -620,12 +615,6 @@ impl AppchainAnchor {
             Gas::ONE_TERA.mul(T_GAS_FOR_SYNC_STATE_TO_REGISTRY),
         );
     }
-}
-
-pub fn get_random_in_near(buf: &mut [u8]) -> Result<(), Error> {
-    let random = env::random_seed();
-    buf.copy_from_slice(&random);
-    Ok(())
 }
 
 impl IndexedAndClearable for AppchainNotificationHistory {

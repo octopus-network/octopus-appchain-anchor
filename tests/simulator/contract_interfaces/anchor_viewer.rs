@@ -1,8 +1,8 @@
 use appchain_anchor::appchain_challenge::AppchainChallenge;
 use appchain_anchor::types::{
-    AnchorSettings, AnchorStatus, AppchainCommitment, AppchainDelegator,
-    AppchainMessageProcessingResult, AppchainNotificationHistory, AppchainSettings, AppchainState,
-    AppchainValidator, IndexRange, NativeNearToken, NearFungibleToken, RewardHistory,
+    AnchorSettings, AnchorStatus, AppchainDelegator, AppchainMessageProcessingResult,
+    AppchainNotificationHistory, AppchainSettings, AppchainState, AppchainValidator,
+    BeefyLightClientStatus, IndexRange, NativeNearToken, NearFungibleToken, RewardHistory,
     StakingHistory, UnbondedStake, UserStakingHistory, ValidatorProfile, ValidatorSetInfo,
     WrappedAppchainToken,
 };
@@ -10,362 +10,320 @@ use appchain_anchor::AppchainMessage;
 use near_sdk::json_types::U64;
 use near_sdk::serde_json::json;
 use near_sdk::AccountId;
-use workspaces::{network::Sandbox, Account, Contract, Worker};
+use workspaces::{error::Error, Account, Contract};
 
-pub async fn get_anchor_settings(
-    worker: &Worker<Sandbox>,
-    anchor: &Contract,
-) -> anyhow::Result<AnchorSettings> {
+pub async fn get_anchor_settings(anchor: &Contract) -> Result<AnchorSettings, Error> {
     anchor
-        .call(worker, "get_anchor_settings")
+        .call("get_anchor_settings")
         .view()
         .await?
         .json::<AnchorSettings>()
 }
 
-pub async fn get_appchain_settings(
-    worker: &Worker<Sandbox>,
-    anchor: &Contract,
-) -> anyhow::Result<AppchainSettings> {
+pub async fn get_appchain_settings(anchor: &Contract) -> Result<AppchainSettings, Error> {
     anchor
-        .call(worker, "get_appchain_settings")
+        .call("get_appchain_settings")
         .view()
         .await?
         .json::<AppchainSettings>()
 }
 
-pub async fn get_wrapped_appchain_token(
-    worker: &Worker<Sandbox>,
-    anchor: &Contract,
-) -> anyhow::Result<WrappedAppchainToken> {
+pub async fn get_wrapped_appchain_token(anchor: &Contract) -> Result<WrappedAppchainToken, Error> {
     anchor
-        .call(worker, "get_wrapped_appchain_token")
+        .call("get_wrapped_appchain_token")
         .view()
         .await?
         .json::<WrappedAppchainToken>()
 }
 
-pub async fn get_near_fungible_tokens(
-    worker: &Worker<Sandbox>,
-    anchor: &Contract,
-) -> anyhow::Result<Vec<NearFungibleToken>> {
+pub async fn get_near_fungible_tokens(anchor: &Contract) -> Result<Vec<NearFungibleToken>, Error> {
     anchor
-        .call(worker, "get_near_fungible_tokens")
+        .call("get_near_fungible_tokens")
         .view()
         .await?
         .json::<Vec<NearFungibleToken>>()
 }
 
-pub async fn get_native_near_token(
-    worker: &Worker<Sandbox>,
-    anchor: &Contract,
-) -> anyhow::Result<NativeNearToken> {
+pub async fn get_native_near_token(anchor: &Contract) -> Result<NativeNearToken, Error> {
     anchor
-        .call(worker, "get_native_near_token")
+        .call("get_native_near_token")
         .view()
         .await?
         .json::<NativeNearToken>()
 }
 
-pub async fn get_appchain_state(
-    worker: &Worker<Sandbox>,
-    anchor: &Contract,
-) -> anyhow::Result<AppchainState> {
+pub async fn get_appchain_state(anchor: &Contract) -> Result<AppchainState, Error> {
     anchor
-        .call(worker, "get_appchain_state")
+        .call("get_appchain_state")
         .view()
         .await?
         .json::<AppchainState>()
 }
 
-pub async fn get_anchor_status(
-    worker: &Worker<Sandbox>,
-    anchor: &Contract,
-) -> anyhow::Result<AnchorStatus> {
+pub async fn get_anchor_status(anchor: &Contract) -> Result<AnchorStatus, Error> {
     anchor
-        .call(worker, "get_anchor_status")
+        .call("get_anchor_status")
         .view()
         .await?
         .json::<AnchorStatus>()
 }
 
 pub async fn get_validator_set_info_of(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     index: U64,
-) -> anyhow::Result<ValidatorSetInfo> {
+) -> Result<ValidatorSetInfo, Error> {
     anchor
-        .call(worker, "get_validator_set_info_of")
-        .args_json(json!({ "era_number": index }))?
+        .call("get_validator_set_info_of")
+        .args_json(json!({ "era_number": index }))
         .view()
         .await?
         .json::<ValidatorSetInfo>()
 }
 
 pub async fn get_index_range_of_appchain_notification_history(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
-) -> anyhow::Result<IndexRange> {
+) -> Result<IndexRange, Error> {
     anchor
-        .call(worker, "get_index_range_of_appchain_notification_history")
+        .call("get_index_range_of_appchain_notification_history")
         .view()
         .await?
         .json::<IndexRange>()
 }
 
 pub async fn get_appchain_notification_history(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     index: u64,
-) -> anyhow::Result<Option<AppchainNotificationHistory>> {
+) -> Result<Option<AppchainNotificationHistory>, Error> {
     anchor
-        .call(worker, "get_appchain_notification_history")
-        .args_json(json!({ "index": Some(U64::from(index)) }))?
+        .call("get_appchain_notification_history")
+        .args_json(json!({ "index": Some(U64::from(index)) }))
         .view()
         .await?
         .json::<Option<AppchainNotificationHistory>>()
 }
 
 pub async fn get_appchain_notification_histories(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     start_index: u64,
     quantity: Option<U64>,
-) -> anyhow::Result<Vec<AppchainNotificationHistory>> {
+) -> Result<Vec<AppchainNotificationHistory>, Error> {
     anchor
-        .call(worker, "get_appchain_notification_histories")
+        .call("get_appchain_notification_histories")
         .args_json(json!({
             "start_index": U64::from(start_index),
             "quantity": quantity
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<AppchainNotificationHistory>>()
 }
 
-pub async fn get_index_range_of_staking_history(
-    worker: &Worker<Sandbox>,
-    anchor: &Contract,
-) -> anyhow::Result<IndexRange> {
+pub async fn get_index_range_of_staking_history(anchor: &Contract) -> Result<IndexRange, Error> {
     anchor
-        .call(worker, "get_index_range_of_staking_history")
+        .call("get_index_range_of_staking_history")
         .view()
         .await?
         .json::<IndexRange>()
 }
 
 pub async fn get_staking_history(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     index: u64,
-) -> anyhow::Result<Option<StakingHistory>> {
+) -> Result<Option<StakingHistory>, Error> {
     anchor
-        .call(worker, "get_staking_history")
-        .args_json(json!({ "index": Some(U64::from(index)) }))?
+        .call("get_staking_history")
+        .args_json(json!({ "index": Some(U64::from(index)) }))
         .view()
         .await?
         .json::<Option<StakingHistory>>()
 }
 
 pub async fn get_validator_list_of(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     index: Option<u64>,
-) -> anyhow::Result<Vec<AppchainValidator>> {
+) -> Result<Vec<AppchainValidator>, Error> {
     let index = index.map_or(None, |i| Some(U64::from(i)));
     anchor
-        .call(worker, "get_validator_list_of")
+        .call("get_validator_list_of")
         .args_json(json!({
             "era_number": index.map_or_else(|| Option::<U64>::None, |i| Some(U64::from(i)))
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<AppchainValidator>>()
 }
 
 pub async fn get_validator_profile(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     account_id: &AccountId,
-) -> anyhow::Result<Option<ValidatorProfile>> {
+) -> Result<Option<ValidatorProfile>, Error> {
     anchor
-        .call(worker, "get_validator_profile")
-        .args_json(json!({ "validator_id": account_id }))?
+        .call("get_validator_profile")
+        .args_json(json!({ "validator_id": account_id }))
         .view()
         .await?
         .json::<Option<ValidatorProfile>>()
 }
 
 pub async fn get_validator_profile_by_id_in_appchain(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     account_id_in_appchain: &String,
-) -> anyhow::Result<Option<ValidatorProfile>> {
+) -> Result<Option<ValidatorProfile>, Error> {
     anchor
-        .call(worker, "get_validator_profile_by_id_in_appchain")
+        .call("get_validator_profile_by_id_in_appchain")
         .args_json(json!({
             "validator_id_in_appchain": account_id_in_appchain
-        }))?
+        }))
         .view()
         .await?
         .json::<Option<ValidatorProfile>>()
 }
 
 pub async fn get_delegators_of_validator_in_era(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     index: u64,
     validator: &Account,
-) -> anyhow::Result<Vec<AppchainDelegator>> {
+) -> Result<Vec<AppchainDelegator>, Error> {
     anchor
-        .call(worker, "get_delegators_of_validator_in_era")
+        .call("get_delegators_of_validator_in_era")
         .args_json(json!({
             "era_number": Some(U64::from(index)),
             "validator_id": validator.id()
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<AppchainDelegator>>()
 }
 
 pub async fn get_unbonded_stakes_of(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     account: &Account,
-) -> anyhow::Result<Vec<UnbondedStake>> {
+) -> Result<Vec<UnbondedStake>, Error> {
     anchor
-        .call(worker, "get_unbonded_stakes_of")
+        .call("get_unbonded_stakes_of")
         .args_json(json!({
             "account_id": account.id()
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<UnbondedStake>>()
 }
 
 pub async fn get_validator_rewards_of(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     start_era: u64,
     end_era: u64,
     validator: &Account,
-) -> anyhow::Result<Vec<RewardHistory>> {
+) -> Result<Vec<RewardHistory>, Error> {
     anchor
-        .call(worker, "get_validator_rewards_of")
+        .call("get_validator_rewards_of")
         .args_json(json!({
             "start_era": U64::from(start_era),
             "end_era": U64::from(end_era),
             "validator_id": validator.id()
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<RewardHistory>>()
 }
 
 pub async fn get_delegator_rewards_of(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     start_era: u64,
     end_era: u64,
     delegator: &Account,
     validator: &Account,
-) -> anyhow::Result<Vec<RewardHistory>> {
+) -> Result<Vec<RewardHistory>, Error> {
     anchor
-        .call(worker, "get_delegator_rewards_of")
+        .call("get_delegator_rewards_of")
         .args_json(json!({
             "start_era": U64::from(start_era),
             "end_era": U64::from(end_era),
             "delegator_id": delegator.id(),
             "validator_id": validator.id()
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<RewardHistory>>()
 }
 
-pub async fn get_latest_commitment_of_appchain(
-    worker: &Worker<Sandbox>,
+pub async fn get_beefy_light_client_status(
     anchor: &Contract,
-) -> anyhow::Result<Option<AppchainCommitment>> {
+) -> Result<BeefyLightClientStatus, Error> {
     anchor
-        .call(worker, "get_latest_commitment_of_appchain")
+        .call("get_beefy_light_client_status")
         .view()
         .await?
-        .json::<Option<AppchainCommitment>>()
+        .json::<BeefyLightClientStatus>()
 }
 
 pub async fn get_user_staking_histories_of(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     account_id: AccountId,
-) -> anyhow::Result<Vec<UserStakingHistory>> {
+) -> Result<Vec<UserStakingHistory>, Error> {
     anchor
-        .call(worker, "get_user_staking_histories_of")
-        .args_json(json!({ "account_id": account_id }))?
+        .call("get_user_staking_histories_of")
+        .args_json(json!({ "account_id": account_id }))
         .view()
         .await?
         .json::<Vec<UserStakingHistory>>()
 }
 
 pub async fn get_appchain_messages(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     start_nonce: u32,
     quantity: Option<u32>,
-) -> anyhow::Result<Vec<AppchainMessage>> {
+) -> Result<Vec<AppchainMessage>, Error> {
     anchor
-        .call(worker, "get_appchain_messages")
+        .call("get_appchain_messages")
         .args_json(json!({
             "start_nonce": start_nonce,
             "quantity": quantity
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<AppchainMessage>>()
 }
 
 pub async fn get_appchain_message_processing_results(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     start_nonce: u32,
     quantity: Option<u32>,
-) -> anyhow::Result<Vec<AppchainMessageProcessingResult>> {
+) -> Result<Vec<AppchainMessageProcessingResult>, Error> {
     anchor
-        .call(worker, "get_appchain_message_processing_results")
+        .call("get_appchain_message_processing_results")
         .args_json(json!({
             "start_nonce": start_nonce,
             "quantity": quantity
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<AppchainMessageProcessingResult>>()
 }
 
 pub async fn get_appchain_challenge(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     index: u64,
-) -> anyhow::Result<Option<AppchainChallenge>> {
+) -> Result<Option<AppchainChallenge>, Error> {
     anchor
-        .call(worker, "get_appchain_challenge")
-        .args_json(json!({ "index": Some(U64::from(index)) }))?
+        .call("get_appchain_challenge")
+        .args_json(json!({ "index": Some(U64::from(index)) }))
         .view()
         .await?
         .json::<Option<AppchainChallenge>>()
 }
 
 pub async fn get_appchain_challenges(
-    worker: &Worker<Sandbox>,
     anchor: &Contract,
     start_index: u64,
     quantity: Option<U64>,
-) -> anyhow::Result<Vec<AppchainChallenge>> {
+) -> Result<Vec<AppchainChallenge>, Error> {
     anchor
-        .call(worker, "get_appchain_challenges")
+        .call("get_appchain_challenges")
         .args_json(json!({
             "start_index": U64::from(start_index),
             "quantity": quantity
-        }))?
+        }))
         .view()
         .await?
         .json::<Vec<AppchainChallenge>>()

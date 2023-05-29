@@ -1,5 +1,5 @@
 use crate::*;
-use codec::{Decode, Encode};
+use parity_scale_codec::{Decode, Encode};
 
 #[derive(Encode, Decode, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
@@ -18,6 +18,7 @@ pub struct BurnAssetPayload {
     pub sender: String,
     pub receiver_id: AccountId,
     pub amount: u128,
+    pub fee: u128,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
@@ -26,6 +27,7 @@ pub struct LockPayload {
     pub sender: String,
     pub receiver_id: AccountId,
     pub amount: u128,
+    pub fee: u128,
 }
 
 #[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
@@ -58,6 +60,7 @@ pub struct LockNftPayload {
     pub class: u128,
     pub instance: u128,
     pub metadata: TokenMetadata,
+    pub fee: u128,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -79,8 +82,10 @@ pub enum MessagePayload {
     LockNft(LockNftPayload),
 }
 
-#[derive(Encode, Decode, Clone)]
+#[derive(Encode, Decode, Clone, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
 pub struct RawMessage {
+    #[codec(compact)]
     pub nonce: u64,
     pub payload_type: PayloadType,
     pub payload: Vec<u8>,
@@ -261,6 +266,10 @@ impl AppchainAnchor {
                 message.nonce as u32 > processing_status.latest_applied_appchain_message_nonce
             })
             .for_each(|raw_message| {
+                log!(
+                    "Received message: {}",
+                    serde_json::to_string(raw_message).unwrap()
+                );
                 self.internal_stage_raw_message(&mut appchain_messages, raw_message)
             });
         self.appchain_messages.set(&appchain_messages);
@@ -290,6 +299,7 @@ impl AppchainAnchor {
                                 owner_id_in_appchain: payload.sender,
                                 receiver_id_in_near: payload.receiver_id,
                                 amount: payload.amount.into(),
+                                fee: payload.fee.into(),
                             },
                         });
                     }
@@ -317,6 +327,7 @@ impl AppchainAnchor {
                                 owner_id_in_appchain: payload.sender,
                                 receiver_id_in_near: payload.receiver_id,
                                 amount: payload.amount.into(),
+                                fee: payload.fee.into(),
                             },
                         });
                     }
@@ -416,6 +427,7 @@ impl AppchainAnchor {
                                 class_id: payload.class.to_string(),
                                 instance_id: payload.instance.to_string(),
                                 token_metadata: payload.metadata,
+                                fee: payload.fee.into(),
                             },
                         });
                     }

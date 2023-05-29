@@ -2,8 +2,8 @@
 set -e
 #
 export NEAR_ENV=testnet
-export ANCHOR_ACCOUNT_ID=xxxx
-export END_ERA=yy
+export ANCHOR_ACCOUNT_ID=barnacle0928.registry.test_oct.testnet
+export END_ERA=0
 #
 #
 #

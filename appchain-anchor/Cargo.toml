@@ -1,6 +1,6 @@
 [package]
 name = "appchain-anchor"
-version = "2.4.0"
+version = "2.5.0"
 authors = ["Octopus Network"]
 edition = "2021"
 
@@ -12,6 +12,6 @@ beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-cli
 near-sdk = "4.0.0"
 near-contract-standards = "4.0.0"
 hex = "0.4.2"
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
+parity-scale-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
 getrandom = { version = "0.2", features = ["custom"] }
 ed25519-dalek = { version = "1.0.1", features = ["alloc"] }
