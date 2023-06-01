@@ -245,13 +245,22 @@ impl AppchainMessages {
         }
     }
     ///
-    pub fn remove_messages_before(&mut self, nonce: &u32) {
-        for nonce in self.min_nonce..*nonce {
+    pub fn remove_messages_before(
+        &mut self,
+        nonce_start: &u32,
+    ) -> MultiTxsOperationProcessingResult {
+        let max_gas = Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING + 50);
+        for nonce in self.min_nonce..*nonce_start {
+            if env::used_gas() >= max_gas {
+                self.min_nonce = nonce;
+                return MultiTxsOperationProcessingResult::NeedMoreGas;
+            }
             self.message_map.remove_raw(&nonce.try_to_vec().unwrap());
             self.processing_result_map
                 .remove_raw(&nonce.try_to_vec().unwrap());
         }
-        self.min_nonce = *nonce;
+        self.min_nonce = *nonce_start;
+        MultiTxsOperationProcessingResult::Ok
     }
 }
 

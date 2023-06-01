@@ -300,6 +300,8 @@ pub trait AnchorSettingsManager {
     fn turn_on_beefy_light_client_witness_mode(&mut self);
     ///
     fn turn_off_beefy_light_client_witness_mode(&mut self);
+    ///
+    fn set_min_length_of_validator_set_history(&mut self, min_length: U64);
 }
 
 pub trait StakingManager {
@@ -377,6 +379,12 @@ pub trait SudoActions {
         validator_id: AccountId,
         staking_history_index: U64,
     );
+    ///
+    fn remove_oldest_validator_set(&mut self) -> String;
+    ///
+    fn remove_old_appchain_messages(&mut self) -> String;
+    ///
+    fn remove_old_appchain_notification(&mut self) -> String;
 }
 
 pub trait ValidatorActions {

@@ -187,4 +187,203 @@ impl SudoActions for AppchainAnchor {
                 .remove(&delegator_id.unwrap_or(validator_id));
         }
     }
+    //
+    fn remove_oldest_validator_set(&mut self) -> String {
+        self.assert_owner();
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        let anchor_settings = self.anchor_settings.get().unwrap();
+        assert!(
+            validator_set_histories.len() > anchor_settings.min_length_of_validator_set_history.0,
+            "The length of validator set histories must not be less than {}.",
+            anchor_settings.min_length_of_validator_set_history.0
+        );
+        let era_number = validator_set_histories.index_range().start_index;
+        let mut validator_set_of_era = validator_set_histories.get(&era_number.0).unwrap();
+        let max_gas = Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING + 40);
+        let mut result = (MultiTxsOperationProcessingResult::NeedMoreGas, None);
+        while env::used_gas() < max_gas && result.0.is_need_more_gas() {
+            result = match RemovingValidatorSetSteps::recover() {
+                RemovingValidatorSetSteps::ClearingRewardDistributionRecords {
+                    appchain_message_nonce_index,
+                    validator_index,
+                    delegator_index,
+                } => {
+                    let mut reward_distribution_records =
+                        self.reward_distribution_records.get().unwrap();
+                    let mut result = reward_distribution_records.clear(
+                        &validator_set_of_era,
+                        &era_number.0,
+                        appchain_message_nonce_index,
+                        validator_index,
+                        delegator_index,
+                        max_gas,
+                    );
+                    self.reward_distribution_records
+                        .set(&reward_distribution_records);
+                    if result.is_ok() {
+                        RemovingValidatorSetSteps::ClearingRewardDistributionRecordsInValidatorSet {
+                            validator_index: 0,
+                            delegator_index: 0,
+                        }
+                        .save();
+                        result = MultiTxsOperationProcessingResult::NeedMoreGas;
+                    }
+                    (result, Some(RemovingValidatorSetSteps::recover()))
+                }
+                RemovingValidatorSetSteps::ClearingRewardDistributionRecordsInValidatorSet {
+                    validator_index,
+                    delegator_index,
+                } => {
+                    let mut result = validator_set_of_era.clear_reward_distribution_records(
+                        validator_index,
+                        delegator_index,
+                        max_gas,
+                    );
+                    validator_set_histories.insert(&era_number.0, &validator_set_of_era);
+                    if result.is_ok() {
+                        RemovingValidatorSetSteps::ClearingUnwithdrawnRewardRecordsForValidatorSet {
+                            validator_index: 0,
+                            delegator_index: 0,
+                        }
+                        .save();
+                        result = MultiTxsOperationProcessingResult::NeedMoreGas;
+                    }
+                    (result, Some(RemovingValidatorSetSteps::recover()))
+                }
+                RemovingValidatorSetSteps::ClearingUnwithdrawnRewardRecordsForValidatorSet {
+                    validator_index,
+                    delegator_index,
+                } => {
+                    let mut result = self.clear_unwithdrawn_reward_records(
+                        &validator_set_of_era,
+                        validator_index,
+                        delegator_index,
+                        max_gas,
+                    );
+                    if result.is_ok() {
+                        RemovingValidatorSetSteps::ClearingOldestValidatorSet.save();
+                        result = MultiTxsOperationProcessingResult::NeedMoreGas;
+                    }
+                    (result, Some(RemovingValidatorSetSteps::recover()))
+                }
+                RemovingValidatorSetSteps::ClearingOldestValidatorSet => {
+                    let result = validator_set_histories.remove_first();
+                    self.validator_set_histories.set(&validator_set_histories);
+                    if result.is_ok() {
+                        RemovingValidatorSetSteps::clear();
+                        (result, None)
+                    } else {
+                        (result, Some(RemovingValidatorSetSteps::recover()))
+                    }
+                }
+            };
+        }
+        format!("Result: {:?}", result)
+    }
+
+    fn remove_old_appchain_messages(&mut self) -> String {
+        self.assert_owner();
+        let mut appchain_messages = self.appchain_messages.get().unwrap();
+        let reward_distribution_records = self.reward_distribution_records.get().unwrap();
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        let nonces = reward_distribution_records
+            .get_message_nonces_of_era(&validator_set_histories.index_range().start_index.0);
+        let result = match nonces.len() == 0 {
+            true => MultiTxsOperationProcessingResult::Error(format!(
+                "Missing reward distribution records of era {}. Can not proceed.",
+                validator_set_histories.index_range().start_index.0
+            )),
+            false => appchain_messages.remove_messages_before(&nonces[0]),
+        };
+        self.appchain_messages.set(&appchain_messages);
+        format!(
+            "Result: {:?}, ({}, {})",
+            result,
+            appchain_messages.min_nonce(),
+            appchain_messages.max_nonce()
+        )
+    }
+
+    fn remove_old_appchain_notification(&mut self) -> String {
+        self.assert_owner();
+        let mut appchain_notification_histories =
+            self.appchain_notification_histories.get().unwrap();
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        let oldest_validator_set = validator_set_histories.get_first().unwrap();
+        let max_gas = Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING + 50);
+        let mut result = MultiTxsOperationProcessingResult::NeedMoreGas;
+        while env::used_gas() <= max_gas {
+            if let Some(notification) = appchain_notification_histories.get_first() {
+                if notification.timestamp.0 >= oldest_validator_set.start_timestamp() {
+                    result = MultiTxsOperationProcessingResult::Ok;
+                    break;
+                }
+            }
+            appchain_notification_histories.remove_first();
+        }
+        self.appchain_notification_histories
+            .set(&appchain_notification_histories);
+        let index_range = appchain_notification_histories.index_range();
+        format!(
+            "Result: {:?}, ({}, {})",
+            result, index_range.start_index.0, index_range.end_index.0
+        )
+    }
+}
+
+impl AppchainAnchor {
+    pub fn clear_unwithdrawn_reward_records(
+        &mut self,
+        validator_set_of_era: &ValidatorSetOfEra,
+        validator_index_start: u64,
+        delegator_index_start: u64,
+        max_gas: Gas,
+    ) -> MultiTxsOperationProcessingResult {
+        let era_number = validator_set_of_era.era_number();
+        let validator_ids = validator_set_of_era.get_validator_ids();
+        let mut validator_index = 0;
+        let mut delegator_index = 0;
+        for validator_id in validator_ids {
+            if validator_index < validator_index_start {
+                validator_index += 1;
+                continue;
+            }
+            let delegator_ids = validator_set_of_era.get_delegator_ids_of(&validator_id);
+            for delegator_id in delegator_ids {
+                if validator_index == validator_index_start
+                    && delegator_index < delegator_index_start
+                {
+                    delegator_index += 1;
+                    continue;
+                }
+                self.unwithdrawn_delegator_rewards.remove(&(
+                    era_number,
+                    delegator_id.clone(),
+                    validator_id.clone(),
+                ));
+                delegator_index += 1;
+                if env::used_gas() >= max_gas {
+                    RemovingValidatorSetSteps::ClearingUnwithdrawnRewardRecordsForValidatorSet {
+                        validator_index,
+                        delegator_index,
+                    }
+                    .save();
+                    return MultiTxsOperationProcessingResult::NeedMoreGas;
+                }
+            }
+            self.unwithdrawn_validator_rewards
+                .remove(&(era_number, validator_id.clone()));
+            validator_index += 1;
+            delegator_index = 0;
+            if env::used_gas() >= max_gas {
+                RemovingValidatorSetSteps::ClearingUnwithdrawnRewardRecordsForValidatorSet {
+                    validator_index,
+                    delegator_index,
+                }
+                .save();
+                return MultiTxsOperationProcessingResult::NeedMoreGas;
+            }
+        }
+        MultiTxsOperationProcessingResult::Ok
+    }
 }

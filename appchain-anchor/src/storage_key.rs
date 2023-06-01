@@ -68,6 +68,7 @@ pub enum StorageKey {
         delegator_id: AccountId,
     },
     WrappedAppchainNFTsLockedTokenIdSet(String),
+    RemovingValidatorSetSteps,
 }
 
 impl StorageKey {
@@ -143,6 +144,7 @@ impl StorageKey {
             StorageKey::WrappedAppchainNFTsLockedTokenIdSet(class_id) => {
                 format!("{}wanltis", class_id)
             }
+            StorageKey::RemovingValidatorSetSteps => "rvss".to_string(),
         }
     }
     pub fn into_bytes(&self) -> Vec<u8> {

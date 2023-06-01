@@ -35,6 +35,7 @@ impl Default for AnchorSettings {
             token_price_maintainer_account: None,
             relayer_account: None,
             beefy_light_client_witness_mode: false,
+            min_length_of_validator_set_history: U64::from(100),
         }
     }
 }
@@ -377,6 +378,17 @@ impl AnchorSettingsManager for AppchainAnchor {
             "Witness mode is already turned off."
         );
         anchor_settings.beefy_light_client_witness_mode = false;
+        self.anchor_settings.set(&anchor_settings);
+    }
+    //
+    fn set_min_length_of_validator_set_history(&mut self, min_length: U64) {
+        self.assert_owner();
+        let mut anchor_settings = self.anchor_settings.get().unwrap();
+        assert!(
+            min_length.0 != anchor_settings.min_length_of_validator_set_history.0,
+            "The value is not changed."
+        );
+        anchor_settings.min_length_of_validator_set_history = min_length;
         self.anchor_settings.set(&anchor_settings);
     }
 }

@@ -111,6 +111,7 @@ pub struct AnchorSettings {
     pub token_price_maintainer_account: Option<AccountId>,
     pub relayer_account: Option<AccountId>,
     pub beefy_light_client_witness_mode: bool,
+    pub min_length_of_validator_set_history: U64,
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
@@ -386,7 +387,7 @@ pub struct PermissionlessActionsStatus {
     pub latest_applied_appchain_message_nonce: u32,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct IndexRange {
     pub start_index: U64,
@@ -500,7 +501,7 @@ pub enum AppchainMessageProcessingResult {
     Error { nonce: u32, message: String },
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum MultiTxsOperationProcessingResult {
     NeedMoreGas,
@@ -613,4 +614,49 @@ pub struct WrappedAppchainNFT {
     pub contract_account: AccountId,
     pub bridging_state: BridgingState,
     pub count_of_locked_tokens: U64,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub enum RemovingValidatorSetSteps {
+    ClearingRewardDistributionRecords {
+        appchain_message_nonce_index: u32,
+        validator_index: u64,
+        delegator_index: u64,
+    },
+    ClearingRewardDistributionRecordsInValidatorSet {
+        validator_index: u64,
+        delegator_index: u64,
+    },
+    ClearingUnwithdrawnRewardRecordsForValidatorSet {
+        validator_index: u64,
+        delegator_index: u64,
+    },
+    ClearingOldestValidatorSet,
+}
+
+impl RemovingValidatorSetSteps {
+    ///
+    pub fn save(&self) {
+        env::storage_write(
+            &StorageKey::RemovingValidatorSetSteps.into_bytes(),
+            &self.try_to_vec().unwrap(),
+        );
+    }
+    ///
+    pub fn recover() -> Self {
+        let bytes = env::storage_read(&StorageKey::RemovingValidatorSetSteps.into_bytes());
+        if let Some(bytes) = bytes {
+            Self::try_from_slice(&bytes).unwrap()
+        } else {
+            Self::ClearingRewardDistributionRecords {
+                appchain_message_nonce_index: 0,
+                validator_index: 0,
+                delegator_index: 0,
+            }
+        }
+    }
+    ///
+    pub fn clear() {
+        env::storage_remove(&StorageKey::RemovingValidatorSetSteps.into_bytes());
+    }
 }

@@ -38,8 +38,22 @@ where
         }
     }
     ///
+    pub fn len(&self) -> u64 {
+        if self.end_index > self.start_index {
+            return self.end_index - self.start_index + 1;
+        } else if self.contains(&self.start_index.clone()) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+    ///
     pub fn get(&self, index: &u64) -> Option<T> {
         self.lookup_map.get(index)
+    }
+    ///
+    pub fn get_first(&self) -> Option<T> {
+        self.lookup_map.get(&self.start_index)
     }
     ///
     pub fn get_slice_of(&self, start_index: &u64, quantity: Option<u64>) -> Vec<T> {
@@ -147,24 +161,31 @@ where
     }
     ///
     pub fn remove_at(&mut self, index: &u64) -> MultiTxsOperationProcessingResult {
-        if let Some(mut record) = self.lookup_map.get(index) {
-            let result = record.clear_extra_storage();
-            match result {
-                MultiTxsOperationProcessingResult::Ok => {
-                    self.lookup_map.remove_raw(&index.try_to_vec().unwrap());
-                    if *index == self.start_index && *index < self.end_index {
-                        self.start_index += 1;
-                    } else if *index == self.end_index && *index > self.start_index {
-                        self.end_index -= 1;
+        let result = match self.lookup_map.get(index) {
+            Some(mut record) => {
+                let result = record.clear_extra_storage();
+                match result {
+                    MultiTxsOperationProcessingResult::Ok => {
+                        self.lookup_map.remove_raw(&index.try_to_vec().unwrap());
                     }
+                    MultiTxsOperationProcessingResult::NeedMoreGas => {
+                        self.lookup_map.insert(index, &record);
+                    }
+                    MultiTxsOperationProcessingResult::Error(_) => (),
                 }
-                MultiTxsOperationProcessingResult::NeedMoreGas => {
-                    self.lookup_map.insert(index, &record);
-                }
-                MultiTxsOperationProcessingResult::Error(_) => (),
+                result
             }
-            return result;
+            None => MultiTxsOperationProcessingResult::Ok,
+        };
+        if *index == self.start_index && *index < self.end_index {
+            self.start_index += 1;
+        } else if *index == self.end_index && *index > self.start_index {
+            self.end_index -= 1;
         }
-        MultiTxsOperationProcessingResult::Ok
+        result
+    }
+    ///
+    pub fn remove_first(&mut self) -> MultiTxsOperationProcessingResult {
+        self.remove_at(&self.start_index.clone())
     }
 }
