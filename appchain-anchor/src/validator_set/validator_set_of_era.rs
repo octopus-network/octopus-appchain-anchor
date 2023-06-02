@@ -2,7 +2,7 @@ use super::{Delegator, Validator, ValidatorSet};
 use crate::*;
 use near_sdk::BlockHeight;
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct ValidatorSetOfEra {
     /// The validator set of this era
     validator_set: ValidatorSet,

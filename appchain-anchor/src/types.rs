@@ -216,7 +216,7 @@ pub struct NativeNearToken {
     pub price_in_usd: U128,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum StakingFact {
     /// A new validator is registered in appchain anchor
@@ -293,7 +293,7 @@ pub enum StakingFact {
     },
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct StakingHistory {
     pub staking_fact: StakingFact,
@@ -452,7 +452,7 @@ pub struct ValidatorProfile {
     pub profile: HashMap<String, String>,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainNotification {
     /// A certain amount of a NEAR fungible token has been locked in appchain anchor.
@@ -485,7 +485,7 @@ pub enum AppchainNotification {
     },
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainNotificationHistory {
     pub appchain_notification: AppchainNotification,

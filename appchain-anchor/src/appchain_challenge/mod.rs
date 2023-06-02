@@ -4,7 +4,7 @@ use crate::*;
 
 use self::equivocation_challenge::EquivocationProof;
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainChallenge {
     EquivocationChallenge {

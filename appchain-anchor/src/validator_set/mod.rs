@@ -5,7 +5,7 @@ use crate::*;
 pub mod next_validator_set;
 pub mod validator_set_of_era;
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct Validator {
     /// The validator's id in NEAR protocol.
     pub validator_id: AccountId,
@@ -23,7 +23,7 @@ pub struct Validator {
     pub can_be_delegated_to: bool,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct Delegator {
     /// The delegator's id in NEAR protocol.
     pub delegator_id: AccountId,
@@ -37,7 +37,7 @@ pub struct Delegator {
     pub deposit_amount: Balance,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct ValidatorSet {
     /// The number of era in appchain.
     era_number: u64,

@@ -1,4 +1,5 @@
 use crate::*;
+use core::fmt::Debug;
 
 pub trait IndexedAndClearable {
     ///
@@ -8,7 +9,7 @@ pub trait IndexedAndClearable {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct LookupArray<T: BorshDeserialize + BorshSerialize + IndexedAndClearable> {
+pub struct LookupArray<T: BorshDeserialize + BorshSerialize + Debug + IndexedAndClearable> {
     /// The anchor event data map.
     pub lookup_map: LookupMap<u64, T>,
     /// The start index of valid anchor event.
@@ -19,7 +20,7 @@ pub struct LookupArray<T: BorshDeserialize + BorshSerialize + IndexedAndClearabl
 
 impl<T> LookupArray<T>
 where
-    T: BorshDeserialize + BorshSerialize + IndexedAndClearable,
+    T: BorshDeserialize + BorshSerialize + Debug + IndexedAndClearable,
 {
     ///
     pub fn new(storage_key: StorageKey) -> Self {
@@ -101,9 +102,10 @@ where
     }
     ///
     pub fn append(&mut self, record: &mut T) -> T {
-        let index = match self.lookup_map.contains_key(&0) {
-            true => self.end_index + 1,
-            false => 0,
+        let index = if self.start_index == 0 && !self.lookup_map.contains_key(&0) {
+            0
+        } else {
+            self.end_index + 1
         };
         record.set_index(&index);
         self.lookup_map.insert(&index, &record);
