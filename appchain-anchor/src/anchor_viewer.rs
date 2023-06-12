@@ -237,12 +237,19 @@ impl AnchorViewer for AppchainAnchor {
         let mut results = Vec::<UnbondedStake>::new();
         if let Some(unbonded_stake_references) = self.unbonded_stakes.get(&account_id) {
             unbonded_stake_references.iter().for_each(|reference| {
-                let validator_set = self
+                let unlock_time = self
                     .validator_set_histories
                     .get()
                     .unwrap()
                     .get(&reference.era_number)
-                    .unwrap();
+                    .map_or(U64::from(0), |validator_set| {
+                        U64::from(
+                            validator_set.start_timestamp()
+                                + protocol_settings.unlock_period_of_validator_deposit.0
+                                    * SECONDS_OF_A_DAY
+                                    * NANO_SECONDS_MULTIPLE,
+                        )
+                    });
                 let staking_history = self
                     .staking_histories
                     .get()
@@ -265,12 +272,7 @@ impl AnchorViewer for AppchainAnchor {
                         era_number: U64::from(reference.era_number),
                         account_id: validator_id,
                         amount,
-                        unlock_time: U64::from(
-                            validator_set.start_timestamp()
-                                + protocol_settings.unlock_period_of_validator_deposit.0
-                                    * SECONDS_OF_A_DAY
-                                    * NANO_SECONDS_MULTIPLE,
-                        ),
+                        unlock_time,
                     }),
                     StakingFact::DelegationDecreased {
                         delegator_id,
@@ -290,12 +292,7 @@ impl AnchorViewer for AppchainAnchor {
                         era_number: U64::from(reference.era_number),
                         account_id: delegator_id,
                         amount,
-                        unlock_time: U64::from(
-                            validator_set.start_timestamp()
-                                + protocol_settings.unlock_period_of_delegator_deposit.0
-                                    * SECONDS_OF_A_DAY
-                                    * NANO_SECONDS_MULTIPLE,
-                        ),
+                        unlock_time,
                     }),
                     _ => (),
                 };

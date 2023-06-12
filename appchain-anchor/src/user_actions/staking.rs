@@ -501,12 +501,13 @@ impl StakingManager for AppchainAnchor {
         let mut remained_stakes = Vec::<UnbondedStakeReference>::new();
         if let Some(unbonded_stake_references) = self.unbonded_stakes.get(&account_id) {
             unbonded_stake_references.iter().for_each(|reference| {
-                let validator_set = self
+                let latest_era_number = self
                     .validator_set_histories
                     .get()
                     .unwrap()
-                    .get(&reference.era_number)
-                    .unwrap();
+                    .index_range()
+                    .end_index
+                    .0;
                 let staking_history = self
                     .staking_histories
                     .get()
@@ -526,11 +527,8 @@ impl StakingManager for AppchainAnchor {
                         validator_id: _,
                         amount,
                     } => {
-                        if validator_set.start_timestamp()
-                            + protocol_settings.unlock_period_of_validator_deposit.0
-                                * SECONDS_OF_A_DAY
-                                * NANO_SECONDS_MULTIPLE
-                            < env::block_timestamp()
+                        if latest_era_number - reference.era_number
+                            >= protocol_settings.unlock_period_of_validator_deposit.0
                         {
                             balance_to_withdraw += amount.0;
                         } else {
@@ -552,11 +550,8 @@ impl StakingManager for AppchainAnchor {
                         validator_id: _,
                         amount,
                     } => {
-                        if validator_set.start_timestamp()
-                            + protocol_settings.unlock_period_of_delegator_deposit.0
-                                * SECONDS_OF_A_DAY
-                                * NANO_SECONDS_MULTIPLE
-                            < env::block_timestamp()
+                        if latest_era_number - reference.era_number
+                            >= protocol_settings.unlock_period_of_delegator_deposit.0
                         {
                             balance_to_withdraw += amount.0;
                         } else {
