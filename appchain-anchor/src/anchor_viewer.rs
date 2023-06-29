@@ -333,6 +333,12 @@ impl AnchorViewer for AppchainAnchor {
         reward_histories
     }
     //
+    fn get_validator_rewards(&self, validator_id: AccountId) -> Vec<RewardHistory> {
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        let index_range = validator_set_histories.index_range();
+        self.get_validator_rewards_of(index_range.start_index, index_range.end_index, validator_id)
+    }
+    //
     fn get_delegator_rewards_of(
         &self,
         start_era: U64,
@@ -364,6 +370,46 @@ impl AnchorViewer for AppchainAnchor {
             }
         }
         reward_histories
+    }
+    //
+    fn get_delegator_rewards(&self, delegator_id: AccountId) -> Vec<RewardHistory> {
+        let staking_histories = self.get_user_staking_histories_of(delegator_id.clone());
+        let mut validators = Vec::<AccountId>::new();
+        staking_histories.iter().for_each(|staking_history| {
+            match &staking_history.staking_fact {
+                StakingFact::DelegatorRegistered {
+                    delegator_id: _,
+                    validator_id,
+                    amount: _,
+                } => {
+                    if !validators.contains(&validator_id) {
+                        validators.push(validator_id.clone());
+                    }
+                }
+                StakingFact::DelegatedValidatorChanged {
+                    delegator_id: _,
+                    old_validator_id: _,
+                    new_validator_id,
+                } => {
+                    if !validators.contains(&new_validator_id) {
+                        validators.push(new_validator_id.clone());
+                    }
+                }
+                _ => (),
+            };
+        });
+        let mut results = Vec::<RewardHistory>::new();
+        let validator_set_histories = self.validator_set_histories.get().unwrap();
+        let index_range = validator_set_histories.index_range();
+        validators.iter().for_each(|validator_id| {
+            results.append(&mut self.get_delegator_rewards_of(
+                index_range.start_index,
+                index_range.end_index,
+                delegator_id.clone(),
+                validator_id.clone(),
+            ));
+        });
+        results
     }
     //
     fn get_storage_balance(&self) -> U128 {
