@@ -84,6 +84,8 @@ pub trait AnchorViewer {
         end_era: U64,
         validator_id: AccountId,
     ) -> Vec<RewardHistory>;
+    /// Get validator rewards of a certain account.
+    fn get_validator_rewards(&self, validator_id: AccountId) -> Vec<RewardHistory>;
     /// Get validator rewards of a certain era range.
     fn get_delegator_rewards_of(
         &self,
@@ -92,6 +94,8 @@ pub trait AnchorViewer {
         delegator_id: AccountId,
         validator_id: AccountId,
     ) -> Vec<RewardHistory>;
+    /// Get delegator rewards of a certain account.
+    fn get_delegator_rewards(&self, delegator_id: AccountId) -> Vec<RewardHistory>;
     /// Get current storage balance needed by this contract account.
     fn get_storage_balance(&self) -> U128;
     /// Get deposit of a certain validator in a certain era.
