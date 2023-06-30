@@ -342,9 +342,9 @@ impl AnchorViewer for AppchainAnchor {
         end_era: U64,
         delegator_id: AccountId,
         validator_id: AccountId,
-    ) -> Vec<RewardHistory> {
+    ) -> Vec<DelegationRewardHistory> {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
-        let mut reward_histories = Vec::<RewardHistory>::new();
+        let mut reward_histories = Vec::<DelegationRewardHistory>::new();
         for era_number in start_era.0..end_era.0 + 1 {
             if let Some(validator_set) = validator_set_histories.get(&era_number) {
                 if let Some(reward) =
@@ -358,8 +358,9 @@ impl AnchorViewer for AppchainAnchor {
                         Some(reward) => reward,
                         None => 0,
                     };
-                    reward_histories.push(RewardHistory {
+                    reward_histories.push(DelegationRewardHistory {
                         era_number: U64::from(era_number),
+                        delegated_validator: validator_id.clone(),
                         total_reward: U128::from(reward),
                         unwithdrawn_reward: U128::from(unwithdrawn_reward),
                     });
@@ -369,7 +370,7 @@ impl AnchorViewer for AppchainAnchor {
         reward_histories
     }
     //
-    fn get_delegator_rewards(&self, delegator_id: AccountId) -> Vec<RewardHistory> {
+    fn get_delegator_rewards(&self, delegator_id: AccountId) -> Vec<DelegationRewardHistory> {
         let staking_histories = self.get_user_staking_histories_of(delegator_id.clone());
         let mut validators = Vec::<AccountId>::new();
         staking_histories.iter().for_each(|staking_history| {
@@ -395,7 +396,7 @@ impl AnchorViewer for AppchainAnchor {
                 _ => (),
             };
         });
-        let mut results = Vec::<RewardHistory>::new();
+        let mut results = Vec::<DelegationRewardHistory>::new();
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let index_range = validator_set_histories.index_range();
         validators.iter().for_each(|validator_id| {

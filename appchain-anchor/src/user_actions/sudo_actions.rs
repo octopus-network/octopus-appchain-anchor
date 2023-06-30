@@ -197,9 +197,21 @@ impl SudoActions for AppchainAnchor {
             "The length of validator set histories must not be less than {}.",
             anchor_settings.min_length_of_validator_set_history.0
         );
-        let era_number = validator_set_histories.index_range().start_index;
+        let max_gas = Gas::ONE_TERA.mul(170);
+        let mut era_number = validator_set_histories.index_range().start_index;
+        while env::used_gas() < max_gas && validator_set_histories.get(&era_number.0).is_none() {
+            validator_set_histories.remove_first(max_gas);
+            era_number = validator_set_histories.index_range().start_index;
+        }
+        if validator_set_histories.len() <= anchor_settings.min_length_of_validator_set_history.0 {
+            self.validator_set_histories.set(&validator_set_histories);
+            return format!(
+                "Era {}: {:?}",
+                era_number.0,
+                MultiTxsOperationProcessingResult::Ok
+            );
+        }
         let mut validator_set_of_era = validator_set_histories.get(&era_number.0).unwrap();
-        let max_gas = Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING + 40);
         let mut result = (MultiTxsOperationProcessingResult::NeedMoreGas, None);
         while env::used_gas() < max_gas && result.0.is_need_more_gas() {
             result = match RemovingValidatorSetSteps::recover() {
@@ -267,8 +279,7 @@ impl SudoActions for AppchainAnchor {
                     (result, Some(RemovingValidatorSetSteps::recover()))
                 }
                 RemovingValidatorSetSteps::ClearingOldestValidatorSet => {
-                    let result = validator_set_histories.remove_first();
-                    self.validator_set_histories.set(&validator_set_histories);
+                    let result = validator_set_histories.remove_first(max_gas);
                     if result.is_ok() {
                         RemovingValidatorSetSteps::clear();
                         (result, None)
@@ -278,9 +289,10 @@ impl SudoActions for AppchainAnchor {
                 }
             };
         }
-        format!("Result: {:?}", result)
+        self.validator_set_histories.set(&validator_set_histories);
+        format!("Era {}: {:?}", era_number.0, result)
     }
-
+    //
     fn remove_old_appchain_messages(&mut self) -> String {
         self.assert_owner();
         let mut appchain_messages = self.appchain_messages.get().unwrap();
@@ -293,7 +305,7 @@ impl SudoActions for AppchainAnchor {
                 "Missing reward distribution records of era {}. Can not proceed.",
                 validator_set_histories.index_range().start_index.0
             )),
-            false => appchain_messages.remove_messages_before(&nonces[0]),
+            false => appchain_messages.remove_messages_before(&nonces[0], Gas::ONE_TERA.mul(180)),
         };
         self.appchain_messages.set(&appchain_messages);
         format!(
@@ -303,14 +315,14 @@ impl SudoActions for AppchainAnchor {
             appchain_messages.max_nonce()
         )
     }
-
+    //
     fn remove_old_appchain_notification(&mut self) -> String {
         self.assert_owner();
         let mut appchain_notification_histories =
             self.appchain_notification_histories.get().unwrap();
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let oldest_validator_set = validator_set_histories.get_first().unwrap();
-        let max_gas = Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING + 50);
+        let max_gas = Gas::ONE_TERA.mul(180);
         let mut result = MultiTxsOperationProcessingResult::NeedMoreGas;
         while env::used_gas() <= max_gas {
             if let Some(notification) = appchain_notification_histories.get_first() {
@@ -319,7 +331,7 @@ impl SudoActions for AppchainAnchor {
                     break;
                 }
             }
-            appchain_notification_histories.remove_first();
+            appchain_notification_histories.remove_first(max_gas);
         }
         self.appchain_notification_histories
             .set(&appchain_notification_histories);
@@ -328,6 +340,22 @@ impl SudoActions for AppchainAnchor {
             "Result: {:?}, ({}, {})",
             result, index_range.start_index.0, index_range.end_index.0
         )
+    }
+    //
+    fn remove_staged_wasm(&mut self) {
+        self.assert_owner();
+        log!(
+            "AnchorContractWasm: {}",
+            env::storage_remove(&StorageKey::AnchorContractWasm.into_bytes())
+        );
+        log!(
+            "WrappedAppchainNFTContractWasm: {}",
+            env::storage_remove(&StorageKey::WrappedAppchainNFTContractWasm.into_bytes())
+        );
+        log!(
+            "NearVaultContractWasm: {}",
+            env::storage_remove(&StorageKey::NearVaultContractWasm.into_bytes())
+        );
     }
 }
 

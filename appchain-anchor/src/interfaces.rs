@@ -93,9 +93,9 @@ pub trait AnchorViewer {
         end_era: U64,
         delegator_id: AccountId,
         validator_id: AccountId,
-    ) -> Vec<RewardHistory>;
+    ) -> Vec<DelegationRewardHistory>;
     /// Get delegator rewards of a certain account.
-    fn get_delegator_rewards(&self, delegator_id: AccountId) -> Vec<RewardHistory>;
+    fn get_delegator_rewards(&self, delegator_id: AccountId) -> Vec<DelegationRewardHistory>;
     /// Get current storage balance needed by this contract account.
     fn get_storage_balance(&self) -> U128;
     /// Get deposit of a certain validator in a certain era.
@@ -389,6 +389,8 @@ pub trait SudoActions {
     fn remove_old_appchain_messages(&mut self) -> String;
     ///
     fn remove_old_appchain_notification(&mut self) -> String;
+    ///
+    fn remove_staged_wasm(&mut self);
 }
 
 pub trait ValidatorActions {

@@ -54,11 +54,11 @@ impl UserStakingHistories {
         }
     }
     ///
-    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
+    pub fn clear(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
         for account_id in self.account_id_set.to_vec() {
             self.staking_histories_map.remove(&account_id);
             self.account_id_set.remove(&account_id);
-            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+            if env::used_gas() > max_gas {
                 return MultiTxsOperationProcessingResult::NeedMoreGas;
             }
         }

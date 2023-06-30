@@ -114,7 +114,7 @@ impl ValidatorSet {
         }
     }
     ///
-    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
+    pub fn clear(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
         let validator_ids = self.validator_id_set.to_vec();
         for validator_id in validator_ids {
             if let Some(mut delegator_id_set) =
@@ -131,7 +131,7 @@ impl ValidatorSet {
                         self.delegator_id_to_validator_id_set.remove(&delegator_id);
                     }
                     delegator_id_set.remove(&delegator_id);
-                    if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                    if env::used_gas() > max_gas {
                         self.validator_id_to_delegator_id_set
                             .insert(&validator_id, &delegator_id_set);
                         return MultiTxsOperationProcessingResult::NeedMoreGas;
@@ -141,7 +141,7 @@ impl ValidatorSet {
             }
             self.validators.remove(&validator_id);
             self.validator_id_set.remove(&validator_id);
-            if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+            if env::used_gas() > max_gas {
                 return MultiTxsOperationProcessingResult::NeedMoreGas;
             }
         }

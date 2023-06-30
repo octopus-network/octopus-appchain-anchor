@@ -404,6 +404,15 @@ pub struct RewardHistory {
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
+pub struct DelegationRewardHistory {
+    pub era_number: U64,
+    pub delegated_validator: AccountId,
+    pub total_reward: U128,
+    pub unwithdrawn_reward: U128,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct AnchorStatus {
     pub total_stake_in_next_era: U128,
     pub validator_count_in_next_era: U64,

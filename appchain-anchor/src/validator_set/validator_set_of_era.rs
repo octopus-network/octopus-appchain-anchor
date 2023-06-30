@@ -275,7 +275,7 @@ impl ValidatorSetOfEra {
         MultiTxsOperationProcessingResult::Ok
     }
     ///
-    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
+    pub fn clear(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
         let validator_ids = self.validator_set.validator_id_set.to_vec();
         for validator_id in validator_ids {
             if let Some(mut delegator_id_set) = self
@@ -301,7 +301,7 @@ impl ValidatorSetOfEra {
                             .remove(&delegator_id);
                     }
                     delegator_id_set.remove(&delegator_id);
-                    if env::used_gas() >= Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                    if env::used_gas() >= max_gas {
                         self.validator_set
                             .validator_id_to_delegator_id_set
                             .insert(&validator_id, &delegator_id_set);
@@ -315,7 +315,7 @@ impl ValidatorSetOfEra {
             self.validator_rewards.remove(&validator_id);
             self.validator_set.validators.remove(&validator_id);
             self.validator_set.validator_id_set.remove(&validator_id);
-            if env::used_gas() >= Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+            if env::used_gas() >= max_gas {
                 return MultiTxsOperationProcessingResult::NeedMoreGas;
             }
         }
@@ -464,7 +464,7 @@ impl IndexedAndClearable for ValidatorSetOfEra {
         ()
     }
     //
-    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
-        self.clear()
+    fn clear_extra_storage(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
+        self.clear(max_gas)
     }
 }

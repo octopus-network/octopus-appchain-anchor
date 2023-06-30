@@ -5,7 +5,7 @@ pub trait IndexedAndClearable {
     ///
     fn set_index(&mut self, index: &u64);
     ///
-    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult;
+    fn clear_extra_storage(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult;
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -113,12 +113,16 @@ where
         self.lookup_map.get(&index).unwrap()
     }
     ///
-    pub fn remove_before(&mut self, index: &u64) -> MultiTxsOperationProcessingResult {
+    pub fn remove_before(
+        &mut self,
+        index: &u64,
+        max_gas: Gas,
+    ) -> MultiTxsOperationProcessingResult {
         if self.start_index >= *index {
             return MultiTxsOperationProcessingResult::Ok;
         }
         for index in self.start_index..*index {
-            let result = self.remove_at(&index);
+            let result = self.remove_at(&index, max_gas);
             if !result.is_ok() {
                 return result;
             }
@@ -127,13 +131,13 @@ where
         MultiTxsOperationProcessingResult::Ok
     }
     ///
-    pub fn reset_to(&mut self, index: &u64) -> MultiTxsOperationProcessingResult {
+    pub fn reset_to(&mut self, index: &u64, max_gas: Gas) -> MultiTxsOperationProcessingResult {
         assert!(
             *index >= self.start_index && *index <= self.end_index,
             "Invalid history data index."
         );
         for index in (*index + 1)..self.end_index + 1 {
-            let result = self.remove_at(&index);
+            let result = self.remove_at(&index, max_gas);
             if !result.is_ok() {
                 return result;
             }
@@ -142,14 +146,14 @@ where
         MultiTxsOperationProcessingResult::Ok
     }
     ///
-    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
+    pub fn clear(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
         log!(
             "Index range of lookup array: {} - {}",
             self.start_index,
             self.end_index
         );
         let mut index = self.start_index;
-        while index <= self.end_index && self.remove_at(&index).is_ok() {
+        while index <= self.end_index && self.remove_at(&index, max_gas).is_ok() {
             index += 1;
         }
         if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
@@ -162,10 +166,10 @@ where
         }
     }
     ///
-    pub fn remove_at(&mut self, index: &u64) -> MultiTxsOperationProcessingResult {
+    pub fn remove_at(&mut self, index: &u64, max_gas: Gas) -> MultiTxsOperationProcessingResult {
         let result = match self.lookup_map.get(index) {
             Some(mut record) => {
-                let result = record.clear_extra_storage();
+                let result = record.clear_extra_storage(max_gas);
                 match result {
                     MultiTxsOperationProcessingResult::Ok => {
                         self.lookup_map.remove_raw(&index.try_to_vec().unwrap());
@@ -179,15 +183,17 @@ where
             }
             None => MultiTxsOperationProcessingResult::Ok,
         };
-        if *index == self.start_index && *index < self.end_index {
-            self.start_index += 1;
-        } else if *index == self.end_index && *index > self.start_index {
-            self.end_index -= 1;
+        if result.is_ok() {
+            if *index == self.start_index && *index < self.end_index {
+                self.start_index += 1;
+            } else if *index == self.end_index && *index > self.start_index {
+                self.end_index -= 1;
+            }
         }
         result
     }
     ///
-    pub fn remove_first(&mut self) -> MultiTxsOperationProcessingResult {
-        self.remove_at(&self.start_index.clone())
+    pub fn remove_first(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
+        self.remove_at(&self.start_index.clone(), max_gas)
     }
 }

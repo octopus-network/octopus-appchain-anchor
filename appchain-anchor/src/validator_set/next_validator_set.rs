@@ -34,8 +34,8 @@ impl NextValidatorSet {
         &self.validator_set
     }
     ///
-    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
-        let result = self.validator_set.clear();
+    pub fn clear(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
+        let result = self.validator_set.clear(max_gas);
         if result.is_ok() {
             self.unbonding_validator_ids.clear();
             self.auto_unbonding_validator_ids.clear();

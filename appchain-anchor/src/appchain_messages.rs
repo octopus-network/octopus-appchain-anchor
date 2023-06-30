@@ -103,8 +103,8 @@ impl IndexedAndClearable for u32 {
         ()
     }
     //
-    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
-        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+    fn clear_extra_storage(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
+        if env::used_gas() > max_gas {
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {
             MultiTxsOperationProcessingResult::Ok
@@ -222,20 +222,18 @@ impl AppchainMessages {
         results
     }
     ///
-    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
+    pub fn clear(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
         log!(
             "Nonce range of appchain messsages: {} - {}",
             self.min_nonce,
             self.max_nonce
         );
         let mut nonce = self.min_nonce + 1;
-        while nonce <= self.max_nonce + 1
-            && env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
-        {
-            self.remove_messages_before(&nonce);
+        while nonce <= self.max_nonce + 1 && env::used_gas() < max_gas {
+            self.remove_messages_before(&nonce, max_gas);
             nonce += 1;
         }
-        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+        if env::used_gas() > max_gas {
             self.min_nonce = nonce - 1;
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {
@@ -248,8 +246,8 @@ impl AppchainMessages {
     pub fn remove_messages_before(
         &mut self,
         nonce_start: &u32,
+        max_gas: Gas,
     ) -> MultiTxsOperationProcessingResult {
-        let max_gas = Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING + 50);
         for nonce in self.min_nonce..*nonce_start {
             if env::used_gas() >= max_gas {
                 self.min_nonce = nonce;
