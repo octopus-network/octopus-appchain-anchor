@@ -308,6 +308,14 @@ impl AnchorViewer for AppchainAnchor {
         validator_id: AccountId,
     ) -> Vec<RewardHistory> {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
+        let latest_era = self
+            .validator_set_histories
+            .get()
+            .unwrap()
+            .index_range()
+            .end_index
+            .0;
+        let protocol_settings = self.protocol_settings.get().unwrap();
         let mut reward_histories = Vec::<RewardHistory>::new();
         for era_number in start_era.0..end_era.0 + 1 {
             if let Some(validator_set) = validator_set_histories.get(&era_number) {
@@ -323,6 +331,10 @@ impl AnchorViewer for AppchainAnchor {
                         era_number: U64::from(era_number),
                         total_reward: U128::from(reward),
                         unwithdrawn_reward: U128::from(unwithdrawn_reward),
+                        expired: era_number
+                            < latest_era
+                                - protocol_settings.maximum_era_count_of_unwithdrawn_reward.0
+                                + 1,
                     });
                 }
             }
@@ -345,6 +357,14 @@ impl AnchorViewer for AppchainAnchor {
     ) -> Vec<DelegationRewardHistory> {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let mut reward_histories = Vec::<DelegationRewardHistory>::new();
+        let latest_era = self
+            .validator_set_histories
+            .get()
+            .unwrap()
+            .index_range()
+            .end_index
+            .0;
+        let protocol_settings = self.protocol_settings.get().unwrap();
         for era_number in start_era.0..end_era.0 + 1 {
             if let Some(validator_set) = validator_set_histories.get(&era_number) {
                 if let Some(reward) =
@@ -363,6 +383,10 @@ impl AnchorViewer for AppchainAnchor {
                         delegated_validator: validator_id.clone(),
                         total_reward: U128::from(reward),
                         unwithdrawn_reward: U128::from(unwithdrawn_reward),
+                        expired: era_number
+                            < latest_era
+                                - protocol_settings.maximum_era_count_of_unwithdrawn_reward.0
+                                + 1,
                     });
                 }
             }

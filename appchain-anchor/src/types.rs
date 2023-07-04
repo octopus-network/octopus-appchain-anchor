@@ -400,6 +400,7 @@ pub struct RewardHistory {
     pub era_number: U64,
     pub total_reward: U128,
     pub unwithdrawn_reward: U128,
+    pub expired: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -409,6 +410,7 @@ pub struct DelegationRewardHistory {
     pub delegated_validator: AccountId,
     pub total_reward: U128,
     pub unwithdrawn_reward: U128,
+    pub expired: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
