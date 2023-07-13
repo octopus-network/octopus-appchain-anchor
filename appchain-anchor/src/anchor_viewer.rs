@@ -311,6 +311,14 @@ impl AnchorViewer for AppchainAnchor {
         validator_id: AccountId,
     ) -> Vec<RewardHistory> {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
+        let latest_era = self
+            .validator_set_histories
+            .get()
+            .unwrap()
+            .index_range()
+            .end_index
+            .0;
+        let protocol_settings = self.protocol_settings.get().unwrap();
         let mut reward_histories = Vec::<RewardHistory>::new();
         for era_number in start_era.0..end_era.0 + 1 {
             if let Some(validator_set) = validator_set_histories.get(&era_number) {
@@ -326,6 +334,10 @@ impl AnchorViewer for AppchainAnchor {
                         era_number: U64::from(era_number),
                         total_reward: U128::from(reward),
                         unwithdrawn_reward: U128::from(unwithdrawn_reward),
+                        expired: era_number
+                            < latest_era
+                                - protocol_settings.maximum_era_count_of_unwithdrawn_reward.0
+                                + 1,
                     });
                 }
             }
@@ -336,7 +348,12 @@ impl AnchorViewer for AppchainAnchor {
     fn get_validator_rewards(&self, validator_id: AccountId) -> Vec<RewardHistory> {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let index_range = validator_set_histories.index_range();
-        self.get_validator_rewards_of(index_range.start_index, index_range.end_index, validator_id)
+        let start_index = if index_range.start_index.0 < index_range.end_index.0 - 100 {
+            index_range.end_index.0 - 100
+        } else {
+            index_range.start_index.0
+        };
+        self.get_validator_rewards_of(U64::from(start_index), index_range.end_index, validator_id)
     }
     //
     fn get_delegator_rewards_of(
@@ -345,9 +362,17 @@ impl AnchorViewer for AppchainAnchor {
         end_era: U64,
         delegator_id: AccountId,
         validator_id: AccountId,
-    ) -> Vec<RewardHistory> {
+    ) -> Vec<DelegationRewardHistory> {
         let validator_set_histories = self.validator_set_histories.get().unwrap();
-        let mut reward_histories = Vec::<RewardHistory>::new();
+        let mut reward_histories = Vec::<DelegationRewardHistory>::new();
+        let latest_era = self
+            .validator_set_histories
+            .get()
+            .unwrap()
+            .index_range()
+            .end_index
+            .0;
+        let protocol_settings = self.protocol_settings.get().unwrap();
         for era_number in start_era.0..end_era.0 + 1 {
             if let Some(validator_set) = validator_set_histories.get(&era_number) {
                 if let Some(reward) =
@@ -361,10 +386,15 @@ impl AnchorViewer for AppchainAnchor {
                         Some(reward) => reward,
                         None => 0,
                     };
-                    reward_histories.push(RewardHistory {
+                    reward_histories.push(DelegationRewardHistory {
                         era_number: U64::from(era_number),
+                        delegated_validator: validator_id.clone(),
                         total_reward: U128::from(reward),
                         unwithdrawn_reward: U128::from(unwithdrawn_reward),
+                        expired: era_number
+                            < latest_era
+                                - protocol_settings.maximum_era_count_of_unwithdrawn_reward.0
+                                + 1,
                     });
                 }
             }
@@ -372,7 +402,7 @@ impl AnchorViewer for AppchainAnchor {
         reward_histories
     }
     //
-    fn get_delegator_rewards(&self, delegator_id: AccountId) -> Vec<RewardHistory> {
+    fn get_delegator_rewards(&self, delegator_id: AccountId) -> Vec<DelegationRewardHistory> {
         let staking_histories = self.get_user_staking_histories_of(delegator_id.clone());
         let mut validators = Vec::<AccountId>::new();
         staking_histories.iter().for_each(|staking_history| {
@@ -398,12 +428,17 @@ impl AnchorViewer for AppchainAnchor {
                 _ => (),
             };
         });
-        let mut results = Vec::<RewardHistory>::new();
+        let mut results = Vec::<DelegationRewardHistory>::new();
         let validator_set_histories = self.validator_set_histories.get().unwrap();
         let index_range = validator_set_histories.index_range();
+        let start_index = if index_range.start_index.0 < index_range.end_index.0 - 100 {
+            index_range.end_index.0 - 100
+        } else {
+            index_range.start_index.0
+        };
         validators.iter().for_each(|validator_id| {
             results.append(&mut self.get_delegator_rewards_of(
-                index_range.start_index,
+                U64::from(start_index),
                 index_range.end_index,
                 delegator_id.clone(),
                 validator_id.clone(),
