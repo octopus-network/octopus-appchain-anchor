@@ -8,10 +8,10 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client.git", branch = "main" }
-near-sdk = "4.0.0"
-near-contract-standards = "4.0.0"
+beefy-light-client = { git = "https://github.com/octopus-network/beefy-light-client.git", branch = "upgrade-borsh" }
+borsh = "1.5"
+near-sdk = "5"
+near-contract-standards = "5"
 hex = "0.4.2"
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 getrandom = { version = "0.2", features = ["custom"] }
 ed25519-dalek = { version = "1.0.1", features = ["alloc"] }

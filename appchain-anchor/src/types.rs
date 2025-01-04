@@ -1,7 +1,8 @@
+use std::collections::HashMap;
+
 use crate::*;
 use near_contract_standards::fungible_token::metadata::FungibleTokenMetadata;
 use near_contract_standards::non_fungible_token::metadata::NFTContractMetadata;
-use near_sdk::borsh::maybestd::collections::HashMap;
 use near_sdk::json_types::I128;
 
 pub type AppchainId = String;
@@ -215,7 +216,7 @@ pub struct NativeNearToken {
     pub price_in_usd: U128,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum StakingFact {
     /// A new validator is registered in appchain anchor
@@ -292,7 +293,7 @@ pub enum StakingFact {
     },
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct StakingHistory {
     pub staking_fact: StakingFact,
@@ -531,7 +532,7 @@ pub struct ValidatorProfile {
     pub profile: HashMap<String, String>,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum AppchainNotification {
     /// A certain amount of a NEAR fungible token has been locked in appchain anchor.
@@ -564,7 +565,7 @@ pub enum AppchainNotification {
     },
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct AppchainNotificationHistory {
     pub appchain_notification: AppchainNotification,
@@ -580,7 +581,7 @@ pub enum AppchainMessageProcessingResult {
     Error { nonce: u32, message: String },
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum MultiTxsOperationProcessingResult {
     NeedMoreGas,
@@ -693,4 +694,49 @@ pub struct WrappedAppchainNFT {
     pub contract_account: AccountId,
     pub bridging_state: BridgingState,
     pub count_of_locked_tokens: U64,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub enum RemovingValidatorSetSteps {
+    ClearingRewardDistributionRecords {
+        appchain_message_nonce_index: u32,
+        validator_index: u64,
+        delegator_index: u64,
+    },
+    ClearingRewardDistributionRecordsInValidatorSet {
+        validator_index: u64,
+        delegator_index: u64,
+    },
+    ClearingUnwithdrawnRewardRecordsForValidatorSet {
+        validator_index: u64,
+        delegator_index: u64,
+    },
+    ClearingOldestValidatorSet,
+}
+
+impl RemovingValidatorSetSteps {
+    ///
+    pub fn save(&self) {
+        env::storage_write(
+            &StorageKey::RemovingValidatorSetSteps.into_bytes(),
+            &borsh::to_vec(self).unwrap(),
+        );
+    }
+    ///
+    pub fn recover() -> Self {
+        let bytes = env::storage_read(&StorageKey::RemovingValidatorSetSteps.into_bytes());
+        if let Some(bytes) = bytes {
+            Self::try_from_slice(&bytes).unwrap()
+        } else {
+            Self::ClearingRewardDistributionRecords {
+                appchain_message_nonce_index: 0,
+                validator_index: 0,
+                delegator_index: 0,
+            }
+        }
+    }
+    ///
+    pub fn clear() {
+        env::storage_remove(&StorageKey::RemovingValidatorSetSteps.into_bytes());
+    }
 }

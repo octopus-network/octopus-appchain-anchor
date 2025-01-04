@@ -1,4 +1,3 @@
-use borsh::maybestd::collections::HashMap;
 use near_contract_standards::{
     fungible_token::metadata::FungibleTokenMetadata,
     non_fungible_token::metadata::NFTContractMetadata,
@@ -386,8 +385,6 @@ pub trait SudoActions {
 pub trait ValidatorActions {
     ///
     fn set_validator_id_in_appchain(&mut self, account_id_in_appchain: String);
-    ///
-    fn set_validator_profile(&mut self, profile: HashMap<String, String>);
 }
 
 pub trait WrappedAppchainTokenManager {

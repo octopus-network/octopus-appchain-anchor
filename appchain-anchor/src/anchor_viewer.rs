@@ -448,7 +448,7 @@ impl AnchorViewer for AppchainAnchor {
     }
     //
     fn get_storage_balance(&self) -> U128 {
-        U128::from(u128::from(env::storage_usage()) * env::storage_byte_cost())
+        U128::from(0)
     }
     //
     fn get_validator_deposit_of(&self, validator_id: AccountId, era_number: Option<U64>) -> U128 {
@@ -556,17 +556,7 @@ impl AnchorViewer for AppchainAnchor {
     }
     //
     fn get_validator_profiles(&self) -> Vec<ValidatorProfile> {
-        let mut results = Vec::<ValidatorProfile>::new();
-        let validator_profiles = self.validator_profiles.get().unwrap();
-        validator_profiles
-            .get_validator_ids()
-            .iter()
-            .for_each(|validator_id| {
-                if let Some(profile) = validator_profiles.get(validator_id) {
-                    results.push(profile);
-                }
-            });
-        results
+        vec![]
     }
     //
     fn get_validator_profile_by_id_in_appchain(

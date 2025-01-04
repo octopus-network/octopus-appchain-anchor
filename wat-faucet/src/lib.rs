@@ -2,9 +2,9 @@ use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     env,
     json_types::U128,
-    near_bindgen, AccountId, Gas, PanicOnDefault, Promise,
+    near_bindgen, AccountId, Gas, NearToken, PanicOnDefault, Promise,
 };
-use std::{ops::Mul, str::FromStr};
+use std::str::FromStr;
 
 /// Constants for gas.
 const T_GAS_FOR_BURN_WRAPPED_APPCHAIN_TOKEN: u64 = 35;
@@ -55,8 +55,8 @@ impl WrappedAppchainTokenFaucet {
         Promise::new(self.appchain_anchor_account.clone()).function_call(
             "burn_wrapped_appchain_token".to_string(),
             args,
-            0,
-            Gas::ONE_TERA.mul(T_GAS_FOR_BURN_WRAPPED_APPCHAIN_TOKEN),
+            NearToken::from_yoctonear(0),
+            Gas::from_tgas(T_GAS_FOR_BURN_WRAPPED_APPCHAIN_TOKEN),
         );
     }
 }

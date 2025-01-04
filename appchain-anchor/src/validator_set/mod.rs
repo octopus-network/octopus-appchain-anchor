@@ -5,7 +5,7 @@ use crate::*;
 pub mod next_validator_set;
 pub mod validator_set_of_era;
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct Validator {
     /// The validator's id in NEAR protocol.
     pub validator_id: AccountId,
@@ -23,7 +23,7 @@ pub struct Validator {
     pub can_be_delegated_to: bool,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct Delegator {
     /// The delegator's id in NEAR protocol.
     pub delegator_id: AccountId,
@@ -37,7 +37,7 @@ pub struct Delegator {
     pub deposit_amount: Balance,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct ValidatorSet {
     /// The number of era in appchain.
     era_number: u64,
@@ -114,7 +114,7 @@ impl ValidatorSet {
         }
     }
     ///
-    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
+    pub fn clear(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
         let validator_ids = self.validator_id_set.to_vec();
         for validator_id in validator_ids {
             if let Some(mut delegator_id_set) =
@@ -130,19 +130,21 @@ impl ValidatorSet {
                         validator_id_set_of_delegator.clear();
                         self.delegator_id_to_validator_id_set.remove(&delegator_id);
                     }
-                    if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+                    delegator_id_set.remove(&delegator_id);
+                    if env::used_gas() > max_gas {
+                        self.validator_id_to_delegator_id_set
+                            .insert(&validator_id, &delegator_id_set);
                         return MultiTxsOperationProcessingResult::NeedMoreGas;
                     }
                 }
-                delegator_id_set.clear();
                 self.validator_id_to_delegator_id_set.remove(&validator_id);
-                self.validators.remove(&validator_id);
-                if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
-                    return MultiTxsOperationProcessingResult::NeedMoreGas;
-                }
+            }
+            self.validators.remove(&validator_id);
+            self.validator_id_set.remove(&validator_id);
+            if env::used_gas() > max_gas {
+                return MultiTxsOperationProcessingResult::NeedMoreGas;
             }
         }
-        self.validator_id_set.clear();
         self.total_stake = 0;
         MultiTxsOperationProcessingResult::Ok
     }

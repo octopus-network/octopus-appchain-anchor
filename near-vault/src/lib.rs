@@ -1,7 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
-use near_sdk::{env, near_bindgen, AccountId, Gas, PanicOnDefault, Promise};
-use std::ops::Mul;
+use near_sdk::{env, near_bindgen, AccountId, Gas, NearToken, PanicOnDefault, Promise};
 use std::str::FromStr;
 
 /// Constants for gas.
@@ -43,7 +42,7 @@ impl NativeNearTokenReceiver {
         near_amount: U128,
     ) {
         assert!(
-            env::attached_deposit() == near_amount.0,
+            env::attached_deposit() == NearToken::from_yoctonear(near_amount.0),
             "Attached deposit is not equal to the requested amount."
         );
         //
@@ -64,17 +63,18 @@ impl NativeNearTokenReceiver {
         Promise::new(self.appchain_anchor_account.clone()).function_call(
             "generate_appchain_notification_for_near_deposit".to_string(),
             args,
-            0,
-            Gas::ONE_TERA.mul(T_GAS_FOR_GENERATE_APPCHAIN_NOTIFICATION),
+            NearToken::from_yoctonear(0),
+            Gas::from_tgas(T_GAS_FOR_GENERATE_APPCHAIN_NOTIFICATION),
         );
     }
     ///
     pub fn unlock_near(&mut self, receiver_id: AccountId, amount: U128) {
         self.assert_anchor();
         assert!(
-            env::account_balance() - env::account_locked_balance() > amount.0,
+            env::account_balance().saturating_sub(env::account_locked_balance())
+                > NearToken::from_yoctonear(amount.0),
             "Available balance is not enough."
         );
-        Promise::new(receiver_id).transfer(amount.0);
+        Promise::new(receiver_id).transfer(NearToken::from_yoctonear(amount.0));
     }
 }

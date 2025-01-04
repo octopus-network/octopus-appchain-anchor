@@ -22,57 +22,13 @@ impl NextValidatorSet {
         }
     }
     ///
-    pub fn from_validator_set(validator_set: ValidatorSet) -> Self {
-        Self {
-            validator_set,
-            unbonding_validator_ids: Vec::<AccountId>::new(),
-            auto_unbonding_validator_ids: Vec::<AccountId>::new(),
-        }
-    }
-    ///
-    pub fn validator_set(&self) -> &ValidatorSet {
-        &self.validator_set
-    }
-    ///
-    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
-        let result = self.validator_set.clear();
+    pub fn clear(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
+        let result = self.validator_set.clear(max_gas);
         if result.is_ok() {
             self.unbonding_validator_ids.clear();
             self.auto_unbonding_validator_ids.clear();
         }
         result
-    }
-    ///
-    pub fn apply_staking_fact(&mut self, staking_fact: &StakingFact) {
-        self.validator_set.apply_staking_fact(staking_fact);
-    }
-    ///
-    pub fn add_unbonding_validator(&mut self, validator_id: &AccountId) {
-        if !self.unbonding_validator_ids.contains(validator_id) {
-            self.unbonding_validator_ids.push(validator_id.clone());
-        }
-    }
-    ///
-    pub fn add_auto_unbonding_validator(&mut self, validator_id: &AccountId) {
-        if !self.auto_unbonding_validator_ids.contains(validator_id) {
-            self.auto_unbonding_validator_ids.push(validator_id.clone());
-        }
-    }
-    ///
-    pub fn get_unbonding_validator_ids(&self) -> Vec<AccountId> {
-        self.unbonding_validator_ids.to_vec()
-    }
-    ///
-    pub fn get_auto_unbonding_validator_ids(&self) -> Vec<AccountId> {
-        self.auto_unbonding_validator_ids.to_vec()
-    }
-    ///
-    pub fn clear_unbonding_validator_ids(&mut self) {
-        self.unbonding_validator_ids.clear();
-    }
-    ///
-    pub fn clear_auto_unbonding_validator_ids(&mut self) {
-        self.auto_unbonding_validator_ids.clear();
     }
     ///
     pub fn get_validator_list(&self) -> Vec<AppchainValidator> {

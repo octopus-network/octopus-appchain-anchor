@@ -1,7 +1,6 @@
 use crate::*;
-use codec::{Decode, Encode};
 
-#[derive(Encode, Decode, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize)]
 #[serde(crate = "near_sdk::serde")]
 pub enum PayloadType {
     Lock,
@@ -79,7 +78,7 @@ pub enum MessagePayload {
     LockNft(LockNftPayload),
 }
 
-#[derive(Encode, Decode, Clone)]
+#[derive(Clone)]
 pub struct RawMessage {
     pub nonce: u64,
     pub payload_type: PayloadType,
@@ -98,8 +97,8 @@ impl IndexedAndClearable for u32 {
         ()
     }
     //
-    fn clear_extra_storage(&mut self) -> MultiTxsOperationProcessingResult {
-        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+    fn clear_extra_storage(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
+        if env::used_gas() > max_gas {
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {
             MultiTxsOperationProcessingResult::Ok
@@ -133,6 +132,10 @@ impl AppchainMessages {
             min_nonce: 0,
             max_nonce: 0,
         }
+    }
+    //
+    pub fn len(&self) -> u64 {
+        self.message_nonces.len()
     }
     ///
     pub fn min_nonce(&self) -> u32 {
@@ -225,12 +228,12 @@ impl AppchainMessages {
         );
         let mut nonce = self.min_nonce + 1;
         while nonce <= self.max_nonce + 1
-            && env::used_gas() < Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
+            && env::used_gas() < Gas::from_tgas(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
         {
             self.remove_messages_before(&nonce);
             nonce += 1;
         }
-        if env::used_gas() > Gas::ONE_TERA.mul(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+        if env::used_gas() > Gas::from_tgas(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
             self.min_nonce = nonce - 1;
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {
@@ -242,9 +245,9 @@ impl AppchainMessages {
     ///
     pub fn remove_messages_before(&mut self, nonce: &u32) {
         for nonce in self.min_nonce..*nonce {
-            self.message_map.remove_raw(&nonce.try_to_vec().unwrap());
+            self.message_map.remove_raw(&borsh::to_vec(&nonce).unwrap());
             self.processing_result_map
-                .remove_raw(&nonce.try_to_vec().unwrap());
+                .remove_raw(&borsh::to_vec(&nonce).unwrap());
         }
         self.min_nonce = *nonce;
     }
