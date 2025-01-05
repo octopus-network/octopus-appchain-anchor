@@ -139,6 +139,10 @@ impl AppchainMessages {
             max_nonce: 0,
         }
     }
+    //
+    pub fn len(&self) -> u64 {
+        self.message_nonces.len()
+    }
     ///
     pub fn min_nonce(&self) -> u32 {
         self.min_nonce
@@ -222,18 +226,20 @@ impl AppchainMessages {
         results
     }
     ///
-    pub fn clear(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
+    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
         log!(
             "Nonce range of appchain messsages: {} - {}",
             self.min_nonce,
             self.max_nonce
         );
         let mut nonce = self.min_nonce + 1;
-        while nonce <= self.max_nonce + 1 && env::used_gas() < max_gas {
-            self.remove_messages_before(&nonce, max_gas);
+        while nonce <= self.max_nonce + 1
+            && env::used_gas() < Gas::ONE_TERA * T_GAS_CAP_FOR_MULTI_TXS_PROCESSING
+        {
+            self.remove_messages_before(&nonce);
             nonce += 1;
         }
-        if env::used_gas() > max_gas {
+        if env::used_gas() > Gas::ONE_TERA * T_GAS_CAP_FOR_MULTI_TXS_PROCESSING {
             self.min_nonce = nonce - 1;
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {
@@ -243,22 +249,13 @@ impl AppchainMessages {
         }
     }
     ///
-    pub fn remove_messages_before(
-        &mut self,
-        nonce_start: &u32,
-        max_gas: Gas,
-    ) -> MultiTxsOperationProcessingResult {
-        for nonce in self.min_nonce..*nonce_start {
-            if env::used_gas() >= max_gas {
-                self.min_nonce = nonce;
-                return MultiTxsOperationProcessingResult::NeedMoreGas;
-            }
-            self.message_map.remove_raw(&nonce.try_to_vec().unwrap());
+    pub fn remove_messages_before(&mut self, nonce: &u32) {
+        for nonce in self.min_nonce..*nonce {
+            self.message_map.remove_raw(&borsh::to_vec(&nonce).unwrap());
             self.processing_result_map
-                .remove_raw(&nonce.try_to_vec().unwrap());
+                .remove_raw(&borsh::to_vec(&nonce).unwrap());
         }
-        self.min_nonce = *nonce_start;
-        MultiTxsOperationProcessingResult::Ok
+        self.min_nonce = *nonce;
     }
 }
 

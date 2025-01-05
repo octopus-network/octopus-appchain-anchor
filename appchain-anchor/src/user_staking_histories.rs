@@ -17,6 +17,10 @@ impl UserStakingHistories {
             staking_histories_map: LookupMap::new(StorageKey::UserStakingHistoriesMap.into_bytes()),
         }
     }
+    //
+    pub fn len(&self) -> u64 {
+        self.account_id_set.len()
+    }
     ///
     pub fn add_staking_history(&mut self, staking_history: &StakingHistory) {
         let account_id = match &staking_history.staking_fact {
@@ -54,11 +58,11 @@ impl UserStakingHistories {
         }
     }
     ///
-    pub fn clear(&mut self, max_gas: Gas) -> MultiTxsOperationProcessingResult {
+    pub fn clear(&mut self) -> MultiTxsOperationProcessingResult {
         for account_id in self.account_id_set.to_vec() {
             self.staking_histories_map.remove(&account_id);
             self.account_id_set.remove(&account_id);
-            if env::used_gas() > max_gas {
+            if env::used_gas() > Gas::ONE_TERA * T_GAS_CAP_FOR_MULTI_TXS_PROCESSING {
                 return MultiTxsOperationProcessingResult::NeedMoreGas;
             }
         }

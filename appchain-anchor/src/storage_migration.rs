@@ -3,14 +3,6 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::{env, near_bindgen, AccountId, Balance};
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct OldAnchorSettings {
-    pub token_price_maintainer_account: Option<AccountId>,
-    pub relayer_account: Option<AccountId>,
-    pub beefy_light_client_witness_mode: bool,
-}
-
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct OldAppchainAnchor {
     /// The id of corresponding appchain.
@@ -47,7 +39,7 @@ pub struct OldAppchainAnchor {
     /// The custom settings for appchain.
     appchain_settings: LazyOption<AppchainSettings>,
     /// The anchor settings for appchain.
-    anchor_settings: LazyOption<OldAnchorSettings>,
+    anchor_settings: LazyOption<AnchorSettings>,
     /// The protocol settings for appchain anchor.
     protocol_settings: LazyOption<ProtocolSettings>,
     /// The state of the corresponding appchain.
@@ -104,12 +96,7 @@ impl AppchainAnchor {
             unbonded_stakes: old_contract.unbonded_stakes,
             validator_profiles: old_contract.validator_profiles,
             appchain_settings: old_contract.appchain_settings,
-            anchor_settings: LazyOption::new(
-                StorageKey::AnchorSettings.into_bytes(),
-                Some(&AnchorSettings::from_old_version(
-                    old_contract.anchor_settings.get().unwrap(),
-                )),
-            ),
+            anchor_settings: old_contract.anchor_settings,
             protocol_settings: old_contract.protocol_settings,
             appchain_state: old_contract.appchain_state,
             staking_histories: old_contract.staking_histories,
@@ -129,6 +116,285 @@ impl AppchainAnchor {
         //
         new_contract
     }
+    //
+    pub fn clear_all_state(&mut self) {
+        self.assert_owner();
+        if let Some(validator_set_histories) = self.validator_set_histories.get() {
+            if validator_set_histories.len() > 0 {
+                panic!("There are still some validator set histories.");
+            }
+        }
+        self.validator_set_histories.remove();
+        if let Some(staking_histories) = self.staking_histories.get() {
+            if staking_histories.len() > 0 {
+                panic!("There are still some staking histories.");
+            }
+        }
+        self.staking_histories.remove();
+        if let Some(user_staking_histories) = self.user_staking_histories.get() {
+            if user_staking_histories.len() > 0 {
+                panic!("There are still some user staking histories.");
+            }
+        }
+        self.user_staking_histories.remove();
+        if let Some(appchain_messages) = self.appchain_messages.get() {
+            if appchain_messages.len() > 0 {
+                panic!("There are still some appchain messages.");
+            }
+        }
+        self.appchain_messages.remove();
+        if let Some(appchain_notification_histories) = self.appchain_notification_histories.get() {
+            if appchain_notification_histories.len() > 0 {
+                panic!("There are still some appchain notification histories.");
+            }
+        }
+        self.appchain_notification_histories.remove();
+        //
+        //
+        //
+        if let Some(mut next_validator_set) = self.next_validator_set.get() {
+            next_validator_set.clear(Gas::ONE_TERA * 100);
+        }
+        self.next_validator_set.remove();
+        if let Some(mut appchain_challenges) = self.appchain_challenges.get() {
+            appchain_challenges.clear(Gas::ONE_TERA * 10);
+        }
+        self.appchain_challenges.remove();
+        if let Some(mut near_fungible_tokens) = self.near_fungible_tokens.get() {
+            near_fungible_tokens.clear();
+        }
+        self.near_fungible_tokens.remove();
+        if let Some(mut validator_profiles) = self.validator_profiles.get() {
+            validator_profiles.clear();
+        }
+        self.validator_profiles.remove();
+        if let Some(mut wrapped_appchain_nfts) = self.wrapped_appchain_nfts.get() {
+            wrapped_appchain_nfts.clear();
+        }
+        self.wrapped_appchain_nfts.remove();
+        //
+        self.oct_token.remove();
+        self.wrapped_appchain_token.remove();
+        self.appchain_settings.remove();
+        self.anchor_settings.remove();
+        self.protocol_settings.remove();
+        self.permissionless_actions_status.remove();
+        self.beefy_light_client_state.remove();
+        self.reward_distribution_records.remove();
+        self.native_near_token.remove();
+        // self.unwithdrawn_validator_rewards.clear();
+        // self.unwithdrawn_delegator_rewards.clear();
+        // self.unbonded_stakes.clear();
+    }
+    //
+    pub fn clear_validator_set_histories(&mut self) -> String {
+        self.assert_owner();
+        let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        if validator_set_histories.len() == 0 {
+            return "No more validator set histories.".to_string();
+        }
+        let max_gas = Gas::ONE_TERA * 170;
+        let mut era_number = validator_set_histories.index_range().start_index;
+        while env::used_gas() < max_gas && validator_set_histories.get(&era_number.0).is_none() {
+            validator_set_histories.remove_first(max_gas);
+            era_number = validator_set_histories.index_range().start_index;
+        }
+        let mut validator_set_of_era = validator_set_histories.get(&era_number.0).unwrap();
+        let mut result = (MultiTxsOperationProcessingResult::NeedMoreGas, None);
+        while env::used_gas() < max_gas && result.0.is_need_more_gas() {
+            result = match RemovingValidatorSetSteps::recover() {
+                RemovingValidatorSetSteps::ClearingRewardDistributionRecords {
+                    appchain_message_nonce_index,
+                    validator_index,
+                    delegator_index,
+                } => {
+                    let mut reward_distribution_records =
+                        self.reward_distribution_records.get().unwrap();
+                    let mut result = reward_distribution_records.clear(
+                        &validator_set_of_era,
+                        &era_number.0,
+                        appchain_message_nonce_index,
+                        validator_index,
+                        delegator_index,
+                        max_gas,
+                    );
+                    self.reward_distribution_records
+                        .set(&reward_distribution_records);
+                    if result.is_ok() {
+                        RemovingValidatorSetSteps::ClearingRewardDistributionRecordsInValidatorSet {
+                            validator_index: 0,
+                            delegator_index: 0,
+                        }
+                        .save();
+                        result = MultiTxsOperationProcessingResult::NeedMoreGas;
+                    }
+                    (result, Some(RemovingValidatorSetSteps::recover()))
+                }
+                RemovingValidatorSetSteps::ClearingRewardDistributionRecordsInValidatorSet {
+                    validator_index,
+                    delegator_index,
+                } => {
+                    let mut result = validator_set_of_era.clear_reward_distribution_records(
+                        validator_index,
+                        delegator_index,
+                        max_gas,
+                    );
+                    validator_set_histories.insert(&era_number.0, &validator_set_of_era);
+                    if result.is_ok() {
+                        RemovingValidatorSetSteps::ClearingUnwithdrawnRewardRecordsForValidatorSet {
+                            validator_index: 0,
+                            delegator_index: 0,
+                        }
+                        .save();
+                        result = MultiTxsOperationProcessingResult::NeedMoreGas;
+                    }
+                    (result, Some(RemovingValidatorSetSteps::recover()))
+                }
+                RemovingValidatorSetSteps::ClearingUnwithdrawnRewardRecordsForValidatorSet {
+                    validator_index,
+                    delegator_index,
+                } => {
+                    let mut result = self.clear_unwithdrawn_reward_records(
+                        &validator_set_of_era,
+                        validator_index,
+                        delegator_index,
+                        max_gas,
+                    );
+                    if result.is_ok() {
+                        RemovingValidatorSetSteps::ClearingOldestValidatorSet.save();
+                        result = MultiTxsOperationProcessingResult::NeedMoreGas;
+                    }
+                    (result, Some(RemovingValidatorSetSteps::recover()))
+                }
+                RemovingValidatorSetSteps::ClearingOldestValidatorSet => {
+                    let result = validator_set_histories.remove_first(max_gas);
+                    if result.is_ok() {
+                        RemovingValidatorSetSteps::clear();
+                        (result, None)
+                    } else {
+                        (result, Some(RemovingValidatorSetSteps::recover()))
+                    }
+                }
+            };
+        }
+        self.validator_set_histories.set(&validator_set_histories);
+        format!("Era {}: {:?}", era_number.0, result)
+    }
+    //
+    pub fn clear_appchain_notification_histories(&mut self) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
+        let mut appchain_notification_histories =
+            self.appchain_notification_histories.get().unwrap();
+        let max_gas = Gas::ONE_TERA * 170;
+        let mut result = MultiTxsOperationProcessingResult::Ok;
+        while env::used_gas() < max_gas && result.is_ok() {
+            result = appchain_notification_histories.remove_first(max_gas);
+        }
+        self.appchain_notification_histories
+            .set(&appchain_notification_histories);
+        result
+    }
+    //
+    pub fn clear_staking_histories(&mut self) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
+        let mut staking_histories = self.staking_histories.get().unwrap();
+        let max_gas = Gas::ONE_TERA * 170;
+        let mut result = MultiTxsOperationProcessingResult::Ok;
+        while env::used_gas() < max_gas && result.is_ok() {
+            result = staking_histories.remove_first(max_gas);
+        }
+        self.staking_histories.set(&staking_histories);
+        result
+    }
+    //
+    pub fn clear_user_staking_histories(&mut self) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
+        let mut user_staking_histories = self.user_staking_histories.get().unwrap();
+        let result = user_staking_histories.clear();
+        self.user_staking_histories.set(&user_staking_histories);
+        result
+    }
+    //
+    pub fn clear_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
+        let mut appchain_messages = self.appchain_messages.get().unwrap();
+        let result = appchain_messages.clear();
+        self.appchain_messages.set(&appchain_messages);
+        result
+    }
+    //
+    pub fn remove_staged_wasm(&mut self) {
+        self.assert_owner();
+        log!(
+            "AnchorContractWasm: {}",
+            env::storage_remove(&StorageKey::AnchorContractWasm.into_bytes())
+        );
+        log!(
+            "WrappedAppchainNFTContractWasm: {}",
+            env::storage_remove(&StorageKey::WrappedAppchainNFTContractWasm.into_bytes())
+        );
+        log!(
+            "NearVaultContractWasm: {}",
+            env::storage_remove(&StorageKey::NearVaultContractWasm.into_bytes())
+        );
+    }
+}
+
+impl AppchainAnchor {
+    pub fn clear_unwithdrawn_reward_records(
+        &mut self,
+        validator_set_of_era: &ValidatorSetOfEra,
+        validator_index_start: u64,
+        delegator_index_start: u64,
+        max_gas: Gas,
+    ) -> MultiTxsOperationProcessingResult {
+        let era_number = validator_set_of_era.era_number();
+        let validator_ids = validator_set_of_era.get_validator_ids();
+        let mut validator_index = 0;
+        let mut delegator_index = 0;
+        for validator_id in validator_ids {
+            if validator_index < validator_index_start {
+                validator_index += 1;
+                continue;
+            }
+            let delegator_ids = validator_set_of_era.get_delegator_ids_of(&validator_id);
+            for delegator_id in delegator_ids {
+                if validator_index == validator_index_start
+                    && delegator_index < delegator_index_start
+                {
+                    delegator_index += 1;
+                    continue;
+                }
+                self.unwithdrawn_delegator_rewards.remove(&(
+                    era_number,
+                    delegator_id.clone(),
+                    validator_id.clone(),
+                ));
+                delegator_index += 1;
+                if env::used_gas() >= max_gas {
+                    RemovingValidatorSetSteps::ClearingUnwithdrawnRewardRecordsForValidatorSet {
+                        validator_index,
+                        delegator_index,
+                    }
+                    .save();
+                    return MultiTxsOperationProcessingResult::NeedMoreGas;
+                }
+            }
+            self.unwithdrawn_validator_rewards
+                .remove(&(era_number, validator_id.clone()));
+            validator_index += 1;
+            delegator_index = 0;
+            if env::used_gas() >= max_gas {
+                RemovingValidatorSetSteps::ClearingUnwithdrawnRewardRecordsForValidatorSet {
+                    validator_index,
+                    delegator_index,
+                }
+                .save();
+                return MultiTxsOperationProcessingResult::NeedMoreGas;
+            }
+        }
+        MultiTxsOperationProcessingResult::Ok
+    }
 }
 
 pub fn get_storage_key_in_lookup_array<T: BorshSerialize>(
@@ -136,16 +402,4 @@ pub fn get_storage_key_in_lookup_array<T: BorshSerialize>(
     index: &T,
 ) -> Vec<u8> {
     [prefix.into_bytes(), index.try_to_vec().unwrap()].concat()
-}
-
-impl AnchorSettings {
-    //
-    pub fn from_old_version(old_version: OldAnchorSettings) -> Self {
-        Self {
-            token_price_maintainer_account: old_version.token_price_maintainer_account,
-            relayer_account: old_version.relayer_account,
-            beefy_light_client_witness_mode: old_version.beefy_light_client_witness_mode,
-            min_length_of_validator_set_history: U64::from(100),
-        }
-    }
 }

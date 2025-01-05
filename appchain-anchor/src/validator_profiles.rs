@@ -76,4 +76,14 @@ impl ValidatorProfiles {
         self.profiles
             .remove_raw(&validator_id.try_to_vec().unwrap())
     }
+    //
+    pub fn clear(&mut self) {
+        for validator_id in self.validator_id_set.iter() {
+            if let Some(profile) = self.profiles.get(&validator_id) {
+                self.map_by_id_in_appchain
+                    .remove(&profile.validator_id_in_appchain);
+            }
+            self.profiles.remove(&validator_id);
+        }
+    }
 }
