@@ -156,7 +156,7 @@ where
         while index <= self.end_index && self.remove_at(&index, max_gas).is_ok() {
             index += 1;
         }
-        if env::used_gas() > Gas::from_tgas(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+        if env::used_gas() > Gas::ONE_TERA * T_GAS_CAP_FOR_MULTI_TXS_PROCESSING {
             self.start_index = index;
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {

@@ -16,14 +16,13 @@ mod validator_set;
 
 use core::convert::TryInto;
 use getrandom::{register_custom_getrandom, Error};
-use near_contract_standards::fungible_token::Balance;
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedSet};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, log, near_bindgen, serde_json, AccountId, Gas, NearToken, PanicOnDefault, Promise,
+    env, log, near_bindgen, serde_json, AccountId, Balance, Gas, PanicOnDefault, Promise,
     PublicKey, Timestamp,
 };
 
@@ -335,8 +334,8 @@ impl AppchainAnchor {
         Promise::new(self.appchain_registry.clone()).function_call(
             "sync_state_of".to_string(),
             args,
-            NearToken::from_yoctonear(0),
-            Gas::from_tgas(T_GAS_FOR_SYNC_STATE_TO_REGISTRY),
+            0,
+            Gas::ONE_TERA * T_GAS_FOR_SYNC_STATE_TO_REGISTRY,
         );
     }
 }

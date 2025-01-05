@@ -228,12 +228,12 @@ impl AppchainMessages {
         );
         let mut nonce = self.min_nonce + 1;
         while nonce <= self.max_nonce + 1
-            && env::used_gas() < Gas::from_tgas(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING)
+            && env::used_gas() < Gas::ONE_TERA * T_GAS_CAP_FOR_MULTI_TXS_PROCESSING
         {
             self.remove_messages_before(&nonce);
             nonce += 1;
         }
-        if env::used_gas() > Gas::from_tgas(T_GAS_CAP_FOR_MULTI_TXS_PROCESSING) {
+        if env::used_gas() > Gas::ONE_TERA * T_GAS_CAP_FOR_MULTI_TXS_PROCESSING {
             self.min_nonce = nonce - 1;
             MultiTxsOperationProcessingResult::NeedMoreGas
         } else {

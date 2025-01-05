@@ -153,11 +153,11 @@ impl AppchainAnchor {
         //
         //
         if let Some(mut next_validator_set) = self.next_validator_set.get() {
-            next_validator_set.clear(Gas::from_tgas(150));
+            next_validator_set.clear(Gas::ONE_TERA * 150);
         }
         self.next_validator_set.remove();
         if let Some(mut appchain_challenges) = self.appchain_challenges.get() {
-            appchain_challenges.clear(Gas::from_tgas(10));
+            appchain_challenges.clear(Gas::ONE_TERA * 10);
         }
         self.appchain_challenges.remove();
         if let Some(mut near_fungible_tokens) = self.near_fungible_tokens.get() {
@@ -193,7 +193,7 @@ impl AppchainAnchor {
         if validator_set_histories.len() == 0 {
             return "No more validator set histories.".to_string();
         }
-        let max_gas = Gas::from_tgas(170);
+        let max_gas = Gas::ONE_TERA * 170;
         let mut era_number = validator_set_histories.index_range().start_index;
         while env::used_gas() < max_gas && validator_set_histories.get(&era_number.0).is_none() {
             validator_set_histories.remove_first(max_gas);
@@ -285,7 +285,7 @@ impl AppchainAnchor {
         self.assert_owner();
         let mut appchain_notification_histories =
             self.appchain_notification_histories.get().unwrap();
-        let max_gas = Gas::from_tgas(170);
+        let max_gas = Gas::ONE_TERA * 170;
         let mut result = MultiTxsOperationProcessingResult::Ok;
         while env::used_gas() < max_gas && result.is_ok() {
             result = appchain_notification_histories.remove_first(max_gas);
@@ -298,7 +298,7 @@ impl AppchainAnchor {
     pub fn clear_staking_histories(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut staking_histories = self.staking_histories.get().unwrap();
-        let max_gas = Gas::from_tgas(170);
+        let max_gas = Gas::ONE_TERA * 170;
         let mut result = MultiTxsOperationProcessingResult::Ok;
         while env::used_gas() < max_gas && result.is_ok() {
             result = staking_histories.remove_first(max_gas);

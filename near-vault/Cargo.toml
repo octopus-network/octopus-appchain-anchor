@@ -1,12 +1,12 @@
 [package]
 name = "near-vault"
 version = "0.1.0"
+authors = ["Octopus Network"]
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-borsh = "1.5"
-near-sdk = "5"
-near-contract-standards = "5"
+near-sdk = "4.0.0"
+near-contract-standards = "4.0.0"
