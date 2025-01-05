@@ -184,7 +184,10 @@ where
             None => MultiTxsOperationProcessingResult::Ok,
         };
         if result.is_ok() {
-            if *index == self.start_index && *index < self.end_index {
+            if *index == self.start_index && *index == self.end_index {
+                self.start_index = 0;
+                self.end_index = 0;
+            } else if *index == self.start_index && *index < self.end_index {
                 self.start_index += 1;
             } else if *index == self.end_index && *index > self.start_index {
                 self.end_index -= 1;

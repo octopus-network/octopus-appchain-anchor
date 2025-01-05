@@ -143,16 +143,19 @@ impl AppchainAnchor {
             }
         }
         self.appchain_messages.remove();
-        if let Some(mut next_validator_set) = self.next_validator_set.get() {
-            next_validator_set.clear(Gas::from_tgas(130));
-        }
-        self.next_validator_set.remove();
-        if let Some(mut appchain_notification_histories) =
-            self.appchain_notification_histories.get()
-        {
-            appchain_notification_histories.clear(Gas::from_tgas(30));
+        if let Some(appchain_notification_histories) = self.appchain_notification_histories.get() {
+            if appchain_notification_histories.len() > 0 {
+                panic!("There are still some appchain notification histories.");
+            }
         }
         self.appchain_notification_histories.remove();
+        //
+        //
+        //
+        if let Some(mut next_validator_set) = self.next_validator_set.get() {
+            next_validator_set.clear(Gas::from_tgas(150));
+        }
+        self.next_validator_set.remove();
         if let Some(mut appchain_challenges) = self.appchain_challenges.get() {
             appchain_challenges.clear(Gas::from_tgas(10));
         }
@@ -187,6 +190,9 @@ impl AppchainAnchor {
     pub fn clear_validator_set_histories(&mut self) -> String {
         self.assert_owner();
         let mut validator_set_histories = self.validator_set_histories.get().unwrap();
+        if validator_set_histories.len() == 0 {
+            return "No more validator set histories.".to_string();
+        }
         let max_gas = Gas::from_tgas(170);
         let mut era_number = validator_set_histories.index_range().start_index;
         while env::used_gas() < max_gas && validator_set_histories.get(&era_number.0).is_none() {
@@ -275,6 +281,20 @@ impl AppchainAnchor {
         format!("Era {}: {:?}", era_number.0, result)
     }
     //
+    pub fn clear_appchain_notification_histories(&mut self) -> MultiTxsOperationProcessingResult {
+        self.assert_owner();
+        let mut appchain_notification_histories =
+            self.appchain_notification_histories.get().unwrap();
+        let max_gas = Gas::from_tgas(170);
+        let mut result = MultiTxsOperationProcessingResult::Ok;
+        while env::used_gas() < max_gas && result.is_ok() {
+            result = appchain_notification_histories.remove_first(max_gas);
+        }
+        self.appchain_notification_histories
+            .set(&appchain_notification_histories);
+        result
+    }
+    //
     pub fn clear_staking_histories(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut staking_histories = self.staking_histories.get().unwrap();
@@ -283,19 +303,30 @@ impl AppchainAnchor {
         while env::used_gas() < max_gas && result.is_ok() {
             result = staking_histories.remove_first(max_gas);
         }
+        self.staking_histories.set(&staking_histories);
         result
     }
     //
     pub fn clear_user_staking_histories(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut user_staking_histories = self.user_staking_histories.get().unwrap();
-        user_staking_histories.clear()
+        let mut result = MultiTxsOperationProcessingResult::Ok;
+        while result.is_ok() {
+            result = user_staking_histories.clear();
+        }
+        self.user_staking_histories.set(&user_staking_histories);
+        result
     }
     //
     pub fn clear_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut appchain_messages = self.appchain_messages.get().unwrap();
-        appchain_messages.clear()
+        let mut result = MultiTxsOperationProcessingResult::Ok;
+        while result.is_ok() {
+            result = appchain_messages.clear();
+        }
+        self.appchain_messages.set(&appchain_messages);
+        result
     }
 }
 
