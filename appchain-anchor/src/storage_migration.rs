@@ -310,10 +310,7 @@ impl AppchainAnchor {
     pub fn clear_user_staking_histories(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut user_staking_histories = self.user_staking_histories.get().unwrap();
-        let mut result = MultiTxsOperationProcessingResult::Ok;
-        while result.is_ok() {
-            result = user_staking_histories.clear();
-        }
+        let result = user_staking_histories.clear();
         self.user_staking_histories.set(&user_staking_histories);
         result
     }
@@ -321,12 +318,25 @@ impl AppchainAnchor {
     pub fn clear_appchain_messages(&mut self) -> MultiTxsOperationProcessingResult {
         self.assert_owner();
         let mut appchain_messages = self.appchain_messages.get().unwrap();
-        let mut result = MultiTxsOperationProcessingResult::Ok;
-        while result.is_ok() {
-            result = appchain_messages.clear();
-        }
+        let result = appchain_messages.clear();
         self.appchain_messages.set(&appchain_messages);
         result
+    }
+    //
+    pub fn remove_staged_wasm(&mut self) {
+        self.assert_owner();
+        log!(
+            "AnchorContractWasm: {}",
+            env::storage_remove(&StorageKey::AnchorContractWasm.into_bytes())
+        );
+        log!(
+            "WrappedAppchainNFTContractWasm: {}",
+            env::storage_remove(&StorageKey::WrappedAppchainNFTContractWasm.into_bytes())
+        );
+        log!(
+            "NearVaultContractWasm: {}",
+            env::storage_remove(&StorageKey::NearVaultContractWasm.into_bytes())
+        );
     }
 }
 
